@@ -1,0 +1,15 @@
+git checkout main
+git pull origin main
+git merge frontend-next
+git push
+//
+
+avant de coder****
+git checkout stephanie
+git pull origin main
+git status
+
+for pushing//*
+git add .
+git commit -m "Description de tes modifs"
+git push

@@ -1,0 +1,31 @@
+#Pour lancer l'environnement virtuelle
+python -m venv venv
+venv\Scripts\activate
+
+
+#Pour lancer le server
+python manage.py runserver
+
+#Pour updater le plan d'actions
+python manage.py makemigrations marches
+
+#Pour migrer dans la Bdd
+python manage.py migrate
+
+#SQL shell
+Server [localhost]: Appuie sur Entrée (sauf si ta base est sur un serveur distant)
+Database [postgres]: Tape le nom de ta base de données (celui que tu as défini dans le settings.py de Django)
+Port [5432]: Appuie sur Entrée
+\l : affiche liste de tout les bdd
+\c nomdelabase : se connecter a une base
+\dt : affiche liste des tables de la bdd actuelle
+SELECT * FROM nom_de_la_table LIMIT 10; : consulter données
+\q : quitter
+
+#creer token
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+
+#enregistre mon travail dans ma branche: git add .
+git commit -m "nom de mon travail"
+
+.get() est ce qu'on appelle une sécurité avec valeur par défaut.

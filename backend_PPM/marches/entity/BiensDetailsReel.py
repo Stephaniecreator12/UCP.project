@@ -1,0 +1,19 @@
+from django.db import models
+from marches.entity.Biens import Biens
+from datetime import timedelta
+
+class BiensDetailsReel(models.Model):
+    id = models.AutoField(primary_key=True)
+    biens = models.ForeignKey(Biens, on_delete=models.CASCADE)
+    reel = models.CharField(max_length=255)
+    listesetspecifications = models.DateField(null=True, blank=True)
+    dossiers_appel = models.DateField(null=True, blank=True)
+    date_lancement = models.DateField(null=True, blank=True)
+    date_ouverture = models.DateField(null=True, blank=True)
+    rapport_evaluation = models.DateField(null=True, blank=True)
+    date_signature = models.DateField(null=True, blank=True)
+    date_livraison = models.DateField(null=True, blank=True)
+    commentaire = models.TextField(null=True, blank=True)
+   
+    class Meta:
+        db_table = "biens_details_reel"

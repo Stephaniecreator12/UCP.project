@@ -1,0 +1,421 @@
+/**
+ * Configurations pour chaque tableau
+ * Travaux, Biens & Services, Consultants
+ */
+
+import { ColumnConfig, SelectOption } from "@/types/grid";
+import { MenuItemType } from "@/types/grid";
+
+// Options pour les listes déroulantes strictement contrôlées
+
+//BST:bien & service et consultant
+const METHOD_OPTIONS_BST: SelectOption[] = [
+  { value: "", label: "-- Sélectionner --" },
+  { value: "aon", label: "AON" },
+  { value: "aoi", label: "AOI" },
+  { value: "dc", label: "DC" },
+  { value: "ed", label: "ED" },
+];
+
+// for Travaux
+const METHOD_OPTIONS_TRAVAUX: SelectOption[] = [
+  { value: "", label: "-- Sélectionner --" },
+  { value: "sfqc", label: "SFQC" },
+  { value: "scbd", label: "SCBD" },
+  { value: "smc", label: "SMC" },
+  { value: "sfq", label: "SFQ" },
+  { value: "sqc", label: "SQC" },
+  { value: "sci", label: "SCI" },
+  { value: "sed", label: "SED" },
+];
+
+const APPROACH_OPTIONS: SelectOption[] = [
+  { value: "", label: "-- Sélectionner --" },
+  { value: "open", label: "Ouverte" },
+  { value: "restricted", label: "Restreinte" },
+  { value: "selective", label: "Sélective" },
+];
+
+
+const PRICING_OPTIONS: SelectOption[] = [
+  { value: "", label: "-- Sélectionner --" },
+  { value: "forfait", label: "Forfait" },
+  { value: "time_based", label: "Temps passé" },
+];
+
+const PLANNED_VS_ACTUAL_OPTIONS: SelectOption[] = [
+  { value: "", label: "-- Sélectionner --" },
+  { value: "planned", label: "Prévu" },
+  { value: "actual", label: "Réel" },
+];
+
+// Colonnes pour Travaux et Biens & Services (identiques)
+export const WORKS_GOODS_COLUMNS: ColumnConfig[] = [
+  {
+    key: "tracking_code",
+    label: "Code suivi",
+    width: "120px",
+    editable: true,
+    placeholder: "Code suivi",
+  },
+  {
+    key: "title",
+    label: "Intitulé",
+    width: "250px",
+    type: "text",
+    editable: true,
+    placeholder: "Intitulé du marché",
+  },
+  {
+    key: "estimated_amount",
+    label: "Montant estimatif ($)",
+    width: "150px",
+    type: "number",
+    editable: true,
+    placeholder: "0.00",
+  },
+  {
+    key: "agmo",
+    label: "AGMO",
+    width: "150px",
+    type: "text",
+    editable: true,
+    placeholder: "AGMO",
+  },
+  {
+    key: "method",
+    label: "Méthode P.M.",
+    width: "180px",
+    type: "select",
+    editable: true,
+    options: METHOD_OPTIONS_BST,
+  },
+  {
+    key: "approach",
+    label: "Approches",
+    width: "150px",
+    type: "select",
+    editable: true,
+    options: APPROACH_OPTIONS,
+  },
+  {
+    key: "review_status",
+    label: "Revue",
+    width: "120px",
+    readonly: true,
+    editable: false,
+    calculated: true,
+    calculateValue: (row) => row.review_status || "post",
+  },
+  {
+    key: "planned_vs_actual",
+    label: "Prévu vs Réel",
+    width: "140px",
+    editable: false,
+    isSplit: true,
+  },
+  {
+    // DATE CALCULÉE (Retro-planning)
+    key: "specifications_date",
+    label: "Listes et spécifications",
+    width: "140px",
+    type: "date",
+    editable: true,
+    readonly: false,
+    isSplit: true,
+    splitController: "planned_vs_actual",
+  },
+  {
+    // DATE CALCULÉE (Retro-planning)
+    key: "tender_documents_date",
+    label: "Dossiers d'appel d'offres",
+    width: "140px",
+    type: "date",
+    editable: true,
+    readonly: false,
+    isSplit: true,
+    splitController: "planned_vs_actual",
+  },
+  {
+    // DATE CALCULÉE (Retro-planning)
+    key: "launch_date",
+    label: "Date de lancement",
+    width: "130px",
+    type: "date",
+    editable: true,
+    readonly: false,
+    isSplit: true,
+    splitController: "planned_vs_actual",
+  },
+  {
+    // DATE CALCULÉE (Retro-planning)
+    key: "opening_date",
+    label: "Date d'ouverture",
+    width: "130px",
+    type: "date",
+    editable: true,
+    readonly: false,
+    isSplit: true,
+    splitController: "planned_vs_actual",
+  },
+  {
+    key: "evaluation_report",
+    label: "Rapport d'évaluation",
+    width: "140px",
+    readonly: true,
+    editable: false,
+    calculated: true,
+    calculateValue: (row) => row.evaluation_report_status || "-",
+    isSplit: true,
+    splitController: "planned_vs_actual",
+  },
+  {
+    // DATE CALCULÉE (Retro-planning)
+    key: "contract_date",
+    label: "Date signature contrat",
+    width: "130px",
+    type: "date",
+    editable: true,
+    readonly: false,
+    isSplit: true,
+    splitController: "planned_vs_actual",
+  },
+  {
+    // DATE DRIVER - ÉDITABLE (Date Fin)
+    key: "delivery_date",
+    label: "Date de livraison",
+    width: "130px",
+    type: "date",
+    editable: true,
+    isSplit: true,
+    splitController: "planned_vs_actual",
+  },
+  {
+    key: "action_calculation",
+    label: "Calcul",
+    width: "80px",
+    type: "action_button",
+    editable: false,
+  },
+  {
+    key: "comments",
+    label: "Commentaires",
+    width: "250px",
+    type: "textarea",
+    editable: true,
+    placeholder: "Ajouter des commentaires...",
+  },
+];
+
+// Colonnes pour Consultants
+export const CONSULTANTS_COLUMNS: ColumnConfig[] = [
+  {
+    key: "tracking_code",
+    label: "Réf N° / Code suivi",
+    width: "120px",
+    editable: true,
+    placeholder: "Réf N° / Code suivi",
+  },
+  {
+    key: "title",
+    label: "Intitulé",
+    width: "250px",
+    type: "text",
+    editable: true,
+    placeholder: "Intitulé de la consultation",
+  },
+  {
+    key: "estimated_amount",
+    label: "Montant estimatif ($)",
+    width: "150px",
+    type: "number",
+    editable: true,
+    placeholder: "0.00",
+  },
+  {
+    key: "method",
+    label: "Méthode",
+    width: "180px",
+    type: "select",
+    editable: true,
+    options: METHOD_OPTIONS_TRAVAUX,
+  },
+  {
+    key: "approach",
+    label: "Approche",
+    width: "150px",
+    type: "select",
+    editable: true,
+    options: APPROACH_OPTIONS,
+  },
+  {
+    key: "review_status",
+    label: "Revue",
+    width: "120px",
+    type: "select",
+    editable: true,
+  },
+  {
+    key: "pricing_type",
+    label: "Forfait / Temps passé",
+    width: "140px",
+    editable: false,
+    isSplit: true,
+  },
+  {
+    // DATE CALCULÉE (Retro-planning)
+    key: "terms_of_reference",
+    label: "Termes de référence",
+    width: "140px",
+    type: "date",
+    editable: true,
+    readonly: false,
+    isSplit: true,
+    splitController: "pricing_type",
+  },
+  {
+    key: "ami",
+    label: "AMI",
+    width: "100px",
+    type: "date",
+    editable: true,
+    isSplit: true,
+    splitController: "pricing_type",
+  },
+  {
+    key: "restricted_list",
+    label: "Liste restreinte",
+    width: "120px",
+    type: "date",
+    editable: true,
+    isSplit: true,
+    splitController: "pricing_type",
+  },
+  {
+    key: "request_for_proposal",
+    label: "Demande de proposition",
+    width: "140px",
+    type: "date",
+    editable: true,
+    isSplit: true,
+    splitController: "pricing_type",
+  },
+  {
+    // DATE CALCULÉE (Retro-planning)
+    key: "invitation_date",
+    label: "Date invitation",
+    width: "130px",
+    type: "date",
+    readonly: false,
+    editable: true,
+    isSplit: true,
+    splitController: "pricing_type",
+  },
+  {
+    // DATE CALCULÉE (Retro-planning)
+    key: "submissions_opening_date",
+    label: "Date ouverture des plis",
+    width: "140px",
+    type: "date",
+    readonly: false,
+    editable: true,
+    isSplit: true,
+    splitController: "pricing_type",
+  },
+  {
+    key: "technical_evaluation",
+    label: "Rapport d'évaluation technique",
+    width: "150px",
+    readonly: true,
+    editable: false,
+    calculated: true,
+    calculateValue: (row) => row.technical_evaluation_status || "-",
+    isSplit: true,
+    splitController: "pricing_type",
+  },
+  {
+    // DATE CALCULÉE (Retro-planning)
+    key: "financial_opening_date",
+    label: "Ouverture des plis financiers",
+    width: "150px",
+    type: "date",
+    readonly: false,
+    editable: true,
+    isSplit: true,
+    splitController: "pricing_type",
+  },
+  {
+    key: "contract_draft",
+    label: "Projet de contrat négocié",
+    width: "140px",
+    readonly: true,
+    editable: false,
+    calculated: true,
+    calculateValue: (row) => row.contract_draft_status || "-",
+    isSplit: true,
+    splitController: "pricing_type",
+  },
+  {
+    // DATE CALCULÉE (Retro-planning)
+    key: "contract_date",
+    label: "Date signature contrat",
+    width: "130px",
+    type: "date",
+    readonly: false,
+    editable: true,
+    isSplit: true,
+    splitController: "pricing_type",
+  },
+  {
+    // DATE DRIVER - ÉDITABLE (Date Fin)
+    key: "mission_end_date",
+    label: "Date fin de mission",
+    width: "130px",
+    type: "date",
+    readonly: false,
+    editable: true,
+    isSplit: true,
+    splitController: "pricing_type",
+  },
+  {
+    key: "action_calculation",
+    label: "Calcul",
+    width: "80px",
+    type: "action_button",
+    editable: false,
+  },
+  {
+    key: "comments",
+    label: "Commentaires",
+    width: "250px",
+    type: "textarea",
+    editable: true,
+    placeholder: "Ajouter des commentaires...",
+  },
+];
+
+// Configuration par type de menu
+export const TABLE_CONFIGS = {
+  works: {
+    label: "Travaux",
+    columns: WORKS_GOODS_COLUMNS,
+    icon: "📋",
+  },
+  "goods-services": {
+    label: "Biens & Services",
+    columns: WORKS_GOODS_COLUMNS, // Identique à Travaux
+    icon: "📦",
+  },
+  consultants: {
+    label: "Consultants",
+    columns: CONSULTANTS_COLUMNS,
+    icon: "👤",
+  },
+};
+
+// Ordre d'affichage des menus (à modifier pour réorganiser la sidebar)
+export const MENU_ITEMS: MenuItemType[] = [
+  "works",
+  "goods-services",
+  "consultants",
+];

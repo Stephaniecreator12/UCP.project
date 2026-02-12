@@ -209,6 +209,12 @@ export default function Dashboard() {
     }
   };
 
+  const handleRowUpdate = (updatedRow: GridRow) => {
+    setRows((prevRows) =>
+      prevRows.map((row) => (row._id === updatedRow._id ? updatedRow : row))
+    );
+  };
+
   return (
     <div className="dashboard">
       <SidebarMenu activeMenu={activeMenu} onMenuSelect={setActiveMenu} />
@@ -227,7 +233,8 @@ export default function Dashboard() {
             columns={config.columns}
             rows={rows}
             onRowChange={handleRowChange}
-            onRowSave={handleRowSave} // Gardé pour compatibilité ou calculs, mais ne déclenche plus de fetch auto
+            onRowSave={handleRowSave} // Gardé pour compatibilité
+            onRowUpdate={handleRowUpdate} // Nouvelle prop pour mise à jour locale (Calcul)
             onRowDelete={handleRowDelete}
             onAddRow={handleAddRow}
             isLoading={isLoading || isSaving}

@@ -211,8 +211,7 @@ export async function calculatePlanning(
   methode: string = "AOI",
   duree: number = 60
 ): Promise<any> {
-  const endpoint = `${API_BASE_URL}/api/Travaux/calculer_planning/`;
-
+  const endpoint = `${API_BASE_URL}/api/Travaux/calculerPlanningTravaux/`;
   try {
     const response = await fetch(endpoint, {
       method: "POST",

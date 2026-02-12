@@ -13,6 +13,7 @@ interface GridTableProps {
   onRowSave?: (row: GridRow) => void;
   onRowDelete?: (rowId: string) => void;
   onAddRow?: () => void;
+  onRowUpdate?: (updatedRow: GridRow) => void;
   isLoading?: boolean;
 }
 
@@ -23,6 +24,7 @@ export default function GridTable({
   onRowSave,
   onRowDelete,
   onAddRow,
+  onRowUpdate,
   isLoading = false,
 }: GridTableProps) {
   // Etat pour tracker quelle cellule est en cours d'edition
@@ -33,6 +35,58 @@ export default function GridTable({
 
   // Etat pour la valeur actuellement tapee dans l'input
   const [editValue, setEditValue] = useState<any>("");
+
+  const splitDateColumns = columns.filter((c) => c.type === "date" && c.isSplit);
+
+  const hasValue = (value: any): boolean => {
+    return value !== null && value !== undefined && String(value).trim() !== "";
+  };
+
+  const getSplitDateContext = (columnKey: string) => {
+    const isActual = columnKey.endsWith("_actual");
+    const baseKey = isActual ? columnKey.replace(/_actual$/, "") : columnKey;
+    const columnConfig = splitDateColumns.find((c) => c.key === baseKey);
+
+    if (!columnConfig) return null;
+
+    const index = splitDateColumns.findIndex((c) => c.key === baseKey);
+    return { isActual, baseKey, index };
+  };
+
+  const validateDateOrder = (
+    row: GridRow,
+    columnKey: string,
+    nextValue: any
+  ): string | null => {
+    if (!hasValue(nextValue)) return null;
+
+    const dateContext = getSplitDateContext(columnKey);
+    if (!dateContext) return null;
+
+    const { isActual, baseKey, index } = dateContext;
+
+    if (isActual && !hasValue(row[baseKey])) {
+      return "Impossible de saisir le Réel tant que la date Prévue de cette colonne est vide.";
+    }
+
+    if (index > 0) {
+      const previousColumn = splitDateColumns[index - 1];
+      const previousKey = isActual
+        ? `${previousColumn.key}_actual`
+        : previousColumn.key;
+      const previousValue = row[previousKey];
+
+      if (!hasValue(previousValue)) {
+        return "Remplissez d'abord la colonne précédente.";
+      }
+
+      if (String(nextValue) < String(previousValue)) {
+        return "La date doit être supérieure ou égale à la date de la colonne précédente.";
+      }
+    }
+
+    return null;
+  };
 
   // Quand on clique sur une cellule
   const handleCellClick = (rowId: string | undefined, column: ColumnConfig) => {
@@ -57,6 +111,17 @@ export default function GridTable({
     const row = rows.find((r) => r._id === editingCell.rowId);
 
     if (row && onRowChange) {
+      const dateValidationError = validateDateOrder(
+        row,
+        editingCell.columnKey,
+        editValue
+      );
+
+      if (dateValidationError) {
+        alert(dateValidationError);
+        return;
+      }
+
       console.log("Saving row change:", editingCell.rowId, editingCell.columnKey, editValue);
       onRowChange(editingCell.rowId, editingCell.columnKey, editValue);
       // REMOVED AUTO-SAVE: onRowSave is now only called manually via the main button
@@ -119,48 +184,48 @@ export default function GridTable({
       // 2. Appel Backend
       // Import dynamique ou passage en props si besoin, ici on utilise l'import direct
       const { calculatePlanning } = await import("@/services/api");
-      
-      const method = row.method?.toLowerCase() || "aoi"; 
+
+      const method = row.method?.toLowerCase() || "aoi";
       const newDates = await calculatePlanning(driverDate, method);
 
       // 3. Mapping des résultats (Backend -> Frontend keys)
       // Le backend renvoie: dossiers_appel_prevu, date_lancement_prevu, etc.
       // Le frontend attend: tender_documents_date, launch_date, etc.
-      
+
       const mappedDates = {
         tender_documents_date: newDates.dossiers_appel_prevu,
         launch_date: newDates.date_lancement_prevu,
         opening_date: newDates.date_ouverture_prevu,
-        evaluation_report_status: newDates.rapport_evaluation_prevu, // Usurpation temporaire du champ status pour stocker la date ?? Attention types
+        evaluation_report: newDates.rapport_evaluation_prevu, // Mapping direct sur la clé de colonne
         // Ah, le backend renvoie 'rapport_evaluation_prevu' comme date. 
         // Le frontend a 'evaluation_report' (status read-only). 
         // On va peut-être devoir adapter. Pour l'instant on map ce qu'on peut.
-        
+
         contract_date: newDates.date_signature_prevu,
         specifications_date: newDates.listesetspecifications || newDates.dossiers_appel_prevu, // Fallback
       };
 
       // Apply updates
-      if (onRowChange && row._id) {
-         // On doit mettre à jour plusieurs champs. 
-         // GridTable ne supporte nativement que onRowChange(cell).
-         // Idéalement il faudrait un onRowUpdate(wholeRow).
-         // On va tricher en bouclant ou en utilisant onRowSave si dispo pour update local ?
-         // On va utiliser onRowSave pour mettre à jour l'état local du parent si c'est ce qu'il fait.
-         
-         const updatedRow = {
-            ...row,
-            ...mappedDates,
-            _isCalculated: true
-         };
-         
-         if (onRowSave) onRowSave(updatedRow); 
+      if (onRowUpdate && row._id) {
+        // On doit mettre à jour plusieurs champs. 
+        const updatedRow = {
+          ...row,
+          ...mappedDates,
+          _isCalculated: true
+        };
+
+        onRowUpdate(updatedRow);
       }
-      
+
       alert("Calcul terminé avec succès !");
 
     } catch (error: any) {
-      alert("Erreur de calcul: " + error.message);
+      console.error(error);
+      let msg = error.message;
+      if (msg === "Failed to fetch") {
+        msg = "Impossible de contacter le serveur. Vérifiez que le backend est lancé sur l'adresse IP configurée.";
+      }
+      alert("Erreur: " + msg);
     }
   };
 
@@ -184,7 +249,16 @@ export default function GridTable({
       // For others:
       const hasValues = !!row[column.key];
       const isCalculated = row._isCalculated === true;
-      return hasValues || isCalculated;
+      const dateColumns = columns.filter(c => c.type === "date" && c.isSplit);
+      const myIndex = dateColumns.findIndex(c => c.key === column.key);
+
+      if (myIndex > 0) {
+        const prevColumn = dateColumns[myIndex - 1];
+        const prevPlannedValue = row[prevColumn.key];
+        if (!prevPlannedValue) return false;
+      }
+
+      return hasValues || isCalculated || myIndex === 0;
     }
 
     // 5. ACTUAL DATES Logic (Strict Sequential)

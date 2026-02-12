@@ -37,6 +37,9 @@ export default function GridTable({
   const [editValue, setEditValue] = useState<any>("");
 
   const splitDateColumns = columns.filter((c) => c.type === "date" && c.isSplit);
+  const isDriverDateKey = (key: string): boolean => {
+    return key === "delivery_date" || key === "mission_end_date";
+  };
 
   const hasValue = (value: any): boolean => {
     return value !== null && value !== undefined && String(value).trim() !== "";
@@ -64,6 +67,10 @@ export default function GridTable({
     if (!dateContext) return null;
 
     const { isActual, baseKey, index } = dateContext;
+
+    if (isDriverDateKey(baseKey)) {
+      return null;
+    }
 
     if (isActual && !hasValue(row[baseKey])) {
       return "Impossible de saisir le Réel tant que la date Prévue de cette colonne est vide.";
@@ -174,7 +181,11 @@ export default function GridTable({
   // CALCUL des dates (via Backend)
   const handleCalculate = async (row: GridRow) => {
     // 1. Determine Driver Date
-    const driverDate = row.delivery_date || row.mission_end_date;
+    const driverDate =
+      row.delivery_date ||
+      row.delivery_date_actual ||
+      row.mission_end_date ||
+      row.mission_end_date_actual;
     if (!driverDate) {
       alert("Veuillez d'abord saisir une date de fin (Livraison ou Fin de mission).");
       return;

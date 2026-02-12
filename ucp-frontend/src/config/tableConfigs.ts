@@ -8,7 +8,7 @@ import { MenuItemType } from "@/types/grid";
 
 // Options pour les listes déroulantes strictement contrôlées
 
-//BST:bien & service et consultant
+//BST:bien & service et travaux
 const METHOD_OPTIONS_BST: SelectOption[] = [
   { value: "", label: "-- Sélectionner --" },
   { value: "aon", label: "AON" },
@@ -18,12 +18,10 @@ const METHOD_OPTIONS_BST: SelectOption[] = [
 ];
 
 // for Travaux
-const METHOD_OPTIONS_TRAVAUX: SelectOption[] = [
+const METHOD_OPTIONS_CONSULTANT: SelectOption[] = [
   { value: "", label: "-- Sélectionner --" },
   { value: "sfqc", label: "SFQC" },
-  { value: "scbd", label: "SCBD" },
   { value: "smc", label: "SMC" },
-  { value: "sfq", label: "SFQ" },
   { value: "sqc", label: "SQC" },
   { value: "sci", label: "SCI" },
   { value: "sed", label: "SED" },
@@ -159,13 +157,13 @@ export const WORKS_GOODS_COLUMNS: ColumnConfig[] = [
     splitController: "planned_vs_actual",
   },
   {
+    // DATE CALCULÉE (Retro-planning)
     key: "evaluation_report",
     label: "Rapport d'évaluation",
     width: "140px",
-    readonly: true,
-    editable: false,
-    calculated: true,
-    calculateValue: (row) => row.evaluation_report_status || "-",
+    type: "date",
+    editable: true,
+    readonly: false,
     isSplit: true,
     splitController: "planned_vs_actual",
   },
@@ -238,7 +236,7 @@ export const CONSULTANTS_COLUMNS: ColumnConfig[] = [
     width: "180px",
     type: "select",
     editable: true,
-    options: METHOD_OPTIONS_TRAVAUX,
+    options: METHOD_OPTIONS_CONSULTANT,
   },
   {
     key: "approach",

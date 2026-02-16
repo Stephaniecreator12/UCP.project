@@ -10,7 +10,8 @@ class Travaux(models.Model):
     approches = models.CharField(max_length=255)
     revue = models.CharField(max_length=255)
     listesetspecifications = models.DateField(null=True, blank=True)
-    prevu = models.CharField(max_length=255, default="Prévu")
+    prevu = models.CharField(null=True, blank=True)
+    reel = models.CharField(null=True, blank=True)
     commentaire = models.TextField(null=True, blank=True)
 
     # --- DATES PREVUES (Sert de référence, peut être calculé une fois à la création) ---

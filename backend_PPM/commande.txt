@@ -1,7 +1,5 @@
 #Pour lancer l'environnement virtuelle
-python -m venv venv
 venv\Scripts\activate
-
 
 #Pour lancer le server
 python manage.py runserver
@@ -12,7 +10,7 @@ python manage.py makemigrations marches
 #Pour migrer dans la Bdd
 python manage.py migrate
 
-#SQL shell
+#SQL SHELL
 Server [localhost]: Appuie sur Entrée (sauf si ta base est sur un serveur distant)
 Database [postgres]: Tape le nom de ta base de données (celui que tu as défini dans le settings.py de Django)
 Port [5432]: Appuie sur Entrée
@@ -22,10 +20,37 @@ Port [5432]: Appuie sur Entrée
 SELECT * FROM nom_de_la_table LIMIT 10; : consulter données
 \q : quitter
 
-#creer token
+#CREER TOKEN
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 
-#enregistre mon travail dans ma branche: git add .
-git commit -m "nom de mon travail"
+#ENREGISTRE MON TRAVAIL DANS UNE BRANCHE: git add .
+git commit -m "commentaire"
+git push origin nom_de_ma_branche
 
-.get() est ce qu'on appelle une sécurité avec valeur par défaut.
+#PRENDRE LE CODE DE LA BRANCHE DE QQLQ
+git switch ma-branche
+git fetch origin : recupere le code de la branche de qqlq
+git merge origin/branchedeqlq : merge le code de la branche de qqlq >>attention<<
+
+
+>> .get() est ce qu'on appelle une sécurité avec valeur par défaut. <<
+
+#supprimer données dans la table
+>> TRUNCATE TABLE nom_de_ta_table RESTART IDENTITY CASCADE; <<
+RESTART IDENTITY : Remet les compteurs (ID auto-incrémentés) à zéro.
+CASCADE : Supprime aussi les données dans les tables liées par des clés étrangères.
+--ou bien sur le terminal -- 
+dropdb nom_de_ma_bdd
+createdb nom_de_ma_bdd
+
+# TUIER LE PROCESSUS NODE(NEXT MI-RUN EN ARRIER PLAN) A LA MAIN
+taskkill /F /IM node.exe
+
+#ACTUALISER LE CODE DE LA BRANCHE
+git pull origin nom_de_la_branche
+
+# Stashing is like putting your current work in a temporary drawer. It clears your workspace so you can switch branches, and you can "pop" the drawer(tiroir) open later to get your work back.
+To save your work: git stash
+
+# au lieu de install corsheaders, ...
+pip install -r requirements.txt

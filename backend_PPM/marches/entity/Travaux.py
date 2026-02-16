@@ -13,6 +13,7 @@ class Travaux(models.Model):
     prevu = models.CharField(null=True, blank=True)
     reel = models.CharField(null=True, blank=True)
     commentaire = models.TextField(null=True, blank=True)
+    statut = models.CharField(max_length=255, null=True, blank=True)
 
     # --- DATES PREVUES (Sert de référence, peut être calculé une fois à la création) ---
     dossiers_appel_prevu = models.DateField(null=True, blank=True)

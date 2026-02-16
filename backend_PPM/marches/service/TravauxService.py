@@ -25,6 +25,7 @@ def insert_mock_travaux(request):
                 'prevu': 'Prévu',
                 'reel': 'Réel',
                 'commentaire': 'Remarque par défaut',
+                'statut': 'En cours',
                 'listesetspecifications': '2026-01-01',
                 'dossiers_appel_prevu': '2026-01-01',
                 'date_lancement_prevu': '2026-01-01',

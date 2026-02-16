@@ -44,7 +44,8 @@ def insert_mock_consultance(request):
                 'projet_contrat_reel': None,
                 'date_signature_reel': None,
                 'date_fin_reel': None,
-                'commentaire': 'Remarque par défaut'
+                'commentaire': 'Remarque par défaut',
+                'statut': 'En cours'
             }
             
             data.update(request_data)

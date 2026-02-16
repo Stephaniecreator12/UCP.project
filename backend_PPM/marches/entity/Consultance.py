@@ -11,6 +11,7 @@ class Consultance(models.Model):
     revue = models.CharField(max_length=255)
     forfaitxtemps = models.CharField(max_length=255,null=True, blank=True)
     commentaire = models.TextField(null=True, blank=True)
+    statut = models.CharField(max_length=255, null=True, blank=True)
     
 # -- DATES PREVU --
     TdR_prevu = models.DateField(null=True, blank=True)

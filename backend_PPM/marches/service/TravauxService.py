@@ -66,7 +66,7 @@ def lister_travaux(request):
             'rapport_evaluation_prevu': travaux.rapport_evaluation_prevu,
             'date_signature_prevu': travaux.date_signature_prevu,
             'date_livraison_prevu': travaux.date_livraison_prevu,
-            'reel': travaux.reel,
+            # 'reel': travaux.reel, # Champ inexistant dans le modèle
             'dossiers_appel_reel': travaux.dossiers_appel_reel,
             'date_lancement_reel': travaux.date_lancement_reel,
             'date_ouverture_reel': travaux.date_ouverture_reel,

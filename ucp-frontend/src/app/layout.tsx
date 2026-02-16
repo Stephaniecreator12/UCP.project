@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "e-Proc UCP - Gestion des Procurements",
-  description: "Système de gestion des procurements",
+  title: "UCP - Gestion des Marchés",
+  description: "Système de saisie et suivi des marchés",
 };
 
 export default function RootLayout({

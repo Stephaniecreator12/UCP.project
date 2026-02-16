@@ -3,13 +3,13 @@
 import React, { useState } from "react";
 import { ColumnConfig, GridRow } from "@/types/grid";
 import GridCell from "./GridCell";
-import "./GridTable.css";
+
 
 // Props pour le composant GridTable
 interface GridTableProps {
   columns: ColumnConfig[];
   rows: GridRow[];
-  onRowChange?: (rowId: string, columnKey: string, value: any) => void;
+  onRowChange?: (rowId: string, columnKey: string, value: unknown) => void;
   onRowSave?: (row: GridRow) => void;
   onRowDelete?: (rowId: string) => void;
   onAddRow?: () => void;
@@ -34,14 +34,14 @@ export default function GridTable({
   } | null>(null);
 
   // Etat pour la valeur actuellement tapee dans l'input
-  const [editValue, setEditValue] = useState<any>("");
+  const [editValue, setEditValue] = useState<unknown>("");
 
   const splitDateColumns = columns.filter((c) => c.type === "date" && c.isSplit);
   const isDriverDateKey = (key: string): boolean => {
     return key === "delivery_date" || key === "mission_end_date";
   };
 
-  const hasValue = (value: any): boolean => {
+  const hasValue = (value: unknown): boolean => {
     return value !== null && value !== undefined && String(value).trim() !== "";
   };
 
@@ -59,7 +59,7 @@ export default function GridTable({
   const validateDateOrder = (
     row: GridRow,
     columnKey: string,
-    nextValue: any
+    nextValue: unknown
   ): string | null => {
     if (!hasValue(nextValue)) return null;
 
@@ -107,7 +107,7 @@ export default function GridTable({
   };
 
   // Quand on change la valeur dans l'input
-  const handleCellChange = (value: any) => {
+  const handleCellChange = (value: unknown) => {
     setEditValue(value);
   };
 
@@ -150,7 +150,13 @@ export default function GridTable({
 
   // Obtenir la largeur d'une colonne
   const getColumnWidth = (column: ColumnConfig): string => {
-    return column.width || "150px";
+    const configuredWidth = column.width || "150px";
+    const configuredWidthPx = Number.parseInt(configuredWidth, 10);
+    const safeConfiguredWidth = Number.isNaN(configuredWidthPx)
+      ? 150
+      : configuredWidthPx;
+    const headerBasedMinWidth = Math.max(130, column.label.length * 9 + 40);
+    return `${Math.max(safeConfiguredWidth, headerBasedMinWidth)}px`;
   };
 
   // Afficher la valeur d'une cellule
@@ -203,7 +209,7 @@ export default function GridTable({
       // Le backend renvoie: dossiers_appel_prevu, date_lancement_prevu, etc.
       // Le frontend attend: tender_documents_date, launch_date, etc.
 
-      const mappedDates = {
+      const mappedDates: GridRow = {
         tender_documents_date: newDates.dossiers_appel_prevu,
         launch_date: newDates.date_lancement_prevu,
         opening_date: newDates.date_ouverture_prevu,
@@ -230,9 +236,9 @@ export default function GridTable({
 
       alert("Calcul terminé avec succès !");
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(error);
-      let msg = error.message;
+      let msg = error instanceof Error ? error.message : "Erreur inconnue";
       if (msg === "Failed to fetch") {
         msg = "Impossible de contacter le serveur. Vérifiez que le backend est lancé sur l'adresse IP configurée.";
       }
@@ -310,8 +316,8 @@ export default function GridTable({
         <table className="table table-bordered table-hover mb-0">
           <thead className="table-light">
             <tr>
-              <th className="text-center" style={{ width: "60px" }}>
-                Actions
+              <th className="text-center action-header" style={{ width: "120px", minWidth: "120px" }}>
+                Action
               </th>
               {columns.map((column) => (
                 <th
@@ -344,16 +350,53 @@ export default function GridTable({
               rows.map((row) => (
                 <tr key={row._id}>
                   <td
-                    className="text-center align-middle"
-                    style={{ width: "60px" }}
+                    className="text-center align-middle action-cell"
+                    style={{ width: "120px", minWidth: "120px", padding: "10px" }}
                   >
-                    <button
-                      className="btn btn-sm btn-danger"
-                      onClick={() => row._id && onRowDelete?.(row._id)}
-                      title="Supprimer cette ligne"
-                    >
-                      🗑️
-                    </button>
+                    <div className="d-flex gap-2 justify-content-center action-buttons">
+                      <button
+                        className="action-btn action-btn-save"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (onRowSave) onRowSave(row);
+                          else console.warn("onRowSave not provided");
+                        }}
+                        title="Enregistrer la ligne"
+                        aria-label="Enregistrer la ligne"
+                      >
+                        <svg
+                          className="action-icon"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          <path d="M5 3h12l4 4v14H5V3z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+                          <path d="M8 3v6h8V3" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+                          <rect x="8" y="14" width="8" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.8" />
+                        </svg>
+                      </button>
+                      <button
+                        className="action-btn action-btn-delete"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (row._id && onRowDelete) onRowDelete(row._id);
+                        }}
+                        title="Supprimer"
+                        aria-label="Supprimer la ligne"
+                      >
+                        <svg
+                          className="action-icon"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          <path d="M4 7h16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                          <path d="M9 7V5h6v2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                          <path d="M7 7l1 12h8l1-12" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+                          <path d="M10 11v5M14 11v5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                        </svg>
+                      </button>
+                    </div>
                   </td>
 
                   {columns.map((column) => (
@@ -414,58 +457,49 @@ export default function GridTable({
 
                               const isEditable = isCellEditable(row, column, isActual);
 
-                              // Determine background color based on logic:
-                              // 1. Read-only columns are ALWAYS Grey
-                              // 2. Active Editable cells are White
-                              // 3. Inactive Editable cells are Rose (or Tinted)
-                              // 4. Blocked Sequential cells (should look disabled/greyish?)
+                              // SPECTACULAR THEME LOGIC
+                              // 1. Read-only columns: Slate 100 (#f1f5f9) - Subtle & Professional
+                              // 2. Active Editable cells: White (#ffffff) with Glow
+                              // 3. Inactive cells: Slate 50 (#f8fafc)
 
-                              const isColumnReadonly = column.readonly || column.editable === false; // Config Level
+                              const isColumnReadonly = column.readonly || column.editable === false;
                               const hasExplicitState = !!row[controllerKey];
 
-                              let bgColor = "#ffffff";
-                              let textColor = "#495057";
+                              let bgColor = "transparent";
+                              let textColor = "#334155"; // Slate 700
 
                               if (isColumnReadonly) {
-                                bgColor = "#e9ecef";
-                                textColor = "#6c757d";
+                                bgColor = "#f1f5f9"; // Slate 100
+                                textColor = "#64748b"; // Slate 500
                               } else if (!isEditable) {
-                                // Blocked by logic (e.g. sequence not met)
-                                bgColor = "#f8f9fa"; // Very light grey
-                                textColor = "#adb5bd"; // Lighter text
+                                bgColor = "#f8fafc";
+                                textColor = "#94a3b8";
                               } else if (!hasExplicitState) {
-                                bgColor = "#ffffff";
+                                bgColor = "transparent";
                               } else if (isActive) {
                                 bgColor = "#ffffff";
                               } else {
-                                // Inactive
-                                if (isPricing) {
-                                  bgColor = isActual ? "#f3e8ff" : "#e8f5e9";
-                                } else {
-                                  bgColor = "#fff1f2";
-                                }
-                                textColor = "#6c757d";
+                                bgColor = "#f8fafc";
+                                textColor = "#64748b";
                               }
 
                               const bgStyle = { backgroundColor: bgColor, color: textColor };
-                              // Cursor: Pointer only if Active AND Editable
-                              const cursorStyle = (isActive && isEditable) ? "pointer" : "not-allowed";
+                              const cursorStyle = (isActive && isEditable) ? "text" : "not-allowed";
 
-                              // --- CONTROLLER COLUMN RENDERING ---
+                              // --- CONTROLLER BUTTON ---
                               if (isLabelColumn) {
-                                // Click to toggle state
                                 const targetValue = isActual ? VAL_BOTTOM : VAL_TOP;
                                 const buttonStyle = isActive
                                   ? {
-                                    backgroundColor: "#0d6efd", // Bootstrap Primary Blue
+                                    backgroundColor: "#334155", // Slate 700 - Deep & Classy
                                     color: "#ffffff",
-                                    boxShadow: "0 2px 4px rgba(13, 110, 253, 0.2)",
-                                    transform: "scale(1.02)"
+                                    boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+                                    transform: "translateY(-1px)"
                                   }
                                   : {
                                     backgroundColor: "transparent",
-                                    color: "#6c757d",
-                                    border: "1px solid #dee2e6"
+                                    color: "#94a3b8",
+                                    border: "1px solid #e2e8f0"
                                   };
 
                                 return (
@@ -474,16 +508,16 @@ export default function GridTable({
                                     style={{
                                       ...buttonStyle,
                                       minHeight: "35px",
-                                      borderRadius: "8px", // Modern rounded corners
+                                      borderRadius: "8px",
                                       cursor: "pointer",
-                                      fontWeight: "600",
-                                      fontSize: "0.85rem",
-                                      transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)", // Smooth animation
+                                      fontWeight: "700", // Bolder
+                                      fontSize: "0.80rem",
+                                      letterSpacing: "0.025em",
+                                      transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
                                       userSelect: "none"
                                     }}
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      // Update the row state!
                                       if (onRowChange && row._id) {
                                         onRowChange(row._id, column.key, targetValue);
                                       }
@@ -494,22 +528,21 @@ export default function GridTable({
                                 );
                               }
 
-                              // --- DATA COLUMN RENDERING ---
+                              // --- DATA COLUMN ---
                               const effectiveKey = isActual ? `${column.key}_actual` : column.key;
                               const cellValue = row[effectiveKey];
-                              const isCellEditing = isEditing(row._id, effectiveKey);
 
                               return (
                                 <div
-                                  className={`flex-grow-1 p-2 ${isActual ? "border-top" : ""}`}
+                                  className={`flex-grow-1 p-2 ${isActual ? "border-top-subtle" : ""}`}
                                   style={{
                                     ...bgStyle,
                                     minHeight: "35px",
                                     cursor: cursorStyle,
-                                    transition: "background-color 0.4s ease, color 0.4s ease" // Animation added
+                                    borderTop: isActual ? "1px solid #f1f5f9" : "none",
+                                    transition: "all 0.2s ease"
                                   }}
                                   onClick={(e) => {
-                                    // Only allow editing if part is ACTIVE and Editable
                                     if (isActive && isEditable) {
                                       e.stopPropagation();
                                       setEditingCell({ rowId: row._id!, columnKey: effectiveKey });
@@ -527,7 +560,7 @@ export default function GridTable({
                                       autoFocus
                                     />
                                   ) : (
-                                    <div className="cell-value text-truncate">
+                                    <div className="cell-value text-truncate" style={{ fontWeight: 500 }}>
                                       {cellValue}
                                     </div>
                                   )}
@@ -544,13 +577,11 @@ export default function GridTable({
                           })()}
                         </div>
                       ) : (
-                        // Standard non-split cell behavior
                         <div
                           className="h-100 w-100 p-2 d-flex align-items-center justify-content-center"
                           onClick={() => {
                             if (column.type === "action_button") {
-                              // Handle Action Button
-                              if (column.key === "action_calculation") { // Check key or add specific handler
+                              if (column.key === "action_calculation") {
                                 handleCalculate(row);
                               }
                             } else {
@@ -559,7 +590,12 @@ export default function GridTable({
                           }}
                         >
                           {column.type === "action_button" ? (
-                            <button className="btn btn-sm btn-outline-primary" onClick={(e) => {
+                            <button className="btn btn-sm" style={{
+                              background: "linear-gradient(to right, #3b82f6, #2563eb)",
+                              color: "white",
+                              border: "none",
+                              boxShadow: "0 4px 6px rgba(37, 99, 235, 0.2)"
+                            }} onClick={(e) => {
                               e.stopPropagation();
                               handleCalculate(row);
                             }}>
@@ -572,9 +608,7 @@ export default function GridTable({
                               onChange={handleCellChange}
                               onBlur={handleCellBlur}
                               onConfirm={(val) => {
-                                // Immediate save (skipping state wait)
                                 if (onRowChange && row._id) {
-                                  console.log("Immediate confirm:", row._id, column.key, val);
                                   onRowChange(row._id, column.key, val);
                                 }
                                 setEditingCell(null);
@@ -599,9 +633,15 @@ export default function GridTable({
         </table>
       </div>
 
-      <div className="d-flex gap-2 p-3 bg-light border-top">
+      <div className="d-flex gap-2 p-3 border-top" style={{ background: "#ffffff", borderBottomLeftRadius: "16px", borderBottomRightRadius: "16px" }}>
         <button
-          className="btn btn-primary"
+          className="btn"
+          style={{
+            background: "#10b981",
+            color: "white",
+            fontWeight: "bold",
+            padding: "10px 24px"
+          }}
           onClick={onAddRow}
           disabled={isLoading}
         >

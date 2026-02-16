@@ -6,10 +6,10 @@ import { ColumnConfig } from "@/types/grid";
 // Les props qu'on reçoit
 interface GridCellProps {
   column: ColumnConfig;
-  value: any;
-  onChange: (value: any) => void;
+  value: unknown;
+  onChange: (value: unknown) => void;
   onBlur: () => void;
-  onConfirm?: (value: any) => void; // New prop for immediate save
+  onConfirm?: (value: unknown) => void; // New prop for immediate save
   onKeyDown: (e: React.KeyboardEvent) => void;
   autoFocus?: boolean;
 }
@@ -107,7 +107,7 @@ export default function GridCell({
       <input
         ref={inputRef as React.Ref<HTMLInputElement>}
         type="number"
-        value={value ?? ""}
+        value={typeof value === "number" ? value : value ?? ""}
         onChange={(e) =>
           onChange(e.target.value === "" ? "" : parseFloat(e.target.value))
         }
@@ -126,7 +126,7 @@ export default function GridCell({
       <input
         ref={inputRef as React.Ref<HTMLInputElement>}
         type="date"
-        value={value ?? ""}
+        value={typeof value === "string" ? value : ""}
         onChange={(e) => onChange(e.target.value)}
         onBlur={onBlur}
         onKeyDown={onKeyDown}
@@ -140,7 +140,7 @@ export default function GridCell({
     return (
       <textarea
         ref={inputRef as React.Ref<HTMLTextAreaElement>}
-        value={value ?? ""}
+        value={typeof value === "string" ? value : ""}
         onChange={(e) => onChange(e.target.value)}
         onBlur={onBlur}
         onKeyDown={onKeyDown}
@@ -156,7 +156,7 @@ export default function GridCell({
     <input
       ref={inputRef as React.Ref<HTMLInputElement>}
       type="text"
-      value={value ?? ""}
+      value={typeof value === "string" ? value : value == null ? "" : String(value)}
       onChange={(e) => onChange(e.target.value)}
       onBlur={onBlur}
       onKeyDown={onKeyDown}

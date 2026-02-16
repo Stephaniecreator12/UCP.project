@@ -34,17 +34,12 @@ const APPROACH_OPTIONS: SelectOption[] = [
   { value: "selective", label: "Sélective" },
 ];
 
-
-const PRICING_OPTIONS: SelectOption[] = [
+const STATUS_OPTIONS: SelectOption[] = [
   { value: "", label: "-- Sélectionner --" },
-  { value: "forfait", label: "Forfait" },
-  { value: "time_based", label: "Temps passé" },
-];
-
-const PLANNED_VS_ACTUAL_OPTIONS: SelectOption[] = [
-  { value: "", label: "-- Sélectionner --" },
-  { value: "planned", label: "Prévu" },
-  { value: "actual", label: "Réel" },
+  { value: "planned", label: "Planifié" },
+  { value: "in_progress", label: "En cours" },
+  { value: "completed", label: "Terminé" },
+  { value: "cancelled", label: "Annulé" },
 ];
 
 // Colonnes pour Travaux et Biens & Services (identiques)
@@ -67,7 +62,7 @@ export const WORKS_GOODS_COLUMNS: ColumnConfig[] = [
   {
     key: "estimated_amount",
     label: "Montant estimatif ($)",
-    width: "150px",
+    width: "190px",
     type: "number",
     editable: true,
     placeholder: "0.00",
@@ -203,6 +198,14 @@ export const WORKS_GOODS_COLUMNS: ColumnConfig[] = [
     editable: true,
     placeholder: "Ajouter des commentaires...",
   },
+  {
+    key: "status",
+    label: "status",
+    width: "140px",
+    type: "select",
+    editable: true,
+    options: STATUS_OPTIONS,
+  },
 ];
 
 // Colonnes pour Consultants
@@ -225,7 +228,7 @@ export const CONSULTANTS_COLUMNS: ColumnConfig[] = [
   {
     key: "estimated_amount",
     label: "Montant estimatif ($)",
-    width: "150px",
+    width: "190px",
     type: "number",
     editable: true,
     placeholder: "0.00",
@@ -389,6 +392,14 @@ export const CONSULTANTS_COLUMNS: ColumnConfig[] = [
     type: "textarea",
     editable: true,
     placeholder: "Ajouter des commentaires...",
+  },
+  {
+    key: "status",
+    label: "status",
+    width: "140px",
+    type: "select",
+    editable: true,
+    options: STATUS_OPTIONS,
   },
 ];
 

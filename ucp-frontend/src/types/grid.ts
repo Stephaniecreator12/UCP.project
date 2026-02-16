@@ -30,19 +30,19 @@ export interface ColumnConfig {
   options?: SelectOption[];
   placeholder?: string;
   calculated?: boolean;
-  calculateValue?: (row: any) => string | number;
+  calculateValue?: (row: GridRow) => string | number;
   isSplit?: boolean;
   splitController?: string;
   actionHandler?: (row: GridRow) => void;
 }
 
 export interface GridRow {
-  [key: string]: any;
+  [key: string]: unknown;
   _id?: string; // ID temporaire pour les nouvelles lignes
 }
 
 export interface GridState {
   rows: GridRow[];
   editingCell: { rowId: string; columnKey: string } | null;
-  editValue: any;
+  editValue: unknown;
 }

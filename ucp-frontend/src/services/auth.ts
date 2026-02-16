@@ -19,7 +19,7 @@ export const login = async (username, password) => {
         } else {
             return { success: false, error: "Nom d'utilisateur ou mot de passe incorrect" };
         }
-    } catch (error) {
+    } catch {
         return { success: false, error: "Erreur de connexion au serveur" };
     }
 };

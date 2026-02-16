@@ -32,7 +32,36 @@ export interface Procurement {
   // Dates réelles (Exécuté) - À adapter selon les nouveaux modèles
   // Les modèles semblent utiliser des tables séparées pour les détails prévus/réels
   // Pour l'instant on garde une structure souple
-  [key: string]: any;
+  [key: string]: unknown;
+}
+
+interface BackendListResponse {
+  travaux?: BackendProcurementItem[];
+  biens?: BackendProcurementItem[];
+  consultance?: BackendProcurementItem[];
+}
+
+interface BackendProcurementItem {
+  id?: number;
+  code_suivi?: string;
+  intitule?: string;
+  montant_estimatif?: string | number;
+  methode_pm?: string;
+  approches?: string;
+  commentaire?: string;
+  date_lancement_prevu?: string;
+  date_ouverture_prevu?: string;
+  date_signature_prevu?: string;
+  date_livraison_prevu?: string;
+}
+
+export interface PlanningResponse {
+  dossiers_appel_prevu?: string;
+  date_lancement_prevu?: string;
+  date_ouverture_prevu?: string;
+  rapport_evaluation_prevu?: string;
+  date_signature_prevu?: string;
+  listesetspecifications?: string;
 }
 
 /**
@@ -54,7 +83,10 @@ export async function getAllProcurements(): Promise<Procurement[]> {
     ];
 
     const responses = await Promise.all(
-      urls.map(url => fetch(url).then(res => res.json().catch(() => ({ travaux: [], biens: [], consultance: [] }))))
+      urls.map(async (url): Promise<BackendListResponse> => {
+        const res = await fetch(url);
+        return res.json().catch(() => ({ travaux: [], biens: [], consultance: [] }));
+      })
     );
 
     // Note: Le backend renvoie souvent { travaux: [...] } et non directement [...]
@@ -66,13 +98,13 @@ export async function getAllProcurements(): Promise<Procurement[]> {
     const consultanceList = responses[2].consultance || [];
 
     // Fonction de mapping pour transformer un item Backend en Procurement Frontend
-    const mapItem = (item: any, type: 'Travaux' | 'Biens' | 'Consultance'): Procurement => ({
+    const mapItem = (item: BackendProcurementItem, type: 'Travaux' | 'Biens' | 'Consultance'): Procurement => ({
       id: item.id,
       type: type,
       ref_number: item.code_suivi, // Ou null si pas de ref
       title: item.intitule,
       tracking_code: item.code_suivi,
-      estimated_amount: parseFloat(item.montant_estimatif),
+      estimated_amount: Number(item.montant_estimatif ?? 0),
       method: item.methode_pm,
       approach: item.approches,
       review_notes: item.commentaire,
@@ -84,9 +116,9 @@ export async function getAllProcurements(): Promise<Procurement[]> {
       date_mission_end: item.date_livraison_prevu,
     });
 
-    const travaux = travauxList.map((item: any) => mapItem(item, 'Travaux'));
-    const biens = biensList.map((item: any) => mapItem(item, 'Biens'));
-    const consultance = consultanceList.map((item: any) => mapItem(item, 'Consultance'));
+    const travaux = travauxList.map((item) => mapItem(item, 'Travaux'));
+    const biens = biensList.map((item) => mapItem(item, 'Biens'));
+    const consultance = consultanceList.map((item) => mapItem(item, 'Consultance'));
 
     return [...travaux, ...biens, ...consultance];
   } catch (error) {
@@ -186,7 +218,7 @@ export async function createProcurement(
 
     const createdItem = await response.json();
     return { ...data, id: createdItem.id };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Erreur API:", error);
     throw error; // Propagate error
   }
@@ -199,6 +231,8 @@ export async function updateProcurement(
   id: number,
   data: Partial<Procurement>
 ): Promise<Procurement | null> {
+  void id;
+  void data;
   console.warn("Update non supporté par le backend actuel");
   return null;
 }
@@ -210,7 +244,7 @@ export async function calculatePlanning(
   dateFin: string,
   methode: string = "AOI",
   duree: number = 60
-): Promise<any> {
+): Promise<PlanningResponse> {
   const endpoint = `${API_BASE_URL}/api/Travaux/calculerPlanningTravaux/`;
   try {
     const response = await fetch(endpoint, {
@@ -241,6 +275,7 @@ export async function calculatePlanning(
  * SUPPRIMER un marché (Stub - Non implémenté sur le backend)
  */
 export async function deleteProcurement(id: number): Promise<boolean> {
+  void id;
   console.warn("Delete non supporté par le backend actuel");
   return false;
 }

@@ -22,7 +22,6 @@ export default function DetailPage() {
   const [methode, setMethode] = useState("AOI"); // Valeur par défaut
   const [planning, setPlanning] = useState<any>(null); // Pour stocker les dates calculées
 
-
   const handleDesireToCalculate = async () => {
     if (!dateFin) {
       alert("Veuillez entrer une date de fin");
@@ -135,10 +134,11 @@ export default function DetailPage() {
                 Statut
               </h3>
               <span
-                className={`inline-block px-3 py-1 rounded-full text-sm font-semibold ${procurement.status === "draft"
-                  ? "bg-yellow-100 text-yellow-800"
-                  : "bg-green-100 text-green-800"
-                  }`}
+                className={`inline-block px-3 py-1 rounded-full text-sm font-semibold ${
+                  procurement.status === "draft"
+                    ? "bg-yellow-100 text-yellow-800"
+                    : "bg-green-100 text-green-800"
+                }`}
               >
                 {procurement.status}
               </span>
@@ -203,28 +203,31 @@ export default function DetailPage() {
 
           <div className="mt-6 space-x-2">
             <span
-              className={`inline-block px-3 py-1 rounded text-sm font-semibold ${procurement.ami
-                ? "bg-blue-100 text-blue-800"
-                : "bg-gray-100 text-gray-800"
-                }`}
+              className={`inline-block px-3 py-1 rounded text-sm font-semibold ${
+                procurement.ami
+                  ? "bg-blue-100 text-blue-800"
+                  : "bg-gray-100 text-gray-800"
+              }`}
             >
               {procurement.ami ? "✓ AMI" : "✗ Pas d'AMI"}
             </span>
             <span
-              className={`inline-block px-3 py-1 rounded text-sm font-semibold ${procurement.restricted_list
-                ? "bg-blue-100 text-blue-800"
-                : "bg-gray-100 text-gray-800"
-                }`}
+              className={`inline-block px-3 py-1 rounded text-sm font-semibold ${
+                procurement.restricted_list
+                  ? "bg-blue-100 text-blue-800"
+                  : "bg-gray-100 text-gray-800"
+              }`}
             >
               {procurement.restricted_list
                 ? "✓ Liste Restreinte"
                 : "✗ Pas de liste restreinte"}
             </span>
             <span
-              className={`inline-block px-3 py-1 rounded text-sm font-semibold ${procurement.request_for_proposal
-                ? "bg-blue-100 text-blue-800"
-                : "bg-gray-100 text-gray-800"
-                }`}
+              className={`inline-block px-3 py-1 rounded text-sm font-semibold ${
+                procurement.request_for_proposal
+                  ? "bg-blue-100 text-blue-800"
+                  : "bg-gray-100 text-gray-800"
+              }`}
             >
               {procurement.request_for_proposal ? "✓ RFP" : "✗ Pas de RFP"}
             </span>

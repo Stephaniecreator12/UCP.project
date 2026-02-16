@@ -3,7 +3,7 @@
 import React from "react";
 import { MenuItemType } from "@/types/grid";
 import { MENU_ITEMS, TABLE_CONFIGS } from "@/config/tableConfigs";
-import "./SidebarMenu.css";
+
 
 // Les props qu'on reçoit
 interface SidebarMenuProps {
@@ -19,8 +19,8 @@ export default function SidebarMenu({
     <aside className="sidebar-menu">
       {/* En-tete du sidebar */}
       <div className="sidebar-header">
-        <h2 className="sidebar-title">e-Proc UCP</h2>
-        <p className="sidebar-subtitle">Gestion des Procurements</p>
+        <h2 className="sidebar-title">UCP - Marchés</h2>
+        <p className="sidebar-subtitle">Saisie & Suivi</p>
       </div>
 
       {/* Navigation avec les 3 menus */}

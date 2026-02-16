@@ -5,7 +5,9 @@ from django.views.decorators.csrf import csrf_exempt
 from datetime import datetime, timedelta
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
+from django.utils import timezone
 
+# INSERER DONNEES
 @csrf_exempt
 def insert_mock_consultance(request):
     if request.method == 'POST':
@@ -55,11 +57,13 @@ def insert_mock_consultance(request):
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
 
+# LISTER LES CONSULTANCES
 def lister_consultance(request):
     # Récupère tout d'un coup sous forme de dictionnaire
     data = list(Consultance.objects.values())
     return JsonResponse({'consultance': data})
 
+# CALCULER LE PLANNING DES CONSULTANCES
 @csrf_exempt
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -116,3 +120,60 @@ def calculer_planning_consultance(request):
         return JsonResponse({'error': 'Format de date invalide (attendu: YYYY-MM-DD)'}, status=400)
     except Exception as e:
         return JsonResponse({'error': f"Erreur de calcul: {str(e)}"}, status=500)
+
+from django.utils import timezone
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def statut_consultance(request):
+    # Récupération des données depuis le corps de la requête (POST)
+    dates_prevues = request.data.get('dates_prevues', {})
+    dates_reelles = request.data.get('dates_reels', {})
+    
+    aujourdhui = timezone.now().date()
+    etapes_prevues = list(dates_prevues.keys())
+    total = len(etapes_prevues)
+
+    if total == 0:
+        return Response({"statut": "Données insuffisantes"}, status=400)
+
+    # 1. Trouver l'index de la dernière étape réalisée
+    index_dernier_rempli = -1
+    for i, cle_prev in enumerate(etapes_prevues):
+        # On suppose que la clé réelle correspond à la clé prévue (ex: 'ami_prevu' -> 'ami_reel')
+        cle_reel = cle_prev.replace('_prevu', '_reel')
+        if dates_reelles.get(cle_reel): # Correction : utilisait 'donnees_reelles' au lieu de 'dates_reelles'
+            index_dernier_rempli = i
+
+    # --- LOGIQUE DU STATUT ---
+
+    # CAS A : Rien n'a commencé
+    if index_dernier_rempli == -1:
+        # On vérifie la date de la toute première étape attendue
+        date_premiere_etape = dates_prevues[etapes_prevues[0]]
+        # Conversion si c'est une string, sinon comparaison directe
+        if date_premiere_etape < aujourdhui:
+            res = "Non démarré (en retard)"
+        else:
+            res = "Non démarré (dans les temps)"
+
+    # CAS B : La toute dernière étape est remplie
+    elif index_dernier_rempli == total - 1:
+        res = "Terminé"
+
+    # CAS C : En cours de route
+    else:
+        index_etape_suivante = index_dernier_rempli + 1
+        cle_suivante = etapes_prevues[index_etape_suivante]
+        date_prevue_suivante = dates_prevues[cle_suivante]
+
+        if date_prevue_suivante < aujourdhui:
+            nom_etape = cle_suivante.replace('_prevu', '')
+            res = f"En cours (en retard) - Prochaine étape: {nom_etape}"
+        else:
+            res = "En cours (dans les temps)"
+
+    return Response({"statut": res})

@@ -36,10 +36,11 @@ urlpatterns = [
     path('api/Consultance/addConsultance/', ConsultanceService.insert_mock_consultance, name='api_add_consultance'),
     path('api/Consultance/listConsultance/', ConsultanceService.lister_consultance, name='api_list_consultance'),
     path('api/Consultance/calculerPlanningConsultance/', ConsultanceService.calculer_planning_consultance, name='api_calculer_planning'),
-    path('api/Travaux/calculerPlanningTravaux/', TravauxService.calculer_planning_travaux, name='api_calculer_planning_travaux'),
-    path('api/Biens/calculerPlanningBiens/', BiensService.calculer_planning_biens, name='api_calculer_planning_biens'),
-    path('api/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-    path('api/Consultance/statutConsultance/', ConsultanceService.statut_consultance, name='api_statut_consultance')
+    path('api/Travaux/calculerPlanningTravaux/', TravauxService.calculer_planning_travaux),
+    path('api/Biens/calculerPlanningBiens/', BiensService.calculer_planning_biens),
+    path('api/token/', TokenObtainPairView.as_view()),
+    path('api/token/refresh/', TokenRefreshView.as_view()),
+    path('api/Consultance/statutConsultance/', ConsultanceService.statut_consultance),
+    path('api/Travaux/statutTravaux/', TravauxService.statut_travaux),
+    path('api/Biens/statutBiens/', BiensService.statut_biens)
 ]

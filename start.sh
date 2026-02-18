@@ -3,12 +3,15 @@
 # Script pour démarrer le projet entier (Django + Next.js)
 # Utilisation: ./start.sh
 
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BACKEND_DIR="$ROOT_DIR/passation_db"
+
 echo "🚀 Démarrage du projet e-Proc UCP"
 echo "=================================="
 
 # Vérifier que nous sommes au bon endroit
-if [ ! -f "manage.py" ]; then
-    echo "❌ Erreur: Lancez ce script depuis le dossier racine (/home/stephanie/UCP)"
+if [ ! -f "$BACKEND_DIR/manage.py" ]; then
+    echo "❌ Erreur: backend introuvable dans $BACKEND_DIR"
     exit 1
 fi
 
@@ -18,8 +21,9 @@ echo "   Port: http://localhost:8000"
 echo ""
 
 # Lancer Django en arrière-plan
+cd "$ROOT_DIR"
 source .venv/bin/activate
-python manage.py runserver &
+python "$BACKEND_DIR/manage.py" runserver &
 DJANGO_PID=$!
 
 sleep 2
@@ -30,7 +34,7 @@ echo "   Port: http://localhost:3001 (ou 3000)"
 echo ""
 
 # Lancer Next.js en arrière-plan
-cd ucp-frontend
+cd "$ROOT_DIR/ucp-frontend"
 npm run dev &
 NEXTJS_PID=$!
 

@@ -18,8 +18,8 @@ export default function LoginPage() {
     const result = await login(username, password);
 
     if (result.success) {
-      // ✅ SUCCÈS : On redirige vers le tableau de bord
-      router.push("/dashboard");
+      // ✅ SUCCÈS : Le tableau de bord est la page racine
+      router.push("/");
     } else {
       // ❌ ERREUR : On affiche le message
       setError(result.error || "Une erreur est survenue");

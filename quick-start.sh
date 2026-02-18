@@ -10,7 +10,7 @@
 #   ./quick-start.sh
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BACKEND_DIR="$ROOT_DIR/passation_db"
+BACKEND_DIR="$ROOT_DIR/backend_PPM"
 FRONTEND_DIR="$ROOT_DIR/ucp-frontend"
 
 echo "🚀 Démarrage e-Proc UCP"
@@ -67,7 +67,7 @@ else
     echo "Terminal 1 (Backend Django):"
     echo "  cd $ROOT_DIR"
     echo "  source .venv/bin/activate"
-    echo "  python passation_db/manage.py runserver"
+    echo "  python backend_PPM/manage.py runserver"
     echo ""
     echo "Terminal 2 (Frontend Next.js):"
     echo "  cd $FRONTEND_DIR"

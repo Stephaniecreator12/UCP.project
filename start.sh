@@ -4,7 +4,7 @@
 # Utilisation: ./start.sh
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BACKEND_DIR="$ROOT_DIR/passation_db"
+BACKEND_DIR="$ROOT_DIR/backend_PPM"
 
 echo "🚀 Démarrage du projet e-Proc UCP"
 echo "=================================="

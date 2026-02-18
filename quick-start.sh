@@ -9,14 +9,17 @@
 #   chmod +x quick-start.sh
 #   ./quick-start.sh
 
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BACKEND_DIR="$ROOT_DIR/passation_db"
+FRONTEND_DIR="$ROOT_DIR/ucp-frontend"
+
 echo "🚀 Démarrage e-Proc UCP"
 echo "======================"
 echo ""
 
 # Vérifier qu'on est au bon endroit
-if [ ! -f "manage.py" ]; then
-    echo "❌ ERREUR: Placez-vous dans le dossier /home/stephanie/UCP"
-    echo "   cd /home/stephanie/UCP && ./quick-start.sh"
+if [ ! -f "$BACKEND_DIR/manage.py" ]; then
+    echo "❌ ERREUR: backend introuvable dans $BACKEND_DIR"
     exit 1
 fi
 
@@ -29,12 +32,12 @@ if command -v tmux &> /dev/null; then
     tmux new-session -d -s "ucp" -x 200 -y 50
     
     # Onglet 1 : Django
-    tmux send-keys -t "ucp" "cd /home/stephanie/UCP && source .venv/bin/activate && echo '🟢 Backend Django en cours de démarrage...' && python manage.py runserver" Enter
+    tmux send-keys -t "ucp" "cd $ROOT_DIR && source .venv/bin/activate && echo '🟢 Backend Django en cours de démarrage...' && python $BACKEND_DIR/manage.py runserver" Enter
     sleep 3
     
     # Onglet 2 : Next.js
     tmux new-window -t "ucp"
-    tmux send-keys -t "ucp" "cd /home/stephanie/UCP/ucp-frontend && echo '🟢 Frontend Next.js en cours de démarrage...' && npm run dev" Enter
+    tmux send-keys -t "ucp" "cd $FRONTEND_DIR && echo '🟢 Frontend Next.js en cours de démarrage...' && npm run dev" Enter
     
     # Afficher les infos
     sleep 2
@@ -62,12 +65,12 @@ else
     echo "📝 Démarrage manuel en deux terminaux:"
     echo ""
     echo "Terminal 1 (Backend Django):"
-    echo "  cd /home/stephanie/UCP"
+    echo "  cd $ROOT_DIR"
     echo "  source .venv/bin/activate"
-    echo "  python manage.py runserver"
+    echo "  python passation_db/manage.py runserver"
     echo ""
     echo "Terminal 2 (Frontend Next.js):"
-    echo "  cd /home/stephanie/UCP/ucp-frontend"
+    echo "  cd $FRONTEND_DIR"
     echo "  npm run dev"
     echo ""
     echo "Puis visitez: http://localhost:3001"

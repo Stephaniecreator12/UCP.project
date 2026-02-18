@@ -247,13 +247,25 @@ export async function calculatePlanning(
 ): Promise<PlanningResponse> {
   const endpoint = `${API_BASE_URL}/api/Travaux/calculerPlanningTravaux/`;
   try {
+    const token =
+      typeof window !== "undefined"
+        ? localStorage.getItem("access_token")
+        : null;
+
+    const headers: HeadersInit = {
+      "Content-Type": "application/json",
+    };
+
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
     const response = await fetch(endpoint, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers,
       body: JSON.stringify({
-        date_fin: dateFin,
+        // Le backend Django attend "date_livr"
+        date_livr: dateFin,
         methode: methode,
         duree: duree
       }),
@@ -261,7 +273,7 @@ export async function calculatePlanning(
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || "Erreur de calcul");
+      throw new Error(errorData.error || errorData.detail || "Erreur de calcul");
     }
 
     return await response.json();

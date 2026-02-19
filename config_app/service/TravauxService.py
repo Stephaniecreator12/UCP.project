@@ -7,6 +7,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.utils import timezone
+from .ProcurementService import soft_delete_service
 
 # INSERER DONNEES
 @csrf_exempt
@@ -66,6 +67,11 @@ def lister_travaux(request):
     travaux_data = list(Travaux.objects.values())
     
     return JsonResponse({'travaux': travaux_data})
+
+
+@csrf_exempt
+def supprimer_travaux(request, id):
+    return soft_delete_service(request, Travaux, id)
     
 
 # CALCULER LE PLANNING DES TRAVAUX

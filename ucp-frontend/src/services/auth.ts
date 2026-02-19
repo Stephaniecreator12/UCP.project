@@ -3,7 +3,7 @@ import { API_BASE_URL } from "./api"; // On réutilise l'adresse du backend
 // C'est ici qu'on demande le "Bracelet VIP" (Token) au serveur
 export const login = async (username, password) => {
     try {
-        const response = await fetch(`${API_BASE_URL}/api/login/`, {
+        const response = await fetch(`${API_BASE_URL}/api/token/`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ username, password }),
@@ -17,7 +17,8 @@ export const login = async (username, password) => {
             localStorage.setItem("refresh_token", data.refresh);
             return { success: true };
         } else {
-            return { success: false, error: "Nom d'utilisateur ou mot de passe incorrect" };
+            const detail = data?.detail || data?.error;
+            return { success: false, error: detail || "Nom d'utilisateur ou mot de passe incorrect" };
         }
     } catch {
         return { success: false, error: "Erreur de connexion au serveur" };

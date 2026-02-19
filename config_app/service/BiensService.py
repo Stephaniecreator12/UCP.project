@@ -7,6 +7,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.utils import timezone
+from .ProcurementService import soft_delete_service
 
 # INSERER DONNEES
 @csrf_exempt
@@ -65,6 +66,11 @@ def lister_biens(request):
     biens_data = list(Biens.objects.values())
     
     return JsonResponse({'biens': biens_data})
+
+
+@csrf_exempt
+def supprimer_biens(request, id):
+    return soft_delete_service(request, Biens, id)
 
 # CALCULER LE PLANNING DES BIENS
 @csrf_exempt

@@ -49,7 +49,6 @@ interface BackendProcurementItem {
   methode_pm?: string;
   approches?: string;
   commentaire?: string;
-  statut?: string;
   date_lancement_prevu?: string;
   date_ouverture_prevu?: string;
   date_signature_prevu?: string;
@@ -70,14 +69,6 @@ export interface PlanningResponse {
  */
 const getEndpoint = (type: 'Travaux' | 'Biens' | 'Consultance') => {
   return `${API_BASE_URL}/api/${type}`;
-};
-
-const getAuthHeaders = (): HeadersInit => {
-  const token =
-    typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
-  const headers: HeadersInit = { "Content-Type": "application/json" };
-  if (token) headers.Authorization = `Bearer ${token}`;
-  return headers;
 };
 
 /**
@@ -123,17 +114,13 @@ export async function getAllProcurements(): Promise<Procurement[]> {
       date_opening_submissions: item.date_ouverture_prevu,
       date_contract_signed: item.date_signature_prevu,
       date_mission_end: item.date_livraison_prevu,
-      status: item.statut,
     });
 
     const travaux = travauxList.map((item) => mapItem(item, 'Travaux'));
     const biens = biensList.map((item) => mapItem(item, 'Biens'));
     const consultance = consultanceList.map((item) => mapItem(item, 'Consultance'));
 
-    return [...travaux, ...biens, ...consultance].filter((item) => {
-      const status = String(item.status || "").toLowerCase();
-      return !status.includes("supprim");
-    });
+    return [...travaux, ...biens, ...consultance];
   } catch (error) {
     console.error("Erreur API:", error);
     return [];
@@ -299,21 +286,8 @@ export async function calculatePlanning(
 /**
  * SUPPRIMER un marché (Stub - Non implémenté sur le backend)
  */
-export async function deleteProcurement(
-  id: number,
-  type: 'Travaux' | 'Biens' | 'Consultance'
-): Promise<boolean> {
-  const endpointMap = {
-    Travaux: `${API_BASE_URL}/api/Travaux/deleteTravaux/${id}/`,
-    Biens: `${API_BASE_URL}/api/Biens/deleteBiens/${id}/`,
-    Consultance: `${API_BASE_URL}/api/Consultance/deleteConsultance/${id}/`,
-  } as const;
-
-  const response = await fetch(endpointMap[type], {
-    method: "POST",
-    headers: getAuthHeaders(),
-  });
-
-  if (!response.ok) return false;
-  return true;
+export async function deleteProcurement(id: number): Promise<boolean> {
+  void id;
+  console.warn("Delete non supporté par le backend actuel");
+  return false;
 }

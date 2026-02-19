@@ -49,6 +49,7 @@ interface BackendProcurementItem {
   methode_pm?: string;
   approches?: string;
   commentaire?: string;
+  statut?: string;
   date_lancement_prevu?: string;
   date_ouverture_prevu?: string;
   date_signature_prevu?: string;
@@ -69,6 +70,12 @@ export interface PlanningResponse {
  */
 const getEndpoint = (type: 'Travaux' | 'Biens' | 'Consultance') => {
   return `${API_BASE_URL}/api/${type}`;
+};
+
+const toDateValue = (value: unknown): string | null => {
+  if (typeof value !== "string") return null;
+  const v = value.trim();
+  return v.length > 0 ? v : null;
 };
 
 /**
@@ -114,6 +121,7 @@ export async function getAllProcurements(): Promise<Procurement[]> {
       date_opening_submissions: item.date_ouverture_prevu,
       date_contract_signed: item.date_signature_prevu,
       date_mission_end: item.date_livraison_prevu,
+      status: item.statut,
     });
 
     const travaux = travauxList.map((item) => mapItem(item, 'Travaux'));
@@ -281,6 +289,92 @@ export async function calculatePlanning(
     console.error("Erreur calcul:", error);
     throw error;
   }
+}
+
+/**
+ * Calculer le statut d'une ligne via les endpoints backend
+ */
+export async function getProcurementStatus(
+  type: 'Travaux' | 'Biens' | 'Consultance',
+  row: Record<string, unknown>
+): Promise<string> {
+  const token =
+    typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
+
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+  };
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  let endpoint = "";
+  let dates_prevues: Record<string, string | null> = {};
+  let dates_reels: Record<string, string | null> = {};
+
+  if (type === "Travaux" || type === "Biens") {
+    endpoint =
+      type === "Travaux"
+        ? `${API_BASE_URL}/api/Travaux/statutTravaux/`
+        : `${API_BASE_URL}/api/Biens/statutBiens/`;
+
+    dates_prevues = {
+      dossiers_appel_prevu: toDateValue(row.tender_documents_date),
+      date_lancement_prevu: toDateValue(row.launch_date),
+      date_ouverture_prevu: toDateValue(row.opening_date),
+      rapport_evaluation_prevu: toDateValue(row.evaluation_report),
+      date_signature_prevu: toDateValue(row.contract_date),
+      date_livraison_prevu: toDateValue(row.delivery_date),
+    };
+
+    dates_reels = {
+      dossiers_appel_reel: toDateValue(row.tender_documents_date_actual),
+      date_lancement_reel: toDateValue(row.launch_date_actual),
+      date_ouverture_reel: toDateValue(row.opening_date_actual),
+      rapport_evaluation_reel: toDateValue(row.evaluation_report_actual),
+      date_signature_reel: toDateValue(row.contract_date_actual),
+      date_livraison_reel: toDateValue(row.delivery_date_actual),
+    };
+  } else {
+    endpoint = `${API_BASE_URL}/api/Consultance/statutConsultance/`;
+
+    dates_prevues = {
+      TdR_prevu: toDateValue(row.terms_of_reference),
+      ami_prevu: toDateValue(row.ami),
+      liste_restreinte_prevu: toDateValue(row.restricted_list),
+      demande_proposition_prevu: toDateValue(row.request_for_proposal),
+      date_invitation_prevu: toDateValue(row.invitation_date),
+      date_ouverture_prevu: toDateValue(row.submissions_opening_date),
+      ouverture_plis_prevu: toDateValue(row.financial_opening_date),
+      date_signature_prevu: toDateValue(row.contract_date),
+      date_fin_prevu: toDateValue(row.mission_end_date),
+    };
+
+    dates_reels = {
+      TdR_reel: toDateValue(row.terms_of_reference_actual),
+      ami_reel: toDateValue(row.ami_actual),
+      liste_restreinte_reel: toDateValue(row.restricted_list_actual),
+      demande_proposition_reel: toDateValue(row.request_for_proposal_actual),
+      date_invitation_reel: toDateValue(row.invitation_date_actual),
+      date_ouverture_reel: toDateValue(row.submissions_opening_date_actual),
+      ouverture_plis_reel: toDateValue(row.financial_opening_date_actual),
+      date_signature_reel: toDateValue(row.contract_date_actual),
+      date_fin_reel: toDateValue(row.mission_end_date_actual),
+    };
+  }
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ dates_prevues, dates_reels }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || data.error || "Erreur lors du calcul du statut");
+  }
+
+  return data.statut || "Statut indisponible";
 }
 
 /**

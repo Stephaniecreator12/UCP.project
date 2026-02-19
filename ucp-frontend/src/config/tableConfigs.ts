@@ -202,9 +202,10 @@ export const WORKS_GOODS_COLUMNS: ColumnConfig[] = [
     key: "status",
     label: "status",
     width: "140px",
-    type: "select",
-    editable: true,
-    options: STATUS_OPTIONS,
+    readonly: true,
+    editable: false,
+    calculated: true,
+    calculateValue: (row) => row.status || "-",
   },
 ];
 
@@ -397,9 +398,10 @@ export const CONSULTANTS_COLUMNS: ColumnConfig[] = [
     key: "status",
     label: "status",
     width: "140px",
-    type: "select",
-    editable: true,
-    options: STATUS_OPTIONS,
+    readonly: true,
+    editable: false,
+    calculated: true,
+    calculateValue: (row) => row.status || "-",
   },
 ];
 

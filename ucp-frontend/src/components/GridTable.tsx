@@ -45,6 +45,26 @@ export default function GridTable({
     return value !== null && value !== undefined && String(value).trim() !== "";
   };
 
+  const getBottomSwitchBlockReason = (
+    row: GridRow,
+    controllerKey: string,
+    bottomLabel: string,
+    topLabel: string
+  ): string | null => {
+    const requiredTopColumns = columns.filter(
+      (c) =>
+        c.splitController === controllerKey &&
+        c.editable !== false &&
+        !c.readonly &&
+        c.type !== "action_button"
+    );
+
+    const missing = requiredTopColumns.find((c) => !hasValue(row[c.key]));
+    if (!missing) return null;
+
+    return `Remplissez d'abord "${missing.label}" dans ${topLabel} avant de passer en ${bottomLabel}.`;
+  };
+
   const getSplitDateContext = (columnKey: string) => {
     const isActual = columnKey.endsWith("_actual");
     const baseKey = isActual ? columnKey.replace(/_actual$/, "") : columnKey;
@@ -275,7 +295,9 @@ export default function GridTable({
         if (!prevPlannedValue) return false;
       }
 
-      return hasValues || isCalculated || myIndex === 0;
+      // Strict rule: before calculation, only the driver date is editable.
+      // Planned dates become editable only after calculation (or if already populated).
+      return hasValues || isCalculated;
     }
 
     // 5. ACTUAL DATES Logic (Strict Sequential)
@@ -489,6 +511,15 @@ export default function GridTable({
                               // --- CONTROLLER BUTTON ---
                               if (isLabelColumn) {
                                 const targetValue = isActual ? VAL_BOTTOM : VAL_TOP;
+                                const switchBlockedReason =
+                                  isActual
+                                    ? getBottomSwitchBlockReason(
+                                      row,
+                                      controllerKey,
+                                      bottomLabel,
+                                      topLabel
+                                    )
+                                    : null;
                                 const buttonStyle = isActive
                                   ? {
                                     backgroundColor: "#334155", // Slate 700 - Deep & Classy
@@ -509,15 +540,20 @@ export default function GridTable({
                                       ...buttonStyle,
                                       minHeight: "35px",
                                       borderRadius: "8px",
-                                      cursor: "pointer",
+                                      cursor: switchBlockedReason ? "not-allowed" : "pointer",
                                       fontWeight: "700", // Bolder
                                       fontSize: "0.80rem",
                                       letterSpacing: "0.025em",
                                       transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
-                                      userSelect: "none"
+                                      userSelect: "none",
+                                      opacity: switchBlockedReason ? 0.6 : 1
                                     }}
                                     onClick={(e) => {
                                       e.stopPropagation();
+                                      if (switchBlockedReason) {
+                                        alert(switchBlockedReason);
+                                        return;
+                                      }
                                       if (onRowChange && row._id) {
                                         onRowChange(row._id, column.key, targetValue);
                                       }

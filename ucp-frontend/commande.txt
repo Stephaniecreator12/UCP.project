@@ -13,3 +13,15 @@ for pushing//*
 git add .
 git commit -m "Description de tes modifs"
 git push
+
+//pour effacer les anciens actions
+cd ~/firstStageDev/UCP
+python3 manage.py shell -c "
+from config_app.entity.Travaux import Travaux
+from config_app.entity.Biens import Biens
+from config_app.entity.Consultance import Consultance
+Travaux.objects.all().delete()
+Biens.objects.all().delete()
+Consultance.objects.all().delete()
+print('OK: tables vidées')
+"

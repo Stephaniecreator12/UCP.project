@@ -7,6 +7,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.utils import timezone
+from .ProcurementService import soft_delete_service
 
 # INSERER DONNEES
 @csrf_exempt
@@ -63,6 +64,11 @@ def lister_consultance(request):
     # Récupère tout d'un coup sous forme de dictionnaire
     data = list(Consultance.objects.values())
     return JsonResponse({'consultance': data})
+
+
+@csrf_exempt
+def supprimer_consultance(request, id):
+    return soft_delete_service(request, Consultance, id)
 
 # CALCULER LE PLANNING DES CONSULTANCES
 @csrf_exempt

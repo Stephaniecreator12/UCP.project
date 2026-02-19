@@ -8,12 +8,9 @@ from django.views.decorators.csrf import csrf_exempt
 @permission_classes([IsAuthenticated])
 def soft_delete_service(request, model_class, id):
     try:
-        # On récupère l'objet
+        # Suppression réelle en base (hard delete)
         item = model_class.objects.get(id=id)
-        # On change le statut (Soft Delete)
-        item.statut = "Supprimé"
-        item.save()
-        # On renvoie une VRAIE réponse DRF
+        item.delete()
         return Response({'status': 'success'}, status=200)
     except model_class.DoesNotExist:
         return Response({'error': 'Élément non trouvé'}, status=404)

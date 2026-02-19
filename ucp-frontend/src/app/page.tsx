@@ -7,6 +7,7 @@ import { MenuItemType, GridRow } from "@/types/grid";
 import { TABLE_CONFIGS } from "@/config/tableConfigs";
 import {
   createProcurement,
+  deleteProcurement,
   getAllProcurements,
   Procurement,
 } from "@/services/api";
@@ -22,9 +23,6 @@ export default function GestionMarches() {
   } | null>(null);
 
   const config = TABLE_CONFIGS[activeMenu];
-  // Utilisation de ton URL d'environnement
-  const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
-
   const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -64,8 +62,15 @@ export default function GestionMarches() {
     if (!window.confirm("Supprimer cette ligne ?")) return;
     try {
       if (!rowId.startsWith("_new_")) {
-        const response = await fetch(`${API_URL}/procurements/${rowId}/`, { method: "DELETE" });
-        if (!response.ok) throw new Error();
+        const typeMapping: Record<string, 'Travaux' | 'Biens' | 'Consultance'> = {
+          "works": "Travaux",
+          "goods-services": "Biens",
+          "consultants": "Consultance"
+        };
+        const numericId = Number(rowId);
+        if (!Number.isFinite(numericId)) throw new Error("ID invalide");
+        const ok = await deleteProcurement(numericId, typeMapping[activeMenu]);
+        if (!ok) throw new Error("Suppression impossible");
       }
       setRows(prev => prev.filter(r => r._id !== rowId));
       setSaveMessage({ type: "success", message: "Supprimé" });

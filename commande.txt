@@ -1,5 +1,6 @@
-#Pour lancer l'environnement virtuelle
-venv\Scripts\activate
+#environnement virtuelle
+creer: python -m venv venv
+activer: venv\Scripts\activate
 
 #Pour lancer le server
 python manage.py runserver

@@ -38,9 +38,10 @@ urlpatterns = [
     path('api/Consultance/calculerPlanningConsultance/', ConsultanceService.calculer_planning_consultance, name='api_calculer_planning'),
     path('api/Travaux/calculerPlanningTravaux/', TravauxService.calculer_planning_travaux),
     path('api/Biens/calculerPlanningBiens/', BiensService.calculer_planning_biens),
-    path('api/token/', TokenObtainPairView.as_view()),
+    path('api/login/', TokenObtainPairView.as_view()),
     path('api/token/refresh/', TokenRefreshView.as_view()),
     path('api/Consultance/statutConsultance/', ConsultanceService.statut_consultance),
     path('api/Travaux/statutTravaux/', TravauxService.statut_travaux),
-    path('api/Biens/statutBiens/', BiensService.statut_biens)
+    path('api/Biens/statutBiens/', BiensService.statut_biens),
+    path('api/Travaux/delete/<int:id>/', TravauxService.delete_travaux)
 ]

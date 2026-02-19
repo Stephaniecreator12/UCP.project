@@ -8,6 +8,7 @@ import { TABLE_CONFIGS } from "@/config/tableConfigs";
 import {
   createProcurement,
   getAllProcurements,
+  getProcurementStatus,
   Procurement,
 } from "@/services/api";
 
@@ -102,7 +103,26 @@ export default function GestionMarches() {
       const result = await createProcurement(procurementData);
 
       if (result) {
-        setRows(currentRows => currentRows.map(r => r._id === row._id ? { ...r, ...result, _id: String(result.id) } : r));
+        const savedRow: GridRow = {
+          ...row,
+          ...result,
+          _id: String(result.id),
+        };
+
+        let computedStatus = "";
+        try {
+          computedStatus = await getProcurementStatus(typeMapping[activeMenu], savedRow);
+        } catch {
+          computedStatus = savedRow.status ? String(savedRow.status) : "Statut indisponible";
+        }
+
+        setRows(currentRows =>
+          currentRows.map(r =>
+            r._id === row._id
+              ? { ...savedRow, status: computedStatus }
+              : r
+          )
+        );
         setSaveMessage({ type: "success", message: "Ligne enregistrée !" });
       }
 

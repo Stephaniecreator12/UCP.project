@@ -72,7 +72,6 @@ def lister_travaux(request):
 @csrf_exempt
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-#@permission_classes([])
 def calculer_planning_travaux(request):
     try:
         data = json.loads(request.body)
@@ -126,7 +125,6 @@ def calculer_planning_travaux(request):
 # STATUT CONSULTANCE
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-#@permission_classes([])
 def statut_travaux(request):
     # Récupération sécurisée des dictionnaires
     dates_prevues = request.data.get('dates_prevues', {})
@@ -182,10 +180,3 @@ def statut_travaux(request):
             res = "En cours (dans les temps)"
 
     return Response({"statut": res})
-
-#SOFT DELETE
-@csrf_exempt
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def delete_travaux(request, travaux_id):
-    return soft_delete_service(request, Travaux, travaux_id)

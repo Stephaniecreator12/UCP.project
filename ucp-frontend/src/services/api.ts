@@ -378,10 +378,72 @@ export async function getProcurementStatus(
 }
 
 /**
- * SUPPRIMER un marché (Stub - Non implémenté sur le backend)
+ * SUPPRIMER un marché
  */
-export async function deleteProcurement(id: number): Promise<boolean> {
-  void id;
-  console.warn("Delete non supporté par le backend actuel");
-  return false;
+export async function deleteProcurement(
+  id: number,
+  type: "Travaux" | "Biens" | "Consultance"
+): Promise<boolean> {
+  const getHeaders = (token: string | null): HeadersInit => {
+    const headers: HeadersInit = {
+      "Content-Type": "application/json",
+    };
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+    return headers;
+  };
+
+  const refreshAccessToken = async (): Promise<string | null> => {
+    if (typeof window === "undefined") return null;
+    const refresh = localStorage.getItem("refresh_token");
+    if (!refresh) return null;
+
+    const refreshResponse = await fetch(`${API_BASE_URL}/api/token/refresh/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh }),
+    });
+
+    if (!refreshResponse.ok) return null;
+    const refreshData = await refreshResponse.json().catch(() => ({}));
+    const newAccess = refreshData.access as string | undefined;
+    if (!newAccess) return null;
+    localStorage.setItem("access_token", newAccess);
+    return newAccess;
+  };
+
+  let endpoint = "";
+  if (type === "Travaux") endpoint = `${API_BASE_URL}/api/Travaux/deleteTravaux/${id}/`;
+  else if (type === "Biens") endpoint = `${API_BASE_URL}/api/Biens/deleteBiens/${id}/`;
+  else endpoint = `${API_BASE_URL}/api/Consultance/deleteConsultance/${id}/`;
+
+  let accessToken =
+    typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
+  if (!accessToken) {
+    throw new Error("Session expirée. Connecte-toi puis réessaie.");
+  }
+
+  let response = await fetch(endpoint, {
+    method: "POST",
+    headers: getHeaders(accessToken),
+  });
+
+  if (response.status === 401) {
+    accessToken = await refreshAccessToken();
+    if (!accessToken) {
+      throw new Error("Session expirée. Connecte-toi puis réessaie.");
+    }
+    response = await fetch(endpoint, {
+      method: "POST",
+      headers: getHeaders(accessToken),
+    });
+  }
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.detail || data.error || "Erreur lors de la suppression");
+  }
+
+  return true;
 }

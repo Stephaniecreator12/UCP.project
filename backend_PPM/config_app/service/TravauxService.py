@@ -5,6 +5,9 @@ from django.views.decorators.csrf import csrf_exempt
 from datetime import datetime, timedelta
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from django.utils import timezone
+from .ProcurementService import soft_delete_service
 
 # INSERER DONNEES
 @csrf_exempt
@@ -64,6 +67,11 @@ def lister_travaux(request):
     travaux_data = list(Travaux.objects.values())
     
     return JsonResponse({'travaux': travaux_data})
+
+
+@csrf_exempt
+def supprimer_travaux(request, id):
+    return soft_delete_service(request, Travaux, id)
     
 
 # CALCULER LE PLANNING DES TRAVAUX
@@ -120,3 +128,61 @@ def calculer_planning_travaux(request):
     except Exception as e:
         return JsonResponse({'error': f"Erreur de calcul: {str(e)}"}, status=500)
 
+# STATUT TavauxService
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def statut_travaux(request):
+    # Récupération sécurisée des dictionnaires
+    dates_prevues = request.data.get('dates_prevues', {})
+    dates_reelles = request.data.get('dates_reels', {})
+    
+    aujourdhui = timezone.now().date()
+    etapes_cles = list(dates_prevues.keys())
+    total = len(etapes_cles)
+
+    if total == 0:
+        return Response({"statut": "Données insuffisantes"}, status=400)
+
+    # Helper pour convertir le texte reçu en date réelle pour la comparaison
+    def str_to_date(date_str):
+        try:
+            if isinstance(date_str, str):
+                return datetime.strptime(date_str, '%Y-%m-%d').date()
+            return date_str
+        except:
+            return None
+
+    # 1. Identifier la progression (Boucle FOR)
+    index_dernier_rempli = -1
+    for i, cle_prev in enumerate(etapes_cles):
+        cle_reel = cle_prev.replace('_prevu', '_reel')
+        if dates_reelles.get(cle_reel):
+            index_dernier_rempli = i
+
+    # 2. Détermination du statut textuel unique
+    res = ""
+    
+    # CAS A : Rien n'a commencé
+    if index_dernier_rempli == -1:
+        date_debut = str_to_date(dates_prevues[etapes_cles[0]])
+        if date_debut and date_debut < aujourdhui:
+            res = "Non démarré (en retard)"
+        else:
+            res = "Non démarré (dans les temps)"
+
+    # CAS B : La toute dernière étape est remplie
+    elif index_dernier_rempli == total - 1:
+        res = "Terminé"
+
+    # CAS C : En cours de route (on regarde l'étape suivante)
+    else:
+        index_suivante = index_dernier_rempli + 1
+        cle_suivante = etapes_cles[index_suivante]
+        date_suivante = str_to_date(dates_prevues[cle_suivante])
+
+        if date_suivante and date_suivante < aujourdhui:
+            res = "En cours (en retard)"
+        else:
+            res = "En cours (dans les temps)"
+
+    return Response({"statut": res})

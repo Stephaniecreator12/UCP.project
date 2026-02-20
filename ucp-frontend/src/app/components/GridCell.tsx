@@ -1,3 +1,5 @@
+//Ce composant affiche le bon type de champ dans une cellule (texte, date, select, checkbox, etc.)
+//  selon column.type.
 "use client";
 
 import React, { useRef, useEffect } from "react";
@@ -23,7 +25,7 @@ export default function GridCell({
   onKeyDown,
   autoFocus = false,
 }: GridCellProps) {
-  // Reference pour focus l'input
+  // // Reference pour focus l'input
   const inputRef = useRef<
     HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
   >(null);
@@ -45,8 +47,9 @@ export default function GridCell({
             <button
               key={opt.value}
               type="button"
-              className={`btn btn-sm ${isActive ? "btn-primary" : "btn-outline-secondary"
-                }`}
+              className={`btn btn-sm ${
+                isActive ? "btn-primary" : "btn-outline-secondary"
+              }`}
               onClick={() => {
                 onChange(opt.value);
                 if (onConfirm) onConfirm(opt.value); // Immediate save
@@ -107,7 +110,7 @@ export default function GridCell({
       <input
         ref={inputRef as React.Ref<HTMLInputElement>}
         type="number"
-        value={typeof value === "number" ? value : value ?? ""}
+        value={typeof value === "number" ? value : (value ?? "")}
         onChange={(e) =>
           onChange(e.target.value === "" ? "" : parseFloat(e.target.value))
         }
@@ -156,7 +159,9 @@ export default function GridCell({
     <input
       ref={inputRef as React.Ref<HTMLInputElement>}
       type="text"
-      value={typeof value === "string" ? value : value == null ? "" : String(value)}
+      value={
+        typeof value === "string" ? value : value == null ? "" : String(value)
+      }
       onChange={(e) => onChange(e.target.value)}
       onBlur={onBlur}
       onKeyDown={onKeyDown}

@@ -3,15 +3,14 @@
 import os
 import sys
 
-# Cela force Python à regarder dans le dossier actuel pour trouver 'marches'
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+# Cela force Python à regarder dans le dossier backend_PPM pour trouver 'config_app'
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+BACKEND_DIR = os.path.join(BASE_DIR, "backend_PPM")
+if BACKEND_DIR not in sys.path:
+    sys.path.insert(0, BACKEND_DIR)
 
 def main():
-    # On force Python à regarder ICI
-    current_path = os.path.dirname(os.path.abspath(__file__))
-    sys.path.insert(0, current_path)
-    
-    # On utilise le nouveau nom du dossier
+    # On utilise la config Django unique dans backend_PPM/config_app
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config_app.settings')
     
     try:

@@ -1,12 +1,13 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import SidebarMenu from "@/components/SidebarMenu";
-import GridTable from "@/components/GridTable";
+import SidebarMenu from "@/app/components/SidebarMenu";
+import GridTable from "@/app/components/GridTable";
 import { MenuItemType, GridRow } from "@/types/grid";
 import { TABLE_CONFIGS } from "@/config/tableConfigs";
 import {
   createProcurement,
+  deleteProcurement,
   getAllProcurements,
   getProcurementStatus,
   Procurement,
@@ -23,20 +24,23 @@ export default function GestionMarches() {
   } | null>(null);
 
   const config = TABLE_CONFIGS[activeMenu];
-  // Utilisation de ton URL d'environnement
-  const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
       const allData = await getAllProcurements();
-      const filteredData = allData.filter(item => {
-        if (activeMenu === 'works') return item.type === 'Travaux';
-        if (activeMenu === 'goods-services') return item.type === 'Biens';
-        if (activeMenu === 'consultants') return item.type === 'Consultance';
+      const filteredData = allData.filter((item) => {
+        if (activeMenu === "works") return item.type === "Travaux";
+        if (activeMenu === "goods-services") return item.type === "Biens";
+        if (activeMenu === "consultants") return item.type === "Consultance";
         return true;
       });
-      setRows(filteredData.map((item: Procurement) => ({ ...item, _id: String(item.id) })));
+      setRows(
+        filteredData.map((item: Procurement) => ({
+          ...item,
+          _id: String(item.id),
+        })),
+      );
     } catch {
       setSaveMessage({ type: "error", message: "Erreur de chargement" });
     } finally {
@@ -51,13 +55,21 @@ export default function GestionMarches() {
   const handleAddRow = () => {
     const newId = `_new_${Date.now()}`;
     const newRow: GridRow = { _id: newId, review_status: "post" };
-    config.columns.forEach((col) => { newRow[col.key] = ""; });
+    config.columns.forEach((col) => {
+      newRow[col.key] = "";
+    });
     setRows((prev) => [...prev, newRow]);
   };
 
-  const handleRowChange = (rowId: string, columnKey: string, value: unknown) => {
+  const handleRowChange = (
+    rowId: string,
+    columnKey: string,
+    value: unknown,
+  ) => {
     setRows((prevRows) =>
-      prevRows.map((row) => (row._id === rowId ? { ...row, [columnKey]: value } : row))
+      prevRows.map((row) =>
+        row._id === rowId ? { ...row, [columnKey]: value } : row,
+      ),
     );
   };
 
@@ -65,13 +77,23 @@ export default function GestionMarches() {
     if (!window.confirm("Supprimer cette ligne ?")) return;
     try {
       if (!rowId.startsWith("_new_")) {
-        const response = await fetch(`${API_URL}/procurements/${rowId}/`, { method: "DELETE" });
-        if (!response.ok) throw new Error();
+        const rowToDelete = rows.find((r) => r._id === rowId);
+        const menuTypeMapping: Record<MenuItemType, "Travaux" | "Biens" | "Consultance"> = {
+          works: "Travaux",
+          "goods-services": "Biens",
+          consultants: "Consultance",
+        };
+        const type =
+          (rowToDelete?.type as "Travaux" | "Biens" | "Consultance" | undefined) ??
+          menuTypeMapping[activeMenu];
+
+        await deleteProcurement(Number(rowId), type);
       }
-      setRows(prev => prev.filter(r => r._id !== rowId));
+      setRows((prev) => prev.filter((r) => r._id !== rowId));
       setSaveMessage({ type: "success", message: "Supprimé" });
-    } catch {
-      setSaveMessage({ type: "error", message: "Erreur suppression" });
+    } catch (e: unknown) {
+      const errorMessage = e instanceof Error ? e.message : "Erreur suppression";
+      setSaveMessage({ type: "error", message: errorMessage });
     }
   };
 
@@ -79,10 +101,10 @@ export default function GestionMarches() {
   const handleRowSave = async (row: GridRow) => {
     setIsSaving(true);
     try {
-      const typeMapping: Record<string, 'Travaux' | 'Biens' | 'Consultance'> = {
-        "works": "Travaux",
+      const typeMapping: Record<string, "Travaux" | "Biens" | "Consultance"> = {
+        works: "Travaux",
         "goods-services": "Biens",
-        "consultants": "Consultance"
+        consultants: "Consultance",
       };
 
       const procurementData: Procurement = {
@@ -111,21 +133,23 @@ export default function GestionMarches() {
 
         let computedStatus = "";
         try {
-          computedStatus = await getProcurementStatus(typeMapping[activeMenu], savedRow);
+          computedStatus = await getProcurementStatus(
+            typeMapping[activeMenu],
+            savedRow,
+          );
         } catch {
-          computedStatus = savedRow.status ? String(savedRow.status) : "Statut indisponible";
+          computedStatus = savedRow.status
+            ? String(savedRow.status)
+            : "Statut indisponible";
         }
 
-        setRows(currentRows =>
-          currentRows.map(r =>
-            r._id === row._id
-              ? { ...savedRow, status: computedStatus }
-              : r
-          )
+        setRows((currentRows) =>
+          currentRows.map((r) =>
+            r._id === row._id ? { ...savedRow, status: computedStatus } : r,
+          ),
         );
         setSaveMessage({ type: "success", message: "Ligne enregistrée !" });
       }
-
     } catch (e: unknown) {
       console.error(e);
       const errorMessage = e instanceof Error ? e.message : "Erreur inconnue";
@@ -138,7 +162,7 @@ export default function GestionMarches() {
 
   const handleRowUpdate = (updatedRow: GridRow) => {
     setRows((prevRows) =>
-      prevRows.map((row) => (row._id === updatedRow._id ? updatedRow : row))
+      prevRows.map((row) => (row._id === updatedRow._id ? updatedRow : row)),
     );
   };
 
@@ -148,11 +172,15 @@ export default function GestionMarches() {
       <main className="dashboard-content">
         <header className="dashboard-header">
           <h1 className="dashboard-title">{config.label}</h1>
-          <p className="dashboard-subtitle">{rows.length} ligne{rows.length > 1 ? "s" : ""}</p>
+          <p className="dashboard-subtitle">
+            {rows.length} ligne{rows.length > 1 ? "s" : ""}
+          </p>
         </header>
 
         {saveMessage && (
-          <div className={`save-message save-message-${saveMessage.type}`}>{saveMessage.message}</div>
+          <div className={`save-message save-message-${saveMessage.type}`}>
+            {saveMessage.message}
+          </div>
         )}
 
         <div className="dashboard-table-container">
@@ -167,7 +195,6 @@ export default function GestionMarches() {
             isLoading={isLoading || isSaving}
           />
         </div>
-
       </main>
     </div>
   );

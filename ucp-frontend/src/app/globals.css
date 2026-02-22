@@ -7,19 +7,20 @@
 }
 
 :root {
-  --background: #f1f5f9;
-  --foreground: #0f172a;
-  --surface: #ffffff;
-  --surface-muted: #f8fafc;
-  --surface-strong: #0f172a;
-  --surface-border: #e2e8f0;
-  --primary-accent: #2563eb;
-  --primary-accent-strong: #1d4ed8;
-  --text-dark: #1e293b;
-  --text-muted: #64748b;
-  --danger: #dc2626;
-  --success: #16a34a;
-  --ring: rgba(37, 99, 235, 0.25);
+  /* Base Colors - Spectacular Slate Theme */
+  --background: #0f172a;
+  /* Slate 950 */
+  --foreground: #f8fafc;
+  /* Slate 50 */
+  --card-bg: #1e293b;
+  /* Slate 800 */
+  --table-header: #1e293b;
+  --table-row-even: #ffffff;
+  --table-row-odd: #f8fafc;
+  --primary-accent: #3b82f6;
+  /* Blue 500 */
+  --text-dark: #334155;
+  /* Slate 700 */
 }
 
 @theme inline {
@@ -37,10 +38,7 @@ body {
   font-size: 16px;
   text-size-adjust: 100%;
   -webkit-text-size-adjust: 100%;
-  background:
-    radial-gradient(circle at 10% -20%, rgba(37, 99, 235, 0.14), transparent 35%),
-    radial-gradient(circle at 90% 0%, rgba(14, 116, 144, 0.08), transparent 30%),
-    var(--background);
+  background: var(--background);
   color: var(--foreground);
   font-family: var(--font-ui), "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -52,30 +50,32 @@ body {
   overflow: hidden;
 }
 
+/* === SCROLLBAR GLOBAL === */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #dbe6f3;
+  background: #0a0a0a;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #94a3b8;
+  background: #333;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #64748b;
+  background: #555;
 }
 
+/* === UTILITY === */
 .text-center {
   text-align: center;
 }
 
 .text-muted {
-  color: var(--text-muted);
+  color: #777;
 }
 
 .font-bold {
@@ -135,11 +135,11 @@ body {
 }
 
 .bg-light {
-  background: var(--surface-muted);
+  background: #0f0f0f;
 }
 
 .border-top {
-  border-top: 1px solid var(--surface-border);
+  border-top: 1px solid #222;
 }
 
 .align-middle {
@@ -152,7 +152,7 @@ body {
 }
 
 .table-light {
-  background: var(--surface-muted);
+  background: #141414;
 }
 
 .text-truncate {
@@ -170,7 +170,7 @@ body {
   cursor: pointer;
   transition: all 0.2s ease;
   font-weight: 600;
-  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .btn-sm {
@@ -178,20 +178,24 @@ body {
   padding: 7px 11px;
 }
 
+/* === FOCUS STATES (White Glow) === */
 button:focus-visible,
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
-  outline: 2px solid var(--ring);
+  outline: 1px solid white;
   outline-offset: 1px;
 }
+
+/* =========================================
+   DASHBOARD STYLES (Monochrome Luxury)
+   ========================================= */
 
 .dashboard {
   display: flex;
   height: 100vh;
-  background:
-    linear-gradient(165deg, rgba(37, 99, 235, 0.06) 0%, rgba(15, 23, 42, 0.02) 30%, transparent 70%),
-    var(--background);
+  /* Spectacular Deep Gradient */
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
   font-family: var(--font-ui), "Segoe UI", sans-serif;
   overflow: hidden;
 }
@@ -203,11 +207,12 @@ textarea:focus-visible {
   overflow: hidden;
 }
 
+/* === HEADER (Glassmorphism Dark) === */
 .dashboard-header {
   padding: 24px 32px;
-  background: rgba(255, 255, 255, 0.86);
-  backdrop-filter: blur(8px);
-  border-bottom: 1px solid var(--surface-border);
+  background: rgba(10, 10, 10, 0.8);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid #222;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -217,7 +222,7 @@ textarea:focus-visible {
   margin: 0;
   font-size: 24px;
   font-weight: 700;
-  color: var(--text-dark);
+  color: #ffffff;
   letter-spacing: -0.5px;
   font-family: var(--font-display), "Segoe UI", sans-serif;
 }
@@ -225,18 +230,20 @@ textarea:focus-visible {
 .dashboard-subtitle {
   margin: 4px 0 0 0;
   font-size: 14px;
-  color: var(--text-muted);
-  font-weight: 600;
+  color: #666;
+  font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 1px;
 }
 
+/* === TABLE CONTAINER === */
 .dashboard-table-container {
   flex: 1;
   padding: 24px 32px;
   overflow: auto;
 }
 
+/* === MESSAGES === */
 .save-message {
   position: fixed;
   top: 24px;
@@ -247,19 +254,19 @@ textarea:focus-visible {
   font-weight: 600;
   z-index: 1000;
   animation: slideIn 0.3s ease;
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.2);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
 }
 
 .save-message-success {
-  background: #ecfdf3;
-  color: #14532d;
-  border: 1px solid #86efac;
+  background: #ffffff;
+  color: #000000;
+  border: 1px solid #333;
 }
 
 .save-message-error {
-  background: #fef2f2;
-  color: #7f1d1d;
-  border: 1px solid #fecaca;
+  background: #1a0505;
+  color: #ffcccc;
+  border: 1px solid #450a0a;
 }
 
 @keyframes slideIn {
@@ -274,14 +281,16 @@ textarea:focus-visible {
   }
 }
 
+/* =========================================
+   SIDEBAR STYLES (Strict Minimalist)
+   ========================================= */
+
 .sidebar-menu {
   width: 260px;
   height: 100vh;
-  background:
-    linear-gradient(170deg, rgba(30, 64, 175, 0.1) 0%, rgba(15, 23, 42, 0.06) 45%, rgba(255, 255, 255, 0.8) 100%),
-    rgba(255, 255, 255, 0.88);
-  backdrop-filter: blur(8px);
-  border-right: 1px solid var(--surface-border);
+  background: #080808;
+  /* Nearly black */
+  border-right: 1px solid #1a1a1a;
   display: flex;
   flex-direction: column;
 }
@@ -294,7 +303,7 @@ textarea:focus-visible {
 .sidebar-title {
   font-size: 18px;
   font-weight: 800;
-  color: var(--text-dark);
+  color: #ffffff;
   letter-spacing: -0.5px;
   margin-bottom: 4px;
   font-family: var(--font-display), "Segoe UI", sans-serif;
@@ -302,7 +311,7 @@ textarea:focus-visible {
 
 .sidebar-subtitle {
   font-size: 13px;
-  color: var(--text-muted);
+  color: #444;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -322,7 +331,7 @@ textarea:focus-visible {
   background: transparent;
   border: none;
   border-radius: 8px;
-  color: #334155;
+  color: #666;
   cursor: pointer;
   text-align: left;
   display: flex;
@@ -334,15 +343,15 @@ textarea:focus-visible {
 }
 
 .sidebar-menu-item:hover {
-  color: #0f172a;
-  background: rgba(37, 99, 235, 0.12);
+  color: #fff;
+  background: #111;
 }
 
 .sidebar-menu-item.active {
-  background: linear-gradient(135deg, #1d4ed8, #2563eb);
-  color: #ffffff;
+  background: #ffffff;
+  color: #000000;
   font-weight: 600;
-  box-shadow: 0 10px 20px rgba(29, 78, 216, 0.25);
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.1);
 }
 
 .menu-icon {
@@ -351,22 +360,28 @@ textarea:focus-visible {
 
 .sidebar-footer {
   padding: 24px;
-  border-top: 1px solid var(--surface-border);
+  border-top: 1px solid #1a1a1a;
   text-align: center;
 }
 
 .sidebar-version {
   font-size: 12px;
-  color: #64748b;
+  color: #333;
   font-family: var(--font-code), monospace;
 }
 
+/* =========================================
+   GRID TABLE STYLES (Modern Financial Look)
+   ========================================= */
+
 .grid-table-container {
-  background: var(--surface);
-  border: 1px solid var(--surface-border);
+  background: #fdfbfb;
+  border: none;
   border-radius: 16px;
+  /* More rounded */
   overflow: hidden;
-  box-shadow: 0 18px 34px -16px rgba(15, 23, 42, 0.25);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  /* Deep shadow */
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -381,6 +396,7 @@ textarea:focus-visible {
   width: max-content;
   min-width: 100%;
   border-collapse: separate;
+  /* For rounded corners */
   border-spacing: 0;
   table-layout: fixed;
   font-size: 15px;
@@ -388,15 +404,17 @@ textarea:focus-visible {
 }
 
 .table thead th {
-  background: linear-gradient(180deg, #0f172a, #1e293b);
+  background: #070707;
+  /* Premium Dark Slate */
   color: #e2e8f0;
+  /* Light Slate text */
   font-weight: 700;
   text-transform: none;
   font-size: 12px;
   letter-spacing: 0.02em;
   line-height: 1.3;
   padding: 14px 14px;
-  border-bottom: 2px solid #1d4ed8;
+  border-bottom: 3px solid #211647e5;
   text-align: left;
   white-space: nowrap;
   position: sticky;
@@ -407,7 +425,7 @@ textarea:focus-visible {
 }
 
 .table thead th:not(:last-child) {
-  border-right: 1px solid #475569;
+  border-right: 1px solid #334155;
 }
 
 .table tbody tr {
@@ -417,26 +435,32 @@ textarea:focus-visible {
 
 .table tbody tr:nth-child(even) {
   background: #f8fafc;
+  /* Zebra striping - very subtle */
 }
 
 .table tbody tr:hover {
-  background: #eef6ff !important;
+  background: #f1f5f9 !important;
+  /* Gris clair moderne et neutre */
   transform: none;
+  /* On enlève le zoom si c'est gênant */
   box-shadow: none;
+  /* On garde ça simple */
 }
 
 .table tbody td {
   border-bottom: 1px solid #e2e8f0;
   padding: 0;
+  /* Important for full cell editing */
 }
 
+/* === ACTION COLUMN === */
 .action-header {
   text-align: center !important;
   position: sticky;
   left: 0;
   z-index: 25 !important;
-  background: #0f172a !important;
-  box-shadow: 2px 0 0 #1d4ed8;
+  background: #1e293b !important;
+  box-shadow: 2px 0 0 #334155;
 }
 
 .action-cell {
@@ -479,24 +503,24 @@ textarea:focus-visible {
 
 .action-btn-save {
   color: #ffffff;
-  background: linear-gradient(135deg, #16a34a, #15803d);
+  background: linear-gradient(135deg, #22c55e, #16a34a);
   border-color: #15803d;
   box-shadow: 0 6px 14px rgba(21, 128, 61, 0.3);
 }
 
 .action-btn-save:hover {
-  background: linear-gradient(135deg, #15803d, #166534);
+  background: linear-gradient(135deg, #16a34a, #15803d);
 }
 
 .action-btn-delete {
   color: #ffffff;
-  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  background: linear-gradient(135deg, #ef4444, #dc2626);
   border-color: #b91c1c;
   box-shadow: 0 6px 14px rgba(185, 28, 28, 0.28);
 }
 
 .action-btn-delete:hover {
-  background: linear-gradient(135deg, #b91c1c, #991b1b);
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
 }
 
 .action-icon {
@@ -505,16 +529,20 @@ textarea:focus-visible {
   display: block;
 }
 
+/* === CELLS === */
 .grid-cell {
   padding: 0 !important;
+  /* Reset padding to let children handle it */
   height: 100%;
   color: #334155;
+  /* Dark text for readability */
   vertical-align: middle;
   position: relative;
 }
 
 .grid-cell.readonly-cell {
-  background: #f8fafc;
+  background: #f9fafb;
+  /* Very light grey for readonly */
   color: #6b7280;
   font-family: monospace;
 }
@@ -524,14 +552,17 @@ textarea:focus-visible {
 }
 
 .grid-cell.editable-cell:hover {
-  background: #eef6ff;
+  background: #f0fdf4;
+  /* Very subtle green tint on hover */
 }
 
+/* === INPUTS === */
 .cell-input {
   width: 100%;
   background: transparent;
   border: 1px solid transparent;
   color: #000;
+  /* Black text */
   padding: 8px;
   border-radius: 6px;
   font-family: inherit;
@@ -540,22 +571,26 @@ textarea:focus-visible {
 
 .cell-input:focus {
   background: #fff;
-  border-color: rgba(37, 99, 235, 0.35);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+  border-color: #2a2c3033;
+  /* Blue focus ring */
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
   outline: none;
 }
 
 .cell-select {
   cursor: pointer;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23334155' width='18px' height='18px'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white' width='18px' height='18px'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3Csvg%3E");
   background-repeat: no-repeat;
   background-position: right 8px center;
   padding-right: 30px;
 }
 
+/* === ACTIONS / BUTTONS === */
+
+/* Primary Button (Save/New) - White on Black */
 .btn-primary {
-  background: linear-gradient(135deg, var(--primary-accent), var(--primary-accent-strong));
-  color: #ffffff;
+  background: #ffffff;
+  color: #000000;
   border: none;
   padding: 10px 20px;
   border-radius: 6px;
@@ -567,21 +602,22 @@ textarea:focus-visible {
 }
 
 .btn-primary:hover {
-  filter: brightness(1.05);
+  background: #e0e0e0;
   transform: translateY(-1px);
 }
 
 .btn-primary:active {
-  filter: brightness(0.95);
+  background: #cccccc;
   transform: translateY(0);
 }
 
 .btn-primary:disabled {
-  background: #94a3b8;
-  color: #e2e8f0;
+  background: #333;
+  color: #666;
   cursor: not-allowed;
 }
 
+/* Danger Button (Delete) - Subtle Red */
 .btn-danger {
   background: rgba(220, 38, 38, 0.1);
   color: #ef4444;
@@ -599,114 +635,22 @@ textarea:focus-visible {
   border-color: rgba(220, 38, 38, 0.4);
 }
 
+/* Secondary/Outline Button */
 .btn-outline-primary {
   background: transparent;
-  border: 1px solid #94a3b8;
-  color: #475569;
+  border: 1px solid #333;
+  color: #888;
   padding: 6px 12px;
   border-radius: 6px;
   cursor: pointer;
 }
 
 .btn-outline-primary:hover {
-  border-color: #334155;
-  color: #0f172a;
-}
-
-.login-page {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  background:
-    radial-gradient(circle at 15% 10%, rgba(37, 99, 235, 0.18), transparent 40%),
-    radial-gradient(circle at 85% 5%, rgba(2, 132, 199, 0.16), transparent 28%),
-    linear-gradient(180deg, #eef2ff 0%, #f8fafc 100%);
-}
-
-.login-card {
-  width: 100%;
-  max-width: 430px;
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid #dbe6f3;
-  border-radius: 16px;
-  box-shadow: 0 22px 40px -24px rgba(15, 23, 42, 0.4);
-  backdrop-filter: blur(8px);
-  padding: 32px;
-}
-
-.login-title {
-  color: #0f172a;
-  font-size: 1.8rem;
-  font-weight: 700;
-  text-align: center;
-  letter-spacing: -0.02em;
-}
-
-.login-subtitle {
-  color: #64748b;
-  font-size: 0.9rem;
-  text-align: center;
-  margin: 8px 0 28px;
-}
-
-.login-label {
-  display: block;
-  color: #334155;
-  font-weight: 600;
-  font-size: 0.84rem;
-  margin-bottom: 8px;
-}
-
-.login-input {
-  width: 100%;
-  border: 1px solid #cbd5e1;
-  border-radius: 10px;
-  padding: 10px 12px;
-  color: #0f172a;
-  font-size: 0.95rem;
-  background: #fff;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-.login-input:focus {
-  outline: none;
-  border-color: rgba(37, 99, 235, 0.5);
-  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.14);
-}
-
-.login-error {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  color: #7f1d1d;
-  border-radius: 10px;
-  padding: 10px 12px;
-  font-size: 0.88rem;
-  margin-bottom: 16px;
-}
-
-.login-button {
-  width: 100%;
-  margin-top: 4px;
-  border: none;
-  border-radius: 10px;
-  background: linear-gradient(135deg, #1d4ed8, #2563eb);
+  border-color: #fff;
   color: #fff;
-  font-weight: 700;
-  padding: 11px 14px;
-  transition: transform 0.15s ease, filter 0.2s ease;
 }
 
-.login-button:hover {
-  filter: brightness(1.05);
-  transform: translateY(-1px);
-}
-
-.login-button:active {
-  transform: translateY(0);
-}
-
+/* === RESPONSIVE === */
 @media (max-width: 768px) {
   .dashboard {
     flex-direction: column;
@@ -725,7 +669,7 @@ textarea:focus-visible {
     width: 100%;
     height: auto;
     border-right: none;
-    border-bottom: 1px solid var(--surface-border);
+    border-bottom: 1px solid #222;
   }
 
   .sidebar-nav {
@@ -735,9 +679,5 @@ textarea:focus-visible {
 
   .sidebar-menu-item {
     white-space: nowrap;
-  }
-
-  .login-card {
-    padding: 24px 20px;
   }
 }

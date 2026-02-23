@@ -7,7 +7,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.utils import timezone
-from .ProcurementService import soft_delete_service
+from .ProcurementService import delete_service
 
 # INSERER DONNEES
 @csrf_exempt
@@ -183,4 +183,33 @@ def statut_biens(request):
         else:
             res = "En cours (dans les temps)"
 
-    return Response({"statut": res})        
+    return Response({"statut": res}) 
+
+
+# ARRETER BIENS
+@csrf_exempt
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def arreter_biens(request, id):
+    try:
+        item = Biens.objects.get(id=id)
+
+        if item.statut == "Terminé":
+            return Response({"error": "Déjà terminé"}, status=409)
+        if item.statut == "Arrêté":
+            return Response({"error": "Déjà arrêté"}, status=409)
+
+        item.statut = "Arrêté"
+        item.save()
+        return Response({"ok": True, "id": item.id, "statut": item.statut}, status=200)
+    except Biens.DoesNotExist:
+        return Response({"error": "Élément non trouvé"}, status=404)
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
+
+# SUPPRIMER BIENS
+@csrf_exempt
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def supprimer_biens(request, id):
+    return delete_service(request, Biens, id) 

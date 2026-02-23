@@ -11,6 +11,7 @@ import {
   getAllProcurements,
   getProcurementStatus,
   Procurement,
+  stopProcurement,
 } from "@/services/api";
 
 export default function GestionMarches() {
@@ -54,7 +55,16 @@ export default function GestionMarches() {
 
   const handleAddRow = () => {
     const newId = `_new_${Date.now()}`;
-    const newRow: GridRow = { _id: newId, review_status: "post" };
+    const typeMapping: Record<MenuItemType, "Travaux" | "Biens" | "Consultance"> = {
+      works: "Travaux",
+      "goods-services": "Biens",
+      consultants: "Consultance",
+    };
+    const newRow: GridRow = {
+      _id: newId,
+      review_status: "post",
+      type: typeMapping[activeMenu],
+    };
     config.columns.forEach((col) => {
       newRow[col.key] = "";
     });
@@ -73,26 +83,117 @@ export default function GestionMarches() {
     );
   };
 
+  const isRowComplete = (row: GridRow): boolean => {
+    const requiredColumns = config.columns.filter(
+      (col) => col.editable !== false && !col.readonly && col.type !== "action_button",
+    );
+
+    return requiredColumns.every((col) => {
+      const value = row[col.key];
+      return value !== null && value !== undefined && String(value).trim() !== "";
+    });
+  };
+
   const handleRowDelete = async (rowId: string) => {
     if (!window.confirm("Supprimer cette ligne ?")) return;
     try {
       if (!rowId.startsWith("_new_")) {
+        const password = window.prompt("Confirme avec ton mot de passe:");
+        if (!password) {
+          setSaveMessage({ type: "error", message: "Suppression annulée (mot de passe requis)." });
+          return;
+        }
         const rowToDelete = rows.find((r) => r._id === rowId);
-        const menuTypeMapping: Record<MenuItemType, "Travaux" | "Biens" | "Consultance"> = {
+        const menuTypeMapping: Record<
+          MenuItemType,
+          "Travaux" | "Biens" | "Consultance"
+        > = {
           works: "Travaux",
           "goods-services": "Biens",
           consultants: "Consultance",
         };
         const type =
-          (rowToDelete?.type as "Travaux" | "Biens" | "Consultance" | undefined) ??
-          menuTypeMapping[activeMenu];
+          (rowToDelete?.type as
+            | "Travaux"
+            | "Biens"
+            | "Consultance"
+            | undefined) ?? menuTypeMapping[activeMenu];
 
-        await deleteProcurement(Number(rowId), type);
+        await deleteProcurement(Number(rowId), type, password);
       }
       setRows((prev) => prev.filter((r) => r._id !== rowId));
       setSaveMessage({ type: "success", message: "Supprimé" });
     } catch (e: unknown) {
-      const errorMessage = e instanceof Error ? e.message : "Erreur suppression";
+      const errorMessage =
+        e instanceof Error ? e.message : "Erreur suppression";
+      setSaveMessage({ type: "error", message: errorMessage });
+    }
+  };
+
+  const handleRowStop = async (rowId: string) => {
+    if (!window.confirm("Arrêter cette ligne ?")) return;
+
+    try {
+      if (rowId.startsWith("_new_")) {
+        setSaveMessage({
+          type: "error",
+          message: "Enregistre d'abord la ligne.",
+        });
+        return;
+      }
+
+      const password = window.prompt("Confirme avec ton mot de passe:");
+      if (!password) {
+        setSaveMessage({ type: "error", message: "Arrêt annulé (mot de passe requis)." });
+        return;
+      }
+
+      const rowToStop = rows.find((r) => r._id === rowId);
+      if (!rowToStop) {
+        setSaveMessage({ type: "error", message: "Ligne introuvable." });
+        return;
+      }
+
+      const currentStatus = String(rowToStop.status ?? "").trim();
+      if (!currentStatus) {
+        setSaveMessage({
+          type: "error",
+          message: "Statut vide: impossible d'arrêter.",
+        });
+        return;
+      }
+      if (currentStatus !== "En cours") {
+        setSaveMessage({
+          type: "error",
+          message: `Impossible d'arrêter: statut actuel "${currentStatus}".`,
+        });
+        return;
+      }
+
+      const menuTypeMapping: Record<
+        MenuItemType,
+        "Travaux" | "Biens" | "Consultance"
+      > = {
+        works: "Travaux",
+        "goods-services": "Biens",
+        consultants: "Consultance",
+      };
+
+      const type =
+        (rowToStop.type as "Travaux" | "Biens" | "Consultance" | undefined) ??
+        menuTypeMapping[activeMenu];
+
+      const result = await stopProcurement(Number(rowId), type, password);
+
+      setRows((prev) =>
+        prev.map((r) =>
+          r._id === rowId ? { ...r, status: result.statut || "Arrêté" } : r,
+        ),
+      );
+
+      setSaveMessage({ type: "success", message: "Ligne arrêtée." });
+    } catch (e: unknown) {
+      const errorMessage = e instanceof Error ? e.message : "Erreur arrêt";
       setSaveMessage({ type: "error", message: errorMessage });
     }
   };
@@ -101,6 +202,14 @@ export default function GestionMarches() {
   const handleRowSave = async (row: GridRow) => {
     setIsSaving(true);
     try {
+      if (!isRowComplete(row)) {
+        setSaveMessage({
+          type: "error",
+          message: "Complète toute la ligne avant d'enregistrer.",
+        });
+        return;
+      }
+
       const typeMapping: Record<string, "Travaux" | "Biens" | "Consultance"> = {
         works: "Travaux",
         "goods-services": "Biens",
@@ -191,6 +300,7 @@ export default function GestionMarches() {
             onRowSave={handleRowSave}
             onRowUpdate={handleRowUpdate}
             onRowDelete={handleRowDelete}
+            onRowStop={handleRowStop}
             onAddRow={handleAddRow}
             isLoading={isLoading || isSaving}
           />

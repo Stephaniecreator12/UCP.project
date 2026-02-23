@@ -14,6 +14,7 @@ interface GridCellProps {
   onConfirm?: (value: unknown) => void; // New prop for immediate save
   onKeyDown: (e: React.KeyboardEvent) => void;
   autoFocus?: boolean;
+  minDate?: string;
 }
 
 export default function GridCell({
@@ -24,6 +25,7 @@ export default function GridCell({
   onConfirm,
   onKeyDown,
   autoFocus = false,
+  minDate,
 }: GridCellProps) {
   // // Reference pour focus l'input
   const inputRef = useRef<
@@ -130,7 +132,12 @@ export default function GridCell({
         ref={inputRef as React.Ref<HTMLInputElement>}
         type="date"
         value={typeof value === "string" ? value : ""}
-        onChange={(e) => onChange(e.target.value)}
+        min={minDate}
+        onChange={(e) => {
+          const val = e.target.value;
+          onChange(val);
+          if (onConfirm) onConfirm(val); // Immediate save for date selection
+        }}
         onBlur={onBlur}
         onKeyDown={onKeyDown}
         className="cell-input cell-date"

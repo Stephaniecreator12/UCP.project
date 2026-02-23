@@ -12,6 +12,7 @@ interface GridTableProps {
   onRowChange?: (rowId: string, columnKey: string, value: unknown) => void;
   onRowSave?: (row: GridRow) => void;
   onRowDelete?: (rowId: string) => void;
+  onRowStop?: (rowId: string) => void;
   onAddRow?: () => void;
   onRowUpdate?: (updatedRow: GridRow) => void;
   isLoading?: boolean;
@@ -23,6 +24,7 @@ export default function GridTable({
   onRowChange,
   onRowSave,
   onRowDelete,
+  onRowStop,
   onAddRow,
   onRowUpdate,
   isLoading = false,
@@ -43,6 +45,72 @@ export default function GridTable({
 
   const hasValue = (value: unknown): boolean => {
     return value !== null && value !== undefined && String(value).trim() !== "";
+  };
+
+  const isRowComplete = (row: GridRow): boolean => {
+    const status = String(row.status ?? "").trim();
+    const normalizedStatus = status
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+
+    if (normalizedStatus === "arrete" || normalizedStatus === "termine") {
+      return true;
+    }
+
+    const requiredColumns = columns.filter(
+      (col) => col.editable !== false && !col.readonly && col.type !== "action_button",
+    );
+
+    return requiredColumns.every((col) => {
+      if (col.isSplit && col.splitController) {
+        const controllerKey = col.splitController;
+        const isPricing = controllerKey === "pricing_type";
+        const VAL_TOP = isPricing ? "forfait" : "planned";
+        const VAL_BOTTOM = isPricing ? "time_based" : "actual";
+        const currentValue = row[controllerKey] || VAL_TOP;
+        const effectiveKey = currentValue === VAL_BOTTOM ? `${col.key}_actual` : col.key;
+        return hasValue(row[effectiveKey]);
+      }
+      return hasValue(row[col.key]);
+    });
+  };
+
+  const getFirstIncompleteColumn = (row: GridRow): ColumnConfig | undefined => {
+    const status = String(row.status ?? "").trim();
+    const normalizedStatus = status
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+    if (normalizedStatus === "arrete" || normalizedStatus === "termine") {
+      return undefined;
+    }
+
+    const requiredColumns = columns.filter(
+      (col) => col.editable !== false && !col.readonly && col.type !== "action_button",
+    );
+    return requiredColumns.find((col) => {
+      if (col.isSplit && col.splitController) {
+        const controllerKey = col.splitController;
+        const isPricing = controllerKey === "pricing_type";
+        const VAL_TOP = isPricing ? "forfait" : "planned";
+        const VAL_BOTTOM = isPricing ? "time_based" : "actual";
+        const currentValue = row[controllerKey] || VAL_TOP;
+        const effectiveKey = currentValue === VAL_BOTTOM ? `${col.key}_actual` : col.key;
+        return !hasValue(row[effectiveKey]);
+      }
+      return !hasValue(row[col.key]);
+    });
+  };
+
+  const getTodayLocalIso = (): string => {
+    const now = new Date();
+    const tzOffsetMs = now.getTimezoneOffset() * 60 * 1000;
+    return new Date(now.getTime() - tzOffsetMs).toISOString().split("T")[0];
+  };
+
+  const maxIsoDate = (a: string, b: string): string => {
+    return a > b ? a : b;
   };
 
   const getBottomSwitchBlockReason = (
@@ -83,6 +151,12 @@ export default function GridTable({
   ): string | null => {
     if (!hasValue(nextValue)) return null;
 
+    const nextDate = String(nextValue);
+    const minDate = getMinDateForColumn(row, columnKey);
+    if (minDate && nextDate < minDate) {
+      return `La date doit être supérieure ou égale à ${minDate}.`;
+    }
+
     const dateContext = getSplitDateContext(columnKey);
     if (!dateContext) return null;
 
@@ -113,6 +187,37 @@ export default function GridTable({
     }
 
     return null;
+  };
+
+  const getMinDateForColumn = (row: GridRow, columnKey: string): string | undefined => {
+    let minDate = getTodayLocalIso();
+    const dateContext = getSplitDateContext(columnKey);
+
+    if (!dateContext) {
+      return minDate;
+    }
+
+    const { isActual, baseKey, index } = dateContext;
+
+    if (isActual) {
+      const plannedDate = row[baseKey];
+      if (hasValue(plannedDate)) {
+        minDate = maxIsoDate(minDate, String(plannedDate));
+      }
+    }
+
+    if (index > 0) {
+      const previousColumn = splitDateColumns[index - 1];
+      const previousKey = isActual
+        ? `${previousColumn.key}_actual`
+        : previousColumn.key;
+      const previousValue = row[previousKey];
+      if (hasValue(previousValue)) {
+        minDate = maxIsoDate(minDate, String(previousValue));
+      }
+    }
+
+    return minDate;
   };
 
   // Quand on clique sur une cellule
@@ -175,8 +280,9 @@ export default function GridTable({
     const safeConfiguredWidth = Number.isNaN(configuredWidthPx)
       ? 150
       : configuredWidthPx;
-    const headerBasedMinWidth = Math.max(130, column.label.length * 9 + 40);
-    return `${Math.max(safeConfiguredWidth, headerBasedMinWidth)}px`;
+    const compactConfiguredWidth = Math.round(safeConfiguredWidth * 0.9);
+    const headerBasedMinWidth = Math.max(86, column.label.length * 6 + 24);
+    return `${Math.max(compactConfiguredWidth, headerBasedMinWidth)}px`;
   };
 
   // Afficher la valeur d'une cellule
@@ -204,6 +310,27 @@ export default function GridTable({
     return String(value);
   };
 
+  const getStatusInlineStyle = (value: unknown): React.CSSProperties => {
+    const status = String(value ?? "").trim().toLowerCase();
+    const normalized = status
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+
+    if (normalized.includes("retard")) {
+      return { backgroundColor: "#b91c1c", color: "#ffffff" };
+    }
+    if (normalized.includes("dans les temps")) {
+      return { backgroundColor: "#6b8e23", color: "#ffffff" };
+    }
+    if (normalized.includes("termine")) {
+      return { backgroundColor: "#2563eb", color: "#ffffff" };
+    }
+    if (normalized.includes("arrete")) {
+      return { backgroundColor: "#64748b", color: "#ffffff" };
+    }
+    return {};
+  };
+
   // CALCUL des dates (via Backend)
   const handleCalculate = async (row: GridRow) => {
     // 1. Determine Driver Date
@@ -216,31 +343,45 @@ export default function GridTable({
       alert("Veuillez d'abord saisir une date de fin (Livraison ou Fin de mission).");
       return;
     }
+    if (!hasValue(row.method)) {
+      alert("Veuillez d'abord choisir une méthode.");
+      return;
+    }
 
     try {
       // 2. Appel Backend
       // Import dynamique ou passage en props si besoin, ici on utilise l'import direct
       const { calculatePlanning } = await import("@/services/api");
 
-      const method = row.method?.toLowerCase() || "aoi";
-      const newDates = await calculatePlanning(driverDate, method);
+      const type =
+        (row.type as "Travaux" | "Biens" | "Consultance" | undefined) ?? "Travaux";
+      const method = String(row.method).toLowerCase();
+      const newDates = await calculatePlanning(type, driverDate, method);
 
       // 3. Mapping des résultats (Backend -> Frontend keys)
       // Le backend renvoie: dossiers_appel_prevu, date_lancement_prevu, etc.
       // Le frontend attend: tender_documents_date, launch_date, etc.
 
-      const mappedDates: GridRow = {
-        tender_documents_date: newDates.dossiers_appel_prevu,
-        launch_date: newDates.date_lancement_prevu,
-        opening_date: newDates.date_ouverture_prevu,
-        evaluation_report: newDates.rapport_evaluation_prevu, // Mapping direct sur la clé de colonne
-        // Ah, le backend renvoie 'rapport_evaluation_prevu' comme date. 
-        // Le frontend a 'evaluation_report' (status read-only). 
-        // On va peut-être devoir adapter. Pour l'instant on map ce qu'on peut.
-
-        contract_date: newDates.date_signature_prevu,
-        specifications_date: newDates.listesetspecifications || newDates.dossiers_appel_prevu, // Fallback
-      };
+      const mappedDates: GridRow =
+        type === "Consultance"
+          ? {
+              terms_of_reference: newDates.TdR_prevu,
+              ami: newDates.ami_prevu,
+              request_for_proposal: newDates.demande_proposition_prevu,
+              submissions_opening_date: newDates.date_ouverture_prevu,
+              financial_opening_date: newDates.ouverture_plis_prevu,
+              contract_date: newDates.date_signature_prevu,
+              mission_end_date: newDates.date_fin_prevu,
+            }
+          : {
+              tender_documents_date: newDates.dossiers_appel_prevu,
+              launch_date: newDates.date_lancement_prevu,
+              opening_date: newDates.date_ouverture_prevu,
+              evaluation_report: newDates.rapport_evaluation_prevu,
+              contract_date: newDates.date_signature_prevu,
+              specifications_date:
+                newDates.listesetspecifications || newDates.dossiers_appel_prevu,
+            };
 
       // Apply updates
       if (onRowUpdate && row._id) {
@@ -338,7 +479,7 @@ export default function GridTable({
         <table className="table table-bordered table-hover mb-0">
           <thead className="table-light">
             <tr>
-              <th className="text-center action-header" style={{ width: "120px", minWidth: "120px" }}>
+              <th className="text-center action-header" style={{ width: "104px", minWidth: "104px" }}>
                 Action
               </th>
               {columns.map((column) => (
@@ -369,20 +510,71 @@ export default function GridTable({
                 </td>
               </tr>
             ) : (
-              rows.map((row) => (
-                <tr key={row._id}>
+              rows.map((row) => {
+                const normalizedRowStatus = String(row.status ?? "")
+                  .trim()
+                  .toLowerCase()
+                  .normalize("NFD")
+                  .replace(/[\u0300-\u036f]/g, "");
+                const isRowStopped = normalizedRowStatus === "arrete";
+
+                return (
+                <tr
+                  key={row._id}
+                  className={isRowStopped ? "row-stopped" : ""}
+                >
                   <td
                     className="text-center align-middle action-cell"
-                    style={{ width: "120px", minWidth: "120px", padding: "10px" }}
+                    style={{ width: "104px", minWidth: "104px", padding: "8px" }}
                   >
                     <div className="d-flex gap-2 justify-content-center action-buttons">
+                      {(() => {
+                        const status = String(row.status ?? "").trim();
+                        const normalizedStatus = status
+                          .toLowerCase()
+                          .normalize("NFD")
+                          .replace(/[\u0300-\u036f]/g, "");
+                        const isNewRow = String(row._id ?? "").startsWith("_new_");
+                        const stopDisabled =
+                          isNewRow ||
+                          !status ||
+                          normalizedStatus === "arrete" ||
+                          normalizedStatus === "termine";
+
+                        return (
+                          <button
+                            className="action-btn action-btn-stop"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (row._id && onRowStop && !stopDisabled) onRowStop(row._id);
+                            }}
+                            disabled={stopDisabled}
+                            title="Arrêter"
+                            aria-label="Arrêter la ligne"
+                          >
+                            <svg
+                              className="action-icon"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              xmlns="http://www.w3.org/2000/svg"
+                            >
+                              <rect x="6" y="6" width="12" height="12" rx="1.8" stroke="currentColor" strokeWidth="1.8" />
+                            </svg>
+                          </button>
+                        );
+                      })()}
                       <button
                         className="action-btn action-btn-save"
                         onClick={(e) => {
                           e.stopPropagation();
+                          if (onRowSave && !isRowComplete(row)) {
+                            alert("Complète toute la ligne avant d'enregistrer.");
+                            return;
+                          }
                           if (onRowSave) onRowSave(row);
                           else console.warn("onRowSave not provided");
                         }}
+                        disabled={!isRowComplete(row)}
                         title="Enregistrer la ligne"
                         aria-label="Enregistrer la ligne"
                       >
@@ -421,7 +613,12 @@ export default function GridTable({
                     </div>
                   </td>
 
-                  {columns.map((column) => (
+                  {columns.map((column) => {
+                    const isStatusColumn = column.key === "status";
+                    const statusValue = isStatusColumn ? getCellValue(row, column) : "";
+                    const statusCellStyle = isStatusColumn ? getStatusInlineStyle(statusValue) : undefined;
+
+                    return (
                     <td
                       key={`${row._id}-${column.key}`}
                       className={`align-middle grid-cell ${column.editable && !column.readonly
@@ -431,11 +628,12 @@ export default function GridTable({
                       style={{
                         width: getColumnWidth(column),
                         minWidth: getColumnWidth(column),
-                        padding: "8px 12px",
+                        padding: isStatusColumn ? "0" : "8px 12px",
                         cursor:
                           column.editable && !column.readonly
                             ? "pointer"
                             : "not-allowed",
+                        ...(statusCellStyle || {}),
                       }}>
                       {column.isSplit ? (
                         <div className="d-flex flex-column h-100">
@@ -490,6 +688,11 @@ export default function GridTable({
                               let bgColor = "transparent";
                               let textColor = "#334155"; // Slate 700
 
+                              if (isRowStopped) {
+                                bgColor = "transparent";
+                                textColor = "inherit";
+                              } else
+
                               if (isColumnReadonly) {
                                 bgColor = "#f1f5f9"; // Slate 100
                                 textColor = "#64748b"; // Slate 500
@@ -520,7 +723,15 @@ export default function GridTable({
                                       topLabel
                                     )
                                     : null;
-                                const buttonStyle = isActive
+                                const buttonStyle = isRowStopped
+                                  ? {
+                                      backgroundColor: "transparent",
+                                      color: "inherit",
+                                      border: "1px solid rgba(255, 255, 255, 0.25)",
+                                      boxShadow: "none",
+                                      transform: "none",
+                                    }
+                                  : isActive
                                   ? {
                                     backgroundColor: "#334155", // Slate 700 - Deep & Classy
                                     color: "#ffffff",
@@ -540,15 +751,22 @@ export default function GridTable({
                                       ...buttonStyle,
                                       minHeight: "35px",
                                       borderRadius: "8px",
-                                      cursor: switchBlockedReason ? "not-allowed" : "pointer",
+                                      cursor: isRowStopped
+                                        ? "not-allowed"
+                                        : switchBlockedReason
+                                          ? "not-allowed"
+                                          : "pointer",
                                       fontWeight: "700", // Bolder
                                       fontSize: "0.80rem",
                                       letterSpacing: "0.025em",
                                       transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
                                       userSelect: "none",
-                                      opacity: switchBlockedReason ? 0.6 : 1
+                                      opacity: isRowStopped || switchBlockedReason ? 0.6 : 1
                                     }}
                                     onClick={(e) => {
+                                      if (isRowStopped) {
+                                        return;
+                                      }
                                       e.stopPropagation();
                                       if (switchBlockedReason) {
                                         alert(switchBlockedReason);
@@ -591,8 +809,16 @@ export default function GridTable({
                                       column={column}
                                       value={editValue}
                                       onChange={handleCellChange}
+                                      onConfirm={(val) => {
+                                        if (onRowChange && row._id) {
+                                          onRowChange(row._id, effectiveKey, val);
+                                        }
+                                        setEditingCell(null);
+                                        setEditValue("");
+                                      }}
                                       onBlur={handleCellBlur}
                                       onKeyDown={handleKeyDown}
+                                      minDate={column.type === "date" ? getMinDateForColumn(row, effectiveKey) : undefined}
                                       autoFocus
                                     />
                                   ) : (
@@ -613,18 +839,26 @@ export default function GridTable({
                           })()}
                         </div>
                       ) : (
-                        <div
-                          className="h-100 w-100 p-2 d-flex align-items-center justify-content-center"
-                          onClick={() => {
-                            if (column.type === "action_button") {
-                              if (column.key === "action_calculation") {
-                                handleCalculate(row);
+                        (() => {
+                          const displayValue = getCellValue(row, column);
+
+                          return (
+                            <div
+                              className={
+                                isStatusColumn
+                                  ? "h-100 w-100 d-flex align-items-center justify-content-center"
+                                  : "h-100 w-100 p-2 d-flex align-items-center justify-content-center"
                               }
-                            } else {
-                              handleCellClick(row._id, column);
-                            }
-                          }}
-                        >
+                              onClick={() => {
+                                if (column.type === "action_button") {
+                                  if (column.key === "action_calculation") {
+                                    handleCalculate(row);
+                                  }
+                                } else {
+                                  handleCellClick(row._id, column);
+                                }
+                              }}
+                            >
                           {column.type === "action_button" ? (
                             <button className="btn btn-sm" style={{
                               background: "linear-gradient(to right, #3b82f6, #2563eb)",
@@ -651,19 +885,24 @@ export default function GridTable({
                                 setEditValue("");
                               }}
                               onKeyDown={handleKeyDown}
+                              minDate={column.type === "date" ? getMinDateForColumn(row, column.key) : undefined}
                               autoFocus
                             />
                           ) : (
                             <div className="cell-value">
-                              {getCellValue(row, column)}
+                              {displayValue}
                             </div>
                           )}
-                        </div>
+                            </div>
+                          );
+                        })()
                       )}
                     </td>
-                  ))}
+                    );
+                  })}
                 </tr>
-              ))
+              );
+              })
             )}
           </tbody>
         </table>
@@ -679,7 +918,7 @@ export default function GridTable({
             padding: "10px 24px"
           }}
           onClick={onAddRow}
-          disabled={isLoading}
+          disabled={isLoading || (rows.length > 0 && !!getFirstIncompleteColumn(rows[rows.length - 1]))}
         >
           + Nouvelle ligne
         </button>

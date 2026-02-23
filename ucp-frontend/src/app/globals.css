@@ -476,8 +476,8 @@ textarea:focus-visible {
 }
 
 .action-btn {
-  width: 40px;
-  height: 40px;
+  width: 34px;
+  height: 34px;
   border-radius: 10px;
   border: 1px solid transparent;
   display: inline-flex;
@@ -523,9 +523,27 @@ textarea:focus-visible {
   background: linear-gradient(135deg, #dc2626, #b91c1c);
 }
 
+.action-btn-stop {
+  color: #ffffff;
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  border-color: #b45309;
+  box-shadow: 0 6px 14px rgba(180, 83, 9, 0.28);
+}
+
+.action-btn-stop:hover {
+  background: linear-gradient(135deg, #d97706, #b45309);
+}
+
+.action-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
 .action-icon {
-  width: 20px;
-  height: 20px;
+  width: 17px;
+  height: 17px;
   display: block;
 }
 
@@ -554,6 +572,60 @@ textarea:focus-visible {
 .grid-cell.editable-cell:hover {
   background: #f0fdf4;
   /* Very subtle green tint on hover */
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 120px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.status-late {
+  background: #dc2626;
+  color: #ffffff;
+}
+
+.status-on-time {
+  background: #6b8e23;
+  color: #ffffff;
+}
+
+.status-done {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.status-stopped {
+  background: #374151;
+  color: #ffffff;
+}
+
+tr.row-stopped td {
+  background: #94a3b8 !important;
+  color: #1f2937 !important;
+}
+
+tr.row-stopped td > div,
+tr.row-stopped .grid-cell .cell-value,
+tr.row-stopped .grid-cell .cell-input,
+tr.row-stopped .grid-cell select,
+tr.row-stopped .grid-cell input[type="date"] {
+  background: transparent !important;
+  color: inherit !important;
+}
+
+tr.row-stopped {
+  pointer-events: none;
+}
+
+tr.row-stopped .action-cell,
+tr.row-stopped .action-cell * {
+  pointer-events: auto;
 }
 
 /* === INPUTS === */

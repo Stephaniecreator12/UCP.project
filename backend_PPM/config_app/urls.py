@@ -16,7 +16,7 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
-from config_app.service import TravauxService, BiensService, ConsultanceService
+from config_app.service import TravauxService, BiensService, ConsultanceService, ProcurementService
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
@@ -37,9 +37,14 @@ urlpatterns = [
     path('api/Travaux/calculerPlanningTravaux/', TravauxService.calculer_planning_travaux, name='api_calculer_planning_travaux'),
     path('api/Biens/calculerPlanningBiens/', BiensService.calculer_planning_biens, name='api_calculer_planning_biens'),
     path('api/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/Consultance/statutConsultance/', ConsultanceService.statut_consultance, name='api_statut_consultance'),
     path('api/Travaux/statutTravaux/', TravauxService.statut_travaux, name='api_statut_travaux'),
     path('api/Biens/statutBiens/', BiensService.statut_biens, name='api_statut_biens'),
+    path('api/Consultance/arreter/<int:id>/', ConsultanceService.arreter_consultance, name='api_arreter_consultance'),
+    path('api/Travaux/arreter/<int:id>/', TravauxService.arreter_travaux, name='api_arreter_travaux'),
+    path('api/Biens/arreter/<int:id>/', BiensService.arreter_biens, name='api_arreter_biens'),
+    path('api/Consultance/delete/<int:id>/', ConsultanceService.supprimer_consultance, name='api_delete_consultance'),
+    path('api/Travaux/delete/<int:id>/', TravauxService.supprimer_travaux, name='api_delete_travaux'),
+    path('api/Biens/delete/<int:id>/', BiensService.supprimer_biens, name='api_delete_biens'),
 ]

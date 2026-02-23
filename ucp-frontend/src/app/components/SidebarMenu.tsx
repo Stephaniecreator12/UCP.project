@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { MenuItemType } from "@/types/grid";
 import { MENU_ITEMS, TABLE_CONFIGS } from "@/config/tableConfigs";
 
@@ -17,16 +18,30 @@ export default function SidebarMenu({
 }: SidebarMenuProps) {
   return (
     <aside className="sidebar-menu">
-      {/* En-tete du sidebar */}
+      <div className="sidebar-glow" aria-hidden="true" />
+
       <div className="sidebar-header">
-        <h2 className="sidebar-title">UCP - Marchés</h2>
-        <p className="sidebar-subtitle">Saisie & Suivi</p>
+        <div className="brand-logo" aria-hidden="true">
+          <Image
+            src="/ucp-sante-logo.svg"
+            alt="Logo UCP Sante"
+            width={210}
+            height={120}
+            className="brand-logo-image"
+            priority
+          />
+        </div>
+        <div className="sidebar-brand-text">
+          <h2 className="sidebar-title">UCP</h2>
+          <p className="sidebar-subtitle">Unite de coordination de projet</p>
+          <p className="sidebar-subtitle sidebar-subtitle-small">
+            Passation de marches
+          </p>
+        </div>
       </div>
 
-      {/* Navigation avec les 3 menus */}
       <nav className="sidebar-nav">
         {MENU_ITEMS.map((item: MenuItemType) => {
-          // Recuperer la config du menu (label, icon, etc)
           const config = TABLE_CONFIGS[item];
 
           return (
@@ -36,18 +51,15 @@ export default function SidebarMenu({
               onClick={() => onMenuSelect(item)}
               title={config.label}
             >
-              {/* Afficher l'icone */}
               <span className="menu-icon">{config.icon}</span>
-              {/* Afficher le texte du menu */}
               <span className="menu-label">{config.label}</span>
             </button>
           );
         })}
       </nav>
 
-      {/* Footer du sidebar */}
       <div className="sidebar-footer">
-        <p className="sidebar-version">v1.0.0</p>
+        <div className="sidebar-status-dot" />
       </div>
     </aside>
   );

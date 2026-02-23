@@ -323,7 +323,7 @@ export default function GridTable({
       return { backgroundColor: "#6b8e23", color: "#ffffff" };
     }
     if (normalized.includes("termine")) {
-      return { backgroundColor: "#2563eb", color: "#ffffff" };
+      return { backgroundColor: "#3a79be", color: "#ffffff" };
     }
     if (normalized.includes("arrete")) {
       return { backgroundColor: "#64748b", color: "#ffffff" };
@@ -861,10 +861,10 @@ export default function GridTable({
                             >
                           {column.type === "action_button" ? (
                             <button className="btn btn-sm" style={{
-                              background: "linear-gradient(to right, #3b82f6, #2563eb)",
+                              background: "linear-gradient(to right, #2f69ad, #4f97e6)",
                               color: "white",
                               border: "none",
-                              boxShadow: "0 4px 6px rgba(37, 99, 235, 0.2)"
+                              boxShadow: "0 4px 6px rgba(40, 92, 150, 0.24)"
                             }} onClick={(e) => {
                               e.stopPropagation();
                               handleCalculate(row);

@@ -1,15 +1,11 @@
 import type { Metadata } from "next";
-import { JetBrains_Mono, Manrope, Space_Grotesk } from "next/font/google";
+import { Albert_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
-const manrope = Manrope({
+const albertSans = Albert_Sans({
   variable: "--font-ui",
   subsets: ["latin"],
-});
-
-const spaceGrotesk = Space_Grotesk({
-  variable: "--font-display",
-  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
 });
 
 const jetbrainsMono = JetBrains_Mono({
@@ -38,7 +34,7 @@ export default function RootLayout({
         />
       </head>
       <body
-        className={`${manrope.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable} antialiased`}
+        className={`${albertSans.variable} ${jetbrainsMono.variable} antialiased`}
       >
         {children}
       </body>

@@ -280,10 +280,27 @@ export default function GestionMarches() {
       <SidebarMenu activeMenu={activeMenu} onMenuSelect={setActiveMenu} />
       <main className="dashboard-content">
         <header className="dashboard-header">
-          <h1 className="dashboard-title">{config.label}</h1>
-          <p className="dashboard-subtitle">
-            {rows.length} ligne{rows.length > 1 ? "s" : ""}
-          </p>
+          <div className="dashboard-header-accent" aria-hidden="true" />
+          <div className="dashboard-title-wrap">
+            <p className="dashboard-kicker">UCP · Passation de marches</p>
+            <h1 className="dashboard-title">{config.label}</h1>
+            <p className="dashboard-subtitle">
+              Unite de coordination de projet · {rows.length} ligne
+              {rows.length > 1 ? "s" : ""}
+            </p>
+          </div>
+          <div className="dashboard-header-stats">
+            <div className="header-stat-card">
+              <span className="header-stat-label">Lignes</span>
+              <strong className="header-stat-value">{rows.length}</strong>
+            </div>
+            <div className="header-stat-card">
+              <span className="header-stat-label">Systeme</span>
+              <strong className="header-stat-value">
+                {isLoading || isSaving ? "Sync..." : "En ligne"}
+              </strong>
+            </div>
+          </div>
         </header>
 
         {saveMessage && (

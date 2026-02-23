@@ -280,8 +280,8 @@ export default function GridTable({
     const safeConfiguredWidth = Number.isNaN(configuredWidthPx)
       ? 150
       : configuredWidthPx;
-    const compactConfiguredWidth = Math.round(safeConfiguredWidth * 0.9);
-    const headerBasedMinWidth = Math.max(86, column.label.length * 6 + 24);
+    const compactConfiguredWidth = Math.round(safeConfiguredWidth * 0.62);
+    const headerBasedMinWidth = Math.max(56, column.label.length * 5 + 14);
     return `${Math.max(compactConfiguredWidth, headerBasedMinWidth)}px`;
   };
 
@@ -323,7 +323,7 @@ export default function GridTable({
       return { backgroundColor: "#6b8e23", color: "#ffffff" };
     }
     if (normalized.includes("termine")) {
-      return { backgroundColor: "#2563eb", color: "#ffffff" };
+      return { backgroundColor: "#3a79be", color: "#ffffff" };
     }
     if (normalized.includes("arrete")) {
       return { backgroundColor: "#64748b", color: "#ffffff" };
@@ -479,9 +479,6 @@ export default function GridTable({
         <table className="table table-bordered table-hover mb-0">
           <thead className="table-light">
             <tr>
-              <th className="text-center action-header" style={{ width: "104px", minWidth: "104px" }}>
-                Action
-              </th>
               {columns.map((column) => (
                 <th
                   key={column.key}
@@ -494,6 +491,9 @@ export default function GridTable({
                   {column.label}
                 </th>
               ))}
+              <th className="text-center action-header" style={{ width: "84px", minWidth: "84px" }}>
+                Action
+              </th>
             </tr>
           </thead>
 
@@ -523,9 +523,10 @@ export default function GridTable({
                   key={row._id}
                   className={isRowStopped ? "row-stopped" : ""}
                 >
+                  {false && (
                   <td
                     className="text-center align-middle action-cell"
-                    style={{ width: "104px", minWidth: "104px", padding: "8px" }}
+                    style={{ width: "84px", minWidth: "84px", padding: "4px" }}
                   >
                     <div className="d-flex gap-2 justify-content-center action-buttons">
                       {(() => {
@@ -558,7 +559,7 @@ export default function GridTable({
                               fill="none"
                               xmlns="http://www.w3.org/2000/svg"
                             >
-                              <rect x="6" y="6" width="12" height="12" rx="1.8" stroke="currentColor" strokeWidth="1.8" />
+                              <rect x="7" y="7" width="10" height="10" rx="2.2" fill="currentColor" />
                             </svg>
                           </button>
                         );
@@ -584,9 +585,10 @@ export default function GridTable({
                           fill="none"
                           xmlns="http://www.w3.org/2000/svg"
                         >
-                          <path d="M5 3h12l4 4v14H5V3z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-                          <path d="M8 3v6h8V3" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-                          <rect x="8" y="14" width="8" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.8" />
+                          <path d="M5 4.5A1.5 1.5 0 0 1 6.5 3h9L20 7.5v12a1.5 1.5 0 0 1-1.5 1.5h-12A1.5 1.5 0 0 1 5 19.5v-15Z" fill="currentColor" opacity="0.2" />
+                          <path d="M8 3v5h7V3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+                          <rect x="8" y="13.5" width="8" height="5.5" rx="1.2" stroke="currentColor" strokeWidth="1.7" />
+                          <path d="M15 3v5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
                         </svg>
                       </button>
                       <button
@@ -604,14 +606,15 @@ export default function GridTable({
                           fill="none"
                           xmlns="http://www.w3.org/2000/svg"
                         >
-                          <path d="M4 7h16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                          <path d="M9 7V5h6v2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                          <path d="M7 7l1 12h8l1-12" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-                          <path d="M10 11v5M14 11v5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                          <path d="M9 4.5h6a1 1 0 0 1 1 1V7H8V5.5a1 1 0 0 1 1-1Z" fill="currentColor" opacity="0.2" />
+                          <path d="M4.5 7h15" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+                          <path d="M7.5 7.5 8.4 19a1.5 1.5 0 0 0 1.5 1.4h4.2a1.5 1.5 0 0 0 1.5-1.4l.9-11.5" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+                          <path d="M10.2 10.5v6M13.8 10.5v6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
                         </svg>
                       </button>
                     </div>
                   </td>
+                  )}
 
                   {columns.map((column) => {
                     const isStatusColumn = column.key === "status";
@@ -628,7 +631,7 @@ export default function GridTable({
                       style={{
                         width: getColumnWidth(column),
                         minWidth: getColumnWidth(column),
-                        padding: isStatusColumn ? "0" : "8px 12px",
+                        padding: isStatusColumn ? "0" : "3px 5px",
                         cursor:
                           column.editable && !column.readonly
                             ? "pointer"
@@ -749,7 +752,7 @@ export default function GridTable({
                                     className={`flex-grow-1 p-2 d-flex align-items-center justify-content-center m-1`}
                                     style={{
                                       ...buttonStyle,
-                                      minHeight: "35px",
+                                      minHeight: "21px",
                                       borderRadius: "8px",
                                       cursor: isRowStopped
                                         ? "not-allowed"
@@ -757,7 +760,7 @@ export default function GridTable({
                                           ? "not-allowed"
                                           : "pointer",
                                       fontWeight: "700", // Bolder
-                                      fontSize: "0.80rem",
+                                      fontSize: "0.66rem",
                                       letterSpacing: "0.025em",
                                       transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
                                       userSelect: "none",
@@ -791,7 +794,7 @@ export default function GridTable({
                                   className={`flex-grow-1 p-2 ${isActual ? "border-top-subtle" : ""}`}
                                   style={{
                                     ...bgStyle,
-                                    minHeight: "35px",
+                                    minHeight: "21px",
                                     cursor: cursorStyle,
                                     borderTop: isActual ? "1px solid #f1f5f9" : "none",
                                     transition: "all 0.2s ease"
@@ -861,10 +864,10 @@ export default function GridTable({
                             >
                           {column.type === "action_button" ? (
                             <button className="btn btn-sm" style={{
-                              background: "linear-gradient(to right, #3b82f6, #2563eb)",
+                              background: "linear-gradient",
                               color: "white",
                               border: "none",
-                              boxShadow: "0 4px 6px rgba(37, 99, 235, 0.2)"
+                              boxShadow: "0 4px 6px rgba(40, 92, 150, 0.24)"
                             }} onClick={(e) => {
                               e.stopPropagation();
                               handleCalculate(row);
@@ -900,6 +903,93 @@ export default function GridTable({
                     </td>
                     );
                   })}
+                  <td
+                    className="text-center align-middle action-cell"
+                    style={{ width: "84px", minWidth: "84px", padding: "4px" }}
+                  >
+                    <div className="d-flex gap-2 justify-content-center action-buttons">
+                      {(() => {
+                        const status = String(row.status ?? "").trim();
+                        const normalizedStatus = status
+                          .toLowerCase()
+                          .normalize("NFD")
+                          .replace(/[\u0300-\u036f]/g, "");
+                        const isNewRow = String(row._id ?? "").startsWith("_new_");
+                        const stopDisabled =
+                          isNewRow ||
+                          !status ||
+                          normalizedStatus === "arrete" ||
+                          normalizedStatus === "termine";
+
+                        return (
+                          <button
+                            className="action-btn action-btn-stop"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (row._id && onRowStop && !stopDisabled) onRowStop(row._id);
+                            }}
+                            disabled={stopDisabled}
+                            title="Arrêter"
+                            aria-label="Arrêter la ligne"
+                          >
+                            <svg
+                              className="action-icon"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              xmlns="http://www.w3.org/2000/svg"
+                            >
+                              <rect x="6.5" y="6.5" width="11" height="11" rx="2" stroke="currentColor" strokeWidth="1.8" />
+                            </svg>
+                          </button>
+                        );
+                      })()}
+                      <button
+                        className="action-btn action-btn-save"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (onRowSave && !isRowComplete(row)) {
+                            alert("Complète toute la ligne avant d'enregistrer.");
+                            return;
+                          }
+                          if (onRowSave) onRowSave(row);
+                          else console.warn("onRowSave not provided");
+                        }}
+                        disabled={!isRowComplete(row)}
+                        title="Enregistrer la ligne"
+                        aria-label="Enregistrer la ligne"
+                      >
+                        <svg
+                          className="action-icon"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          <path d="M6 3.5h10l2.5 2.5v14a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 4.5 20V5A1.5 1.5 0 0 1 6 3.5Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+                          <path d="M8 3.5v5h7v-5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+                          <path d="M9 14h6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+                        </svg>
+                      </button>
+                      <button
+                        className="action-btn action-btn-delete"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (row._id && onRowDelete) onRowDelete(row._id);
+                        }}
+                        title="Supprimer"
+                        aria-label="Supprimer la ligne"
+                      >
+                        <svg
+                          className="action-icon"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          <path d="M9 5h6m-7 2h8m-7 3v6m4-6v6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+                          <path d="M7.5 7.5 8.3 19a1.5 1.5 0 0 0 1.5 1.4h4.4a1.5 1.5 0 0 0 1.5-1.4l.8-11.5" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+                        </svg>
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               );
               })
@@ -912,7 +1002,7 @@ export default function GridTable({
         <button
           className="btn"
           style={{
-            background: "#10b981",
+            background: "blue",
             color: "white",
             fontWeight: "bold",
             padding: "10px 24px"

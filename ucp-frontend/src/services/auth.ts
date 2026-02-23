@@ -35,8 +35,3 @@ export const logout = () => {
 export const getToken = () => {
     return localStorage.getItem("access_token");
 };
-
-// Ajoutez cette fonction pour faciliter la récupération du refresh token
-export const getRefreshToken = () => {
-    return localStorage.getItem("refresh_token");
-};

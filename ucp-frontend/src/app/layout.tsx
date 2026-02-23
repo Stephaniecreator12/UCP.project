@@ -2,19 +2,16 @@ import type { Metadata } from "next";
 import { JetBrains_Mono, Manrope, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 
-// Interface (Manrope)
 const manrope = Manrope({
   variable: "--font-ui",
   subsets: ["latin"],
 });
 
-// Titres (Space Grotesk)
 const spaceGrotesk = Space_Grotesk({
   variable: "--font-display",
   subsets: ["latin"],
 });
 
-// Chiffres/Données (JetBrains Mono)
 const jetbrainsMono = JetBrains_Mono({
   variable: "--font-code",
   subsets: ["latin"],
@@ -31,7 +28,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fr">
+    <html lang="en">
       <head>
         <link
           rel="stylesheet"

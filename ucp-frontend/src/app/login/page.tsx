@@ -1,39 +1,28 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { login } from "@/services/auth";
+import { login } from "@/services/auth"; // <--- On appelle notre nouveau portier
 
 export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const router = useRouter();
-
-  // Sécurité supplémentaire : On vide les restes de session au chargement de la page de login
-  useEffect(() => {
-    localStorage.clear();
-  }, []);
+  const router = useRouter(); // <--- C'est le GPS pour changer de page
 
   const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
+    e.preventDefault(); // Empêche la page de se recharger toute seule
+    setError(""); // On efface les vieilles erreurs
 
-    // 1. Nettoyage préventif avant la nouvelle connexion
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("refresh_token");
-
-    // 2. Tentative de connexion avec vos identifiants
+    // On appelle notre service auth.ts
     const result = await login(username, password);
 
     if (result.success) {
-      // ✅ SUCCÈS : Redirection vers le tableau de bord avec vos propres jetons
+      // ✅ SUCCÈS : Le tableau de bord est la page racine
       router.push("/");
-      // Optionnel : Forcer un rechargement pour s'assurer que l'état global est propre
-      window.location.href = "/";
     } else {
-      // ❌ ERREUR : Affichage du message d'erreur
-      setError(result.error || "Nom d'utilisateur ou mot de passe incorrect");
+      // ❌ ERREUR : On affiche le message
+      setError(result.error || "Une erreur est survenue");
     }
   };
 
@@ -57,8 +46,7 @@ export default function LoginPage() {
             className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            placeholder="Ex: votre_nom_utilisateur"
-            required
+            placeholder="Ex: stephanie"
           />
         </div>
 
@@ -70,7 +58,6 @@ export default function LoginPage() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="••••••••"
-            required
           />
         </div>
 

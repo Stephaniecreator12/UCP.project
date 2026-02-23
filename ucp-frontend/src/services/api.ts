@@ -380,35 +380,69 @@ export async function getProcurementStatus(
 /**
  * SUPPRIMER un marché
  */
-// api.ts
-
 export async function deleteProcurement(
   id: number,
-  type: "Travaux" | "Biens" | "Consultance",
-  password: string
+  type: "Travaux" | "Biens" | "Consultance"
 ): Promise<boolean> {
-  const endpoint = `${API_BASE_URL}/api/${type}/delete/${id}/`;
-  
-  // Récupération du token
-  const accessToken = localStorage.getItem("access_token");
-
-  const response = await fetch(endpoint, {
-    method: "DELETE", // <--- CHANGEMENT ICI
-    headers: {
+  const getHeaders = (token: string | null): HeadersInit => {
+    const headers: HeadersInit = {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${accessToken}`
-    },
-    body: JSON.stringify({ password }), // On envoie le password pour validation
+    };
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+    return headers;
+  };
+
+  const refreshAccessToken = async (): Promise<string | null> => {
+    if (typeof window === "undefined") return null;
+    const refresh = localStorage.getItem("refresh_token");
+    if (!refresh) return null;
+
+    const refreshResponse = await fetch(`${API_BASE_URL}/api/token/refresh/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh }),
+    });
+
+    if (!refreshResponse.ok) return null;
+    const refreshData = await refreshResponse.json().catch(() => ({}));
+    const newAccess = refreshData.access as string | undefined;
+    if (!newAccess) return null;
+    localStorage.setItem("access_token", newAccess);
+    return newAccess;
+  };
+
+  let endpoint = "";
+  if (type === "Travaux") endpoint = `${API_BASE_URL}/api/Travaux/deleteTravaux/${id}/`;
+  else if (type === "Biens") endpoint = `${API_BASE_URL}/api/Biens/deleteBiens/${id}/`;
+  else endpoint = `${API_BASE_URL}/api/Consultance/deleteConsultance/${id}/`;
+
+  let accessToken =
+    typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
+  if (!accessToken) {
+    throw new Error("Session expirée. Connecte-toi puis réessaie.");
+  }
+
+  let response = await fetch(endpoint, {
+    method: "POST",
+    headers: getHeaders(accessToken),
   });
 
   if (response.status === 401) {
-    // Logique de refresh token si nécessaire...
-    throw new Error("Session expirée");
+    accessToken = await refreshAccessToken();
+    if (!accessToken) {
+      throw new Error("Session expirée. Connecte-toi puis réessaie.");
+    }
+    response = await fetch(endpoint, {
+      method: "POST",
+      headers: getHeaders(accessToken),
+    });
   }
 
   if (!response.ok) {
-    const data = await response.json();
-    throw new Error(data.error || "Erreur lors de la suppression");
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.detail || data.error || "Erreur lors de la suppression");
   }
 
   return true;

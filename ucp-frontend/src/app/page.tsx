@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import SidebarMenu from "@/app/components/SidebarMenu";
 import GridTable from "@/app/components/GridTable";
 import { MenuItemType, GridRow } from "@/types/grid";
@@ -15,7 +14,6 @@ import {
 } from "@/services/api";
 
 export default function GestionMarches() {
-  const router = useRouter();
   const [activeMenu, setActiveMenu] = useState<MenuItemType>("works");
   const [rows, setRows] = useState<GridRow[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -27,16 +25,6 @@ export default function GestionMarches() {
 
   const config = TABLE_CONFIGS[activeMenu];
 
-  // 1. PROTECTION : Redirection vers login si pas de token
-  useEffect(() => {
-    const token = localStorage.getItem("access_token");
-    if (!token) {
-      console.log("Pas de token, direction login");
-      router.push("/login");
-    }
-  }, [router]);
-
-  // 2. CHARGEMENT DES DONNÉES
   const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -53,7 +41,7 @@ export default function GestionMarches() {
           _id: String(item.id),
         })),
       );
-    } catch (error) {
+    } catch {
       setSaveMessage({ type: "error", message: "Erreur de chargement" });
     } finally {
       setIsLoading(false);
@@ -64,7 +52,6 @@ export default function GestionMarches() {
     loadData();
   }, [loadData]);
 
-  // 3. GESTION DES LIGNES
   const handleAddRow = () => {
     const newId = `_new_${Date.now()}`;
     const newRow: GridRow = { _id: newId, review_status: "post" };
@@ -86,10 +73,8 @@ export default function GestionMarches() {
     );
   };
 
-  // 4. SUPPRESSION SÉCURISÉE (SOFT DELETE)
   const handleRowDelete = async (rowId: string) => {
     if (!window.confirm("Supprimer cette ligne ?")) return;
-    
     try {
       if (!rowId.startsWith("_new_")) {
         const rowToDelete = rows.find((r) => r._id === rowId);
@@ -98,30 +83,21 @@ export default function GestionMarches() {
           "goods-services": "Biens",
           consultants: "Consultance",
         };
-        
-        const type = (rowToDelete?.type as "Travaux" | "Biens" | "Consultance" | undefined) 
-                     ?? menuTypeMapping[activeMenu];
+        const type =
+          (rowToDelete?.type as "Travaux" | "Biens" | "Consultance" | undefined) ??
+          menuTypeMapping[activeMenu];
 
-        // Demander le mot de passe pour le backend
-        const password = window.prompt("Veuillez saisir votre mot de passe pour confirmer la suppression :");
-        
-        if (!password) {
-          setSaveMessage({ type: "error", message: "Mot de passe requis pour la suppression" });
-          return;
-        }
-
-        await deleteProcurement(Number(rowId), type, password);
+        await deleteProcurement(Number(rowId), type);
       }
-      
       setRows((prev) => prev.filter((r) => r._id !== rowId));
-      setSaveMessage({ type: "success", message: "Supprimé avec succès" });
+      setSaveMessage({ type: "success", message: "Supprimé" });
     } catch (e: unknown) {
       const errorMessage = e instanceof Error ? e.message : "Erreur suppression";
       setSaveMessage({ type: "error", message: errorMessage });
     }
   };
 
-  // 5. SAUVEGARDE
+  // --- SAUVEGARDE LIGNE PAR LIGNE ---
   const handleRowSave = async (row: GridRow) => {
     setIsSaving(true);
     try {
@@ -142,6 +118,10 @@ export default function GestionMarches() {
         date_mission_end: row.delivery_date || row.mission_end_date,
       };
 
+      // Si c'est une nouvelle ligne (commence par _new_) -> CREATE
+      // Si c'est une ligne existante -> UPDATE (si supporté, sinon create ?)
+      // Pour l'instant on suppose CREATE pour tout ce qui est new, et peut-être rien pour l'ancien si pas supporté
+
       const result = await createProcurement(procurementData);
 
       if (result) {
@@ -153,9 +133,14 @@ export default function GestionMarches() {
 
         let computedStatus = "";
         try {
-          computedStatus = await getProcurementStatus(typeMapping[activeMenu], savedRow);
+          computedStatus = await getProcurementStatus(
+            typeMapping[activeMenu],
+            savedRow,
+          );
         } catch {
-          computedStatus = savedRow.status ? String(savedRow.status) : "Statut indisponible";
+          computedStatus = savedRow.status
+            ? String(savedRow.status)
+            : "Statut indisponible";
         }
 
         setRows((currentRows) =>
@@ -166,6 +151,7 @@ export default function GestionMarches() {
         setSaveMessage({ type: "success", message: "Ligne enregistrée !" });
       }
     } catch (e: unknown) {
+      console.error(e);
       const errorMessage = e instanceof Error ? e.message : "Erreur inconnue";
       setSaveMessage({ type: "error", message: `Erreur: ${errorMessage}` });
     } finally {
@@ -182,9 +168,7 @@ export default function GestionMarches() {
 
   return (
     <div className="dashboard">
-
       <SidebarMenu activeMenu={activeMenu} onMenuSelect={setActiveMenu} />
-
       <main className="dashboard-content">
         <header className="dashboard-header">
           <h1 className="dashboard-title">{config.label}</h1>

@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import authenticate
 
+# SUPPRIMER 
 @csrf_exempt
 def delete_service(request, model_class, id):
     try:
@@ -31,3 +32,31 @@ def delete_service(request, model_class, id):
         return Response({'error': 'Élément non trouvé'}, status=404)
     except Exception as e:
         return Response({'error': str(e)}, status=500)
+
+    # ARRETER
+def arreter_service(request, model_class, id):
+    try:
+        item = model_class.objects.get(id=id)
+
+        # Vérification des statuts
+        if getattr(item, 'statut', None) == "Terminé":
+            return Response({"error": "Impossible d'arrêter : le marché est déjà terminé"}, status=409)
+        
+        if getattr(item, 'statut', None) == "Arrêté":
+            return Response({"error": "Ce marché est déjà arrêté"}, status=409)
+
+        # Mise à jour du statut
+        item.statut = "Arrêté"
+        item.save()
+        
+        return Response({
+            "ok": True, 
+            "id": item.id, 
+            "statut": item.statut,
+            "message": "Le marché a été arrêté avec succès"
+        }, status=200)
+
+    except model_class.DoesNotExist:
+        return Response({"error": "Élément non trouvé"}, status=404)
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)

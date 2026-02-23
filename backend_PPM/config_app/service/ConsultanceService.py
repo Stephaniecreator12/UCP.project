@@ -198,3 +198,9 @@ def statut_consultance(request):
 @permission_classes([IsAuthenticated])
 def supprimer_consultance(request, id):
     return delete_service(request, Consultance, id) 
+
+# ARRETER CONSULTANCE
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def arreter_consultance(request, id):
+    return arreter_service(request, Consultance, id)   

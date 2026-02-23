@@ -192,3 +192,9 @@ def statut_biens(request):
 def supprimer_biens(request, id):
     return delete_service(request, Biens, id) 
 
+# ARRETER BIENS
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def arreter_biens(request, id):
+    return arreter_service(request, Biens, id)   
+

@@ -44,4 +44,7 @@ urlpatterns = [
     path('api/Consultance/delete/<int:id>/', ConsultanceService.supprimer_consultance, name='api_delete_consultance'),
     path('api/Travaux/delete/<int:id>/', TravauxService.supprimer_travaux, name='api_delete_travaux'),
     path('api/Biens/delete/<int:id>/', BiensService.supprimer_biens, name='api_delete_biens'),
+    path('api/Consultance/arreter/<int:id>/', ConsultanceService.arreter_consultance, name='api_arreter_consultance'),
+    path('api/Travaux/arreter/<int:id>/', TravauxService.arreter_travaux, name='api_arreter_travaux'),
+    path('api/Biens/arreter/<int:id>/', BiensService.arreter_biens, name='api_arreter_biens'),
 ]

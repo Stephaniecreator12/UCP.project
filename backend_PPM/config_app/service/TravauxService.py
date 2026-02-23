@@ -7,7 +7,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.utils import timezone
-from .ProcurementService import delete_service
+from .ProcurementService import delete_service, arreter_service
 
 # INSERER DONNEES
 @csrf_exempt
@@ -193,3 +193,10 @@ def statut_travaux(request):
 @permission_classes([IsAuthenticated])
 def supprimer_travaux(request, id):
     return delete_service(request, Travaux, id)   
+
+# ARRETER TRAVAUX
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def arreter_travaux(request, id):
+    return arreter_service(request, Travaux, id)   
+

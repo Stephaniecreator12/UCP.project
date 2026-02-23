@@ -12,7 +12,7 @@ export const API_BASE_URL =
 export interface Procurement {
   id?: number;
   // Type de marché pour aider le frontend à savoir quelle API appeler
-  type?: 'Travaux' | 'Biens' | 'Consultance';
+  type?: "Travaux" | "Biens" | "Consultance";
 
   ref_number?: string; // Peut s'appeler num_ref dans certains modèles
   title?: string; // Peut s'appeler intitule_projet
@@ -68,7 +68,7 @@ export interface PlanningResponse {
 /**
  * Utilitaires pour mapper les URLs selon le type
  */
-const getEndpoint = (type: 'Travaux' | 'Biens' | 'Consultance') => {
+const getEndpoint = (type: "Travaux" | "Biens" | "Consultance") => {
   return `${API_BASE_URL}/api/${type}`;
 };
 
@@ -86,14 +86,16 @@ export async function getAllProcurements(): Promise<Procurement[]> {
     const urls = [
       `${API_BASE_URL}/api/Travaux/listTravaux/`,
       `${API_BASE_URL}/api/Biens/listBiens/`,
-      `${API_BASE_URL}/api/Consultance/listConsultance/`
+      `${API_BASE_URL}/api/Consultance/listConsultance/`,
     ];
 
     const responses = await Promise.all(
       urls.map(async (url): Promise<BackendListResponse> => {
         const res = await fetch(url);
-        return res.json().catch(() => ({ travaux: [], biens: [], consultance: [] }));
-      })
+        return res
+          .json()
+          .catch(() => ({ travaux: [], biens: [], consultance: [] }));
+      }),
     );
 
     // Note: Le backend renvoie souvent { travaux: [...] } et non directement [...]
@@ -105,7 +107,10 @@ export async function getAllProcurements(): Promise<Procurement[]> {
     const consultanceList = responses[2].consultance || [];
 
     // Fonction de mapping pour transformer un item Backend en Procurement Frontend
-    const mapItem = (item: BackendProcurementItem, type: 'Travaux' | 'Biens' | 'Consultance'): Procurement => ({
+    const mapItem = (
+      item: BackendProcurementItem,
+      type: "Travaux" | "Biens" | "Consultance",
+    ): Procurement => ({
       id: item.id,
       type: type,
       ref_number: item.code_suivi, // Ou null si pas de ref
@@ -124,9 +129,11 @@ export async function getAllProcurements(): Promise<Procurement[]> {
       status: item.statut,
     });
 
-    const travaux = travauxList.map((item) => mapItem(item, 'Travaux'));
-    const biens = biensList.map((item) => mapItem(item, 'Biens'));
-    const consultance = consultanceList.map((item) => mapItem(item, 'Consultance'));
+    const travaux = travauxList.map((item) => mapItem(item, "Travaux"));
+    const biens = biensList.map((item) => mapItem(item, "Biens"));
+    const consultance = consultanceList.map((item) =>
+      mapItem(item, "Consultance"),
+    );
 
     return [...travaux, ...biens, ...consultance];
   } catch (error) {
@@ -135,18 +142,17 @@ export async function getAllProcurements(): Promise<Procurement[]> {
   }
 }
 
-
 /**
  * Récupérer UN marché par son ID et son Type
  * Note: Il faut connaître le type pour savoir où chercher
  */
 export async function getProcurementById(
   id: number,
-  type: 'Travaux' | 'Biens' | 'Consultance'
+  type: "Travaux" | "Biens" | "Consultance",
 ): Promise<Procurement | null> {
   try {
     const endpoint = getEndpoint(type);
-    // Note: Les URLs Django semblent être orientées action (list/add), 
+    // Note: Les URLs Django semblent être orientées action (list/add),
     // il faudra vérifier s'il existe une vue 'detail' standard : api/Travaux/{id}/
     // Si ce n'est pas le cas, on devra peut-être filtrer la liste.
     // Supposons pour l'instant une URL standard REST :
@@ -164,7 +170,7 @@ export async function getProcurementById(
  * CRÉER un nouveau marché
  */
 export async function createProcurement(
-  data: Procurement
+  data: Procurement,
 ): Promise<Procurement | null> {
   if (!data.type) {
     console.error("Type de marché manquant (Travaux, Biens, Consultance)");
@@ -195,19 +201,20 @@ export async function createProcurement(
     date_signature_prevu: data.date_contract_signed || null,
     date_livraison_prevu: data.date_mission_end || null,
 
-    commentaire: data.review_notes || ""
+    commentaire: data.review_notes || "",
   };
-
-
 
   /**
    * MODIFIER un marché (Stub - Non implémenté sur le backend)
    */
   try {
     let endpoint = "";
-    if (data.type === "Travaux") endpoint = `${API_BASE_URL}/api/Travaux/addTravaux/`;
-    else if (data.type === "Biens") endpoint = `${API_BASE_URL}/api/Biens/addBiens/`;
-    else if (data.type === "Consultance") endpoint = `${API_BASE_URL}/api/Consultance/addConsultance/`;
+    if (data.type === "Travaux")
+      endpoint = `${API_BASE_URL}/api/Travaux/addTravaux/`;
+    else if (data.type === "Biens")
+      endpoint = `${API_BASE_URL}/api/Biens/addBiens/`;
+    else if (data.type === "Consultance")
+      endpoint = `${API_BASE_URL}/api/Consultance/addConsultance/`;
 
     const response = await fetch(endpoint, {
       method: "POST",
@@ -219,7 +226,8 @@ export async function createProcurement(
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      const errorMessage = errorData.error || "Erreur lors de la création du marché";
+      const errorMessage =
+        errorData.error || "Erreur lors de la création du marché";
       console.error("Erreur API:", errorMessage);
       throw new Error(errorMessage);
     }
@@ -237,7 +245,7 @@ export async function createProcurement(
  */
 export async function updateProcurement(
   id: number,
-  data: Partial<Procurement>
+  data: Partial<Procurement>,
 ): Promise<Procurement | null> {
   void id;
   void data;
@@ -249,11 +257,19 @@ export async function updateProcurement(
  * Calculer le planning (Appel Backend)
  */
 export async function calculatePlanning(
+  type: "Travaux" | "Biens" | "Consultance",
   dateFin: string,
-  methode: string = "AOI",
-  duree: number = 60
+  methode: string,
+  duree: number = 60,
 ): Promise<PlanningResponse> {
-  const endpoint = `${API_BASE_URL}/api/Travaux/calculerPlanningTravaux/`;
+  let endpoint = "";
+  if (type === "Consultance") {
+    endpoint = `${API_BASE_URL}/api/Consultance/calculerPlanningConsultance/`;
+  } else if (type === "Biens") {
+    endpoint = `${API_BASE_URL}/api/Biens/calculerPlanningBiens/`;
+  } else {
+    endpoint = `${API_BASE_URL}/api/Travaux/calculerPlanningTravaux/`;
+  }
   try {
     const token =
       typeof window !== "undefined"
@@ -268,20 +284,22 @@ export async function calculatePlanning(
       headers.Authorization = `Bearer ${token}`;
     }
 
+    const payload =
+      type === "Consultance"
+        ? { date_fin: dateFin, methode, duree }
+        : { date_livr: dateFin, methode, duree };
+
     const response = await fetch(endpoint, {
       method: "POST",
       headers,
-      body: JSON.stringify({
-        // Le backend Django attend "date_livr"
-        date_livr: dateFin,
-        methode: methode,
-        duree: duree
-      }),
+      body: JSON.stringify(payload),
     });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || errorData.detail || "Erreur de calcul");
+      throw new Error(
+        errorData.error || errorData.detail || "Erreur de calcul",
+      );
     }
 
     return await response.json();
@@ -295,8 +313,8 @@ export async function calculatePlanning(
  * Calculer le statut d'une ligne via les endpoints backend
  */
 export async function getProcurementStatus(
-  type: 'Travaux' | 'Biens' | 'Consultance',
-  row: Record<string, unknown>
+  type: "Travaux" | "Biens" | "Consultance",
+  row: Record<string, unknown>,
 ): Promise<string> {
   const token =
     typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
@@ -371,7 +389,9 @@ export async function getProcurementStatus(
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(data.detail || data.error || "Erreur lors du calcul du statut");
+    throw new Error(
+      data.detail || data.error || "Erreur lors du calcul du statut",
+    );
   }
 
   return data.statut || "Statut indisponible";
@@ -382,7 +402,8 @@ export async function getProcurementStatus(
  */
 export async function deleteProcurement(
   id: number,
-  type: "Travaux" | "Biens" | "Consultance"
+  type: "Travaux" | "Biens" | "Consultance",
+  password: string,
 ): Promise<boolean> {
   const getHeaders = (token: string | null): HeadersInit => {
     const headers: HeadersInit = {
@@ -414,8 +435,10 @@ export async function deleteProcurement(
   };
 
   let endpoint = "";
-  if (type === "Travaux") endpoint = `${API_BASE_URL}/api/Travaux/deleteTravaux/${id}/`;
-  else if (type === "Biens") endpoint = `${API_BASE_URL}/api/Biens/deleteBiens/${id}/`;
+  if (type === "Travaux")
+    endpoint = `${API_BASE_URL}/api/Travaux/deleteTravaux/${id}/`;
+  else if (type === "Biens")
+    endpoint = `${API_BASE_URL}/api/Biens/deleteBiens/${id}/`;
   else endpoint = `${API_BASE_URL}/api/Consultance/deleteConsultance/${id}/`;
 
   let accessToken =
@@ -425,8 +448,9 @@ export async function deleteProcurement(
   }
 
   let response = await fetch(endpoint, {
-    method: "POST",
+    method: "DELETE",
     headers: getHeaders(accessToken),
+    body: JSON.stringify({ password }),
   });
 
   if (response.status === 401) {
@@ -435,15 +459,47 @@ export async function deleteProcurement(
       throw new Error("Session expirée. Connecte-toi puis réessaie.");
     }
     response = await fetch(endpoint, {
-      method: "POST",
+      method: "DELETE",
       headers: getHeaders(accessToken),
+      body: JSON.stringify({ password }),
     });
   }
 
   if (!response.ok) {
     const data = await response.json().catch(() => ({}));
-    throw new Error(data.detail || data.error || "Erreur lors de la suppression");
+    throw new Error(
+      data.detail || data.error || "Erreur lors de la suppression",
+    );
   }
 
   return true;
+}
+
+export async function stopProcurement(
+  id: number,
+  type: "Travaux" | "Biens" | "Consultance",
+  password: string,
+): Promise<{ statut: string }> {
+  const token =
+    typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
+
+  const headers: HeadersInit = { "Content-Type": "application/json" };
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  let endpoint = "";
+  if (type === "Travaux")
+    endpoint = `${API_BASE_URL}/api/Travaux/arreter/${id}/`;
+  else if (type === "Biens")
+    endpoint = `${API_BASE_URL}/api/Biens/arreter/${id}/`;
+  else endpoint = `${API_BASE_URL}/api/Consultance/arreter/${id}/`;
+
+  const res = await fetch(endpoint, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ password }),
+  });
+  const data = await res.json().catch(() => ({}));
+
+  if (!res.ok) throw new Error(data.error || data.detail || "Erreur arrêt");
+  return { statut: data.statut || "Arrêté" };
 }

@@ -1,17 +1,32 @@
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response # IMPORTANT : pas JsonResponse ici
+from rest_framework.response import Response 
 from django.views.decorators.csrf import csrf_exempt
+from django.contrib.auth import authenticate
 
 @csrf_exempt
-@api_view(['POST']) # On force le POST
-@permission_classes([IsAuthenticated])
-def soft_delete_service(request, model_class, id):
+def delete_service(request, model_class, id):
     try:
-        # Suppression réelle en base (hard delete)
+        # 1. Récupérer le mot de passe (dans une requête DELETE, les données sont dans request.data)
+        password = request.data.get('password')
+        
+        if not password:
+            return Response({'error': 'Le mot de passe de confirmation est requis'}, status=400)
+
+        # 2. Vérifier l'utilisateur
+        user = authenticate(username=request.user.username, password=password)
+        
+        if user is None:
+            return Response({'error': 'Mot de passe incorrect'}, status=403)
+
+        # 3. Récupération de l'objet
         item = model_class.objects.get(id=id)
+        
+        # 4. HARD DELETE (Suppression définitive de la base de données)
         item.delete()
-        return Response({'status': 'success'}, status=200)
+        
+        return Response({'message': 'Élément supprimé définitivement'}, status=200)
+
     except model_class.DoesNotExist:
         return Response({'error': 'Élément non trouvé'}, status=404)
     except Exception as e:

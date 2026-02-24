@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import Image from "next/image";
 import { MenuItemType } from "@/types/grid";
 import { MENU_ITEMS, TABLE_CONFIGS } from "@/config/tableConfigs";
 
@@ -12,6 +11,37 @@ interface SidebarMenuProps {
   onMenuSelect: (menu: MenuItemType) => void;
 }
 
+const renderMenuIcon = (item: MenuItemType) => {
+  if (item === "works") {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M14.8 5.2l4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+        <path d="M12.2 7.8l4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+        <path d="M4.8 19.2l7.6-7.6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+        <path d="M4.4 15.6l4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      </svg>
+    );
+  }
+
+  if (item === "goods-services") {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <rect x="4" y="5" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.8" />
+        <rect x="13" y="5" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.8" />
+        <rect x="4" y="14" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.8" />
+        <rect x="13" y="14" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.8" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="8" r="3.2" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M5.5 19.2a6.5 6.5 0 0113 0" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+};
+
 export default function SidebarMenu({
   activeMenu,
   onMenuSelect,
@@ -21,22 +51,10 @@ export default function SidebarMenu({
       <div className="sidebar-glow" aria-hidden="true" />
 
       <div className="sidebar-header">
-        <div className="brand-logo" aria-hidden="true">
-          <Image
-            src="/ucp-sante-logo.svg"
-            alt="Logo UCP Sante"
-            width={210}
-            height={120}
-            className="brand-logo-image"
-            priority
-          />
-        </div>
-        <div className="sidebar-brand-text">
-          <h2 className="sidebar-title">UCP</h2>
-          <p className="sidebar-subtitle">Unite de coordination de projet</p>
-          <p className="sidebar-subtitle sidebar-subtitle-small">
-            Passation de marches
-          </p>
+        <div className="sidebar-header-line" aria-hidden="true" />
+        <div className="sidebar-mini-status">
+          <span className="sidebar-mini-status-dot" aria-hidden="true" />
+          <span>En ligne</span>
         </div>
       </div>
 
@@ -51,7 +69,7 @@ export default function SidebarMenu({
               onClick={() => onMenuSelect(item)}
               title={config.label}
             >
-              <span className="menu-icon">{config.icon}</span>
+              <span className="menu-icon">{renderMenuIcon(item)}</span>
               <span className="menu-label">{config.label}</span>
             </button>
           );

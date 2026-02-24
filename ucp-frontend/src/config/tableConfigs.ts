@@ -34,14 +34,6 @@ const APPROACH_OPTIONS: SelectOption[] = [
   { value: "selective", label: "Sélective" },
 ];
 
-const STATUS_OPTIONS: SelectOption[] = [
-  { value: "", label: "-- Sélectionner --" },
-  { value: "planned", label: "Planifié" },
-  { value: "in_progress", label: "En cours" },
-  { value: "completed", label: "Terminé" },
-  { value: "cancelled", label: "Annulé" },
-];
-
 // Colonnes pour Travaux et Biens & Services (identiques)
 export const WORKS_GOODS_COLUMNS: ColumnConfig[] = [
   {

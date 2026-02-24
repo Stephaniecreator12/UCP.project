@@ -76,33 +76,6 @@ export default function GridTable({
     });
   };
 
-  const getFirstIncompleteColumn = (row: GridRow): ColumnConfig | undefined => {
-    const status = String(row.status ?? "").trim();
-    const normalizedStatus = status
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "");
-    if (normalizedStatus === "arrete" || normalizedStatus === "termine") {
-      return undefined;
-    }
-
-    const requiredColumns = columns.filter(
-      (col) => col.editable !== false && !col.readonly && col.type !== "action_button",
-    );
-    return requiredColumns.find((col) => {
-      if (col.isSplit && col.splitController) {
-        const controllerKey = col.splitController;
-        const isPricing = controllerKey === "pricing_type";
-        const VAL_TOP = isPricing ? "forfait" : "planned";
-        const VAL_BOTTOM = isPricing ? "time_based" : "actual";
-        const currentValue = row[controllerKey] || VAL_TOP;
-        const effectiveKey = currentValue === VAL_BOTTOM ? `${col.key}_actual` : col.key;
-        return !hasValue(row[effectiveKey]);
-      }
-      return !hasValue(row[col.key]);
-    });
-  };
-
   const getTodayLocalIso = (): string => {
     const now = new Date();
     const tzOffsetMs = now.getTimezoneOffset() * 60 * 1000;
@@ -796,7 +769,7 @@ export default function GridTable({
                                     ...bgStyle,
                                     minHeight: "21px",
                                     cursor: cursorStyle,
-                                    borderTop: isActual ? "1px solid #f1f5f9" : "none",
+                                    borderTop: isActual ? "1px solidrgb(242, 245, 248)" : "none",
                                     transition: "all 0.2s ease"
                                   }}
                                   onClick={(e) => {
@@ -867,7 +840,6 @@ export default function GridTable({
                               background: "linear-gradient",
                               color: "white",
                               border: "none",
-                              boxShadow: "0 4px 6px rgba(40, 92, 150, 0.24)"
                             }} onClick={(e) => {
                               e.stopPropagation();
                               handleCalculate(row);
@@ -1002,13 +974,15 @@ export default function GridTable({
         <button
           className="btn"
           style={{
-            background: "blue",
+            background: "linear-gradient(180deg, #576b60 0%, #5ea874 100%)",
             color: "white",
             fontWeight: "bold",
+            border: "1px solid rgba(94, 168, 116, 0.85)",
+            boxShadow: "0 8px 14px -10px rgba(64, 94, 78, 0.7)",
             padding: "10px 24px"
           }}
           onClick={onAddRow}
-          disabled={isLoading || (rows.length > 0 && !!getFirstIncompleteColumn(rows[rows.length - 1]))}
+          disabled={isLoading}
         >
           + Nouvelle ligne
         </button>

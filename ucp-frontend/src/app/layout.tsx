@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Albert_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import TopRightSidebar from "@/app/components/TopRightSidebar";
 
 const albertSans = Albert_Sans({
   variable: "--font-ui",
@@ -37,6 +38,7 @@ export default function RootLayout({
         className={`${albertSans.variable} ${jetbrainsMono.variable} antialiased`}
       >
         {children}
+        <TopRightSidebar />
       </body>
     </html>
   );

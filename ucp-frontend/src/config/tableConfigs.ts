@@ -410,17 +410,17 @@ export const TABLE_CONFIGS = {
   works: {
     label: "Travaux",
     columns: WORKS_GOODS_COLUMNS,
-    icon: "📋",
+    icon: "\uD83D\uDEE0",
   },
   "goods-services": {
     label: "Biens & Services",
     columns: WORKS_GOODS_COLUMNS, // Identique à Travaux
-    icon: "📦",
+    icon: "\uD83D\uDCC1",
   },
   consultants: {
     label: "Consultants",
     columns: CONSULTANTS_COLUMNS,
-    icon: "👤",
+    icon: "\uD83E\uDDD1\u200D\uD83D\uDCBC",
   },
 };
 
@@ -430,3 +430,4 @@ export const MENU_ITEMS: MenuItemType[] = [
   "goods-services",
   "consultants",
 ];
+

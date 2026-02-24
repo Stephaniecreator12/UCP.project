@@ -46,71 +46,16 @@ export default function GridTable({
   const hasValue = (value: unknown): boolean => {
     return value !== null && value !== undefined && String(value).trim() !== "";
   };
+  const hasUnsavedRow = rows.some((row) => String(row._id ?? "").startsWith("_new_"));
 
-  const isRowComplete = (row: GridRow): boolean => {
-    const status = String(row.status ?? "").trim();
-    const normalizedStatus = status
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "");
-
-    if (normalizedStatus === "arrete" || normalizedStatus === "termine") {
-      return true;
-    }
-
-    const requiredColumns = columns.filter(
-      (col) => col.editable !== false && !col.readonly && col.type !== "action_button",
-    );
-
-    return requiredColumns.every((col) => {
-      if (col.isSplit && col.splitController) {
-        const controllerKey = col.splitController;
-        const isPricing = controllerKey === "pricing_type";
-        const VAL_TOP = isPricing ? "forfait" : "planned";
-        const VAL_BOTTOM = isPricing ? "time_based" : "actual";
-        const currentValue = row[controllerKey] || VAL_TOP;
-        const effectiveKey = currentValue === VAL_BOTTOM ? `${col.key}_actual` : col.key;
-        return hasValue(row[effectiveKey]);
-      }
-      return hasValue(row[col.key]);
-    });
-  };
-
-  const getFirstIncompleteColumn = (row: GridRow): ColumnConfig | undefined => {
-    const status = String(row.status ?? "").trim();
-    const normalizedStatus = status
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "");
-    if (normalizedStatus === "arrete" || normalizedStatus === "termine") {
-      return undefined;
-    }
-
-    const requiredColumns = columns.filter(
-      (col) => col.editable !== false && !col.readonly && col.type !== "action_button",
-    );
-    return requiredColumns.find((col) => {
-      if (col.isSplit && col.splitController) {
-        const controllerKey = col.splitController;
-        const isPricing = controllerKey === "pricing_type";
-        const VAL_TOP = isPricing ? "forfait" : "planned";
-        const VAL_BOTTOM = isPricing ? "time_based" : "actual";
-        const currentValue = row[controllerKey] || VAL_TOP;
-        const effectiveKey = currentValue === VAL_BOTTOM ? `${col.key}_actual` : col.key;
-        return !hasValue(row[effectiveKey]);
-      }
-      return !hasValue(row[col.key]);
-    });
+  const maxIsoDate = (a: string, b: string): string => {
+    return a > b ? a : b;
   };
 
   const getTodayLocalIso = (): string => {
     const now = new Date();
     const tzOffsetMs = now.getTimezoneOffset() * 60 * 1000;
     return new Date(now.getTime() - tzOffsetMs).toISOString().split("T")[0];
-  };
-
-  const maxIsoDate = (a: string, b: string): string => {
-    return a > b ? a : b;
   };
 
   const getBottomSwitchBlockReason = (
@@ -190,7 +135,7 @@ export default function GridTable({
   };
 
   const getMinDateForColumn = (row: GridRow, columnKey: string): string | undefined => {
-    let minDate = getTodayLocalIso();
+    let minDate: string | undefined = getTodayLocalIso();
     const dateContext = getSplitDateContext(columnKey);
 
     if (!dateContext) {
@@ -202,7 +147,8 @@ export default function GridTable({
     if (isActual) {
       const plannedDate = row[baseKey];
       if (hasValue(plannedDate)) {
-        minDate = maxIsoDate(minDate, String(plannedDate));
+        const plannedIso = String(plannedDate);
+        minDate = minDate ? maxIsoDate(minDate, plannedIso) : plannedIso;
       }
     }
 
@@ -213,7 +159,8 @@ export default function GridTable({
         : previousColumn.key;
       const previousValue = row[previousKey];
       if (hasValue(previousValue)) {
-        minDate = maxIsoDate(minDate, String(previousValue));
+        const previousIso = String(previousValue);
+        minDate = minDate ? maxIsoDate(minDate, previousIso) : previousIso;
       }
     }
 
@@ -320,10 +267,10 @@ export default function GridTable({
       return { backgroundColor: "#b91c1c", color: "#ffffff" };
     }
     if (normalized.includes("dans les temps")) {
-      return { backgroundColor: "#6b8e23", color: "#ffffff" };
+      return { backgroundColor: "#4f8a3f", color: "#ffffff" };
     }
     if (normalized.includes("termine")) {
-      return { backgroundColor: "#3a79be", color: "#ffffff" };
+      return { backgroundColor: "#2f8a5c", color: "#ffffff" };
     }
     if (normalized.includes("arrete")) {
       return { backgroundColor: "#64748b", color: "#ffffff" };
@@ -506,7 +453,7 @@ export default function GridTable({
                 >
                   {isLoading
                     ? "Chargement..."
-                    : "Aucune donnee. Cliquez sur Nouvelle ligne pour ajouter."}
+                    : "Aucune donnee disponible."}
                 </td>
               </tr>
             ) : (
@@ -517,6 +464,9 @@ export default function GridTable({
                   .normalize("NFD")
                   .replace(/[\u0300-\u036f]/g, "");
                 const isRowStopped = normalizedRowStatus === "arrete";
+                const isRowClosed =
+                  normalizedRowStatus === "arrete" ||
+                  normalizedRowStatus === "termine";
 
                 return (
                 <tr
@@ -535,11 +485,7 @@ export default function GridTable({
                           .normalize("NFD")
                           .replace(/[\u0300-\u036f]/g, "");
                         const isNewRow = String(row._id ?? "").startsWith("_new_");
-                        const stopDisabled =
-                          isNewRow ||
-                          !status ||
-                          normalizedStatus === "arrete" ||
-                          normalizedStatus === "termine";
+                        const stopDisabled = isNewRow || normalizedStatus === "arrete";
 
                         return (
                           <button
@@ -558,7 +504,7 @@ export default function GridTable({
                               fill="none"
                               xmlns="http://www.w3.org/2000/svg"
                             >
-                              <rect x="6" y="6" width="12" height="12" rx="1.8" stroke="currentColor" strokeWidth="1.8" />
+                              <rect x="7" y="7" width="10" height="10" rx="2" stroke="currentColor" strokeWidth="1.8" />
                             </svg>
                           </button>
                         );
@@ -567,14 +513,11 @@ export default function GridTable({
                         className="action-btn action-btn-save"
                         onClick={(e) => {
                           e.stopPropagation();
-                          if (onRowSave && !isRowComplete(row)) {
-                            alert("Complète toute la ligne avant d'enregistrer.");
-                            return;
-                          }
+                          if (isRowClosed) return;
                           if (onRowSave) onRowSave(row);
                           else console.warn("onRowSave not provided");
                         }}
-                        disabled={!isRowComplete(row)}
+                        disabled={isRowClosed}
                         title="Enregistrer la ligne"
                         aria-label="Enregistrer la ligne"
                       >
@@ -584,9 +527,8 @@ export default function GridTable({
                           fill="none"
                           xmlns="http://www.w3.org/2000/svg"
                         >
-                          <path d="M5 3h12l4 4v14H5V3z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-                          <path d="M8 3v6h8V3" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-                          <rect x="8" y="14" width="8" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.8" />
+                          <path d="M6.5 12.5l3.2 3.2L17.5 8" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+                          <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.8" />
                         </svg>
                       </button>
                       <button
@@ -604,10 +546,10 @@ export default function GridTable({
                           fill="none"
                           xmlns="http://www.w3.org/2000/svg"
                         >
-                          <path d="M4 7h16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                          <path d="M9 7V5h6v2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                          <path d="M7 7l1 12h8l1-12" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-                          <path d="M10 11v5M14 11v5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                          <path d="M8.5 6h7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                          <path d="M6 8h12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                          <path d="M8 8l.8 9.5a1.2 1.2 0 001.2 1.1h4a1.2 1.2 0 001.2-1.1L16 8" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+                          <path d="M10.5 11.2v4.2M13.5 11.2v4.2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
                         </svg>
                       </button>
                     </div>
@@ -861,10 +803,10 @@ export default function GridTable({
                             >
                           {column.type === "action_button" ? (
                             <button className="btn btn-sm" style={{
-                              background: "linear-gradient(to right, #2f69ad, #4f97e6)",
+                              background: "linear-gradient(to right, #26784f, #32a065)",
                               color: "white",
                               border: "none",
-                              boxShadow: "0 4px 6px rgba(40, 92, 150, 0.24)"
+                              boxShadow: "0 4px 6px rgba(38, 120, 79, 0.28)"
                             }} onClick={(e) => {
                               e.stopPropagation();
                               handleCalculate(row);
@@ -907,7 +849,6 @@ export default function GridTable({
           </tbody>
         </table>
       </div>
-
       <div className="d-flex gap-2 p-3 border-top" style={{ background: "#ffffff", borderBottomLeftRadius: "16px", borderBottomRightRadius: "16px" }}>
         <button
           className="btn"
@@ -918,9 +859,9 @@ export default function GridTable({
             padding: "10px 24px"
           }}
           onClick={onAddRow}
-          disabled={isLoading || (rows.length > 0 && !!getFirstIncompleteColumn(rows[rows.length - 1]))}
+          disabled={isLoading || hasUnsavedRow}
         >
-          + Nouvelle ligne
+          + Ajouter une ligne
         </button>
       </div>
     </div >

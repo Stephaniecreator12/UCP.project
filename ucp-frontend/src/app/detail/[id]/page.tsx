@@ -8,7 +8,8 @@ import { useParams, useRouter } from "next/navigation";
 import { getProcurementById } from "@/services/api";
 import type { Procurement } from "@/services/api";
 import Link from "next/link";
-import { calculatePlanning } from "@/services/api";
+import TopHeader from "@/app/components/TopHeader";
+import { getToken } from "@/services/auth";
 
 export default function DetailPage() {
   const params = useParams();
@@ -17,27 +18,16 @@ export default function DetailPage() {
 
   const [procurement, setProcurement] = useState<Procurement | null>(null);
   const [loading, setLoading] = useState(true);
-  const [dateFin, setDateFin] = useState("");
-  const [duree, setDuree] = useState(60); // Valeur par défaut
-  const [methode, setMethode] = useState("AOI"); // Valeur par défaut
-  const [planning, setPlanning] = useState<any>(null); // Pour stocker les dates calculées
-
-  const handleDesireToCalculate = async () => {
-    if (!dateFin) {
-      alert("Veuillez entrer une date de fin");
-      return;
-    }
-    try {
-      const result = await calculatePlanning(dateFin, methode, duree);
-      console.log("Résultat du calcul:", result);
-      setPlanning(result); // On met à jour l'état avec les nouvelles dates
-    } catch (error) {
-      alert("Erreur lors du calcul");
-      console.error(error);
-    }
-  };
 
   useEffect(() => {
+    if (!getToken()) {
+      router.replace("/login");
+    }
+  }, [router]);
+
+  useEffect(() => {
+    if (!getToken()) return;
+
     const loadProcurement = async () => {
       const data = await getProcurementById(parseInt(id));
       setProcurement(data);
@@ -49,13 +39,9 @@ export default function DetailPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-gray-50">
-        <nav className="bg-white border-b border-gray-200 shadow-sm">
-          <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
-            <h1 className="text-2xl font-bold text-blue-600">e-Proc UCP</h1>
-          </div>
-        </nav>
-        <div className="max-w-4xl mx-auto p-6 text-center text-gray-500">
+      <main className="min-h-screen bg-slate-100">
+        <TopHeader />
+        <div className="max-w-4xl mx-auto p-6 text-center text-slate-500">
           Chargement...
         </div>
       </main>
@@ -64,16 +50,12 @@ export default function DetailPage() {
 
   if (!procurement) {
     return (
-      <main className="min-h-screen bg-gray-50">
-        <nav className="bg-white border-b border-gray-200 shadow-sm">
-          <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
-            <h1 className="text-2xl font-bold text-blue-600">e-Proc UCP</h1>
-          </div>
-        </nav>
+      <main className="min-h-screen bg-slate-100">
+        <TopHeader />
         <div className="max-w-4xl mx-auto p-6 text-center">
           <p className="text-red-600">Procurement non trouvé</p>
-          <Link href="/">
-            <button className="mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition">
+          <Link href="/dashboard">
+            <button className="mt-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-lg transition">
               Retour à la liste
             </button>
           </Link>
@@ -83,17 +65,13 @@ export default function DetailPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gray-50">
-      <nav className="bg-white border-b border-gray-200 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
-          <h1 className="text-2xl font-bold text-blue-600">e-Proc UCP</h1>
-        </div>
-      </nav>
+    <main className="min-h-screen bg-slate-100">
+      <TopHeader />
 
       <div className="max-w-4xl mx-auto p-6">
         <div className="mb-6">
-          <Link href="/">
-            <button className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition">
+          <Link href="/dashboard">
+            <button className="bg-slate-700 hover:bg-slate-800 text-white font-bold py-2 px-4 rounded-lg transition">
               ← Retour
             </button>
           </Link>
@@ -203,10 +181,10 @@ export default function DetailPage() {
 
           <div className="mt-6 space-x-2">
             <span
-              className={`inline-block px-3 py-1 rounded text-sm font-semibold ${
+                className={`inline-block px-3 py-1 rounded text-sm font-semibold ${
                 procurement.ami
-                  ? "bg-blue-100 text-blue-800"
-                  : "bg-gray-100 text-gray-800"
+                  ? "bg-emerald-100 text-emerald-800"
+                  : "bg-slate-200 text-slate-800"
               }`}
             >
               {procurement.ami ? "✓ AMI" : "✗ Pas d'AMI"}
@@ -214,8 +192,8 @@ export default function DetailPage() {
             <span
               className={`inline-block px-3 py-1 rounded text-sm font-semibold ${
                 procurement.restricted_list
-                  ? "bg-blue-100 text-blue-800"
-                  : "bg-gray-100 text-gray-800"
+                  ? "bg-emerald-100 text-emerald-800"
+                  : "bg-slate-200 text-slate-800"
               }`}
             >
               {procurement.restricted_list
@@ -225,8 +203,8 @@ export default function DetailPage() {
             <span
               className={`inline-block px-3 py-1 rounded text-sm font-semibold ${
                 procurement.request_for_proposal
-                  ? "bg-blue-100 text-blue-800"
-                  : "bg-gray-100 text-gray-800"
+                  ? "bg-emerald-100 text-emerald-800"
+                  : "bg-slate-200 text-slate-800"
               }`}
             >
               {procurement.request_for_proposal ? "✓ RFP" : "✗ Pas de RFP"}

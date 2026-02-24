@@ -5,6 +5,19 @@
 
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+const SESSION_EXPIRED_MESSAGE = "Session expirée. Connecte-toi puis réessaie.";
+
+const clearSessionAndRedirectToLogin = () => {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem("access_token");
+  localStorage.removeItem("refresh_token");
+  window.location.href = "/login";
+};
+
+const throwSessionExpiredError = (): never => {
+  clearSessionAndRedirectToLogin();
+  throw new Error(SESSION_EXPIRED_MESSAGE);
+};
 
 // Interface commune pour un marché (Travaux, Biens ou Consultance)
 // Note: Les champs peuvent varier légèrement entre les modèles Django,
@@ -295,6 +308,10 @@ export async function calculatePlanning(
       body: JSON.stringify(payload),
     });
 
+    if (response.status === 401 || response.status === 403) {
+      throwSessionExpiredError();
+    }
+
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(
@@ -387,6 +404,10 @@ export async function getProcurementStatus(
     body: JSON.stringify({ dates_prevues, dates_reels }),
   });
 
+  if (response.status === 401 || response.status === 403) {
+    throwSessionExpiredError();
+  }
+
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(
@@ -444,7 +465,7 @@ export async function deleteProcurement(
   let accessToken =
     typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
   if (!accessToken) {
-    throw new Error("Session expirée. Connecte-toi puis réessaie.");
+    throwSessionExpiredError();
   }
 
   let response = await fetch(endpoint, {
@@ -456,7 +477,7 @@ export async function deleteProcurement(
   if (response.status === 401) {
     accessToken = await refreshAccessToken();
     if (!accessToken) {
-      throw new Error("Session expirée. Connecte-toi puis réessaie.");
+      throwSessionExpiredError();
     }
     response = await fetch(endpoint, {
       method: "DELETE",
@@ -482,9 +503,12 @@ export async function stopProcurement(
 ): Promise<{ statut: string }> {
   const token =
     typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
+  if (!token) {
+    throwSessionExpiredError();
+  }
 
   const headers: HeadersInit = { "Content-Type": "application/json" };
-  if (token) headers.Authorization = `Bearer ${token}`;
+  headers.Authorization = `Bearer ${token}`;
 
   let endpoint = "";
   if (type === "Travaux")
@@ -498,6 +522,11 @@ export async function stopProcurement(
     headers,
     body: JSON.stringify({ password }),
   });
+
+  if (res.status === 401 || res.status === 403) {
+    throwSessionExpiredError();
+  }
+
   const data = await res.json().catch(() => ({}));
 
   if (!res.ok) throw new Error(data.error || data.detail || "Erreur arrêt");

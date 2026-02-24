@@ -410,17 +410,17 @@ export const TABLE_CONFIGS = {
   works: {
     label: "Travaux",
     columns: WORKS_GOODS_COLUMNS,
-    icon: "📋",
+    icon: "▣",
   },
   "goods-services": {
     label: "Biens & Services",
     columns: WORKS_GOODS_COLUMNS, // Identique à Travaux
-    icon: "📦",
+    icon: "◫",
   },
   consultants: {
     label: "Consultants",
     columns: CONSULTANTS_COLUMNS,
-    icon: "👤",
+    icon: "◉",
   },
 };
 

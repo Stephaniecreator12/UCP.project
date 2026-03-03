@@ -338,7 +338,7 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="app-shell">
+    <div className="app-shell dashboard-scroll-shell">
       <TopHeader />
 
       <main className="dash-page">

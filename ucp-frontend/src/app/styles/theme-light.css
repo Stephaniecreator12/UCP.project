@@ -1,0 +1,232 @@
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="light"] {
+  --dashboard-bg:
+    radial-gradient(circle at 12% 12%, rgba(172, 152, 126, 0.18), transparent 36%),
+    radial-gradient(circle at 90% 12%, rgba(154, 168, 179, 0.18), transparent 36%),
+    linear-gradient(145deg, #e9f0ec 0%, #dfe7e3 56%, #d5dedb 100%);
+  --dashboard-header-bg: linear-gradient(95deg, #b3a390 0%, #a79783 46%, #c3b3a0 100%);
+  --dashboard-header-border: rgba(168, 154, 136, 0.64);
+  --dashboard-header-shadow: 0 22px 34px -20px rgba(114, 101, 86, 0.3);
+
+  --sidebar-bg: linear-gradient(180deg, #f3f7f5 0%, #eaf0ed 100%);
+  --sidebar-border-color: rgba(183, 174, 162, 0.82);
+  --sidebar-shadow: 0 16px 26px -18px rgba(110, 101, 92, 0.2);
+  --sidebar-item-bg: rgba(212, 222, 217, 0.68);
+  --sidebar-item-color: #4d565f;
+  --sidebar-item-hover-bg: rgba(214, 201, 185, 0.64);
+  --sidebar-item-active-bg: linear-gradient(90deg, #b6a48f 0%, #a4917c 100%);
+  --sidebar-item-active-border: rgba(158, 140, 120, 0.64);
+
+  --dashboard-table-bg: #dfe8e6;
+  --dashboard-table-border: 1px solid rgba(161, 179, 170, 0.66);
+  --table-header-bg: linear-gradient(
+    180deg,
+    rgba(223, 231, 242, 0.96) 0%,
+    rgba(205, 217, 233, 0.92) 100%
+  ) !important;
+  --table-header-color: #223044 !important;
+  --table-header-divider: rgba(122, 131, 143, 0.4) !important;
+  --table-header-border: 1px solid rgba(162, 171, 182, 0.45) !important;
+  --table-row-hover-bg: #edf2f0;
+  --action-header-bg: linear-gradient(
+    180deg,
+    rgba(223, 231, 242, 0.96) 0%,
+    rgba(205, 217, 233, 0.92) 100%
+  ) !important;
+}
+
+:root[data-theme="light"] .app-shell {
+  background:
+    radial-gradient(circle at 12% 12%, rgba(188, 168, 144, 0.16), transparent 34%),
+    radial-gradient(circle at 88% 12%, rgba(160, 173, 182, 0.18), transparent 38%),
+    linear-gradient(145deg, #e8efeb 0%, #dde5e1 54%, #d4ddda 100%);
+}
+
+:root[data-theme="light"] .app-top-header {
+  background: rgba(233, 238, 235, 0.93);
+  border-bottom: 1px solid rgba(157, 174, 166, 0.58);
+}
+
+:root[data-theme="light"] .app-brand-text strong {
+  color: #2d3f35;
+}
+
+:root[data-theme="light"] .app-brand-text span {
+  color: #687a71;
+}
+
+:root[data-theme="light"] .quick-link-btn {
+  color: #355143;
+  border-color: rgba(145, 165, 156, 0.75);
+  background: linear-gradient(180deg, rgba(231, 238, 234, 0.95), rgba(218, 228, 223, 0.95));
+}
+
+:root[data-theme="light"] .quick-link-btn:hover {
+  border-color: rgba(114, 150, 132, 0.84);
+  color: #2f493c;
+}
+
+:root[data-theme="light"] .quick-link-btn.active-page {
+  color: #fffaf2;
+  background: linear-gradient(90deg, #a18f7b 0%, #8f7f6d 100%);
+  border-color: rgba(145, 126, 106, 0.55);
+}
+
+:root[data-theme="light"] .theme-toggle-btn {
+  border-color: rgba(145, 165, 156, 0.75);
+  background: rgba(223, 233, 227, 0.95);
+  color: #355143;
+}
+
+:root[data-theme="light"] .theme-toggle-btn:hover {
+  border-color: rgba(114, 150, 132, 0.84);
+  background: rgba(212, 225, 217, 0.98);
+}
+
+:root[data-theme="light"] .logout-btn {
+  border-color: rgba(196, 121, 121, 0.78);
+  background: linear-gradient(180deg, rgba(242, 220, 220, 0.98), rgba(234, 201, 201, 0.98));
+  color: #7f2f2f;
+}
+
+:root[data-theme="light"] .logout-btn:hover {
+  border-color: rgba(183, 94, 94, 0.88);
+  background: linear-gradient(180deg, rgba(239, 207, 207, 0.98), rgba(227, 185, 185, 0.98));
+}
+
+:root[data-theme="light"] .home-page {
+  background:
+    radial-gradient(circle at 18% 24%, rgba(100, 170, 126, 0.16), transparent 36%),
+    radial-gradient(circle at 80% 22%, rgba(165, 178, 188, 0.2), transparent 36%),
+    linear-gradient(135deg, #edf3ef 0%, #e4ebe7 60%, #dae2de 100%);
+}
+
+:root[data-theme="light"] .home-hero {
+  border-color: rgba(157, 178, 168, 0.78);
+  background:
+    radial-gradient(circle at 20% 22%, rgba(92, 173, 124, 0.12), transparent 36%),
+    radial-gradient(circle at 82% 26%, rgba(150, 164, 176, 0.12), transparent 40%),
+    linear-gradient(150deg, rgba(243, 248, 245, 0.98), rgba(233, 240, 236, 0.96));
+}
+
+:root[data-theme="light"] .home-title {
+  color: #2f4338;
+}
+
+:root[data-theme="light"] .home-subtitle {
+  color: #5a6f64;
+}
+
+:root[data-theme="light"] .sidebar-header {
+  border-bottom-color: rgba(172, 189, 180, 0.74);
+}
+
+:root[data-theme="light"] .sidebar-header-line {
+  background: linear-gradient(90deg, rgba(173, 151, 122, 0.88), rgba(169, 183, 194, 0.4));
+}
+
+:root[data-theme="light"] .sidebar-mini-status {
+  background: rgba(227, 236, 231, 0.95);
+  border-color: rgba(183, 170, 153, 0.72);
+  color: #5a5550;
+}
+
+:root[data-theme="light"] .menu-icon {
+  background: linear-gradient(180deg, rgba(235, 242, 238, 0.96), rgba(219, 228, 223, 0.92));
+  border-color: rgba(181, 168, 151, 0.62);
+  color: #59544d;
+}
+
+:root[data-theme="light"] .table thead th::before {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 252, 245, 0.74) 0%,
+    rgba(247, 240, 231, 0.68) 100%
+  );
+  backdrop-filter: blur(4px);
+}
+
+:root[data-theme="light"] .table thead th {
+  color: #2b3541 !important;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+:root[data-theme="light"] .action-header::after,
+:root[data-theme="light"] .action-cell::after {
+  background: linear-gradient(90deg, rgba(201, 190, 176, 0.32), transparent);
+}
+
+:root[data-theme="light"] .cell-date {
+  color-scheme: light;
+  border-color: rgba(182, 170, 155, 0.8);
+  background: linear-gradient(180deg, rgba(252, 248, 241, 0.99) 0%, rgba(244, 238, 229, 0.98) 100%);
+  color: #344250;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.86);
+}
+
+:root[data-theme="light"] .cell-date:hover {
+  border-color: rgba(159, 145, 126, 0.84);
+  background: linear-gradient(180deg, rgba(255, 252, 246, 1) 0%, rgba(248, 241, 232, 0.99) 100%);
+}
+
+:root[data-theme="light"] .cell-date:focus {
+  border-color: rgba(129, 147, 168, 0.88);
+  box-shadow: 0 0 0 2px rgba(141, 159, 181, 0.24);
+}
+
+:root[data-theme="light"] .cell-date-trigger {
+  border-color: rgba(132, 150, 170, 0.92);
+  background: linear-gradient(180deg, rgba(250, 252, 255, 1) 0%, rgba(228, 236, 246, 1) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 1px 3px -2px rgba(43, 56, 70, 0.38);
+}
+
+:root[data-theme="light"] .cell-date-trigger:hover {
+  border-color: rgba(109, 132, 158, 0.95);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 1) 0%, rgba(236, 243, 251, 1) 100%);
+}
+
+:root[data-theme="light"] .login-scene {
+  background:
+    radial-gradient(circle at 80% 10%, rgba(159, 173, 185, 0.3), transparent 36%),
+    linear-gradient(145deg, #eaf1ed 0%, #dde6e1 45%, #d2dcd7 100%) !important;
+}
+
+:root[data-theme="light"] .login-card {
+  border-color: rgba(166, 182, 174, 0.62) !important;
+  background: linear-gradient(170deg, rgba(245, 250, 247, 0.97) 0%, rgba(234, 241, 237, 0.98) 100%) !important;
+}
+
+:root[data-theme="light"] .login-kicker {
+  color: #4d8d67 !important;
+}
+
+:root[data-theme="light"] .login-title {
+  color: #2f483b !important;
+}
+
+:root[data-theme="light"] .login-subtitle,
+:root[data-theme="light"] .login-label,
+:root[data-theme="light"] .login-foot {
+  color: #5b7468 !important;
+}
+
+:root[data-theme="light"] .login-input {
+  border-color: rgba(161, 180, 171, 0.72) !important;
+  color: #2e493b !important;
+  background: rgba(248, 252, 250, 0.96) !important;
+}
+
+:root[data-theme="light"] .login-error {
+  color: #9f1d1d !important;
+  background: rgba(248, 217, 217, 0.65) !important;
+  border-color: rgba(222, 103, 103, 0.46) !important;
+}

@@ -2,18 +2,13 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-
-const NAV_ITEMS = [
-  { href: "/", label: "Accueil" },
-  { href: "/login", label: "Login" },
-  { href: "/formulaire", label: "Formulaire" },
-  { href: "/dashboard", label: "Dashboard" },
-];
+import { getToken, logout } from "@/services/auth";
 
 export default function TopHeader() {
   const pathname = usePathname();
+  const router = useRouter();
   const [theme, setTheme] = useState<"light" | "dark">(() => {
     if (typeof window === "undefined") return "dark";
     const stored = localStorage.getItem("theme");
@@ -33,16 +28,30 @@ export default function TopHeader() {
     setTheme(nextTheme);
   };
 
+  const handleLogout = () => {
+    logout();
+    router.replace("/login");
+    router.refresh();
+    setTimeout(() => {
+      if (typeof window !== "undefined" && window.location.pathname !== "/login") {
+        window.location.replace("/login");
+      }
+    }, 120);
+  };
+
+  const isAuthenticated = Boolean(getToken());
+  const showAuthenticatedActions = isAuthenticated && pathname !== "/login";
+
   return (
     <header className="app-top-header">
       <div className="app-topline" aria-hidden="true" />
       <div className="app-top-header-inner">
-        <Link href="/" className="app-brand">
+        <Link href={showAuthenticatedActions ? "/formulaire" : "/login"} className="app-brand">
           <Image
-            src="/ucp-sante-logo.svg"
+            src="/ucp-sante-logo-color.png"
             alt="Logo UCP"
-            width={44}
-            height={44}
+            width={62}
+            height={62}
             className="app-brand-logo"
             priority
           />
@@ -52,24 +61,23 @@ export default function TopHeader() {
           </div>
         </Link>
 
-        <div className="app-top-nav-wrap">
-          <nav className="app-top-nav" aria-label="Navigation principale">
-            {NAV_ITEMS.map((item) => {
-              const isActive =
-                pathname === item.href ||
-                (item.href !== "/" && pathname?.startsWith(item.href));
-
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`app-top-nav-link ${isActive ? "active" : ""}`}
-                >
-                  {item.label}
-                </Link>
-              );
-            })}
-          </nav>
+        <div className="app-quick-links">
+          {showAuthenticatedActions && (
+            <Link
+              href="/formulaire"
+              className={`quick-link-btn ${pathname === "/formulaire" ? "active-page" : ""}`}
+            >
+              PPM
+            </Link>
+          )}
+          {showAuthenticatedActions && (
+            <Link
+              href="/dashboard"
+              className={`quick-link-btn ${pathname === "/dashboard" ? "active-page" : ""}`}
+            >
+              Dashboard
+            </Link>
+          )}
         </div>
 
         <div className="app-top-actions">
@@ -82,6 +90,16 @@ export default function TopHeader() {
           >
             {theme === "dark" ? "Clair" : "Sombre"}
           </button>
+          {showAuthenticatedActions && (
+            <button
+              type="button"
+              className="logout-btn"
+              onClick={handleLogout}
+              title="Se déconnecter"
+            >
+              Déconnexion
+            </button>
+          )}
         </div>
       </div>
     </header>

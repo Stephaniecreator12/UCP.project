@@ -1,0 +1,90 @@
+/* =========================================
+   SIDEBAR STYLES (Strict Minimalist)
+   ========================================= */
+
+.sidebar-menu {
+  width: var(--sidebar-width);
+  height: 100vh;
+  background: var(--sidebar-bg);
+  /* Nearly black */
+  border-right: 1px solid var(--sidebar-border-color);
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-header {
+  padding: 40px 24px;
+  text-align: left;
+}
+
+.sidebar-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.5px;
+  margin-bottom: 4px;
+  font-family: var(--font-display), "Segoe UI", sans-serif;
+}
+
+.sidebar-subtitle {
+  font-size: 13px;
+  color: #444;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-family: var(--font-display), "Segoe UI", sans-serif;
+}
+
+.sidebar-nav {
+  padding: 24px 16px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sidebar-menu-item {
+  padding: 14px 16px;
+  background: var(--sidebar-item-bg);
+  border: var(--sidebar-item-border);
+  border-radius: var(--sidebar-item-radius);
+  color: var(--sidebar-item-color);
+  cursor: pointer;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 15px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.sidebar-menu-item:hover {
+  color: var(--sidebar-item-hover-color);
+  background: var(--sidebar-item-hover-bg);
+  border-color: var(--sidebar-item-hover-border);
+}
+
+.sidebar-menu-item.active {
+  background: var(--sidebar-item-active-bg);
+  color: var(--sidebar-item-active-color);
+  border-color: var(--sidebar-item-active-border);
+  font-weight: 600;
+  box-shadow: var(--sidebar-item-active-shadow);
+}
+
+.menu-icon {
+  font-size: 18px;
+}
+
+.sidebar-footer {
+  padding: 24px;
+  border-top: 1px solid var(--sidebar-footer-border);
+  text-align: center;
+}
+
+.sidebar-version {
+  font-size: 12px;
+  color: var(--sidebar-version-color);
+  font-family: var(--font-code), monospace;
+}

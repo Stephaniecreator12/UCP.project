@@ -67,6 +67,14 @@ interface BackendProcurementItem {
   date_ouverture_prevu?: string;
   date_signature_prevu?: string;
   date_livraison_prevu?: string;
+  // Consultance-specific fields (based on planning payload)
+  TdR_prevu?: string;
+  ami_prevu?: string;
+  liste_restreinte_prevu?: string;
+  demande_proposition_prevu?: string;
+  date_invitation_prevu?: string;
+  ouverture_plis_prevu?: string;
+  date_fin_prevu?: string;
 }
 
 export interface PlanningResponse {
@@ -123,24 +131,43 @@ export async function getAllProcurements(): Promise<Procurement[]> {
     const mapItem = (
       item: BackendProcurementItem,
       type: "Travaux" | "Biens" | "Consultance",
-    ): Procurement => ({
-      id: item.id,
-      type: type,
-      ref_number: item.code_suivi, // Ou null si pas de ref
-      title: item.intitule,
-      tracking_code: item.code_suivi,
-      estimated_amount: Number(item.montant_estimatif ?? 0),
-      method: item.methode_pm,
-      approach: item.approches,
-      review_notes: item.commentaire,
+    ): Procurement => {
+      const base: Procurement = {
+        id: item.id,
+        type,
+        ref_number: item.code_suivi, // Ou null si pas de ref
+        title: item.intitule,
+        tracking_code: item.code_suivi,
+        estimated_amount: Number(item.montant_estimatif ?? 0),
+        method: item.methode_pm,
+        approach: item.approches,
+        review_notes: item.commentaire,
+        status: item.statut,
+      };
 
-      // Dates
-      date_invitation: item.date_lancement_prevu,
-      date_opening_submissions: item.date_ouverture_prevu,
-      date_contract_signed: item.date_signature_prevu,
-      date_mission_end: item.date_livraison_prevu,
-      status: item.statut,
-    });
+      if (type === "Consultance") {
+        return {
+          ...base,
+          terms_of_reference: item.TdR_prevu,
+          ami: item.ami_prevu,
+          restricted_list: item.liste_restreinte_prevu,
+          request_for_proposal: item.demande_proposition_prevu,
+          invitation_date: item.date_invitation_prevu,
+          submissions_opening_date: item.date_ouverture_prevu,
+          financial_opening_date: item.ouverture_plis_prevu,
+          contract_date: item.date_signature_prevu,
+          mission_end_date: item.date_fin_prevu,
+        };
+      }
+
+      return {
+        ...base,
+        date_invitation: item.date_lancement_prevu,
+        date_opening_submissions: item.date_ouverture_prevu,
+        date_contract_signed: item.date_signature_prevu,
+        date_mission_end: item.date_livraison_prevu,
+      };
+    };
 
     const travaux = travauxList.map((item) => mapItem(item, "Travaux"));
     const biens = biensList.map((item) => mapItem(item, "Biens"));
@@ -190,32 +217,56 @@ export async function createProcurement(
     return null;
   }
 
-  // 1. On prépare les données pour le Backend (Mapping)
-  const payload = {
-    // Champs communs
-    code_suivi: data.tracking_code || "",
-
-    // ICI : On met une valeur par défaut si c'est vide !
+  const basePayload = {
     intitule: data.title || "Sans Titre",
     montant_estimatif: data.estimated_amount || 0,
-
-    // Champs spécifiques
-    agmo: data.agmo || "Direction Générale",
-    methode_pm: data.method || "Non défini",
-    approches: data.approach || "Non défini",
-    revue: data.review_notes || "Non défini",
-
-    // Dates (null si vide)
-    listesetspecifications: data.date_invitation || null,
-
-    // Mapping des dates prévues
-    date_lancement_prevu: data.date_invitation || null,
-    date_ouverture_prevu: data.date_opening_submissions || null,
-    date_signature_prevu: data.date_contract_signed || null,
-    date_livraison_prevu: data.date_mission_end || null,
-
     commentaire: data.review_notes || "",
   };
+
+  const payload =
+    data.type === "Consultance"
+      ? (() => {
+          const consultancePayload: Record<string, unknown> = {
+            ...basePayload,
+          };
+          const addIfValue = (key: string, value: unknown) => {
+            if (value === null || value === undefined || String(value).trim() === "") return;
+            consultancePayload[key] = value;
+          };
+
+          // Champs spécifiques consultance (noms backend attendus)
+          addIfValue("TdR_prevu", data.terms_of_reference);
+          addIfValue("ami_prevu", data.ami);
+          addIfValue("demande_proposition_prevu", data.request_for_proposal);
+          addIfValue("date_ouverture_prevu", data.submissions_opening_date);
+          addIfValue("ouverture_plis_prevu", data.financial_opening_date);
+          addIfValue("date_signature_prevu", data.contract_date);
+          addIfValue("date_fin_prevu", data.mission_end_date);
+          addIfValue("date_invitation_prevu", data.invitation_date);
+          addIfValue("liste_restreinte_prevu", data.restricted_list);
+
+          return consultancePayload;
+        })()
+      : {
+          // Champs communs
+          code_suivi: data.tracking_code || "",
+          ...basePayload,
+
+          // Champs spécifiques
+          agmo: data.agmo || "Direction Générale",
+          methode_pm: data.method || "aoi",
+          approches: data.approach || "Non défini",
+          revue: data.review_notes || "Non défini",
+
+          // Dates (null si vide)
+          listesetspecifications: data.date_invitation || null,
+
+          // Mapping des dates prévues
+          date_lancement_prevu: data.date_invitation || null,
+          date_ouverture_prevu: data.date_opening_submissions || null,
+          date_signature_prevu: data.date_contract_signed || null,
+          date_livraison_prevu: data.date_mission_end || null,
+        };
 
   /**
    * MODIFIER un marché (Stub - Non implémenté sur le backend)

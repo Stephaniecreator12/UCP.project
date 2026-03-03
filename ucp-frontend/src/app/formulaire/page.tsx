@@ -24,7 +24,7 @@ export default function GestionMarches() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<{
-    type: "success" | "error";
+    type: "success" | "error" | "danger" | "warning";
     message: string;
   } | null>(null);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
@@ -34,8 +34,34 @@ export default function GestionMarches() {
   const [passwordInput, setPasswordInput] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const passwordResolverRef = useRef<((value: string | null) => void) | null>(null);
+  const saveMessageTimeoutRef = useRef<number | null>(null);
 
   const config = TABLE_CONFIGS[activeMenu];
+  const hasUnsavedRow = rows.some((row) => String(row._id ?? "").startsWith("_new_"));
+
+  const parseAmount = (value: unknown): number => {
+    if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+    if (typeof value !== "string") return 0;
+
+    // Keep digits/sign/decimal separators, then normalize comma to dot.
+    const normalized = value.replace(/[^\d,.-]/g, "").replace(",", ".");
+    const parsed = Number.parseFloat(normalized);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+
+  const totalEstimatedAmount = rows.reduce((sum, row) => {
+    const raw =
+      row.estimated_amount ??
+      row.montant_estimatif ??
+      row.estimatedAmount ??
+      0;
+    return sum + parseAmount(raw);
+  }, 0);
+
+  const totalEstimatedAmountDisplay = new Intl.NumberFormat("fr-FR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(totalEstimatedAmount);
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -77,8 +103,22 @@ export default function GestionMarches() {
         passwordResolverRef.current(null);
         passwordResolverRef.current = null;
       }
+      if (saveMessageTimeoutRef.current) {
+        window.clearTimeout(saveMessageTimeoutRef.current);
+      }
     };
   }, []);
+
+  useEffect(() => {
+    if (!saveMessage) return;
+    if (saveMessageTimeoutRef.current) {
+      window.clearTimeout(saveMessageTimeoutRef.current);
+    }
+    saveMessageTimeoutRef.current = window.setTimeout(() => {
+      setSaveMessage(null);
+      saveMessageTimeoutRef.current = null;
+    }, 1800);
+  }, [saveMessage]);
 
   const requestPasswordConfirmation = (options: {
     title: string;
@@ -168,7 +208,7 @@ export default function GestionMarches() {
         await deleteProcurement(Number(rowId), type, password);
       }
       setRows((prev) => prev.filter((r) => r._id !== rowId));
-      setSaveMessage({ type: "success", message: "Supprimé" });
+      setSaveMessage({ type: "danger", message: "Ligne supprimée." });
     } catch (e: unknown) {
       const errorMessage =
         e instanceof Error ? e.message : "Erreur suppression";
@@ -223,7 +263,7 @@ export default function GestionMarches() {
         ),
       );
 
-      setSaveMessage({ type: "success", message: "Ligne arrêtée." });
+      setSaveMessage({ type: "warning", message: "Ligne arrêtée." });
     } catch (e: unknown) {
       const errorMessage = e instanceof Error ? e.message : "Erreur arrêt";
       setSaveMessage({ type: "error", message: errorMessage });
@@ -281,7 +321,7 @@ export default function GestionMarches() {
             r._id === row._id ? { ...savedRow, status: computedStatus } : r,
           ),
         );
-        setSaveMessage({ type: "success", message: "Ligne enregistrée !" });
+        setSaveMessage({ type: "success", message: "Ligne enregistrée avec succès." });
       }
     } catch (e: unknown) {
       console.error(e);
@@ -289,7 +329,6 @@ export default function GestionMarches() {
       setSaveMessage({ type: "error", message: `Erreur: ${errorMessage}` });
     } finally {
       setIsSaving(false);
-      setTimeout(() => setSaveMessage(null), 3000);
     }
   };
 
@@ -299,32 +338,58 @@ export default function GestionMarches() {
     );
   };
 
+  const tableContainerStyle: React.CSSProperties = {
+    display: "grid",
+    gridTemplateRows: "minmax(0, 1fr) auto",
+    minHeight: 0,
+    minWidth: 0,
+    marginBottom: 0,
+    overflow: "hidden",
+  };
+
+  const tableInnerStyle: React.CSSProperties = {
+    minHeight: 0,
+    minWidth: 0,
+    maxHeight: "56vh",
+    overflow: "hidden",
+  };
+
+  const addRowAreaStyle: React.CSSProperties = {
+    position: "relative",
+    zIndex: 90,
+    minHeight: "58px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "flex-start",
+    padding: "10px 14px",
+    borderTop: "1px solid rgba(171, 187, 177, 0.7)",
+    background:
+      "linear-gradient(180deg, rgba(246, 250, 248, 0.98), rgba(236, 243, 239, 0.98))",
+  };
+
   return (
     <div className="app-shell">
       <TopHeader />
       <div className="dashboard">
         <SidebarMenu activeMenu={activeMenu} onMenuSelect={setActiveMenu} />
-        <main className="dashboard-content">
+        <main className="dashboard-content form-dashboard-content">
           <header className="dashboard-header">
             <div className="dashboard-header-accent" aria-hidden="true" />
             <div className="dashboard-title-wrap">
               <p className="dashboard-kicker">UCP · Passation de marches</p>
               <h1 className="dashboard-title">{config.label}</h1>
               <p className="dashboard-subtitle">
-                Unite de coordination de projet · {rows.length} ligne
-                {rows.length > 1 ? "s" : ""}
+                Unite de coordination de projet
               </p>
             </div>
             <div className="dashboard-header-stats">
               <div className="header-stat-card">
-                <span className="header-stat-label">Lignes</span>
+                <span className="header-stat-label">Marchés</span>
                 <strong className="header-stat-value">{rows.length}</strong>
               </div>
               <div className="header-stat-card">
-                <span className="header-stat-label">Systeme</span>
-                <strong className="header-stat-value">
-                  {isLoading || isSaving ? "Sync..." : "En ligne"}
-                </strong>
+                <span className="header-stat-label">Montant total estimatif ($)</span>
+                <strong className="header-stat-value">{totalEstimatedAmountDisplay}</strong>
               </div>
             </div>
           </header>
@@ -335,18 +400,45 @@ export default function GestionMarches() {
             </div>
           )}
 
-          <div className="dashboard-table-container">
-            <GridTable
-              columns={config.columns}
-              rows={rows}
-              onRowChange={handleRowChange}
-              onRowSave={handleRowSave}
-              onRowUpdate={handleRowUpdate}
-              onRowDelete={handleRowDelete}
-              onRowStop={handleRowStop}
-              onAddRow={handleAddRow}
-              isLoading={isLoading || isSaving}
-            />
+          <div
+            className="dashboard-table-container form-dashboard-table-container"
+            style={tableContainerStyle}
+          >
+            <div style={tableInnerStyle}>
+              <GridTable
+                columns={config.columns}
+                rows={rows}
+                onRowChange={handleRowChange}
+                onRowSave={handleRowSave}
+                onRowUpdate={handleRowUpdate}
+                onRowDelete={handleRowDelete}
+                onRowStop={handleRowStop}
+                isLoading={isLoading || isSaving}
+              />
+            </div>
+            <div className="table-add-row-area form-table-add-row-area" style={addRowAreaStyle}>
+              <button
+                type="button"
+                className="global-add-row-fab form-global-add-row-fab"
+                onClick={handleAddRow}
+                disabled={isLoading || isSaving || hasUnsavedRow}
+              >
+                <span className="add-row-btn-icon" aria-hidden="true">+</span>
+                <span>Ajouter une ligne</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="form-dark-floating-add-row" aria-hidden="false">
+            <button
+              type="button"
+              className="global-add-row-fab form-global-add-row-fab"
+              onClick={handleAddRow}
+              disabled={isLoading || isSaving || hasUnsavedRow}
+            >
+              <span className="add-row-btn-icon" aria-hidden="true">+</span>
+              <span>Ajouter une ligne</span>
+            </button>
           </div>
 
           {isPasswordModalOpen && (

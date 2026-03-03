@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useRef } from "react";
 import { ColumnConfig, GridRow } from "@/types/grid";
 import GridCell from "./GridCell";
 
@@ -13,7 +13,6 @@ interface GridTableProps {
   onRowSave?: (row: GridRow) => void;
   onRowDelete?: (rowId: string) => void;
   onRowStop?: (rowId: string) => void;
-  onAddRow?: () => void;
   onRowUpdate?: (updatedRow: GridRow) => void;
   isLoading?: boolean;
 }
@@ -25,20 +24,100 @@ export default function GridTable({
   onRowSave,
   onRowDelete,
   onRowStop,
-  onAddRow,
   onRowUpdate,
   isLoading = false,
 }: GridTableProps) {
-  // Etat pour tracker quelle cellule est en cours d'edition
-  const [editingCell, setEditingCell] = useState<{
-    rowId: string;
-    columnKey: string;
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const previousRowsCountRef = useRef(rows.length);
+  const datePopupTimeoutRef = useRef<number | null>(null);
+  const [uiPopup, setUiPopup] = React.useState<{
+    kind: "date" | "method";
+    title: string;
+    message: string;
   } | null>(null);
 
-  // Etat pour la valeur actuellement tapee dans l'input
-  const [editValue, setEditValue] = useState<unknown>("");
+  const showDateValidationPopup = (message: string) => {
+    setUiPopup({ kind: "date", title: "Date non valide", message });
+    if (datePopupTimeoutRef.current) {
+      window.clearTimeout(datePopupTimeoutRef.current);
+    }
+    datePopupTimeoutRef.current = window.setTimeout(() => {
+      setUiPopup(null);
+      datePopupTimeoutRef.current = null;
+    }, 1600);
+  };
+
+  const showMethodRequiredPopup = () => {
+    setUiPopup({
+      kind: "method",
+      title: "Méthode requise",
+      message: "Choisissez d'abord une méthode de passation avant de planifier.",
+    });
+    if (datePopupTimeoutRef.current) {
+      window.clearTimeout(datePopupTimeoutRef.current);
+    }
+    datePopupTimeoutRef.current = window.setTimeout(() => {
+      setUiPopup(null);
+      datePopupTimeoutRef.current = null;
+    }, 2200);
+  };
+
+  const scrollToMethodCell = (rowId: string) => {
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
+    const selector = `tr[data-row-id="${rowId}"] td[data-col-key="method"]`;
+    const methodCell = wrapper.querySelector<HTMLElement>(selector);
+    if (!methodCell) return;
+
+    methodCell.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+    methodCell.classList.add("method-required-pulse");
+    methodCell.classList.add("method-required-invite");
+    const methodInput = methodCell.querySelector<HTMLElement>("select, input, textarea, button");
+    if (methodInput) {
+      requestAnimationFrame(() => methodInput.focus());
+      methodInput.classList.add("method-required-focus");
+      window.setTimeout(() => methodInput.classList.remove("method-required-focus"), 1800);
+    }
+    window.setTimeout(() => {
+      methodCell.classList.remove("method-required-pulse");
+      methodCell.classList.remove("method-required-invite");
+    }, 3600);
+  };
+
+  useEffect(() => {
+    const previousCount = previousRowsCountRef.current;
+    previousRowsCountRef.current = rows.length;
+
+    if (rows.length <= previousCount) return;
+
+    const lastRow = rows[rows.length - 1];
+    if (!lastRow || !String(lastRow._id ?? "").startsWith("_new_")) return;
+
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
+
+    requestAnimationFrame(() => {
+      wrapper.scrollTo({ top: wrapper.scrollHeight, behavior: "smooth" });
+      const targetRowId = String(lastRow._id ?? "");
+      const targetRow = wrapper.querySelector<HTMLTableRowElement>(
+        `tr[data-row-id="${targetRowId}"]`,
+      );
+      if (targetRow) {
+        targetRow.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
+      }
+    });
+  }, [rows]);
+
+  useEffect(() => {
+    return () => {
+      if (datePopupTimeoutRef.current) {
+        window.clearTimeout(datePopupTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const splitDateColumns = columns.filter((c) => c.type === "date" && c.isSplit);
+  const linearDateColumns = columns.filter((c) => c.type === "date" && !c.isSplit);
   const isDriverDateKey = (key: string): boolean => {
     return key === "delivery_date" || key === "mission_end_date";
   };
@@ -46,14 +125,29 @@ export default function GridTable({
   const hasValue = (value: unknown): boolean => {
     return value !== null && value !== undefined && String(value).trim() !== "";
   };
-  const hasUnsavedRow = rows.some((row) => String(row._id ?? "").startsWith("_new_"));
+  const isSupportedMethodValue = (value: unknown): boolean => {
+    const method = String(value ?? "").trim().toLowerCase();
+    if (!method || method === "non défini" || method === "non defini") return false;
+    return ["aon", "aoi", "dc", "ed", "sfq", "sfqc", "smc", "sqc", "sci", "sed"].includes(method);
+  };
 
   const maxIsoDate = (a: string, b: string): string => {
     return a > b ? a : b;
   };
 
+  const minIsoDate = (a: string, b: string): string => {
+    return a < b ? a : b;
+  };
+
   const getTodayLocalIso = (): string => {
     const now = new Date();
+    const tzOffsetMs = now.getTimezoneOffset() * 60 * 1000;
+    return new Date(now.getTime() - tzOffsetMs).toISOString().split("T")[0];
+  };
+
+  const getTomorrowLocalIso = (): string => {
+    const now = new Date();
+    now.setDate(now.getDate() + 1);
     const tzOffsetMs = now.getTimezoneOffset() * 60 * 1000;
     return new Date(now.getTime() - tzOffsetMs).toISOString().split("T")[0];
   };
@@ -89,17 +183,29 @@ export default function GridTable({
     return { isActual, baseKey, index };
   };
 
+  const getColumnConfig = (columnKey: string) => {
+    const baseKey = columnKey.endsWith("_actual")
+      ? columnKey.replace(/_actual$/, "")
+      : columnKey;
+    return columns.find((c) => c.key === baseKey);
+  };
+
   const validateDateOrder = (
     row: GridRow,
     columnKey: string,
     nextValue: unknown
   ): string | null => {
+    const columnConfig = getColumnConfig(columnKey);
+    if (!columnConfig || columnConfig.type !== "date") return null;
     if (!hasValue(nextValue)) return null;
 
     const nextDate = String(nextValue);
-    const minDate = getMinDateForColumn(row, columnKey);
+    const { minDate, maxDate } = getDateBounds(row, columnKey);
     if (minDate && nextDate < minDate) {
       return `La date doit être supérieure ou égale à ${minDate}.`;
+    }
+    if (maxDate && nextDate > maxDate) {
+      return `La date doit être inférieure ou égale à ${maxDate}.`;
     }
 
     const dateContext = getSplitDateContext(columnKey);
@@ -135,21 +241,27 @@ export default function GridTable({
   };
 
   const getMinDateForColumn = (row: GridRow, columnKey: string): string | undefined => {
-    let minDate: string | undefined = getTodayLocalIso();
+    const columnConfig = getColumnConfig(columnKey);
+    if (!columnConfig || columnConfig.type !== "date") return undefined;
+    let minDate: string | undefined;
     const dateContext = getSplitDateContext(columnKey);
 
     if (!dateContext) {
+      const linearIndex = linearDateColumns.findIndex((c) => c.key === columnKey);
+      if (linearIndex > 0) {
+        const previousColumn = linearDateColumns[linearIndex - 1];
+        const previousValue = row[previousColumn.key];
+        if (hasValue(previousValue)) {
+          minDate = String(previousValue);
+        }
+      }
       return minDate;
     }
 
     const { isActual, baseKey, index } = dateContext;
 
-    if (isActual) {
-      const plannedDate = row[baseKey];
-      if (hasValue(plannedDate)) {
-        const plannedIso = String(plannedDate);
-        minDate = minDate ? maxIsoDate(minDate, plannedIso) : plannedIso;
-      }
+    if (!isActual && isDriverDateKey(baseKey)) {
+      minDate = getTomorrowLocalIso();
     }
 
     if (index > 0) {
@@ -167,56 +279,75 @@ export default function GridTable({
     return minDate;
   };
 
-  // Quand on clique sur une cellule
-  const handleCellClick = (rowId: string | undefined, column: ColumnConfig) => {
-    if (!rowId || !column.editable || column.readonly) {
-      return;
-    }
+  const getMaxDateForColumn = (row: GridRow, columnKey: string): string | undefined => {
+    const columnConfig = getColumnConfig(columnKey);
+    if (!columnConfig || columnConfig.type !== "date") return undefined;
 
-    setEditingCell({ rowId, columnKey: column.key });
-    const currentValue = rows.find((r) => r._id === rowId)?.[column.key];
-    setEditValue(currentValue ?? "");
-  };
-
-  // Quand on change la valeur dans l'input
-  const handleCellChange = (value: unknown) => {
-    setEditValue(value);
-  };
-
-  // Quand on quitte une cellule ou appuie sur Entree
-  const handleCellBlur = () => {
-    if (!editingCell) return;
-
-    const row = rows.find((r) => r._id === editingCell.rowId);
-
-    if (row && onRowChange) {
-      const dateValidationError = validateDateOrder(
-        row,
-        editingCell.columnKey,
-        editValue
-      );
-
-      if (dateValidationError) {
-        alert(dateValidationError);
-        return;
+    let maxDate: string | undefined;
+    const dateContext = getSplitDateContext(columnKey);
+    if (!dateContext) {
+      const linearIndex = linearDateColumns.findIndex((c) => c.key === columnKey);
+      if (linearIndex >= 0 && linearIndex < linearDateColumns.length - 1) {
+        const nextColumn = linearDateColumns[linearIndex + 1];
+        const nextValue = row[nextColumn.key];
+        if (hasValue(nextValue)) {
+          maxDate = String(nextValue);
+        }
       }
-
-      console.log("Saving row change:", editingCell.rowId, editingCell.columnKey, editValue);
-      onRowChange(editingCell.rowId, editingCell.columnKey, editValue);
-      // REMOVED AUTO-SAVE: onRowSave is now only called manually via the main button
+      return maxDate;
     }
 
-    setEditingCell(null);
-    setEditValue("");
+    const { isActual, index } = dateContext;
+    if (isActual) {
+      maxDate = getTodayLocalIso();
+    }
+
+    if (index < splitDateColumns.length - 1) {
+      const nextColumn = splitDateColumns[index + 1];
+      const nextKey = isActual ? `${nextColumn.key}_actual` : nextColumn.key;
+      const nextValue = row[nextKey];
+      if (hasValue(nextValue)) {
+        const nextIso = String(nextValue);
+        maxDate = maxDate ? minIsoDate(maxDate, nextIso) : nextIso;
+      }
+    }
+
+    return maxDate;
   };
 
-  // Gestion des touches (Enter = save, Escape = cancel)
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const getDateBounds = (row: GridRow, columnKey: string) => {
+    const minDate = getMinDateForColumn(row, columnKey);
+    let maxDate = getMaxDateForColumn(row, columnKey);
+    if (minDate && maxDate && maxDate < minDate) {
+      maxDate = minDate;
+    }
+    return { minDate, maxDate };
+  };
+
+  const commitCellValue = (
+    row: GridRow,
+    column: ColumnConfig,
+    columnKey: string,
+    value: unknown,
+    validateDateRules: boolean = true
+  ): boolean => {
+    if (!row._id || !onRowChange) return false;
+
+    if (column.type === "date" && validateDateRules) {
+      const dateValidationError = validateDateOrder(row, columnKey, value);
+      if (dateValidationError) {
+        showDateValidationPopup(dateValidationError);
+        return false;
+      }
+    }
+
+    onRowChange(row._id, columnKey, value);
+    return true;
+  };
+
+  const handleClassicInputKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
-      handleCellBlur();
-    } else if (e.key === "Escape") {
-      setEditingCell(null);
-      setEditValue("");
+      (e.currentTarget as HTMLElement).blur();
     }
   };
 
@@ -227,9 +358,12 @@ export default function GridTable({
     const safeConfiguredWidth = Number.isNaN(configuredWidthPx)
       ? 150
       : configuredWidthPx;
-    const compactConfiguredWidth = Math.round(safeConfiguredWidth * 0.9);
+    const compactConfiguredWidth = column.type === "date"
+      ? safeConfiguredWidth
+      : Math.round(safeConfiguredWidth * 0.9);
     const headerBasedMinWidth = Math.max(86, column.label.length * 6 + 24);
-    return `${Math.max(compactConfiguredWidth, headerBasedMinWidth)}px`;
+    const dateMinWidth = column.type === "date" ? 138 : 0;
+    return `${Math.max(compactConfiguredWidth, headerBasedMinWidth, dateMinWidth)}px`;
   };
 
   // Afficher la valeur d'une cellule
@@ -257,25 +391,95 @@ export default function GridTable({
     return String(value);
   };
 
-  const getStatusInlineStyle = (value: unknown): React.CSSProperties => {
+  // Obtenir les informations de tooltip pour les abréviations
+  const getTooltipInfo = (value: string, column: ColumnConfig): { text: string; show: boolean } => {
+    if (column.type !== "select" || !column.options) {
+      return { text: "", show: false };
+    }
+
+    const option = column.options.find((opt) => opt.value === value || opt.label === value);
+    if (!option || !option.description) {
+      return { text: "", show: false };
+    }
+
+    return { text: option.description, show: true };
+  };
+
+  // Gestionnaire de tooltips simple et performant
+  const handleCellHover = (event: React.MouseEvent, tooltipText: string) => {
+    if (!tooltipText) return;
+    
+    const existingTooltip = document.getElementById('dynamic-tooltip');
+    if (existingTooltip) {
+      existingTooltip.remove();
+    }
+
+    const tooltip = document.createElement('div');
+    tooltip.id = 'dynamic-tooltip';
+    tooltip.textContent = tooltipText;
+    tooltip.style.cssText = `
+      position: absolute;
+      background: linear-gradient(165deg, rgba(11, 18, 25, 0.98), rgba(19, 32, 43, 0.98));
+      color: #ecf5ff;
+      padding: 10px 12px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 500;
+      z-index: 10000;
+      line-height: 1.35;
+      max-width: 340px;
+      box-shadow: 0 20px 35px -20px rgba(2, 10, 18, 0.92);
+      border: 1px solid rgba(91, 156, 122, 0.36);
+      pointer-events: none;
+      transition: opacity 0.18s ease, transform 0.18s ease;
+      transform: translateY(4px);
+    `;
+    
+    document.body.appendChild(tooltip);
+    
+    const rect = event.currentTarget.getBoundingClientRect();
+    const viewportPadding = 12;
+    const preferredLeft = rect.left + rect.width / 2 - tooltip.offsetWidth / 2;
+    const clampedLeft = Math.min(
+      window.innerWidth - tooltip.offsetWidth - viewportPadding,
+      Math.max(viewportPadding, preferredLeft),
+    );
+    tooltip.style.left = `${clampedLeft}px`;
+    tooltip.style.top = `${rect.top - tooltip.offsetHeight - 8}px`;
+    tooltip.style.opacity = '1';
+    tooltip.style.transform = 'translateY(0)';
+  };
+
+  const handleCellLeave = () => {
+    const tooltip = document.getElementById('dynamic-tooltip');
+    if (tooltip) {
+      tooltip.style.opacity = '0';
+      setTimeout(() => tooltip.remove(), 200);
+    }
+  };
+
+  const getStatusToneClass = (value: unknown): string => {
     const status = String(value ?? "").trim().toLowerCase();
     const normalized = status
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "");
 
     if (normalized.includes("retard")) {
-      return { backgroundColor: "#b91c1c", color: "#ffffff" };
+      return "status-tone-late";
+    }
+    if (normalized.includes("en cours") || normalized.includes("encours") || normalized.includes("traitement")) {
+      return "status-tone-progress";
     }
     if (normalized.includes("dans les temps")) {
-      return { backgroundColor: "#4f8a3f", color: "#ffffff" };
+      return "status-tone-ontime";
     }
     if (normalized.includes("termine")) {
-      return { backgroundColor: "#2f8a5c", color: "#ffffff" };
+      return "status-tone-done";
     }
     if (normalized.includes("arrete")) {
-      return { backgroundColor: "#64748b", color: "#ffffff" };
+      return "status-tone-stopped";
     }
-    return {};
+    return "status-tone-default";
   };
 
   // CALCUL des dates (via Backend)
@@ -290,8 +494,11 @@ export default function GridTable({
       alert("Veuillez d'abord saisir une date de fin (Livraison ou Fin de mission).");
       return;
     }
-    if (!hasValue(row.method)) {
-      alert("Veuillez d'abord choisir une méthode.");
+    if (!isSupportedMethodValue(row.method)) {
+      showMethodRequiredPopup();
+      if (row._id) {
+        scrollToMethodCell(String(row._id));
+      }
       return;
     }
 
@@ -336,6 +543,9 @@ export default function GridTable({
         const updatedRow = {
           ...row,
           ...mappedDates,
+          ...(type === "Consultance"
+            ? { pricing_type: String(row.pricing_type ?? "").trim() || "forfait" }
+            : {}),
           _isCalculated: true
         };
 
@@ -356,12 +566,17 @@ export default function GridTable({
 
   // CHECK: Can we edit this cell?
   const isCellEditable = (row: GridRow, column: ColumnConfig, isActual: boolean) => {
+    const isConsultanceForfaitAfterCalc =
+      row.type === "Consultance" &&
+      row._isCalculated === true &&
+      String(row.pricing_type ?? "forfait").toLowerCase() === "forfait";
+
+    // Explicit non-editable columns.
+    if (column.type === "action_button" || column.key === "status") return false;
+
     // 1. Global overrides
     if (column.readonly) return false;
     if (column.editable === false) return false;
-
-    // 2. Action Button -> Always clickable (handled separately, but not "editable" in input sense)
-    if (column.type === "action_button") return false;
 
     // 3. Driver Dates -> Always editable
     if (column.key === "delivery_date" || column.key === "mission_end_date") return true;
@@ -370,6 +585,11 @@ export default function GridTable({
     // "Ces dates prevue apres calcul deviennent editables"
     // Heuristic: If we have a calculated marker OR values exist, allow edit.
     if (!isActual && column.type === "date") {
+      // Business rule: after planning in Consultance/Forfait, all forfait dates stay manually editable.
+      if (isConsultanceForfaitAfterCalc) {
+        return true;
+      }
+
       // If it's a date driver, we already returned true.
       // For others:
       const hasValues = !!row[column.key];
@@ -413,20 +633,24 @@ export default function GridTable({
     return true;
   };
 
-  // Check if we are currently editing (visual state)
-  const isEditing = (rowId: string | undefined, columnKey: string) => {
-    if (!rowId) return false;
-    return editingCell?.rowId === rowId && editingCell?.columnKey === columnKey;
-  };
-
   // RENDU
   return (
     <div className="grid-table-container">
-      <div className="grid-table-wrapper">
+      <div className="grid-table-wrapper" ref={wrapperRef}>
         <table className="table table-bordered table-hover mb-0">
           <thead className="table-light">
             <tr>
-              <th className="text-center action-header" style={{ width: "104px", minWidth: "104px" }}>
+              <th
+                className="text-center action-header"
+                style={{
+                  width: "124px",
+                  minWidth: "124px",
+                  fontFamily: "var(--font-ui), Segoe UI, Arial, sans-serif",
+                  letterSpacing: "0",
+                  fontVariantLigatures: "none",
+                  fontFeatureSettings: "\"liga\" 0, \"calt\" 0",
+                }}
+              >
                 Action
               </th>
               {columns.map((column) => (
@@ -435,6 +659,7 @@ export default function GridTable({
                   style={{
                     width: getColumnWidth(column),
                     minWidth: getColumnWidth(column),
+                    textAlign: "center",
                   }}
                   title={column.label}
                 >
@@ -467,15 +692,17 @@ export default function GridTable({
                 const isRowClosed =
                   normalizedRowStatus === "arrete" ||
                   normalizedRowStatus === "termine";
+                const isNewRow = String(row._id ?? "").startsWith("_new_");
 
                 return (
                 <tr
                   key={row._id}
-                  className={isRowStopped ? "row-stopped" : ""}
+                  data-row-id={String(row._id ?? "")}
+                  className={`${isRowStopped ? "row-stopped" : ""} ${isNewRow ? "row-newly-added" : ""}`.trim()}
                 >
                   <td
                     className="text-center align-middle action-cell"
-                    style={{ width: "104px", minWidth: "104px", padding: "8px" }}
+                    style={{ width: "124px", minWidth: "124px", padding: "8px" }}
                   >
                     <div className="d-flex gap-2 justify-content-center action-buttons">
                       {(() => {
@@ -484,7 +711,6 @@ export default function GridTable({
                           .toLowerCase()
                           .normalize("NFD")
                           .replace(/[\u0300-\u036f]/g, "");
-                        const isNewRow = String(row._id ?? "").startsWith("_new_");
                         const stopDisabled = isNewRow || normalizedStatus === "arrete";
 
                         return (
@@ -504,7 +730,8 @@ export default function GridTable({
                               fill="none"
                               xmlns="http://www.w3.org/2000/svg"
                             >
-                              <rect x="7" y="7" width="10" height="10" rx="2" stroke="currentColor" strokeWidth="1.8" />
+                              <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="2" />
+                              <rect x="9" y="9" width="6" height="6" rx="1" fill="currentColor" />
                             </svg>
                           </button>
                         );
@@ -527,8 +754,8 @@ export default function GridTable({
                           fill="none"
                           xmlns="http://www.w3.org/2000/svg"
                         >
-                          <path d="M6.5 12.5l3.2 3.2L17.5 8" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
-                          <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.8" />
+                          <path d="M9 12l2 2 4-4" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                          <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
                         </svg>
                       </button>
                       <button
@@ -546,10 +773,7 @@ export default function GridTable({
                           fill="none"
                           xmlns="http://www.w3.org/2000/svg"
                         >
-                          <path d="M8.5 6h7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                          <path d="M6 8h12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                          <path d="M8 8l.8 9.5a1.2 1.2 0 001.2 1.1h4a1.2 1.2 0 001.2-1.1L16 8" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-                          <path d="M10.5 11.2v4.2M13.5 11.2v4.2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                          <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14zM10 11v6M14 11v6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                       </button>
                     </div>
@@ -558,24 +782,29 @@ export default function GridTable({
                   {columns.map((column) => {
                     const isStatusColumn = column.key === "status";
                     const statusValue = isStatusColumn ? getCellValue(row, column) : "";
-                    const statusCellStyle = isStatusColumn ? getStatusInlineStyle(statusValue) : undefined;
+                    const statusToneClass = isStatusColumn ? getStatusToneClass(statusValue) : "";
+                    const isSplitColumn = !!column.isSplit;
+                    const isColumnEditableForRow = isSplitColumn
+                      ? (isCellEditable(row, column, false) || isCellEditable(row, column, true))
+                      : isCellEditable(row, column, false);
 
                     return (
                     <td
                       key={`${row._id}-${column.key}`}
-                      className={`align-middle grid-cell ${column.editable && !column.readonly
-                        ? "editable-cell"
-                        : "readonly-cell"
-                        }`}
+                      data-col-key={column.key}
+                      className={`align-middle grid-cell ${isStatusColumn ? "status-cell" : ""} ${
+                        isColumnEditableForRow && !isStatusColumn
+                          ? "editable-cell"
+                          : "readonly-cell"
+                      }`}
                       style={{
                         width: getColumnWidth(column),
                         minWidth: getColumnWidth(column),
                         padding: isStatusColumn ? "0" : "8px 12px",
                         cursor:
-                          column.editable && !column.readonly
+                          isColumnEditableForRow && !isStatusColumn
                             ? "pointer"
                             : "not-allowed",
-                        ...(statusCellStyle || {}),
                       }}>
                       {column.isSplit ? (
                         <div className="d-flex flex-column h-100">
@@ -667,28 +896,29 @@ export default function GridTable({
                                     : null;
                                 const buttonStyle = isRowStopped
                                   ? {
-                                      backgroundColor: "transparent",
-                                      color: "inherit",
-                                      border: "1px solid rgba(255, 255, 255, 0.25)",
+                                      backgroundColor: "rgba(235, 226, 214, 0.45)",
+                                      color: "#7b6d5b",
+                                      border: "1px solid rgba(162, 142, 117, 0.35)",
                                       boxShadow: "none",
                                       transform: "none",
                                     }
                                   : isActive
                                   ? {
-                                    backgroundColor: "#334155", // Slate 700 - Deep & Classy
-                                    color: "#ffffff",
-                                    boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+                                    background: "linear-gradient(145deg, #7d6a54 0%, #6a5947 100%)",
+                                    color: "#fdf7ee",
+                                    border: "1px solid rgba(117, 96, 73, 0.9)",
+                                    boxShadow: "0 8px 14px -10px rgba(79, 60, 39, 0.9)",
                                     transform: "translateY(-1px)"
                                   }
                                   : {
-                                    backgroundColor: "transparent",
-                                    color: "#94a3b8",
-                                    border: "1px solid #e2e8f0"
+                                    background: "linear-gradient(180deg, rgba(245, 235, 220, 0.95), rgba(234, 220, 200, 0.95))",
+                                    color: "#6d5e4c",
+                                    border: "1px solid rgba(170, 150, 124, 0.6)"
                                   };
 
                                 return (
                                   <div
-                                    className={`flex-grow-1 p-2 d-flex align-items-center justify-content-center m-1`}
+                                    className={`flex-grow-1 p-2 d-flex align-items-center justify-content-center m-1 ${isActual ? "split-divider" : ""}`}
                                     style={{
                                       ...buttonStyle,
                                       minHeight: "35px",
@@ -730,38 +960,29 @@ export default function GridTable({
 
                               return (
                                 <div
-                                  className={`flex-grow-1 p-2 ${isActual ? "border-top-subtle" : ""}`}
+                                  className={`flex-grow-1 p-2 ${isActual ? "split-divider" : ""}`}
                                   style={{
                                     ...bgStyle,
                                     minHeight: "35px",
                                     cursor: cursorStyle,
-                                    borderTop: isActual ? "1px solid #f1f5f9" : "none",
                                     transition: "all 0.2s ease"
                                   }}
-                                  onClick={(e) => {
-                                    if (isActive && isEditable) {
-                                      e.stopPropagation();
-                                      setEditingCell({ rowId: row._id!, columnKey: effectiveKey });
-                                      setEditValue(cellValue ?? "");
-                                    }
-                                  }}
                                 >
-                                  {editingCell?.rowId === row._id && editingCell?.columnKey === effectiveKey ? (
+                                  {isActive && isEditable ? (
                                     <GridCell
                                       column={column}
-                                      value={editValue}
-                                      onChange={handleCellChange}
-                                      onConfirm={(val) => {
-                                        if (onRowChange && row._id) {
-                                          onRowChange(row._id, effectiveKey, val);
-                                        }
-                                        setEditingCell(null);
-                                        setEditValue("");
+                                      value={cellValue ?? ""}
+                                      onChange={(val) => {
+                                        commitCellValue(row, column, effectiveKey, val, false);
                                       }}
-                                      onBlur={handleCellBlur}
-                                      onKeyDown={handleKeyDown}
-                                      minDate={column.type === "date" ? getMinDateForColumn(row, effectiveKey) : undefined}
-                                      autoFocus
+                                      onConfirm={(val) => {
+                                        return commitCellValue(row, column, effectiveKey, val, true);
+                                      }}
+                                      onValidationMessage={showDateValidationPopup}
+                                      onBlur={() => undefined}
+                                      onKeyDown={handleClassicInputKeyDown}
+                                      minDate={column.type === "date" ? getDateBounds(row, effectiveKey).minDate : undefined}
+                                      maxDate={column.type === "date" ? getDateBounds(row, effectiveKey).maxDate : undefined}
                                     />
                                   ) : (
                                     <div className="cell-value text-truncate" style={{ fontWeight: 500 }}>
@@ -783,52 +1004,66 @@ export default function GridTable({
                       ) : (
                         (() => {
                           const displayValue = getCellValue(row, column);
+                          const tooltipInfo = getTooltipInfo(row[column.key], column);
 
                           return (
                             <div
                               className={
                                 isStatusColumn
-                                  ? "h-100 w-100 d-flex align-items-center justify-content-center"
+                                  ? `h-100 w-100 status-pill-inline ${statusToneClass}`
                                   : "h-100 w-100 p-2 d-flex align-items-center justify-content-center"
                               }
+                              onMouseEnter={(e) => tooltipInfo.show ? handleCellHover(e, tooltipInfo.text) : undefined}
+                              onMouseLeave={handleCellLeave}
                               onClick={() => {
                                 if (column.type === "action_button") {
                                   if (column.key === "action_calculation") {
                                     handleCalculate(row);
                                   }
-                                } else {
-                                  handleCellClick(row._id, column);
                                 }
                               }}
                             >
                           {column.type === "action_button" ? (
                             <button className="btn btn-sm" style={{
-                              background: "linear-gradient(to right, #26784f, #32a065)",
-                              color: "white",
-                              border: "none",
-                              boxShadow: "0 4px 6px rgba(38, 120, 79, 0.28)"
+                              width: "100%",
+                              maxWidth: "100%",
+                              boxSizing: "border-box",
+                              padding: "6px 8px",
+                              borderRadius: "9px",
+                              background: "linear-gradient(145deg, #7d6a54 0%, #6a5947 100%)",
+                              color: "#fdf7ee",
+                              border: "1px solid rgba(117, 96, 73, 0.9)",
+                              boxShadow: "0 8px 14px -10px rgba(79, 60, 39, 0.9)",
+                              fontFamily: "var(--font-ui), Segoe UI, Arial, sans-serif",
+                              fontSize: "0.78rem",
+                              fontWeight: 700,
+                              whiteSpace: "nowrap",
+                              textAlign: "center",
+                              letterSpacing: "0.01em",
+                              lineHeight: 1.05,
+                              fontVariantLigatures: "none",
+                              fontFeatureSettings: "\"liga\" 0, \"calt\" 0",
                             }} onClick={(e) => {
                               e.stopPropagation();
                               handleCalculate(row);
                             }}>
-                              Calculer
+                              Planifier
                             </button>
-                          ) : isEditing(row._id, column.key) ? (
+                          ) : isColumnEditableForRow && !isStatusColumn ? (
                             <GridCell
                               column={column}
-                              value={editValue}
-                              onChange={handleCellChange}
-                              onBlur={handleCellBlur}
-                              onConfirm={(val) => {
-                                if (onRowChange && row._id) {
-                                  onRowChange(row._id, column.key, val);
-                                }
-                                setEditingCell(null);
-                                setEditValue("");
+                              value={row[column.key] ?? ""}
+                              onChange={(val) => {
+                                commitCellValue(row, column, column.key, val, false);
                               }}
-                              onKeyDown={handleKeyDown}
-                              minDate={column.type === "date" ? getMinDateForColumn(row, column.key) : undefined}
-                              autoFocus
+                              onBlur={() => undefined}
+                              onConfirm={(val) => {
+                                return commitCellValue(row, column, column.key, val, true);
+                              }}
+                              onValidationMessage={showDateValidationPopup}
+                              onKeyDown={handleClassicInputKeyDown}
+                              minDate={column.type === "date" ? getDateBounds(row, column.key).minDate : undefined}
+                              maxDate={column.type === "date" ? getDateBounds(row, column.key).maxDate : undefined}
                             />
                           ) : (
                             <div className="cell-value">
@@ -849,21 +1084,18 @@ export default function GridTable({
           </tbody>
         </table>
       </div>
-      <div className="d-flex gap-2 p-3 border-top" style={{ background: "#ffffff", borderBottomLeftRadius: "16px", borderBottomRightRadius: "16px" }}>
-        <button
-          className="btn"
-          style={{
-            background: "#10b981",
-            color: "white",
-            fontWeight: "bold",
-            padding: "10px 24px"
-          }}
-          onClick={onAddRow}
-          disabled={isLoading || hasUnsavedRow}
+      {uiPopup && (
+        <div
+          className={`date-validation-popup ${
+            uiPopup.kind === "method" ? "method-required-popup" : "date-required-popup"
+          }`}
+          role="alert"
+          aria-live="assertive"
         >
-          + Ajouter une ligne
-        </button>
-      </div>
+          <div className="date-validation-popup-title">{uiPopup.title}</div>
+          <div className="date-validation-popup-text">{uiPopup.message}</div>
+        </div>
+      )}
     </div >
   );
 }

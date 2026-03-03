@@ -11,27 +11,28 @@ import { MenuItemType } from "@/types/grid";
 //BST:bien & service et travaux
 const METHOD_OPTIONS_BST: SelectOption[] = [
   { value: "", label: "-- Sélectionner --" },
-  { value: "aon", label: "AON" },
-  { value: "aoi", label: "AOI" },
-  { value: "dc", label: "DC" },
-  { value: "ed", label: "ED" },
+  { value: "aon", label: "AON", description: "Appel d'Offres National" },
+  { value: "aoi", label: "AOI", description: "Appel d'Offres International" },
+  { value: "dc", label: "DC", description: "Demande de Cotations" },
+  { value: "ed", label: "ED", description: "Entente Directe" },
 ];
 
 // for Travaux
 const METHOD_OPTIONS_CONSULTANT: SelectOption[] = [
   { value: "", label: "-- Sélectionner --" },
-  { value: "sfqc", label: "SFQC" },
-  { value: "smc", label: "SMC" },
-  { value: "sqc", label: "SQC" },
-  { value: "sci", label: "SCI" },
-  { value: "sed", label: "SED" },
+  { value: "sfq", label: "SFQ", description: "Sélection Fondée sur la Qualité" },
+  { value: "sfqc", label: "SFQC", description: "Sélection Fondée sur la Qualité et le Coût" },
+  { value: "smc", label: "SMC", description: "Sélection au Moindre Coût" },
+  { value: "sqc", label: "SQC", description: "Sélection fondée sur les Qualifications du Consultant" },
+  { value: "sci", label: "SCI", description: "Sélection de Consultants Individuels" },
+  { value: "sed", label: "SED", description: "Sélection par Entente Directe" },
 ];
 
 const APPROACH_OPTIONS: SelectOption[] = [
   { value: "", label: "-- Sélectionner --" },
-  { value: "open", label: "Ouverte" },
-  { value: "restricted", label: "Restreinte" },
-  { value: "selective", label: "Sélective" },
+  { value: "open", label: "Ouverte", description: "Ouverte à tous les soumissionnaires qualifiés" },
+  { value: "restricted", label: "Restreinte", description: "Participation limitée aux soumissionnaires invités" },
+  { value: "selective", label: "Sélective", description: "Sélection sur critères techniques et administratifs" },
 ];
 
 // Colonnes pour Travaux et Biens & Services (identiques)
@@ -62,10 +63,10 @@ export const WORKS_GOODS_COLUMNS: ColumnConfig[] = [
   {
     key: "agmo",
     label: "AGMO",
-    width: "150px",
+    width: "180px",
     type: "text",
     editable: true,
-    placeholder: "AGMO",
+    placeholder: "Saisir AGMO",
   },
   {
     key: "method",
@@ -177,7 +178,7 @@ export const WORKS_GOODS_COLUMNS: ColumnConfig[] = [
   },
   {
     key: "action_calculation",
-    label: "Calcul",
+    label: "Planifier",
     width: "80px",
     type: "action_button",
     editable: false,
@@ -320,10 +321,9 @@ export const CONSULTANTS_COLUMNS: ColumnConfig[] = [
     key: "technical_evaluation",
     label: "Rapport d'évaluation technique",
     width: "150px",
-    readonly: true,
-    editable: false,
-    calculated: true,
-    calculateValue: (row) => row.technical_evaluation_status || "-",
+    type: "date",
+    readonly: false,
+    editable: true,
     isSplit: true,
     splitController: "pricing_type",
   },
@@ -342,10 +342,9 @@ export const CONSULTANTS_COLUMNS: ColumnConfig[] = [
     key: "contract_draft",
     label: "Projet de contrat négocié",
     width: "140px",
-    readonly: true,
-    editable: false,
-    calculated: true,
-    calculateValue: (row) => row.contract_draft_status || "-",
+    type: "date",
+    readonly: false,
+    editable: true,
     isSplit: true,
     splitController: "pricing_type",
   },
@@ -373,7 +372,7 @@ export const CONSULTANTS_COLUMNS: ColumnConfig[] = [
   },
   {
     key: "action_calculation",
-    label: "Calcul",
+    label: "Planifier",
     width: "80px",
     type: "action_button",
     editable: false,

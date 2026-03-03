@@ -18,6 +18,7 @@ export type MenuItemType = "works" | "goods-services" | "consultants";
 export interface SelectOption {
   value: string;
   label: string;
+  description?: string;
 }
 
 export interface ColumnConfig {

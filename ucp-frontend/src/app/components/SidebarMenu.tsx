@@ -52,10 +52,6 @@ export default function SidebarMenu({
 
       <div className="sidebar-header">
         <div className="sidebar-header-line" aria-hidden="true" />
-        <div className="sidebar-mini-status">
-          <span className="sidebar-mini-status-dot" aria-hidden="true" />
-          <span>En ligne</span>
-        </div>
       </div>
 
       <nav className="sidebar-nav">
@@ -75,10 +71,6 @@ export default function SidebarMenu({
           );
         })}
       </nav>
-
-      <div className="sidebar-footer">
-        <div className="sidebar-status-dot" />
-      </div>
     </aside>
   );
 }

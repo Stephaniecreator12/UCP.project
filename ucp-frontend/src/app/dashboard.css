@@ -60,6 +60,57 @@
   font-family: var(--dash-font-main);
 }
 
+/* Keep scrolling enabled for dashboard page even if app-shell/body are globally locked. */
+.dashboard-scroll-shell {
+  height: 100vh;
+  overflow: hidden !important;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.dashboard-scroll-shell .dash-page {
+  min-height: 0;
+  height: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(94, 122, 108, 0.55) transparent;
+}
+
+/* Dashboard: remove top decorative line that looks like an artifact */
+.dashboard-scroll-shell .app-topline {
+  display: none;
+}
+
+/* Dashboard-specific scrollbar styling (avoid the global dark track) */
+.dashboard-scroll-shell .dash-page::-webkit-scrollbar {
+  width: 10px;
+}
+
+.dashboard-scroll-shell .dash-page::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.dashboard-scroll-shell .dash-page::-webkit-scrollbar-thumb {
+  background: linear-gradient(
+    180deg,
+    rgba(112, 145, 129, 0.75),
+    rgba(87, 119, 104, 0.75)
+  );
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.dashboard-scroll-shell .dash-page::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(
+    180deg,
+    rgba(96, 132, 115, 0.9),
+    rgba(75, 107, 92, 0.9)
+  );
+  background-clip: padding-box;
+}
+
 .dash-header {
   margin: 0;
   padding: 0;
@@ -592,5 +643,149 @@
     opacity: 1;
     filter: none;
     transform: none;
+  }
+}
+
+/* =========================================================
+   DASHBOARD PREMIUM OVERRIDES
+   ========================================================= */
+.dashboard-scroll-shell .app-top-header {
+  position: relative;
+  z-index: 3;
+  background: linear-gradient(
+    105deg,
+    rgba(248, 251, 249, 0.96),
+    rgba(240, 246, 242, 0.95)
+  ) !important;
+  border-bottom: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: blur(10px);
+}
+
+.dashboard-scroll-shell .app-top-header .quick-link-btn {
+  border-color: rgba(116, 148, 132, 0.46) !important;
+  color: #355648 !important;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.94),
+    rgba(241, 248, 244, 0.94)
+  ) !important;
+}
+
+.dashboard-scroll-shell .app-top-header .quick-link-btn.active-page {
+  background: linear-gradient(120deg, #2d8e72, #3ea38a) !important;
+  border-color: rgba(45, 142, 114, 0.72) !important;
+  color: #f6fffb !important;
+}
+
+.dashboard-scroll-shell .app-top-header .theme-toggle-btn,
+.dashboard-scroll-shell .app-top-header .logout-btn {
+  background: #f5faf7 !important;
+  border-color: rgba(139, 164, 152, 0.55) !important;
+  color: #335447 !important;
+}
+
+.dashboard-scroll-shell .dash-page {
+  position: relative;
+  z-index: 1;
+  background:
+    radial-gradient(
+      circle at 10% 6%,
+      rgba(87, 151, 122, 0.18),
+      transparent 34%
+    ),
+    radial-gradient(
+      circle at 90% 0%,
+      rgba(118, 150, 184, 0.14),
+      transparent 30%
+    ),
+    linear-gradient(152deg, #edf3ef 0%, #e7eeea 48%, #dee8e3 100%) !important;
+  margin-top: 0;
+  padding-top: 16px;
+}
+
+.dash-title {
+  color: #223b30 !important;
+  letter-spacing: -0.03em;
+}
+
+.dash-kicker {
+  color: #597264 !important;
+}
+
+.dash-panel {
+  border-radius: 16px !important;
+  border: 1px solid rgba(151, 172, 160, 0.44) !important;
+  background: linear-gradient(
+    160deg,
+    rgba(255, 255, 255, 0.9),
+    rgba(244, 250, 246, 0.88)
+  ) !important;
+  box-shadow:
+    0 20px 36px -28px rgba(34, 57, 47, 0.35),
+    0 1px 0 rgba(255, 255, 255, 0.6) inset !important;
+}
+
+.dash-panel h2 {
+  font-size: 36px;
+  letter-spacing: -0.015em;
+}
+
+.panel-stat-item,
+.chart-item {
+  border-radius: 12px !important;
+  border: 1px solid rgba(161, 182, 170, 0.48) !important;
+  background: linear-gradient(
+    160deg,
+    rgba(245, 250, 247, 0.94),
+    rgba(237, 245, 241, 0.92)
+  ) !important;
+}
+
+.panel-stat-item span {
+  color: #4e695c !important;
+}
+
+.panel-stat-item strong {
+  color: #274337 !important;
+}
+
+.dash-donut {
+  background: rgba(181, 201, 190, 0.34) !important;
+  box-shadow: 0 14px 26px -22px rgba(36, 55, 46, 0.45);
+}
+
+.dash-donut-track {
+  stroke: rgba(140, 163, 150, 0.35) !important;
+}
+
+.dash-donut-center {
+  background: rgba(250, 254, 252, 0.96) !important;
+  border-color: rgba(151, 173, 161, 0.58) !important;
+}
+
+.dash-donut-center strong {
+  color: #3f6a8f !important;
+}
+
+.dash-donut-center span {
+  color: #5b84a7 !important;
+}
+
+.dash-legend span {
+  color: #3e5a4d !important;
+}
+
+.dash-legend strong {
+  color: #1d8f64 !important;
+}
+
+@media (max-width: 760px) {
+  .dash-title {
+    font-size: 34px;
+  }
+
+  .dash-kicker {
+    font-size: 13px;
   }
 }

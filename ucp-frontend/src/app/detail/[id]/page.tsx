@@ -103,7 +103,7 @@ export default function DetailPage() {
               </h3>
               <p className="text-lg text-gray-900">
                 {procurement.estimated_amount
-                  ? `$${procurement.estimated_amount.toFixed(2)}`
+                  ? `${procurement.estimated_amount.toFixed(2)} Ar`
                   : "-"}
               </p>
             </div>

@@ -7,7 +7,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.utils import timezone
-from .ProcurementService import delete_service
+from .ProcurementService import delete_service, arreter_service
 
 # INSERER DONNEES
 @csrf_exempt
@@ -59,16 +59,31 @@ def insert_mock_consultance(request):
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
 
+@csrf_exempt
+def update_consultance(request, id):
+    if request.method not in ['PUT', 'PATCH', 'POST']:
+        return JsonResponse({'error': 'PUT/PATCH/POST request required'}, status=405)
+    try:
+        request_data = json.loads(request.body)
+        consultance = Consultance.objects.get(id=id)
+        for key, value in request_data.items():
+            if hasattr(consultance, key):
+                setattr(consultance, key, value)
+        consultance.save()
+        return JsonResponse({'status': 'success', 'id': consultance.id}, status=200)
+    except Consultance.DoesNotExist:
+        return JsonResponse({'error': 'Consultance non trouvee'}, status=404)
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
 # LISTER LES CONSULTANCES
 def lister_consultance(request):
     # Récupère tout d'un coup sous forme de dictionnaire
     data = list(Consultance.objects.values())
     return JsonResponse({'consultance': data})
 
-
-@csrf_exempt
-def supprimer_consultance(request, id):
-    return soft_delete_service(request, Consultance, id)
 
 # CALCULER LE PLANNING DES CONSULTANCES
 @csrf_exempt
@@ -191,28 +206,6 @@ def statut_consultance(request):
             res = "En cours (dans les temps)"
 
     return Response({"statut": res})
-
-
-# ARRETER CONSULTANCE
-@csrf_exempt
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def arreter_consultance(request, id):
-    try:
-        item = Consultance.objects.get(id=id)
-
-        if item.statut == "Terminé":
-            return Response({"error": "Déjà terminé"}, status=409)
-        if item.statut == "Arrêté":
-            return Response({"error": "Déjà arrêté"}, status=409)
-
-        item.statut = "Arrêté"
-        item.save()
-        return Response({"ok": True, "id": item.id, "statut": item.statut}, status=200)
-    except Consultance.DoesNotExist:
-        return Response({"error": "Élément non trouvé"}, status=404)
-    except Exception as e:
-        return Response({"error": str(e)}, status=500)
     
 # SUPPRIMER CONSULTANCE
 @csrf_exempt
@@ -220,3 +213,9 @@ def arreter_consultance(request, id):
 @permission_classes([IsAuthenticated])
 def supprimer_consultance(request, id):
     return delete_service(request, Consultance, id) 
+
+# ARRETER CONSULTANCE
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def arreter_consultance(request, id):
+    return arreter_service(request, Consultance, id)   

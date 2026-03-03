@@ -7,7 +7,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.utils import timezone
-from .ProcurementService import delete_service
+from .ProcurementService import delete_service, arreter_service
 
 # INSERER DONNEES
 @csrf_exempt
@@ -29,7 +29,6 @@ def insert_mock_biens(request):
                 'reel': 'Réel',
                 'commentaire': 'Remarque par défaut',
                 'statut': 'En cours',
-                'listesetspecifications': '2026-01-01',
                 'dossiers_appel_prevu': '2026-01-01',
                 'date_lancement_prevu': '2026-01-01',
                 'date_ouverture_prevu': '2026-01-01',
@@ -59,6 +58,26 @@ def insert_mock_biens(request):
 
     return JsonResponse({'error': 'POST request required'}, status=405)
 
+# UPDATE BIENS
+@csrf_exempt
+def update_biens(request, id):
+    if request.method not in ['PUT', 'PATCH', 'POST']:
+        return JsonResponse({'error': 'PUT/PATCH/POST request required'}, status=405)
+    try:
+        request_data = json.loads(request.body)
+        biens = Biens.objects.get(id=id)
+        for key, value in request_data.items():
+            if hasattr(biens, key):
+                setattr(biens, key, value)
+        biens.save()
+        return JsonResponse({'status': 'success', 'id': biens.id}, status=200)
+    except Biens.DoesNotExist:
+        return JsonResponse({'error': 'Biens non trouve'}, status=404)
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
 # LISTER LES BIENS
 def lister_biens(request):
     # .values() récupère automatiquement tous les champs de la table
@@ -66,11 +85,6 @@ def lister_biens(request):
     biens_data = list(Biens.objects.values())
     
     return JsonResponse({'biens': biens_data})
-
-
-@csrf_exempt
-def supprimer_biens(request, id):
-    return soft_delete_service(request, Biens, id)
 
 # CALCULER LE PLANNING DES BIENS
 @csrf_exempt
@@ -185,31 +199,15 @@ def statut_biens(request):
 
     return Response({"statut": res}) 
 
-
-# ARRETER BIENS
-@csrf_exempt
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def arreter_biens(request, id):
-    try:
-        item = Biens.objects.get(id=id)
-
-        if item.statut == "Terminé":
-            return Response({"error": "Déjà terminé"}, status=409)
-        if item.statut == "Arrêté":
-            return Response({"error": "Déjà arrêté"}, status=409)
-
-        item.statut = "Arrêté"
-        item.save()
-        return Response({"ok": True, "id": item.id, "statut": item.statut}, status=200)
-    except Biens.DoesNotExist:
-        return Response({"error": "Élément non trouvé"}, status=404)
-    except Exception as e:
-        return Response({"error": str(e)}, status=500)
-
 # SUPPRIMER BIENS
 @csrf_exempt
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
 def supprimer_biens(request, id):
     return delete_service(request, Biens, id) 
+
+# ARRETER BIENS
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def arreter_biens(request, id):
+    return arreter_service(request, Biens, id)   

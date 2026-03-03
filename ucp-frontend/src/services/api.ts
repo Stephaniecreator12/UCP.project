@@ -34,13 +34,25 @@ export interface Procurement {
 
   // Champs communs
   method?: string; // mode
+  approach?: string;
+  status?: string;
   review_notes?: string;
 
   // Dates prévues (Planifié)
   date_invitation?: string;
   date_opening_submissions?: string;
+  date_opening_financial?: string;
   date_contract_signed?: string;
   date_mission_end?: string;
+  terms_of_reference?: string;
+  ami?: string;
+  restricted_list?: string;
+  request_for_proposal?: string;
+  invitation_date?: string;
+  submissions_opening_date?: string;
+  financial_opening_date?: string;
+  contract_date?: string;
+  mission_end_date?: string;
 
   // Dates réelles (Exécuté) - À adapter selon les nouveaux modèles
   // Les modèles semblent utiliser des tables séparées pour les détails prévus/réels
@@ -60,6 +72,7 @@ interface BackendProcurementItem {
   intitule?: string;
   montant_estimatif?: string | number;
   methode_pm?: string;
+  methode_epm?: string;
   approches?: string;
   commentaire?: string;
   statut?: string;
@@ -78,11 +91,16 @@ interface BackendProcurementItem {
 }
 
 export interface PlanningResponse {
+  TdR_prevu?: string;
+  ami_prevu?: string;
+  demande_proposition_prevu?: string;
   dossiers_appel_prevu?: string;
   date_lancement_prevu?: string;
   date_ouverture_prevu?: string;
+  ouverture_plis_prevu?: string;
   rapport_evaluation_prevu?: string;
   date_signature_prevu?: string;
+  date_fin_prevu?: string;
   listesetspecifications?: string;
 }
 
@@ -139,7 +157,7 @@ export async function getAllProcurements(): Promise<Procurement[]> {
         title: item.intitule,
         tracking_code: item.code_suivi,
         estimated_amount: Number(item.montant_estimatif ?? 0),
-        method: item.methode_pm,
+        method: type === "Biens" ? item.methode_epm : item.methode_pm,
         approach: item.approches,
         review_notes: item.commentaire,
         status: item.statut,
@@ -188,9 +206,14 @@ export async function getAllProcurements(): Promise<Procurement[]> {
  */
 export async function getProcurementById(
   id: number,
-  type: "Travaux" | "Biens" | "Consultance",
+  type?: "Travaux" | "Biens" | "Consultance",
 ): Promise<Procurement | null> {
   try {
+    if (!type) {
+      const all = await getAllProcurements();
+      return all.find((item) => item.id === id) || null;
+    }
+
     const endpoint = getEndpoint(type);
     // Note: Les URLs Django semblent être orientées action (list/add),
     // il faudra vérifier s'il existe une vue 'detail' standard : api/Travaux/{id}/
@@ -199,7 +222,7 @@ export async function getProcurementById(
     const response = await fetch(`${endpoint}/${id}/`);
 
     if (!response.ok) throw new Error("Marché non trouvé");
-    return await response.json();
+    return (await response.json()) as Procurement;
   } catch (error) {
     console.error("Erreur API:", error);
     return null;
@@ -217,60 +240,8 @@ export async function createProcurement(
     return null;
   }
 
-  const basePayload = {
-    intitule: data.title || "Sans Titre",
-    montant_estimatif: data.estimated_amount || 0,
-    commentaire: data.review_notes || "",
-  };
+  const payload = buildProcurementPayload(data);
 
-  const payload =
-    data.type === "Consultance"
-      ? (() => {
-          const consultancePayload: Record<string, unknown> = {
-            ...basePayload,
-          };
-          const addIfValue = (key: string, value: unknown) => {
-            if (value === null || value === undefined || String(value).trim() === "") return;
-            consultancePayload[key] = value;
-          };
-
-          // Champs spécifiques consultance (noms backend attendus)
-          addIfValue("TdR_prevu", data.terms_of_reference);
-          addIfValue("ami_prevu", data.ami);
-          addIfValue("demande_proposition_prevu", data.request_for_proposal);
-          addIfValue("date_ouverture_prevu", data.submissions_opening_date);
-          addIfValue("ouverture_plis_prevu", data.financial_opening_date);
-          addIfValue("date_signature_prevu", data.contract_date);
-          addIfValue("date_fin_prevu", data.mission_end_date);
-          addIfValue("date_invitation_prevu", data.invitation_date);
-          addIfValue("liste_restreinte_prevu", data.restricted_list);
-
-          return consultancePayload;
-        })()
-      : {
-          // Champs communs
-          code_suivi: data.tracking_code || "",
-          ...basePayload,
-
-          // Champs spécifiques
-          agmo: data.agmo || "Direction Générale",
-          methode_pm: data.method || "aoi",
-          approches: data.approach || "Non défini",
-          revue: data.review_notes || "Non défini",
-
-          // Dates (null si vide)
-          listesetspecifications: data.date_invitation || null,
-
-          // Mapping des dates prévues
-          date_lancement_prevu: data.date_invitation || null,
-          date_ouverture_prevu: data.date_opening_submissions || null,
-          date_signature_prevu: data.date_contract_signed || null,
-          date_livraison_prevu: data.date_mission_end || null,
-        };
-
-  /**
-   * MODIFIER un marché (Stub - Non implémenté sur le backend)
-   */
   try {
     let endpoint = "";
     if (data.type === "Travaux")
@@ -305,16 +276,99 @@ export async function createProcurement(
 }
 
 /**
- * MODIFIER un marché (Stub - Non implémenté sur le backend)
+ * Construire le payload backend en fonction du type de marché
+ */
+function buildProcurementPayload(data: Procurement): Record<string, unknown> {
+  const basePayload = {
+    intitule: data.title || "Sans Titre",
+    montant_estimatif: data.estimated_amount || 0,
+    commentaire: data.review_notes || "",
+  };
+
+  if (data.type === "Consultance") {
+    const consultancePayload: Record<string, unknown> = {
+      ...basePayload,
+    };
+    const addIfValue = (key: string, value: unknown) => {
+      if (value === null || value === undefined || String(value).trim() === "") return;
+      consultancePayload[key] = value;
+    };
+
+    addIfValue("TdR_prevu", data.terms_of_reference);
+    addIfValue("ami_prevu", data.ami);
+    addIfValue("demande_proposition_prevu", data.request_for_proposal);
+    addIfValue("date_ouverture_prevu", data.submissions_opening_date);
+    addIfValue("ouverture_plis_prevu", data.financial_opening_date);
+    addIfValue("date_signature_prevu", data.contract_date);
+    addIfValue("date_fin_prevu", data.mission_end_date);
+    addIfValue("date_invitation_prevu", data.invitation_date);
+    addIfValue("liste_restreinte_prevu", data.restricted_list);
+
+    return consultancePayload;
+  }
+
+  return {
+    code_suivi: data.tracking_code || "",
+    ...basePayload,
+    agmo: data.agmo || "Direction Générale",
+    ...(data.type === "Biens"
+      ? { methode_epm: data.method || "aoi" }
+      : { methode_pm: data.method || "aoi" }),
+    approches: data.approach || "Non défini",
+    revue: data.review_notes || "Non défini",
+    listesetspecifications: data.date_invitation || null,
+    date_lancement_prevu: data.date_invitation || null,
+    date_ouverture_prevu: data.date_opening_submissions || null,
+    date_signature_prevu: data.date_contract_signed || null,
+    date_livraison_prevu: data.date_mission_end || null,
+  };
+}
+
+/**
+ * MODIFIER un marché
  */
 export async function updateProcurement(
   id: number,
   data: Partial<Procurement>,
 ): Promise<Procurement | null> {
-  void id;
-  void data;
-  console.warn("Update non supporté par le backend actuel");
-  return null;
+  if (!data.type) {
+    console.error("Type de marché manquant pour la mise à jour");
+    return null;
+  }
+
+  const payload = buildProcurementPayload(data as Procurement);
+
+  try {
+    let endpoint = "";
+    if (data.type === "Travaux")
+      endpoint = `${API_BASE_URL}/api/Travaux/updateTravaux/${id}/`;
+    else if (data.type === "Biens")
+      endpoint = `${API_BASE_URL}/api/Biens/updateBiens/${id}/`;
+    else if (data.type === "Consultance")
+      endpoint = `${API_BASE_URL}/api/Consultance/updateConsultance/${id}/`;
+
+    const response = await fetch(endpoint, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage =
+        errorData.error || "Erreur lors de la mise à jour du marché";
+      console.error("Erreur API:", errorMessage);
+      throw new Error(errorMessage);
+    }
+
+    const updatedItem = await response.json();
+    return { ...(data as Procurement), id: updatedItem.id };
+  } catch (error: unknown) {
+    console.error("Erreur API:", error);
+    throw error;
+  }
 }
 
 /**

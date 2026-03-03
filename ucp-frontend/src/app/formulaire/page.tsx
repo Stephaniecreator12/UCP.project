@@ -15,6 +15,7 @@ import {
   getProcurementStatus,
   Procurement,
   stopProcurement,
+  updateProcurement,
 } from "@/services/api";
 
 export default function GestionMarches() {
@@ -283,19 +284,31 @@ export default function GestionMarches() {
       const procurementData: Procurement = {
         ...row,
         type: typeMapping[activeMenu],
-        title: row.title || "Sans titre",
-        review_notes: row.review_status,
-        date_invitation: row.specifications_date || row.launch_date,
-        date_opening_submissions: row.opening_date,
-        date_contract_signed: row.contract_date,
-        date_mission_end: row.delivery_date || row.mission_end_date,
+        title: String(row.title ?? "Sans titre"),
+        review_notes:
+          typeof row.review_status === "string" ? row.review_status : undefined,
+        date_invitation:
+          typeof (row.specifications_date || row.launch_date) === "string"
+            ? String(row.specifications_date || row.launch_date)
+            : undefined,
+        date_opening_submissions:
+          typeof row.opening_date === "string" ? row.opening_date : undefined,
+        date_contract_signed:
+          typeof row.contract_date === "string" ? row.contract_date : undefined,
+        date_mission_end:
+          typeof (row.delivery_date || row.mission_end_date) === "string"
+            ? String(row.delivery_date || row.mission_end_date)
+            : undefined,
       };
 
-      // Si c'est une nouvelle ligne (commence par _new_) -> CREATE
-      // Si c'est une ligne existante -> UPDATE (si supporté, sinon create ?)
-      // Pour l'instant on suppose CREATE pour tout ce qui est new, et peut-être rien pour l'ancien si pas supporté
+      const rowId = String(row._id ?? "");
+      const isNewRow = rowId.startsWith("_new_");
+      const numericId = Number.parseInt(rowId, 10);
+      const canUpdate = !isNewRow && Number.isFinite(numericId);
 
-      const result = await createProcurement(procurementData);
+      const result = canUpdate
+        ? await updateProcurement(numericId, procurementData)
+        : await createProcurement(procurementData);
 
       if (result) {
         const savedRow: GridRow = {
@@ -321,7 +334,12 @@ export default function GestionMarches() {
             r._id === row._id ? { ...savedRow, status: computedStatus } : r,
           ),
         );
-        setSaveMessage({ type: "success", message: "Ligne enregistrée avec succès." });
+        setSaveMessage({
+          type: "success",
+          message: canUpdate
+            ? "Ligne modifiée avec succès."
+            : "Ligne enregistrée avec succès.",
+        });
       }
     } catch (e: unknown) {
       console.error(e);

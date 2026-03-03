@@ -10,7 +10,6 @@ class Biens(models.Model):
     methode_epm = models.CharField(max_length=255)
     approches = models.CharField(max_length=255)
     revue = models.CharField(max_length=255)
-    listesetspecifications = models.DateField(null=True, blank=True)
     prevu = models.CharField(null=True, blank=True)
     reel = models.CharField(null=True, blank=True)
     commentaire = models.TextField(null=True, blank=True)
@@ -18,6 +17,7 @@ class Biens(models.Model):
     
 
     # --- DATES PREVUES (Sert de référence, peut être calculé une fois à la création) ---
+    listesetspecifications_prevu = models.DateField(null=True, blank=True)
     dossiers_appel_prevu = models.DateField(null=True, blank=True)
     date_lancement_prevu = models.DateField(null=True, blank=True)
     date_ouverture_prevu = models.DateField(null=True, blank=True)
@@ -27,6 +27,7 @@ class Biens(models.Model):
     duree = models.IntegerField(default=60)
 
     # --- DATES REELLES (Saisie manuelle progressive) ---
+    listesetspecifications_reel = models.DateField(null=True, blank=True)
     dossiers_appel_reel = models.DateField(null=True, blank=True)
     date_lancement_reel = models.DateField(null=True, blank=True)
     date_ouverture_reel = models.DateField(null=True, blank=True)

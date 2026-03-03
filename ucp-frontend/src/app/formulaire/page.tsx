@@ -406,7 +406,7 @@ export default function GestionMarches() {
                 <strong className="header-stat-value">{rows.length}</strong>
               </div>
               <div className="header-stat-card">
-                <span className="header-stat-label">Montant total estimatif ($)</span>
+                <span className="header-stat-label">Montant total estimatif (Ar)</span>
                 <strong className="header-stat-value">{totalEstimatedAmountDisplay}</strong>
               </div>
             </div>

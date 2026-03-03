@@ -7,7 +7,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.utils import timezone
-from .ProcurementService import delete_service
+from .ProcurementService import delete_service, arreter_service, statut_service
 
 # INSERER DONNEES
 @csrf_exempt
@@ -29,7 +29,6 @@ def insert_mock_travaux(request):
                 'reel': 'Réel',
                 'commentaire': 'Remarque par défaut',
                 'statut': 'En cours',
-                'listesetspecifications': '2026-01-01',
                 'dossiers_appel_prevu': '2026-01-01',
                 'date_lancement_prevu': '2026-01-01',
                 'date_ouverture_prevu': '2026-01-01',
@@ -59,6 +58,25 @@ def insert_mock_travaux(request):
 
     return JsonResponse({'error': 'POST request required'}, status=405)
 
+@csrf_exempt
+def update_travaux(request, id):
+    if request.method not in ['PUT', 'PATCH', 'POST']:
+        return JsonResponse({'error': 'PUT/PATCH/POST request required'}, status=405)
+    try:
+        request_data = json.loads(request.body)
+        travaux = Travaux.objects.get(id=id)
+        for key, value in request_data.items():
+            if hasattr(travaux, key):
+                setattr(travaux, key, value)
+        travaux.save()
+        return JsonResponse({'status': 'success', 'id': travaux.id}, status=200)
+    except Travaux.DoesNotExist:
+        return JsonResponse({'error': 'Travaux non trouve'}, status=404)
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
 
 # LISTER LES TRAVAUX
 def lister_travaux(request):
@@ -67,12 +85,6 @@ def lister_travaux(request):
     travaux_data = list(Travaux.objects.values())
     
     return JsonResponse({'travaux': travaux_data})
-
-
-@csrf_exempt
-def supprimer_travaux(request, id):
-    return soft_delete_service(request, Travaux, id)
-    
 
 # CALCULER LE PLANNING DES TRAVAUX
 @csrf_exempt
@@ -129,85 +141,12 @@ def calculer_planning_travaux(request):
         return JsonResponse({'error': f"Erreur de calcul: {str(e)}"}, status=500)
 
 # STATUT TRAVAUX
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def statut_travaux(request):
-    # Récupération sécurisée des dictionnaires
-    dates_prevues = request.data.get('dates_prevues', {})
-    dates_reelles = request.data.get('dates_reels', {})
-    
-    aujourdhui = timezone.now().date()
-    etapes_cles = list(dates_prevues.keys())
-    total = len(etapes_cles)
-
-    if total == 0:
-        return Response({"statut": "Données insuffisantes"}, status=400)
-
-    # Helper pour convertir le texte reçu en date réelle pour la comparaison
-    def str_to_date(date_str):
-        try:
-            if isinstance(date_str, str):
-                return datetime.strptime(date_str, '%Y-%m-%d').date()
-            return date_str
-        except:
-            return None
-
-    # 1. Identifier la progression (Boucle FOR)
-    index_dernier_rempli = -1
-    for i, cle_prev in enumerate(etapes_cles):
-        cle_reel = cle_prev.replace('_prevu', '_reel')
-        if dates_reelles.get(cle_reel):
-            index_dernier_rempli = i
-
-    # 2. Détermination du statut textuel unique
-    res = ""
-    
-    # CAS A : Rien n'a commencé
-    if index_dernier_rempli == -1:
-        date_debut = str_to_date(dates_prevues[etapes_cles[0]])
-        if date_debut and date_debut < aujourdhui:
-            res = "Non démarré (en retard)"
-        else:
-            res = "Non démarré (dans les temps)"
-
-    # CAS B : La toute dernière étape est remplie
-    elif index_dernier_rempli == total - 1:
-        res = "Terminé"
-
-    # CAS C : En cours de route (on regarde l'étape suivante)
-    else:
-        index_suivante = index_dernier_rempli + 1
-        cle_suivante = etapes_cles[index_suivante]
-        date_suivante = str_to_date(dates_prevues[cle_suivante])
-
-        if date_suivante and date_suivante < aujourdhui:
-            res = "En cours (en retard)"
-        else:
-            res = "En cours (dans les temps)"
-
-    return Response({"statut": res})
-
-
-# ARRETER TRAVAUX
 @csrf_exempt
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-def arreter_travaux(request, id):
-    try:
-        item = Travaux.objects.get(id=id)
+def statut_travaux(request):
+    return statut_service(request)   
 
-        if item.statut == "Terminé":
-            return Response({"error": "Déjà terminé"}, status=409)
-        if item.statut == "Arrêté":
-            return Response({"error": "Déjà arrêté"}, status=409)
-
-        item.statut = "Arrêté"
-        item.save()
-        return Response({"ok": True, "id": item.id, "statut": item.statut}, status=200)
-    except Travaux.DoesNotExist:
-        return Response({"error": "Élément non trouvé"}, status=404)
-    except Exception as e:
-        return Response({"error": str(e)}, status=500)
 
 # SUPPRIMER TRAVAUX
 @csrf_exempt
@@ -215,3 +154,9 @@ def arreter_travaux(request, id):
 @permission_classes([IsAuthenticated])
 def supprimer_travaux(request, id):
     return delete_service(request, Travaux, id)   
+
+# ARRETER TRAVAUX
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def arreter_travaux(request, id):
+    return arreter_service(request, Travaux, id)   

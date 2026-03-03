@@ -91,7 +91,7 @@ export const WORKS_GOODS_COLUMNS: ColumnConfig[] = [
     readonly: true,
     editable: false,
     calculated: true,
-    calculateValue: (row) => row.review_status || "post",
+    calculateValue: (row) => String(row.review_status ?? "post"),
   },
   {
     key: "planned_vs_actual",
@@ -198,7 +198,7 @@ export const WORKS_GOODS_COLUMNS: ColumnConfig[] = [
     readonly: true,
     editable: false,
     calculated: true,
-    calculateValue: (row) => row.status || "-",
+    calculateValue: (row) => String(row.status ?? "-"),
   },
 ];
 
@@ -392,7 +392,7 @@ export const CONSULTANTS_COLUMNS: ColumnConfig[] = [
     readonly: true,
     editable: false,
     calculated: true,
-    calculateValue: (row) => row.status || "-",
+    calculateValue: (row) => String(row.status ?? "-"),
   },
 ];
 

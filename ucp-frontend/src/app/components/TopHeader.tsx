@@ -3,12 +3,13 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { getToken, logout } from "@/services/auth";
+import { useEffect, useRef, useState, type MouseEvent } from "react";
+import { logout } from "@/services/auth";
 
 export default function TopHeader() {
   const pathname = usePathname();
   const router = useRouter();
+  const headerRef = useRef<HTMLElement | null>(null);
   const [theme, setTheme] = useState<"light" | "dark">(() => {
     if (typeof window === "undefined") return "dark";
     const stored = localStorage.getItem("theme");
@@ -39,12 +40,35 @@ export default function TopHeader() {
     }, 120);
   };
 
-  const isAuthenticated = Boolean(getToken());
-  const showAuthenticatedActions = isAuthenticated && pathname !== "/login";
+  const showAuthenticatedActions = pathname !== "/login";
+
+  const handleHeaderMove = (event: MouseEvent<HTMLElement>) => {
+    const header = headerRef.current;
+    if (!header) return;
+    const rect = header.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    header.style.setProperty("--mx", `${x}px`);
+    header.style.setProperty("--my", `${y}px`);
+  };
+
+  const resetHeaderGlow = () => {
+    const header = headerRef.current;
+    if (!header) return;
+    header.style.setProperty("--mx", "50%");
+    header.style.setProperty("--my", "50%");
+  };
 
   return (
-    <header className="app-top-header">
+    <header
+      ref={headerRef}
+      className="app-top-header modern-header"
+      onMouseMove={handleHeaderMove}
+      onMouseLeave={resetHeaderGlow}
+    >
       <div className="app-topline" aria-hidden="true" />
+      <div className="modern-header-orb modern-header-orb-left" aria-hidden="true" />
+      <div className="modern-header-orb modern-header-orb-right" aria-hidden="true" />
       <div className="app-top-header-inner">
         <Link href={showAuthenticatedActions ? "/formulaire" : "/login"} className="app-brand">
           <Image
@@ -61,11 +85,11 @@ export default function TopHeader() {
           </div>
         </Link>
 
-        <div className="app-quick-links">
+        <div className="app-quick-links modern-nav">
           {showAuthenticatedActions && (
             <Link
               href="/formulaire"
-              className={`quick-link-btn ${pathname === "/formulaire" ? "active-page" : ""}`}
+              className={`quick-link-btn modern-pill ${pathname === "/formulaire" ? "active-page" : ""}`}
             >
               PPM
             </Link>
@@ -73,7 +97,7 @@ export default function TopHeader() {
           {showAuthenticatedActions && (
             <Link
               href="/dashboard"
-              className={`quick-link-btn ${pathname === "/dashboard" ? "active-page" : ""}`}
+              className={`quick-link-btn modern-pill ${pathname === "/dashboard" ? "active-page" : ""}`}
             >
               Dashboard
             </Link>
@@ -85,10 +109,10 @@ export default function TopHeader() {
             type="button"
             className="theme-toggle-btn"
             onClick={toggleTheme}
-            aria-label="Changer le thème"
-            title={theme === "dark" ? "Passer en mode clair" : "Passer en mode sombre"}
+            aria-label="Basculer le thème"
+            title="Basculer le thème"
           >
-            {theme === "dark" ? "Clair" : "Sombre"}
+            Theme
           </button>
           {showAuthenticatedActions && (
             <button

@@ -38,6 +38,8 @@ export default function GridCell({
   const [draftDate, setDraftDate] = React.useState<string>(
     typeof value === "string" ? value : ""
   );
+  const inputValue =
+    typeof value === "string" || typeof value === "number" ? value : "";
 
   // Quand autoFocus=true, on focus automatiquement l'input
   useEffect(() => {
@@ -139,7 +141,7 @@ export default function GridCell({
     return (
       <select
         ref={inputRef as React.Ref<HTMLSelectElement>}
-        value={value ?? ""}
+        value={String(inputValue)}
         onChange={(e) => {
           const val = e.target.value;
           onChange(val);
@@ -185,7 +187,7 @@ export default function GridCell({
       <input
         ref={inputRef as React.Ref<HTMLInputElement>}
         type="number"
-        value={typeof value === "number" ? value : (value ?? "")}
+        value={typeof inputValue === "number" ? inputValue : String(inputValue)}
         onChange={(e) =>
           onChange(e.target.value === "" ? "" : parseFloat(e.target.value))
         }

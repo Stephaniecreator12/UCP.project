@@ -392,12 +392,15 @@ export default function GridTable({
   };
 
   // Obtenir les informations de tooltip pour les abréviations
-  const getTooltipInfo = (value: string, column: ColumnConfig): { text: string; show: boolean } => {
+  const getTooltipInfo = (value: unknown, column: ColumnConfig): { text: string; show: boolean } => {
     if (column.type !== "select" || !column.options) {
       return { text: "", show: false };
     }
 
-    const option = column.options.find((opt) => opt.value === value || opt.label === value);
+    const normalizedValue = String(value ?? "");
+    const option = column.options.find(
+      (opt) => opt.value === normalizedValue || opt.label === normalizedValue,
+    );
     if (!option || !option.description) {
       return { text: "", show: false };
     }
@@ -485,11 +488,12 @@ export default function GridTable({
   // CALCUL des dates (via Backend)
   const handleCalculate = async (row: GridRow) => {
     // 1. Determine Driver Date
-    const driverDate =
+    const driverDateValue =
       row.delivery_date ||
       row.delivery_date_actual ||
       row.mission_end_date ||
       row.mission_end_date_actual;
+    const driverDate = typeof driverDateValue === "string" ? driverDateValue : "";
     if (!driverDate) {
       alert("Veuillez d'abord saisir une date de fin (Livraison ou Fin de mission).");
       return;
@@ -578,8 +582,11 @@ export default function GridTable({
     if (column.readonly) return false;
     if (column.editable === false) return false;
 
-    // 3. Driver Dates -> Always editable
-    if (column.key === "delivery_date" || column.key === "mission_end_date") return true;
+    // 3. Driver Dates -> Always editable only on top lane (Prévu / Forfait).
+    // On bottom lane (Réel / Temps passé), sequential rules must still apply.
+    if (!isActual && (column.key === "delivery_date" || column.key === "mission_end_date")) {
+      return true;
+    }
 
     // 4. PLANNED DATES Logic
     // "Ces dates prevue apres calcul deviennent editables"
@@ -986,7 +993,7 @@ export default function GridTable({
                                     />
                                   ) : (
                                     <div className="cell-value text-truncate" style={{ fontWeight: 500 }}>
-                                      {cellValue}
+                                      {String(cellValue ?? "")}
                                     </div>
                                   )}
                                 </div>

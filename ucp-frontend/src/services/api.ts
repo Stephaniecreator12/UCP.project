@@ -101,7 +101,6 @@ export interface PlanningResponse {
   rapport_evaluation_prevu?: string;
   date_signature_prevu?: string;
   date_fin_prevu?: string;
-  listesetspecifications?: string;
 }
 
 /**
@@ -316,7 +315,7 @@ function buildProcurementPayload(data: Procurement): Record<string, unknown> {
       : { methode_pm: data.method || "aoi" }),
     approches: data.approach || "Non défini",
     revue: data.review_notes || "Non défini",
-    listesetspecifications: data.date_invitation || null,
+    dossiers_appel_prevu: data.date_invitation || null,
     date_lancement_prevu: data.date_invitation || null,
     date_ouverture_prevu: data.date_opening_submissions || null,
     date_signature_prevu: data.date_contract_signed || null,

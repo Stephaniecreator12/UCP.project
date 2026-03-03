@@ -5,13 +5,14 @@ import { useRouter } from "next/navigation";
 import TopHeader from "@/app/components/TopHeader";
 import { getAllProcurements, Procurement } from "@/services/api";
 import { getToken } from "@/services/auth";
-import "@/app/dashboard.css";
+import "@/app/styles/dashboard.css";
 
 type ProcurementType = "Travaux" | "Biens" | "Consultance";
 
 type DistributionItem = { label: string; value: number };
 type DonutSegment = {
   label: string;
+  value: number;
   from: number;
   to: number;
   color: string;
@@ -151,7 +152,6 @@ export default function DashboardPage() {
   const router = useRouter();
   const [rows, setRows] = useState<Procurement[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeDetails, setActiveDetails] = useState<string | null>(null);
 
   useEffect(() => {
     if (!getToken()) {
@@ -230,10 +230,6 @@ export default function DashboardPage() {
     return colorMap[key] || fallbackColors[idx % fallbackColors.length];
   };
 
-  const toggleDetails = (id: string) => {
-    setActiveDetails(activeDetails === id ? null : id);
-  };
-
   const formatAmount = (value: number): string =>
     `${new Intl.NumberFormat("fr-FR").format(Math.round(value))} Ariary`;
 
@@ -293,6 +289,7 @@ export default function DashboardPage() {
       );
       const segment: DonutSegment = {
         label: item.label,
+        value: item.value,
         from,
         to,
         color,
@@ -314,23 +311,43 @@ export default function DashboardPage() {
           };
 
           return (
-            <path
-              key={`arc-${segment.label}-${segment.idx}`}
-              className="dash-donut-arc"
-              d={describeArc(
-                64,
-                64,
-                DONUT_RADIUS,
-                segment.from,
-                arcDeg >= 359.5 ? segment.to - 0.01 : segment.to,
-              )}
-              fill="none"
-              stroke={segment.color}
-              strokeWidth={16}
-              strokeLinecap="butt"
-              pathLength={100}
-              style={arcStyle}
-            />
+            <g key={`arc-${segment.label}-${segment.idx}`}>
+              <path
+                className="dash-donut-arc"
+                d={describeArc(
+                  64,
+                  64,
+                  DONUT_RADIUS,
+                  segment.from,
+                  arcDeg >= 359.5 ? segment.to - 0.01 : segment.to,
+                )}
+                fill="none"
+                stroke={segment.color}
+                strokeWidth={16}
+                strokeLinecap="butt"
+                pathLength={100}
+                style={arcStyle}
+              />
+              <text
+                className="dash-donut-pct-label"
+                x={polarToCartesian(
+                  64,
+                  64,
+                  DONUT_RADIUS + DONUT_STROKE / 2 + 8,
+                  (segment.from + segment.to) / 2,
+                ).x}
+                y={polarToCartesian(
+                  64,
+                  64,
+                  DONUT_RADIUS + DONUT_STROKE / 2 + 8,
+                  (segment.from + segment.to) / 2,
+                ).y}
+                textAnchor="middle"
+                dominantBaseline="middle"
+              >
+                {`${segment.value}%`}
+              </text>
+            </g>
           );
         })}
       </>
@@ -338,24 +355,51 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="app-shell dashboard-scroll-shell">
+    <div className="app-shell dashboard-scroll-shell dashboard-style-master">
       <TopHeader />
 
       <main className="dash-page">
         <header className="dash-header">
-          <h1 className="dash-title">
-            Tableau de Bord de Passation des Marches (PPM)
-          </h1>
-          <p className="dash-kicker">
-            Suivi en temps reel de l&apos;etat d&apos;avancement des dossiers, du
-            lancement de la procédure à la validation financière.
-          </p>
+          <div className="dash-header-main">
+            <h1 className="dash-title">
+              Tableau de Bord de Passation des Marches (PPM)
+            </h1>
+            <p className="dash-kicker">
+              Suivi en temps reel de l&apos;etat d&apos;avancement des dossiers,
+              du lancement de la procedure a la validation financiere.
+            </p>
+          </div>
+          <div className="dash-header-stats">
+            <div className="panel-stat-item panel-stat-total panel-stat-total-count">
+              <span>Total marches</span>
+              {loading ? (
+                <strong>...</strong>
+              ) : (
+                <AnimatedNumber
+                  value={stats.totalRows}
+                  formatter={(v) =>
+                    new Intl.NumberFormat("fr-FR").format(Math.round(v))
+                  }
+                />
+              )}
+            </div>
+            <div className="panel-stat-item panel-stat-total panel-stat-total-amount">
+              <span>Montant total</span>
+              {loading ? (
+                <strong>...</strong>
+              ) : (
+                <AnimatedNumber
+                  value={stats.totalAmount}
+                  formatter={formatAmount}
+                  durationMs={1100}
+                />
+              )}
+            </div>
+          </div>
         </header>
         <div className="dash-row-mid">
           {TYPE_ORDER.map((type) => {
             const data = stats.distribution[type];
-            const methodId = `methods-${type}`;
-            const statusId = `status-${type}`;
             const topMethod = topItem(data?.methods || []);
             const topStatus = topItem(data?.status || []);
 
@@ -363,41 +407,12 @@ export default function DashboardPage() {
               <article key={type} className="dash-panel">
                 <h2 style={{ color: TYPE_COLORS[type] }}>{typeLabel(type)}</h2>
                 <div className="dash-panel-content">
-                  <div className="dash-panel-stats">
-                    <div className="panel-stat-item panel-stat-total panel-stat-total-count">
-                      <span>Total marches</span>
-                      {loading ? (
-                        <strong>...</strong>
-                      ) : (
-                        <AnimatedNumber
-                          value={data?.count ?? 0}
-                          formatter={(v) =>
-                            new Intl.NumberFormat("fr-FR").format(Math.round(v))
-                          }
-                        />
-                      )}
-                    </div>
-                    <div className="panel-stat-item panel-stat-total panel-stat-total-amount">
-                      <span>Montant total</span>
-                      {loading ? (
-                        <strong>...</strong>
-                      ) : (
-                        <AnimatedNumber
-                          value={data?.amount ?? 0}
-                          formatter={formatAmount}
-                          durationMs={1100}
-                        />
-                      )}
-                    </div>
-                  </div>
-
                   <div className="dash-charts-container">
                     <div className="chart-item">
                       <p className="chart-label">Methodes utilisees</p>
                       <div className="chart-visual-row">
                         <div
                           className="dash-donut"
-                          onClick={() => toggleDetails(methodId)}
                         >
                           <svg
                             className="dash-donut-svg"
@@ -428,15 +443,10 @@ export default function DashboardPage() {
                               {topMethod ? `${topMethod.value}%` : "0%"}
                             </span>
                           </div>
-                          <div className="click-overlay">
-                            Cliquez pour details
-                          </div>
                         </div>
 
                         <div
-                          className={`dash-legend-container dash-legend-side ${
-                            activeDetails === methodId ? "open" : ""
-                          }`}
+                          className="dash-legend-container dash-legend-side open"
                         >
                           <ul className="dash-legend">
                             {data?.methods.map((m, idx) => (
@@ -452,7 +462,6 @@ export default function DashboardPage() {
                                   }}
                                 />
                                 <span>{m.label.toUpperCase()}</span>
-                                <strong>{m.value}%</strong>
                               </li>
                             ))}
                           </ul>
@@ -465,7 +474,6 @@ export default function DashboardPage() {
                       <div className="chart-visual-row">
                         <div
                           className="dash-donut"
-                          onClick={() => toggleDetails(statusId)}
                         >
                           <svg
                             className="dash-donut-svg"
@@ -496,15 +504,10 @@ export default function DashboardPage() {
                               {topStatus ? `${topStatus.value}%` : "0%"}
                             </span>
                           </div>
-                          <div className="click-overlay">
-                            Cliquez pour details
-                          </div>
                         </div>
 
                         <div
-                          className={`dash-legend-container dash-legend-side ${
-                            activeDetails === statusId ? "open" : ""
-                          }`}
+                          className="dash-legend-container dash-legend-side open"
                         >
                           <ul className="dash-legend">
                             {data?.status.map((s, idx) => (
@@ -520,7 +523,6 @@ export default function DashboardPage() {
                                   }}
                                 />
                                 <span>{s.label}</span>
-                                <strong>{s.value}%</strong>
                               </li>
                             ))}
                           </ul>
@@ -537,3 +539,6 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+
+

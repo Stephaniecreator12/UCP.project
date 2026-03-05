@@ -3,29 +3,13 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState, type MouseEvent } from "react";
+import { useRef, type MouseEvent } from "react";
 import { logout } from "@/services/auth";
 
 export default function TopHeader() {
   const pathname = usePathname();
   const router = useRouter();
   const headerRef = useRef<HTMLElement | null>(null);
-  const [theme, setTheme] = useState<"light" | "dark">(() => {
-    if (typeof window === "undefined") return "dark";
-    const stored = localStorage.getItem("theme");
-    if (stored === "light" || stored === "dark") return stored;
-    return "dark";
-  });
-
-  useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme);
-    localStorage.setItem("theme", theme);
-  }, [theme]);
-
-  const toggleTheme = () => {
-    const nextTheme = theme === "dark" ? "light" : "dark";
-    setTheme(nextTheme);
-  };
 
   const handleLogout = () => {
     logout();
@@ -77,9 +61,9 @@ export default function TopHeader() {
             className="app-brand-logo"
             priority
           />
-          <div className="app-brand-text">
-            <strong>UCP e-Proc</strong>
-            <span>Coordination & Passation</span>
+          <div >
+            <strong className="login-title">unité de coordination des projets</strong>
+            <span className="app-brand-text">e-Procurement</span>
           </div>
         </Link>
 
@@ -103,15 +87,6 @@ export default function TopHeader() {
         </div>
 
         <div className="app-top-actions">
-          <button
-            type="button"
-            className="theme-toggle-btn"
-            onClick={toggleTheme}
-            aria-label="Basculer le thème"
-            title="Basculer le thème"
-          >
-            Theme
-          </button>
           {showAuthenticatedActions && (
             <button
               type="button"

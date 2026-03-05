@@ -394,18 +394,15 @@ export default function GestionMarches() {
           <header className="dashboard-header">
             <div className="dashboard-header-accent" aria-hidden="true" />
             <div className="dashboard-title-wrap">
-              <p className="dashboard-kicker">UCP · Passation de marches</p>
+              <p className="dashboard-kicker">Passation de marchés</p>
               <h1 className="dashboard-title">{config.label}</h1>
-              <p className="dashboard-subtitle">
-                Unite de coordination de projet
-              </p>
             </div>
             <div className="dashboard-header-stats">
-              <div className="header-stat-card">
+              <div className="header-stat-card header-stat-card-market">
                 <span className="header-stat-label">Marchés</span>
                 <strong className="header-stat-value">{rows.length}</strong>
               </div>
-              <div className="header-stat-card">
+              <div className="header-stat-card header-stat-card-amount">
                 <span className="header-stat-label">Montant total estimatif (Ar)</span>
                 <strong className="header-stat-value">{totalEstimatedAmountDisplay}</strong>
               </div>

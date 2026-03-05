@@ -2,10 +2,10 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import TopHeader from "@/app/components/TopHeader";
 import { getAllProcurements, Procurement } from "@/services/api";
 import { getToken } from "@/services/auth";
-import "@/app/styles/dashboard.css";
 
 type ProcurementType = "Travaux" | "Biens" | "Consultance";
 
@@ -82,11 +82,33 @@ const STATUS_FALLBACK_COLORS = [
 
 const TYPE_ORDER: ProcurementType[] = ["Travaux", "Biens", "Consultance"];
 const DONUT_RADIUS = 45;
-const DONUT_STROKE = 20; //reglage épaisseur du donut, plus c'est grand plus c'est épais (max ~60 pour garder un trou au centre)
+const DONUT_STROKE = 25; // +10% d'épaisseur (20 -> 22)
+const DONUT_ARC_STROKE = 20; // +10% d'épaisseur pour les arcs (16 -> 18)
 
 const pct = (value: number, total: number): number => {
   if (total <= 0) return 0;
   return Math.round((value / total) * 100);
+};
+
+const darkenColor = (color: string, factor = 0.55): string => {
+  const hex = color.trim().replace("#", "");
+  const normalized =
+    hex.length === 3
+      ? hex
+          .split("")
+          .map((c) => c + c)
+          .join("")
+      : hex.length >= 6
+        ? hex.slice(0, 6)
+        : "";
+  if (!/^[0-9a-fA-F]{6}$/.test(normalized)) return color;
+
+  const r = parseInt(normalized.slice(0, 2), 16);
+  const g = parseInt(normalized.slice(2, 4), 16);
+  const b = parseInt(normalized.slice(4, 6), 16);
+  const clamp = (v: number) => Math.max(0, Math.min(255, Math.round(v)));
+
+  return `rgb(${clamp(r * factor)}, ${clamp(g * factor)}, ${clamp(b * factor)})`;
 };
 
 const methodValue = (row: Procurement): string => {
@@ -99,19 +121,40 @@ const typeLabel = (type: ProcurementType): string => {
   return type;
 };
 
-const topItem = (items: DistributionItem[]): DistributionItem | null => {
-  if (!items.length) return null;
-  return items.reduce(
-    (max, item) => (item.value > max.value ? item : max),
-    items[0],
-  );
-};
-
 type AnimatedNumberProps = {
   value: number;
   formatter: (value: number) => string;
   durationMs?: number;
 };
+
+type DonutCenterVariant = "method" | "status";
+
+type DonutCenterProps = {
+  variant: DonutCenterVariant;
+};
+
+function DonutCenter({ variant }: DonutCenterProps) {
+  const isMethod = variant === "method";
+
+  return (
+    <div className={`dash-donut-center dash-donut-center-${variant}`}>
+      <div className={`dash-center-icon ${variant}`} aria-hidden="true">
+        <Image
+          src={
+            isMethod
+              ? "/dashboard-icons/ads-click-rounded.svg"
+              : "/dashboard-icons/chronic-outline.svg"
+          }
+          alt=""
+          width={50}
+          height={40}
+          className="dash-center-photo"
+        />
+      </div>
+    </div>
+  );
+}
+
 
 function AnimatedNumber({
   value,
@@ -152,6 +195,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const [rows, setRows] = useState<Procurement[]>([]);
   const [loading, setLoading] = useState(true);
+  const [legendsOpen, setLegendsOpen] = useState(false);
 
   useEffect(() => {
     if (!getToken()) {
@@ -173,6 +217,15 @@ export default function DashboardPage() {
 
     load();
   }, []);
+
+  useEffect(() => {
+    if (loading) return;
+    setLegendsOpen(false);
+    const timerId = window.setTimeout(() => {
+      setLegendsOpen(true);
+    }, 120);
+    return () => window.clearTimeout(timerId);
+  }, [loading, rows.length]);
 
   const stats = useMemo(() => {
     const totalRows = rows.length;
@@ -305,6 +358,14 @@ export default function DashboardPage() {
       <>
         {segments.map((segment) => {
           const arcDeg = segment.to - segment.from;
+          const midAngle = (segment.from + segment.to) / 2;
+          const labelPos = polarToCartesian(
+            64,
+            64,
+            DONUT_RADIUS,
+            midAngle,
+          );
+          const labelColor = darkenColor(segment.color);
           const arcStyle = {
             animationDelay: `${segment.delayMs}ms`,
             animationDuration: `${segment.durationMs}ms`,
@@ -323,27 +384,18 @@ export default function DashboardPage() {
                 )}
                 fill="none"
                 stroke={segment.color}
-                strokeWidth={16}
+                strokeWidth={DONUT_ARC_STROKE}
                 strokeLinecap="butt"
                 pathLength={100}
                 style={arcStyle}
               />
               <text
                 className="dash-donut-pct-label"
-                x={polarToCartesian(
-                  64,
-                  64,
-                  DONUT_RADIUS + DONUT_STROKE / 2 + 8,
-                  (segment.from + segment.to) / 2,
-                ).x}
-                y={polarToCartesian(
-                  64,
-                  64,
-                  DONUT_RADIUS + DONUT_STROKE / 2 + 8,
-                  (segment.from + segment.to) / 2,
-                ).y}
+                x={labelPos.x}
+                y={labelPos.y}
                 textAnchor="middle"
                 dominantBaseline="middle"
+                style={{ fill: labelColor }}
               >
                 {`${segment.value}%`}
               </text>
@@ -400,8 +452,6 @@ export default function DashboardPage() {
         <div className="dash-row-mid">
           {TYPE_ORDER.map((type) => {
             const data = stats.distribution[type];
-            const topMethod = topItem(data?.methods || []);
-            const topStatus = topItem(data?.status || []);
 
             return (
               <article key={type} className="dash-panel">
@@ -433,20 +483,11 @@ export default function DashboardPage() {
                               METHOD_FALLBACK_COLORS,
                             )}
                           </svg>
-                          <div className="dash-donut-center">
-                            <strong>
-                              {topMethod
-                                ? topMethod.label.toUpperCase()
-                                : "AUCUN"}
-                            </strong>
-                            <span>
-                              {topMethod ? `${topMethod.value}%` : "0%"}
-                            </span>
-                          </div>
+                          <DonutCenter variant="method" />
                         </div>
 
                         <div
-                          className="dash-legend-container dash-legend-side open"
+                          className={`dash-legend-container dash-legend-side ${legendsOpen ? "open" : ""}`}
                         >
                           <ul className="dash-legend">
                             {data?.methods.map((m, idx) => (
@@ -494,21 +535,12 @@ export default function DashboardPage() {
                               STATUS_FALLBACK_COLORS,
                             )}
                           </svg>
-                          <div className="dash-donut-center">
-                            <strong>
-                              {topStatus
-                                ? topStatus.label.toUpperCase()
-                                : "AUCUN"}
-                            </strong>
-                            <span>
-                              {topStatus ? `${topStatus.value}%` : "0%"}
-                            </span>
+                          <DonutCenter variant="status" />
                           </div>
-                        </div>
 
                         <div
-                          className="dash-legend-container dash-legend-side open"
-                        >
+                          className={`dash-legend-container dash-legend-side ${legendsOpen ? "open" : ""}`}
+                        > 
                           <ul className="dash-legend">
                             {data?.status.map((s, idx) => (
                               <li key={s.label}>

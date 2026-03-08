@@ -23,6 +23,10 @@ export default function TopHeader() {
   };
 
   const showAuthenticatedActions = pathname !== "/login";
+  const pillBaseClass =
+    "rounded-full border border-[var(--line-strong)] bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-[0_10px_20px_-16px_rgba(6,20,34,0.65)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_24px_-16px_rgba(6,20,34,0.65)]";
+  const activePillClass =
+    "border-[color-mix(in_srgb,var(--green-strong)_60%,white)] bg-[linear-gradient(180deg,#15ba66,var(--green-strong))] text-white shadow-[0_8px_16px_-11px_rgba(5,123,64,0.8)]";
 
   const handleHeaderMove = (event: MouseEvent<HTMLElement>) => {
     const header = headerRef.current;
@@ -44,34 +48,58 @@ export default function TopHeader() {
   return (
     <header
       ref={headerRef}
-      className="app-top-header modern-header"
+      className="sticky top-0 z-40 overflow-hidden border-b border-[var(--line)] bg-[color-mix(in_srgb,var(--surface)_92%,transparent)] backdrop-blur-md"
       onMouseMove={handleHeaderMove}
       onMouseLeave={resetHeaderGlow}
     >
-      <div className="app-topline" aria-hidden="true" />
-      <div className="modern-header-orb modern-header-orb-left" aria-hidden="true" />
-      <div className="modern-header-orb modern-header-orb-right" aria-hidden="true" />
-      <div className="app-top-header-inner">
-        <Link href={showAuthenticatedActions ? "/formulaire" : "/login"} className="app-brand">
+      <div
+        className="pointer-events-none absolute inset-0"
+        aria-hidden="true"
+        style={{
+          background:
+            "radial-gradient(420px circle at var(--mx) var(--my), color-mix(in srgb, var(--green) 16%, transparent), transparent 60%)",
+        }}
+      />
+      <div
+        className="h-[3px] bg-[linear-gradient(90deg,var(--green),#1fcf78,var(--green))]"
+        aria-hidden="true"
+      />
+      <div
+        className="pointer-events-none absolute -left-8 -top-12 h-32 w-32 rounded-full opacity-45 blur-[28px]"
+        aria-hidden="true"
+        style={{ background: "color-mix(in srgb, var(--green) 35%, transparent)" }}
+      />
+      <div
+        className="pointer-events-none absolute -right-10 -top-16 h-36 w-36 rounded-full opacity-45 blur-[28px]"
+        aria-hidden="true"
+        style={{ background: "color-mix(in srgb, #7ed7ff 30%, transparent)" }}
+      />
+      <div className="relative z-[1] mx-auto grid max-w-[1480px] grid-cols-1 items-center gap-4 px-4 py-3 md:grid-cols-[auto_1fr_auto]">
+        <Link
+          href={showAuthenticatedActions ? "/formulaire" : "/login"}
+          className="inline-flex items-center gap-3 text-inherit no-underline"
+        >
           <Image
             src="/ucp-sante-logo-color.png"
             alt="Logo UCP"
             width={62}
             height={62}
-            className="app-brand-logo"
+            className="h-12 w-12 rounded-xl border border-[var(--line)] bg-white"
             priority
           />
-          <div >
-            <strong className="login-title">unité de coordination des projets</strong>
-            <span className="app-brand-text">e-Procurement</span>
+          <div className="grid gap-1">
+            <strong className="text-[0.96rem] font-bold uppercase tracking-[0.04em] text-[rgba(14,13,13,0.808)]">
+              unitÃ© de coordination des projets
+            </strong>
+            <span className="text-xs tracking-[0.04em] text-gray-500">e-Procurement</span>
           </div>
         </Link>
 
-        <div className="app-quick-links modern-nav">
+        <div className="inline-flex items-center justify-center gap-2 md:justify-self-center">
           {showAuthenticatedActions && (
             <Link
               href="/formulaire"
-              className={`quick-link-btn modern-pill ${pathname === "/formulaire" ? "active-page" : ""}`}
+              className={`${pillBaseClass} ${pathname === "/formulaire" ? activePillClass : ""}`}
             >
               PPM
             </Link>
@@ -79,22 +107,22 @@ export default function TopHeader() {
           {showAuthenticatedActions && (
             <Link
               href="/dashboard"
-              className={`quick-link-btn modern-pill ${pathname === "/dashboard" ? "active-page" : ""}`}
+              className={`${pillBaseClass} ${pathname === "/dashboard" ? activePillClass : ""}`}
             >
               Dashboard
             </Link>
           )}
         </div>
 
-        <div className="app-top-actions">
+        <div className="md:justify-self-end">
           {showAuthenticatedActions && (
             <button
               type="button"
-              className="logout-btn"
+              className={`${pillBaseClass} text-[0.8rem]`}
               onClick={handleLogout}
-              title="Se déconnecter"
+              title="Se dÃ©connecter"
             >
-              Déconnexion
+              DÃ©connexion
             </button>
           )}
         </div>

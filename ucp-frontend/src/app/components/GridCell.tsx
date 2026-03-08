@@ -40,6 +40,10 @@ export default function GridCell({
   );
   const inputValue =
     typeof value === "string" || typeof value === "number" ? value : "";
+  const inputClass =
+    "min-h-[34px] w-full rounded-[9px] border border-[var(--line)] bg-white px-[0.56rem] py-[0.42rem] text-[0.82rem] text-[#243242] outline-none transition focus:border-[#67bb91] focus:shadow-[0_0_0_3px_color-mix(in_srgb,var(--green)_18%,white)]";
+  const toggleBaseClass =
+    "min-h-[30px] rounded-lg border border-[var(--line-strong)] px-[0.56rem] py-[0.34rem] text-[0.75rem] font-bold";
 
   // Quand autoFocus=true, on focus automatiquement l'input
   useEffect(() => {
@@ -111,15 +115,17 @@ export default function GridCell({
   // CAS 0: Boutons de bascule (TOGGLE) - ex: Prévu / Réel
   if (column.type === "toggle" && column.options) {
     return (
-      <div className="d-inline-flex gap-1">
+      <div className="inline-flex gap-1">
         {column.options.map((opt) => {
           const isActive = value === opt.value;
           return (
             <button
               key={opt.value}
               type="button"
-              className={`btn btn-sm ${
-                isActive ? "btn-primary" : "btn-outline-secondary"
+              className={`${toggleBaseClass} ${
+                isActive
+                  ? "border-[color-mix(in_srgb,var(--green-strong)_62%,white)] bg-[linear-gradient(180deg,#15ba66,var(--green-strong))] text-white"
+                  : "bg-white text-[#2f3d4c]"
               }`}
               onClick={() => {
                 onChange(opt.value);
@@ -149,7 +155,7 @@ export default function GridCell({
         }}
         onBlur={onBlur}
         onKeyDown={onKeyDown}
-        className="cell-input cell-select"
+        className={inputClass}
       >
         {column.options.map((opt) => (
           <option 
@@ -176,7 +182,7 @@ export default function GridCell({
         onChange={(e) => onChange(e.target.checked)}
         onBlur={onBlur}
         onKeyDown={onKeyDown}
-        className="cell-input cell-checkbox"
+        className="h-4 w-4 rounded border-[var(--line)] text-[var(--green)]"
       />
     );
   }
@@ -194,7 +200,7 @@ export default function GridCell({
         onBlur={onBlur}
         onKeyDown={onKeyDown}
         placeholder={column.placeholder || "0"}
-        className="cell-input cell-number"
+        className={inputClass}
         step="0.01"
       />
     );
@@ -203,7 +209,7 @@ export default function GridCell({
   // CAS 4: Date (DATE)
   if (column.type === "date") {
     return (
-      <div className="cell-date-wrap">
+      <div className="relative">
         <input
           ref={inputRef as React.Ref<HTMLInputElement>}
           type="date"
@@ -280,11 +286,11 @@ export default function GridCell({
             onBlur();
           }}
           onKeyDown={onKeyDown}
-          className="cell-input cell-date"
+          className={`${inputClass} pr-8`}
         />
         <button
           type="button"
-          className="cell-date-trigger"
+          className="absolute right-[0.45rem] top-1/2 -translate-y-1/2 cursor-pointer border-0 bg-transparent"
           aria-label="Ouvrir le calendrier"
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => {
@@ -299,7 +305,10 @@ export default function GridCell({
             }
           }}
         >
-          <span className="cell-date-trigger-icon" aria-hidden="true" />
+          <span
+            className="block h-[15px] w-[15px] rounded-[4px] border-2 border-t-[6px] border-[#7b8b99]"
+            aria-hidden="true"
+          />
         </button>
       </div>
     );
@@ -315,7 +324,7 @@ export default function GridCell({
         onBlur={onBlur}
         onKeyDown={onKeyDown}
         placeholder={column.placeholder || "Texte libre..."}
-        className="cell-input cell-textarea"
+        className={inputClass}
         rows={1}
       />
     );
@@ -333,7 +342,7 @@ export default function GridCell({
       onBlur={onBlur}
       onKeyDown={onKeyDown}
       placeholder={column.placeholder || "Texte..."}
-      className="cell-input cell-text"
+      className={inputClass}
     />
   );
 }

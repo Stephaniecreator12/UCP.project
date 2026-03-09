@@ -39,6 +39,7 @@ export interface Procurement {
   review_notes?: string;
 
   // Dates prévues (Planifié)
+  specifications_date?: string;
   date_invitation?: string;
   date_opening_submissions?: string;
   date_opening_financial?: string;
@@ -77,6 +78,7 @@ interface BackendProcurementItem {
   commentaire?: string;
   statut?: string;
   date_lancement_prevu?: string;
+  listesetspecifications?: string;
   date_ouverture_prevu?: string;
   date_signature_prevu?: string;
   date_livraison_prevu?: string;
@@ -180,6 +182,7 @@ export async function getAllProcurements(): Promise<Procurement[]> {
 
       return {
         ...base,
+        specifications_date: item.listesetspecifications,
         date_invitation: item.date_lancement_prevu,
         date_opening_submissions: item.date_ouverture_prevu,
         date_contract_signed: item.date_signature_prevu,
@@ -316,7 +319,7 @@ function buildProcurementPayload(data: Procurement): Record<string, unknown> {
       : { methode_pm: data.method || "aoi" }),
     approches: data.approach || "Non défini",
     revue: data.review_notes || "Non défini",
-    listesetspecifications: data.date_invitation || null,
+    listesetspecifications: data.specifications_date || null,
     date_lancement_prevu: data.date_invitation || null,
     date_ouverture_prevu: data.date_opening_submissions || null,
     date_signature_prevu: data.date_contract_signed || null,

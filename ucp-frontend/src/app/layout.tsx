@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { JetBrains_Mono, Manrope, Space_Grotesk } from "next/font/google";
-import "./globals.css";
+import "./styles/base/globals.css";
 
 const manrope = Manrope({
   variable: "--font-ui",
@@ -28,8 +28,23 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" data-theme="light" suppressHydrationWarning>
       <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function () {
+                try {
+                  var savedTheme = localStorage.getItem("theme");
+                  var theme = savedTheme === "light" || savedTheme === "dark" ? savedTheme : "light";
+                  document.documentElement.setAttribute("data-theme", theme);
+                } catch (e) {
+                  document.documentElement.setAttribute("data-theme", "light");
+                }
+              })();
+            `,
+          }}
+        />
         <link
           rel="stylesheet"
           href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css"

@@ -537,8 +537,6 @@ export default function GridTable({
               opening_date: newDates.date_ouverture_prevu,
               evaluation_report: newDates.rapport_evaluation_prevu,
               contract_date: newDates.date_signature_prevu,
-              specifications_date:
-                newDates.listesetspecifications || newDates.dossiers_appel_prevu,
             };
 
       // Apply updates

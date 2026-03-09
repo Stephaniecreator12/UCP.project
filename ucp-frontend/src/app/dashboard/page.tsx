@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import TopHeader from "@/app/components/TopHeader";
 import { getAllProcurements, Procurement } from "@/services/api";
 import { getToken } from "@/services/auth";
@@ -10,16 +9,6 @@ import { getToken } from "@/services/auth";
 type ProcurementType = "Travaux" | "Biens" | "Consultance";
 
 type DistributionItem = { label: string; value: number };
-type DonutSegment = {
-  label: string;
-  value: number;
-  from: number;
-  to: number;
-  color: string;
-  idx: number;
-  delayMs: number;
-  durationMs: number;
-};
 
 type DistributionByType = Record<
   ProcurementType,
@@ -30,6 +19,13 @@ type DistributionByType = Record<
     amount: number;
   }
 >;
+
+type DonutSegment = DistributionItem & {
+  percent: number;
+  color: string;
+  strokeDasharray: string;
+  strokeDashoffset: number;
+};
 
 const TYPE_COLORS: Record<ProcurementType, string> = {
   Travaux: "#1f9d8b",
@@ -42,525 +38,353 @@ const METHOD_COLORS: Record<string, string> = {
   aoi: "#7ea9d4",
   dc: "#acae6bd6",
   ed: "#b16bccc9",
-  sfqc: "#5bd06ae0",
-  smc: "#7ea9d4",
-  sqc: "#acae6bd6",
-  sci: "#b16bccc9",
-  sed: "#ed4747d4",
+  sfq: "#34d399",
+  sfqc: "#60a5fa",
+  smc: "#f59e0b",
+  sqc: "#2dd4bf",
+  sci: "#f472b6",
+  sed: "#a78bfa",
+  restricted: "#fb7185",
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  "en cours": "#2f8f65",
-  attribue: "#1d78c2",
-  "attribue provisoire": "#6b69c9",
-  "attribue definitif": "#2d9b9b",
-  "a lancer": "#d89a2b",
-  annule: "#cc5c49",
-  termine: "#7ba83f",
-  "non defini": "#8d95a5",
+  "en cours": "#3b82f6",
+  termine: "#10b981",
+  annule: "#ef4444",
+  suspendu: "#f59e0b",
+  arrete: "#8b5e3c",
+  retard: "#f97316",
+  "dans les temps": "#14b8a6",
 };
 
-const METHOD_FALLBACK_COLORS = [
-  "#2f8f65",
-  "#1d78c2",
-  "#d89a2b",
-  "#cc5c49",
-  "#6b69c9",
-  "#2d9b9b",
-  "#7ba83f",
-];
+const FALLBACK_METHOD_COLOR = "#94a3b8";
+const FALLBACK_STATUS_COLOR = "#64748b";
 
-const STATUS_FALLBACK_COLORS = [
-  "#2f8f65",
-  "#1d78c2",
-  "#6b69c9",
-  "#d89a2b",
-  "#cc5c49",
-  "#2d9b9b",
-  "#7ba83f",
-];
-
-const TYPE_ORDER: ProcurementType[] = ["Travaux", "Biens", "Consultance"];
-const DONUT_RADIUS = 45;
-const DONUT_STROKE = 25; // +10% d'épaisseur (20 -> 22)
-const DONUT_ARC_STROKE = 20; // +10% d'épaisseur pour les arcs (16 -> 18)
-
-const pct = (value: number, total: number): number => {
-  if (total <= 0) return 0;
-  return Math.round((value / total) * 100);
-};
-
-const darkenColor = (color: string, factor = 0.55): string => {
-  const hex = color.trim().replace("#", "");
-  const normalized =
-    hex.length === 3
-      ? hex
-          .split("")
-          .map((c) => c + c)
-          .join("")
-      : hex.length >= 6
-        ? hex.slice(0, 6)
-        : "";
-  if (!/^[0-9a-fA-F]{6}$/.test(normalized)) return color;
-
-  const r = parseInt(normalized.slice(0, 2), 16);
-  const g = parseInt(normalized.slice(2, 4), 16);
-  const b = parseInt(normalized.slice(4, 6), 16);
-  const clamp = (v: number) => Math.max(0, Math.min(255, Math.round(v)));
-
-  return `rgb(${clamp(r * factor)}, ${clamp(g * factor)}, ${clamp(b * factor)})`;
-};
-
-const methodValue = (row: Procurement): string => {
-  const value = row.method ?? row.epm ?? "";
-  return String(value).trim().toLowerCase();
-};
-
-const typeLabel = (type: ProcurementType): string => {
-  if (type === "Biens") return "Biens & Services";
-  return type;
-};
-
-type AnimatedNumberProps = {
-  value: number;
-  formatter: (value: number) => string;
-  durationMs?: number;
-};
-
-type DonutCenterVariant = "method" | "status";
-
-type DonutCenterProps = {
-  variant: DonutCenterVariant;
-};
-
-function DonutCenter({ variant }: DonutCenterProps) {
-  const isMethod = variant === "method";
-
-  return (
-    <div className={`dash-donut-center dash-donut-center-${variant}`}>
-      <div className={`dash-center-icon ${variant}`} aria-hidden="true">
-        <Image
-          src={
-            isMethod
-              ? "/dashboard-icons/ads-click-rounded.svg"
-              : "/dashboard-icons/chronic-outline.svg"
-          }
-          alt=""
-          width={50}
-          height={40}
-          className="dash-center-photo"
-        />
-      </div>
-    </div>
-  );
+function normalizeKey(value: unknown) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
 }
 
+function buildDistribution(items: Procurement[], getValue: (item: Procurement) => unknown) {
+  const counts = new Map<string, number>();
 
-function AnimatedNumber({
-  value,
-  formatter,
-  durationMs = 900,
-}: AnimatedNumberProps) {
-  const [displayValue, setDisplayValue] = useState(0);
-  const previousValueRef = useRef(0);
+  items.forEach((item) => {
+    const key = normalizeKey(getValue(item));
+    if (!key || key === "-") return;
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  });
+
+  return Array.from(counts.entries())
+    .map(([label, value]) => ({ label, value }))
+    .sort((a, b) => b.value - a.value);
+}
+
+function getSegments(items: DistributionItem[], colors: Record<string, string>, fallbackColor: string): DonutSegment[] {
+  const total = items.reduce((sum, item) => sum + item.value, 0);
+  let offset = 0;
+
+  return items.map((item) => {
+    const percent = total > 0 ? (item.value / total) * 100 : 0;
+    const segment = {
+      ...item,
+      percent,
+      color: colors[item.label] ?? fallbackColor,
+      strokeDasharray: `${percent} ${Math.max(0, 100 - percent)}`,
+      strokeDashoffset: -offset,
+    };
+    offset += percent;
+    return segment;
+  });
+}
+
+function formatLabel(label: string) {
+  return label
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+// Hook pour animation de compteur
+function useCountAnimation(end: number, duration: number = 1500, startDelay: number = 0) {
+  const [count, setCount] = useState(0);
 
   useEffect(() => {
-    const startValue = previousValueRef.current;
-    const delta = value - startValue;
-    const startTime = performance.now();
-    let rafId = 0;
+    let startTime: number | null = null;
+    let animationFrame: number;
 
-    const tick = (now: number) => {
-      const elapsed = now - startTime;
-      const progress = Math.min(elapsed / durationMs, 1);
-      const eased = 1 - Math.pow(1 - progress, 3);
-      const next = startValue + delta * eased;
-      setDisplayValue(next);
+    const animate = (timestamp: number) => {
+      if (!startTime) startTime = timestamp;
+      const progress = timestamp - startTime;
 
-      if (progress < 1) {
-        rafId = requestAnimationFrame(tick);
+      if (progress < startDelay) {
+        animationFrame = requestAnimationFrame(animate);
+        return;
+      }
+
+      const animationProgress = Math.min((progress - startDelay) / duration, 1);
+      const easeOutQuart = 1 - Math.pow(1 - animationProgress, 3);
+      const currentCount = Math.floor(easeOutQuart * end);
+
+      setCount(currentCount);
+
+      if (animationProgress < 1) {
+        animationFrame = requestAnimationFrame(animate);
       } else {
-        previousValueRef.current = value;
+        setCount(end);
       }
     };
 
-    rafId = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafId);
-  }, [value, durationMs]);
+    animationFrame = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animationFrame);
+  }, [end, duration, startDelay]);
 
-  return <strong>{formatter(displayValue)}</strong>;
+  return count;
+}
+
+// Composant pour le compteur animé
+function AnimatedNumber({ value, duration = 1500, delay = 0, formatter }: { value: number; duration?: number; delay?: number; formatter?: (value: number) => string }) {
+  const count = useCountAnimation(value, duration, delay);
+  
+  if (formatter) {
+    return <>{formatter(count)}</>;
+  }
+  
+  return <>{count.toLocaleString("fr-FR")}</>;
 }
 
 export default function DashboardPage() {
-  const router = useRouter();
-  const [rows, setRows] = useState<Procurement[]>([]);
+  const [procurements, setProcurements] = useState<Procurement[]>([]);
   const [loading, setLoading] = useState(true);
-  const [legendsOpen, setLegendsOpen] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     if (!getToken()) {
       router.replace("/login");
+      return;
     }
-  }, [router]);
 
-  useEffect(() => {
-    if (!getToken()) return;
-
-    const load = async () => {
+    const fetchData = async () => {
       try {
         const data = await getAllProcurements();
-        setRows(data);
+        setProcurements(data);
+      } catch (err) {
+        console.error("Erreur dashboard:", err);
       } finally {
         setLoading(false);
       }
     };
-
-    load();
-  }, []);
-
-  useEffect(() => {
-    if (loading) return;
-    setLegendsOpen(false);
-    const timerId = window.setTimeout(() => {
-      setLegendsOpen(true);
-    }, 120);
-    return () => window.clearTimeout(timerId);
-  }, [loading, rows.length]);
+    fetchData();
+  }, [router]);
 
   const stats = useMemo(() => {
-    const totalRows = rows.length;
-    const totalAmount = rows.reduce((sum, row) => {
-      const amount = Number(row.estimated_amount ?? 0);
-      return Number.isFinite(amount) ? sum + amount : sum;
-    }, 0);
-
-    const distribution = TYPE_ORDER.reduce((acc, type) => {
-      const rowsOfType = rows.filter((r) => r.type === type);
-      const totalOfType = rowsOfType.length;
-      const amountOfType = rowsOfType.reduce((sum, row) => {
-        const amount = Number(row.estimated_amount ?? 0);
-        return Number.isFinite(amount) ? sum + amount : sum;
-      }, 0);
-
-      const mCount: Record<string, number> = {};
-      rowsOfType.forEach((r) => {
-        const m = methodValue(r);
-        if (m) mCount[m] = (mCount[m] || 0) + 1;
-      });
-
-      const sCount: Record<string, number> = {};
-      rowsOfType.forEach((r) => {
-        const s = r.status ? String(r.status) : "Non defini";
-        sCount[s] = (sCount[s] || 0) + 1;
-      });
-
-      acc[type] = {
-        methods: Object.entries(mCount).map(([k, v]) => ({
-          label: k,
-          value: pct(v, totalOfType),
-        })),
-        status: Object.entries(sCount).map(([k, v]) => ({
-          label: k,
-          value: pct(v, totalOfType),
-        })),
-        count: totalOfType,
-        amount: amountOfType,
-      };
-
-      return acc;
-    }, {} as DistributionByType);
-
-    return { totalRows, totalAmount, distribution };
-  }, [rows]);
-
-  const getLegendColor = (
-    label: string,
-    idx: number,
-    colorMap: Record<string, string>,
-    fallbackColors: string[],
-  ): string => {
-    const key = label.trim().toLowerCase();
-    return colorMap[key] || fallbackColors[idx % fallbackColors.length];
-  };
-
-  const formatAmount = (value: number): string =>
-    `${new Intl.NumberFormat("fr-FR").format(Math.round(value))} Ariary`;
-
-  const polarToCartesian = (
-    cx: number,
-    cy: number,
-    radius: number,
-    angleDeg: number,
-  ) => {
-    const rad = ((angleDeg - 90) * Math.PI) / 180;
-    return {
-      x: cx + radius * Math.cos(rad),
-      y: cy + radius * Math.sin(rad),
+    const dist: DistributionByType = {
+      Travaux: { methods: [], status: [], count: 0, amount: 0 },
+      Biens: { methods: [], status: [], count: 0, amount: 0 },
+      Consultance: { methods: [], status: [], count: 0, amount: 0 },
     };
-  };
 
-  const describeArc = (
-    cx: number,
-    cy: number,
-    radius: number,
-    startAngle: number,
-    endAngle: number,
-  ): string => {
-    const start = polarToCartesian(cx, cy, radius, startAngle);
-    const end = polarToCartesian(cx, cy, radius, endAngle);
-    const delta = Math.max(0, endAngle - startAngle);
-    const largeArcFlag = delta <= 180 ? "0" : "1";
-    return `M ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${end.x} ${end.y}`;
-  };
+    procurements.forEach((p) => {
+      const type = p.type as ProcurementType;
+      if (!dist[type]) return;
 
-  const renderDonutArcs = (
-    data: DistributionItem[],
-    colorMap: Record<string, string>,
-    fallbackColors: string[],
-  ) => {
-    const cleanData = data.filter((d) => d.value > 0);
-    const total = cleanData.reduce((sum, d) => sum + d.value, 0);
-    if (total <= 0) return null;
-
-    const gapDeg = cleanData.length > 1 ? 1.6 : 0;
-    const totalGap = gapDeg * cleanData.length;
-    const availableDeg = Math.max(360 - totalGap, 0);
-    let startAngle = 0;
-
-    const totalAnimMs = 600; //reglage durée totale de l'animation du donut
-    let cumulativeDelay = 0;
-    const segments: DonutSegment[] = cleanData.map((item, idx) => {
-      const arcDeg = (item.value / total) * availableDeg;
-      const from = startAngle;
-      const to = startAngle + arcDeg;
-      startAngle = to + gapDeg;
-
-      const color = getLegendColor(item.label, idx, colorMap, fallbackColors);
-      const durationMs = Math.max(
-        140,
-        Math.round((arcDeg / Math.max(availableDeg, 1)) * totalAnimMs),
-      );
-      const segment: DonutSegment = {
-        label: item.label,
-        value: item.value,
-        from,
-        to,
-        color,
-        idx,
-        delayMs: cumulativeDelay,
-        durationMs,
-      };
-      cumulativeDelay += durationMs;
-      return segment;
+      dist[type].count += 1;
+      dist[type].amount += Number(p.amount || 0);
     });
 
-    return (
-      <>
-        {segments.map((segment) => {
-          const arcDeg = segment.to - segment.from;
-          const midAngle = (segment.from + segment.to) / 2;
-          const labelPos = polarToCartesian(
-            64,
-            64,
-            DONUT_RADIUS,
-            midAngle,
-          );
-          const labelColor = darkenColor(segment.color);
-          const arcStyle = {
-            animationDelay: `${segment.delayMs}ms`,
-            animationDuration: `${segment.durationMs}ms`,
-          };
+    (Object.keys(dist) as ProcurementType[]).forEach((type) => {
+      const items = procurements.filter((p) => p.type === type);
+      dist[type].methods = buildDistribution(items, (item) => item.method);
+      dist[type].status = buildDistribution(items, (item) => item.status);
+    });
 
-          return (
-            <g key={`arc-${segment.label}-${segment.idx}`}>
-              <path
-                className="dash-donut-arc"
-                d={describeArc(
-                  64,
-                  64,
-                  DONUT_RADIUS,
-                  segment.from,
-                  arcDeg >= 359.5 ? segment.to - 0.01 : segment.to,
-                )}
-                fill="none"
-                stroke={segment.color}
-                strokeWidth={DONUT_ARC_STROKE}
-                strokeLinecap="butt"
-                pathLength={100}
-                style={arcStyle}
-              />
-              <text
-                className="dash-donut-pct-label"
-                x={labelPos.x}
-                y={labelPos.y}
-                textAnchor="middle"
-                dominantBaseline="middle"
-                style={{ fill: labelColor }}
-              >
-                {`${segment.value}%`}
-              </text>
-            </g>
-          );
-        })}
-      </>
-    );
-  };
+    return dist;
+  }, [procurements]);
+
+  // Calcul des totaux globaux
+  const totalMarches = procurements.length;
+  const totalMontant = procurements.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+
+  if (loading) return <div className="flex h-screen items-center justify-center bg-slate-50 text-slate-500">Chargement du tableau de bord...</div>;
 
   return (
-    <div className="app-shell dashboard-scroll-shell dashboard-style-master">
+    <div className="min-h-screen bg-[#eceeef] text-[#17212e]" style={{ fontFamily: "var(--font-ui), Segoe UI, Arial, sans-serif" }}>
+      <style>{`
+        @keyframes dashFadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes dashIntroSlide {
+          from { opacity: 0; transform: translateY(10px); filter: blur(4px); }
+          to { opacity: 1; transform: translateY(0); filter: blur(0); }
+        }
+        @keyframes donutGrow { from { stroke-dasharray: 0 100; opacity: 0.35; } }
+        @keyframes countPop {
+          0% { transform: scale(1); }
+          50% { transform: scale(1.05); color: #0ea85b; }
+          100% { transform: scale(1); }
+        }
+        .count-animate {
+          animation: countPop 0.3s ease-out;
+        }
+      `}</style>
+
       <TopHeader />
 
-      <main className="dash-page">
-        <header className="dash-header">
-          <div className="dash-header-main">
-            <h1 className="dash-title">
-              Tableau de Bord de Passation des Marches (PPM)
+      <main className="max-w-[1480px] mx-auto p-4 md:p-8 animate-[dashFadeIn_0.4s_ease-out]">
+        <header className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div className="animate-[dashIntroSlide_0.5s_ease-out_forwards]">
+            <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-[#17212e] mb-2" style={{ fontFamily: "var(--font-ui), Segoe UI, Arial, sans-serif" }}>
+              Tableau de Bord <span className="text-[#0ea85b]">UCP</span>
             </h1>
-            <p className="dash-kicker">
-              Suivi en temps reel de l&apos;etat d&apos;avancement des dossiers,
-              du lancement de la procedure a la validation financiere.
-            </p>
+            <p className="text-slate-500 font-medium">Suivi en temps reel des passations de marches</p>
           </div>
-          <div className="dash-header-stats">
-            <div className="panel-stat-item panel-stat-total panel-stat-total-count">
-              <span>Total marches</span>
-              {loading ? (
-                <strong>...</strong>
-              ) : (
-                <AnimatedNumber
-                  value={stats.totalRows}
-                  formatter={(v) =>
-                    new Intl.NumberFormat("fr-FR").format(Math.round(v))
-                  }
-                />
-              )}
+
+          <div className="flex gap-3 animate-[dashIntroSlide_0.6s_ease-out_forwards]">
+            {/* Card Nombre total de marchés */}
+            <div className="bg-white px-5 py-3 rounded-2xl border border-[#d9dee3] shadow-sm flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <div>
+                <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Marchés</div>
+                <div className="text-2xl font-black text-slate-800 count-animate">
+                  <AnimatedNumber value={totalMarches} duration={1800} />
+                </div>
+              </div>
             </div>
-            <div className="panel-stat-item panel-stat-total panel-stat-total-amount">
-              <span>Montant total</span>
-              {loading ? (
-                <strong>...</strong>
-              ) : (
-                <AnimatedNumber
-                  value={stats.totalAmount}
-                  formatter={formatAmount}
-                  durationMs={1100}
-                />
-              )}
+
+            {/* Card Montant total avec animation */}
+            <div className="bg-white px-5 py-3 rounded-2xl border border-[#d9dee3] shadow-sm flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div>
+                <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Montant Total</div>
+                <div className="text-2xl font-black text-slate-800 count-animate">
+                  <AnimatedNumber 
+                    value={totalMontant} 
+                    duration={2000} 
+                    delay={200}
+                    formatter={(val) => new Intl.NumberFormat("fr-FR", { style: "currency", currency: "MGA", maximumFractionDigits: 0 }).format(val)}
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </header>
-        <div className="dash-row-mid">
-          {TYPE_ORDER.map((type) => {
-            const data = stats.distribution[type];
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {(Object.keys(stats) as ProcurementType[]).map((type, index) => {
+            const methodSegments = getSegments(stats[type].methods, METHOD_COLORS, FALLBACK_METHOD_COLOR);
+            const statusSegments = getSegments(stats[type].status, STATUS_COLORS, FALLBACK_STATUS_COLOR);
+            const topMethod = methodSegments[0];
+            const topStatus = statusSegments[0];
 
             return (
-              <article key={type} className="dash-panel">
-                <h2 style={{ color: TYPE_COLORS[type] }}>{typeLabel(type)}</h2>
-                <div className="dash-panel-content">
-                  <div className="dash-charts-container">
-                    <div className="chart-item">
-                      <p className="chart-label">Methodes utilisees</p>
-                      <div className="chart-visual-row">
-                        <div
-                          className="dash-donut"
-                        >
-                          <svg
-                            className="dash-donut-svg"
-                            viewBox="0 0 128 128"
-                            aria-hidden="true"
-                          >
-                            <circle
-                              className="dash-donut-track"
-                              cx="64"
-                              cy="64"
-                              r={DONUT_RADIUS}
-                              fill="none"
-                              strokeWidth={DONUT_STROKE}
-                            />
-                            {renderDonutArcs(
-                              data?.methods || [],
-                              METHOD_COLORS,
-                              METHOD_FALLBACK_COLORS,
-                            )}
-                          </svg>
-                          <DonutCenter variant="method" />
-                        </div>
+              <article
+                key={type}
+                className="bg-white rounded-[1.5rem] border border-[#d9dee3] shadow-[0_18px_36px_-30px_rgba(34,44,52,0.5)] overflow-hidden transition-all hover:shadow-lg animate-[dashIntroSlide_0.7s_ease-out_forwards]"
+                style={{ animationDelay: `${index * 0.1}s` }}
+              >
+                <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+                  <div>
+                    <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight">{type}</h2>
+                  </div>
+                  <div
+                    className="w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-inner"
+                    style={{ backgroundColor: TYPE_COLORS[type] }}
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                    </svg>
+                  </div>
+                </div>
 
-                        <div
-                          className={`dash-legend-container dash-legend-side ${legendsOpen ? "open" : ""}`}
-                        >
-                          <ul className="dash-legend">
-                            {data?.methods.map((m, idx) => (
-                              <li key={m.label}>
-                                <i
-                                  style={{
-                                    backgroundColor: getLegendColor(
-                                      m.label,
-                                      idx,
-                                      METHOD_COLORS,
-                                      METHOD_FALLBACK_COLORS,
-                                    ),
-                                  }}
-                                />
-                                <span>{m.label.toUpperCase()}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
+                <div className="p-6 space-y-8">
+                  {/* Suppression de l'estimation budgétaire individuelle */}
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex flex-col items-center gap-3">
+                      <span className="text-[0.6rem] font-bold text-slate-500 uppercase">Methodes</span>
+                      <div className="relative w-20 h-20 flex items-center justify-center">
+                        <svg className="w-full h-full -rotate-90" viewBox="0 0 32 32">
+                          <circle cx="16" cy="16" r="14" fill="transparent" stroke="#f1f5f9" strokeWidth="4" />
+                          {methodSegments.map((segment) => (
+                            <circle
+                              key={segment.label}
+                              cx="16"
+                              cy="16"
+                              r="14"
+                              fill="transparent"
+                              stroke={segment.color}
+                              strokeWidth="4"
+                              strokeDasharray={segment.strokeDasharray}
+                              strokeDashoffset={segment.strokeDashoffset}
+                              className="animate-[donutGrow_1s_ease-out]"
+                            />
+                          ))}
+                        </svg>
+                        <span className="absolute text-[0.7rem] font-black text-slate-700">
+                          {topMethod ? `${Math.round(topMethod.percent)}%` : "0%"}
+                        </span>
                       </div>
                     </div>
 
-                    <div className="chart-item">
-                      <p className="chart-label">Statut d&apos;avancement</p>
-                      <div className="chart-visual-row">
-                        <div
-                          className="dash-donut"
-                        >
-                          <svg
-                            className="dash-donut-svg"
-                            viewBox="0 0 128 128"
-                            aria-hidden="true"
-                          >
+                    <div className="flex flex-col items-center gap-3">
+                      <span className="text-[0.6rem] font-bold text-slate-500 uppercase">Statuts</span>
+                      <div className="relative w-20 h-20 flex items-center justify-center">
+                        <svg className="w-full h-full -rotate-90" viewBox="0 0 32 32">
+                          <circle cx="16" cy="16" r="14" fill="transparent" stroke="#f1f5f9" strokeWidth="4" />
+                          {statusSegments.map((segment) => (
                             <circle
-                              className="dash-donut-track"
-                              cx="64"
-                              cy="64"
-                              r={DONUT_RADIUS}
-                              fill="none"
-                              strokeWidth={DONUT_STROKE}
+                              key={segment.label}
+                              cx="16"
+                              cy="16"
+                              r="14"
+                              fill="transparent"
+                              stroke={segment.color}
+                              strokeWidth="4"
+                              strokeDasharray={segment.strokeDasharray}
+                              strokeDashoffset={segment.strokeDashoffset}
+                              className="animate-[donutGrow_1s_ease-out]"
                             />
-                            {renderDonutArcs(
-                              data?.status || [],
-                              STATUS_COLORS,
-                              STATUS_FALLBACK_COLORS,
-                            )}
-                          </svg>
-                          <DonutCenter variant="status" />
+                          ))}
+                        </svg>
+                        <span className="absolute text-[0.7rem] font-black text-slate-700">
+                          {topStatus ? `${Math.round(topStatus.percent)}%` : "0%"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-4 border-t border-slate-50 grid grid-cols-2 gap-4">
+                    <ul className="space-y-2">
+                      {methodSegments.length > 0 ? methodSegments.map((segment) => (
+                        <li key={segment.label} className="flex items-center justify-between text-xs gap-3">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: segment.color }} />
+                            <span className="font-medium text-slate-600 truncate">{formatLabel(segment.label)}</span>
                           </div>
-
-                        <div
-                          className={`dash-legend-container dash-legend-side ${legendsOpen ? "open" : ""}`}
-                        > 
-                          <ul className="dash-legend">
-                            {data?.status.map((s, idx) => (
-                              <li key={s.label}>
-                                <i
-                                  style={{
-                                    backgroundColor: getLegendColor(
-                                      s.label,
-                                      idx,
-                                      STATUS_COLORS,
-                                      STATUS_FALLBACK_COLORS,
-                                    ),
-                                  }}
-                                />
-                                <span>{s.label}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      </div>
-                    </div>
+                          <span className="font-bold shrink-0">{segment.value}</span>
+                        </li>
+                      )) : <li className="text-xs text-slate-400">Aucune methode</li>}
+                    </ul>
+                    <ul className="space-y-2">
+                      {statusSegments.length > 0 ? statusSegments.map((segment) => (
+                        <li key={segment.label} className="flex items-center justify-between text-xs gap-3">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: segment.color }} />
+                            <span className="font-medium text-slate-600 truncate">{formatLabel(segment.label)}</span>
+                          </div>
+                          <span className="font-bold shrink-0">{segment.value}</span>
+                        </li>
+                      )) : <li className="text-xs text-slate-400">Aucun statut</li>}
+                    </ul>
                   </div>
                 </div>
               </article>
@@ -571,6 +395,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-
-

@@ -23,10 +23,6 @@ export default function TopHeader() {
   };
 
   const showAuthenticatedActions = pathname !== "/login";
-  const pillBaseClass =
-    "rounded-full border border-[var(--line-strong)] bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-[0_10px_20px_-16px_rgba(6,20,34,0.65)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_24px_-16px_rgba(6,20,34,0.65)]";
-  const activePillClass =
-    "border-[color-mix(in_srgb,var(--green-strong)_60%,white)] bg-[linear-gradient(180deg,#15ba66,var(--green-strong))] text-white shadow-[0_8px_16px_-11px_rgba(5,123,64,0.8)]";
 
   const handleHeaderMove = (event: MouseEvent<HTMLElement>) => {
     const header = headerRef.current;
@@ -48,81 +44,78 @@ export default function TopHeader() {
   return (
     <header
       ref={headerRef}
-      className="sticky top-0 z-40 overflow-hidden border-b border-[var(--line)] bg-[color-mix(in_srgb,var(--surface)_92%,transparent)] backdrop-blur-md"
       onMouseMove={handleHeaderMove}
       onMouseLeave={resetHeaderGlow}
+      style={{ "--mx": "50%", "--my": "50%" } as React.CSSProperties}
+      className="sticky top-0 z-40 overflow-hidden border-b border-slate-200/60 bg-white/90 backdrop-blur-md 
+                 before:content-[''] before:absolute before:inset-0 
+                 before:bg-[radial-gradient(420px_circle_at_var(--mx)_var(--my),rgba(34,197,94,0.16),transparent_60%)] 
+                 before:pointer-events-none"
     >
-      <div
-        className="pointer-events-none absolute inset-0"
-        aria-hidden="true"
-        style={{
-          background:
-            "radial-gradient(420px circle at var(--mx) var(--my), color-mix(in srgb, var(--green) 16%, transparent), transparent 60%)",
-        }}
-      />
-      <div
-        className="h-[3px] bg-[linear-gradient(90deg,var(--green),#1fcf78,var(--green))]"
-        aria-hidden="true"
-      />
-      <div
-        className="pointer-events-none absolute -left-8 -top-12 h-32 w-32 rounded-full opacity-45 blur-[28px]"
-        aria-hidden="true"
-        style={{ background: "color-mix(in srgb, var(--green) 35%, transparent)" }}
-      />
-      <div
-        className="pointer-events-none absolute -right-10 -top-16 h-36 w-36 rounded-full opacity-45 blur-[28px]"
-        aria-hidden="true"
-        style={{ background: "color-mix(in srgb, #7ed7ff 30%, transparent)" }}
-      />
-      <div className="relative z-[1] mx-auto grid max-w-[1480px] grid-cols-1 items-center gap-4 px-4 py-3 md:grid-cols-[auto_1fr_auto]">
-        <Link
-          href={showAuthenticatedActions ? "/formulaire" : "/login"}
-          className="inline-flex items-center gap-3 text-inherit no-underline"
-        >
+      {/* Ligne de couleur en haut */}
+      <div className="h-[3px] bg-gradient-to-r from-[#22c55e] via-[#1fcf78] to-[#22c55e]" aria-hidden="true" />
+      
+      {/* Orbes décoratives */}
+      <div className="absolute -top-[52px] -left-[34px] w-[130px] h-[130px] rounded-full blur-[28px] pointer-events-none opacity-45 bg-[#22c55e]/35" aria-hidden="true" />
+      <div className="absolute -top-[68px] -right-[42px] w-[150px] h-[150px] rounded-full blur-[28px] pointer-events-none opacity-45 bg-[#7ed7ff]/30" aria-hidden="true" />
+
+      <div className="relative z-10 max-w-[1480px] mx-auto px-4 py-[0.78rem] grid grid-cols-1 md:grid-cols-[auto_1fr_auto] items-center gap-4">
+        
+        {/* Logo & Brand */}
+        <Link href={showAuthenticatedActions ? "/formulaire" : "/login"} className="inline-flex items-center gap-3 no-underline text-inherit">
           <Image
             src="/ucp-sante-logo-color.png"
             alt="Logo UCP"
-            width={62}
-            height={62}
-            className="h-12 w-12 rounded-xl border border-[var(--line)] bg-white"
+            width={48}
+            height={48}
+            className="rounded-xl border border-slate-200 bg-white object-contain"
             priority
           />
-          <div className="grid gap-1">
-            <strong className="text-[0.96rem] font-bold uppercase tracking-[0.04em] text-[rgba(14,13,13,0.808)]">
-              unitÃ© de coordination des projets
+          <div className="grid gap-0.5">
+            <strong className="text-[0.96rem] font-bold uppercase tracking-[0.04em] text-slate-800">
+              unité de coordination des projets
             </strong>
-            <span className="text-xs tracking-[0.04em] text-gray-500">e-Procurement</span>
+            <span className="text-[0.74rem] text-slate-500 tracking-[0.03em]">e-Procurement</span>
           </div>
         </Link>
 
-        <div className="inline-flex items-center justify-center gap-2 md:justify-self-center">
+        {/* Navigation - Quick Links */}
+        <nav className="justify-self-center flex items-center gap-[0.55rem]">
           {showAuthenticatedActions && (
-            <Link
-              href="/formulaire"
-              className={`${pillBaseClass} ${pathname === "/formulaire" ? activePillClass : ""}`}
-            >
-              PPM
-            </Link>
+            <>
+              <Link
+                href="/formulaire"
+                className={`px-[0.95rem] py-[0.48rem] rounded-full border text-[0.84rem] font-bold transition-all duration-200 shadow-[0_10px_20px_-16px_rgba(6,20,34,0.65)]
+                  ${pathname === "/formulaire" 
+                    ? "border-green-500 bg-gradient-to-b from-[#15ba66] to-[#10b981] text-white shadow-[0_8px_16px_-11px_rgba(5,123,64,0.8)]" 
+                    : "border-slate-300 bg-white text-[#2f3d4c] hover:bg-slate-50"
+                  }`}
+              >
+                PPM
+              </Link>
+              <Link
+                href="/dashboard"
+                className={`px-[0.95rem] py-[0.48rem] rounded-full border text-[0.84rem] font-bold transition-all duration-200 shadow-[0_10px_20px_-16px_rgba(6,20,34,0.65)]
+                  ${pathname === "/dashboard" 
+                    ? "border-green-500 bg-gradient-to-b from-[#15ba66] to-[#10b981] text-white shadow-[0_8px_16px_-11px_rgba(5,123,64,0.8)]" 
+                    : "border-slate-300 bg-white text-[#2f3d4c] hover:bg-slate-50"
+                  }`}
+              >
+                Dashboard
+              </Link>
+            </>
           )}
-          {showAuthenticatedActions && (
-            <Link
-              href="/dashboard"
-              className={`${pillBaseClass} ${pathname === "/dashboard" ? activePillClass : ""}`}
-            >
-              Dashboard
-            </Link>
-          )}
-        </div>
+        </nav>
 
-        <div className="md:justify-self-end">
+        {/* Actions - Déconnexion */}
+        <div className="justify-self-end">
           {showAuthenticatedActions && (
             <button
               type="button"
-              className={`${pillBaseClass} text-[0.8rem]`}
               onClick={handleLogout}
-              title="Se dÃ©connecter"
+              className="px-[0.95rem] py-[0.46rem] rounded-full border border-slate-300 bg-white text-[#2f3d4c] text-[0.8rem] font-bold transition-all hover:bg-slate-50 shadow-[0_10px_20px_-16px_rgba(6,20,34,0.65)]"
             >
-              DÃ©connexion
+              Déconnexion
             </button>
           )}
         </div>

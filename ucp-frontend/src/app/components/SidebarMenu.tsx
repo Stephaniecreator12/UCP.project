@@ -12,7 +12,7 @@ interface SidebarMenuProps {
 const renderMenuIcon = (item: MenuItemType) => {
   if (item === "works") {
     return (
-      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="w-[18px] h-[18px]">
         <path d="M14.8 5.2l4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
         <path d="M12.2 7.8l4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
         <path d="M4.8 19.2l7.6-7.6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
@@ -23,7 +23,7 @@ const renderMenuIcon = (item: MenuItemType) => {
 
   if (item === "goods-services") {
     return (
-      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="w-[18px] h-[18px]">
         <rect x="4" y="5" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.8" />
         <rect x="13" y="5" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.8" />
         <rect x="4" y="14" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.8" />
@@ -33,7 +33,7 @@ const renderMenuIcon = (item: MenuItemType) => {
   }
 
   return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="w-[18px] h-[18px]">
       <circle cx="12" cy="8" r="3.2" stroke="currentColor" strokeWidth="1.8" />
       <path d="M5.5 19.2a6.5 6.5 0 0113 0" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
     </svg>
@@ -45,15 +45,13 @@ export default function SidebarMenu({
   onMenuSelect,
 }: SidebarMenuProps) {
   return (
-    <aside className="sticky top-[82px] self-start rounded-[var(--radius)] border border-[var(--line)] bg-[var(--surface)] p-3 shadow-[var(--shadow)] max-[1150px]:static">
-      <div className="px-2 pb-2">
-        <div
-          className="h-[3px] rounded-full bg-[linear-gradient(90deg,var(--green),#67d89f)]"
-          aria-hidden="true"
-        />
+<aside 
+  className="h-[calc(85vh-15px)] w-[200px] flex flex-col border border-[#d9dee3] rounded-[14px] bg-white shadow-[0_18px_36px_-30px_rgba(34,44,52,0.5)] p-4 max-[1150px]:static"
+>      <div className="p-2 mb-2">
+        <div className="h-[3px] rounded-full bg-gradient-to-r from-[#0ea85b] to-[#67d89f]" aria-hidden="true" />
       </div>
 
-      <nav className="grid gap-2">
+      <nav className="grid gap-[0.45rem] mt-2">
         {MENU_ITEMS.map((item: MenuItemType) => {
           const config = TABLE_CONFIGS[item];
           const isActive = activeMenu === item;
@@ -61,17 +59,15 @@ export default function SidebarMenu({
           return (
             <button
               key={item}
-              className={`grid grid-cols-[18px_1fr] items-center gap-2 rounded-[10px] border px-3 py-2 text-left transition ${
+              className={`text-[0.85rem] grid grid-cols-[18px_1fr] items-center gap-[0.6rem] border rounded-[10px] py-[0.6rem] px-[0.7rem] text-left cursor-pointer transition-colors ${
                 isActive
-                  ? "border-[color-mix(in_srgb,var(--green)_55%,white)] bg-[color-mix(in_srgb,var(--green-soft)_72%,white)] font-bold text-[#0e7f47]"
-                  : "border-[var(--line)] bg-white text-[#34414f] hover:bg-slate-50"
+                  ? "border-[#76cba0] bg-[#eaf9f0] text-[#0e7f47] font-bold"
+                  : "border-[#d9dee3] bg-white text-[#34414f]"
               }`}
               onClick={() => onMenuSelect(item)}
               title={config.label}
             >
-              <span className="h-[18px] w-[18px] [&_svg]:h-[18px] [&_svg]:w-[18px]">
-                {renderMenuIcon(item)}
-              </span>
+              <span>{renderMenuIcon(item)}</span>
               <span>{config.label}</span>
             </button>
           );

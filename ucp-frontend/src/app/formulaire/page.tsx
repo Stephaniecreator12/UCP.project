@@ -287,10 +287,18 @@ export default function GestionMarches() {
         title: String(row.title ?? "Sans titre"),
         review_notes:
           typeof row.review_status === "string" ? row.review_status : undefined,
-        date_invitation:
-          typeof (row.specifications_date || row.launch_date) === "string"
-            ? String(row.specifications_date || row.launch_date)
+        specifications_date:
+          typeof row.specifications_date === "string"
+            ? row.specifications_date
             : undefined,
+        date_invitation:
+          activeMenu === "consultants"
+            ? typeof row.invitation_date === "string"
+              ? row.invitation_date
+              : undefined
+            : typeof row.launch_date === "string"
+              ? row.launch_date
+              : undefined,
         date_opening_submissions:
           typeof row.opening_date === "string" ? row.opening_date : undefined,
         date_contract_signed:

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import TopHeader from "@/app/components/TopHeader";
 import { getAllProcurements, Procurement } from "@/services/api";
 import { getToken } from "@/services/auth";
-import "@/app/dashboard.css";
+import "@/app/styles/pages/dashboard.css";
 
 type ProcurementType = "Travaux" | "Biens" | "Consultance";
 

@@ -17,10 +17,6 @@ const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "UCP - Gestion des Marchés",
-  description: "Système de saisie et suivi des marchés",
-};
 
 export default function RootLayout({
   children,

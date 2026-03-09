@@ -1,22 +1,10 @@
+/* Importation de Tailwind v4 */
 @import "tailwindcss";
 
-@theme inline {
-  --color-background: var(--bg);
-  --color-foreground: var(--text);
-  --color-primary: var(--green);
-  --color-primary-foreground: #f7fff9;
-  --color-border: var(--line);
-  --color-input: var(--line);
-  --radius-sm: 8px;
-  --radius-md: 10px;
-  --radius-lg: var(--radius);
-}
-
 :root {
-  --radius: 14px;
   --bg: #eceeef;
-  --panel: #f6f7f8;
   --surface: #ffffff;
+  --panel: #f6f7f8;
   --line: #d9dee3;
   --line-strong: #bfc8d0;
   --text: #17212e;
@@ -25,702 +13,94 @@
   --green-strong: #078848;
   --green-soft: #e8f8ef;
   --danger: #bf3c3c;
+  --radius: 14px;
   --shadow: 0 18px 36px -30px rgba(34, 44, 52, 0.5);
 }
 
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
-
-html,
-body {
-  margin: 0;
-  min-height: 100%;
-}
-
-body {
-  font-family: var(--font-ui), "Segoe UI", sans-serif;
-  color: var(--text);
-  background:
-    radial-gradient(circle at 10% 0%, #f6faf8 0%, transparent 25%),
-    linear-gradient(180deg, #eceeef 0%, #e8eaed 100%);
-}
-
-.app-shell {
-  min-height: 100vh;
-}
-
-.dashboard {
-  display: grid;
-  grid-template-columns: 228px minmax(0, 1fr);
-  gap: 1rem;
-  padding: 1rem;
-}
-
-.dashboard-content,
-.dashboard-header,
-.grid-table-container,
-.password-modal-card,
-.dash-panel,
-.chart-item,
-.panel-stat-item {
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface);
-  box-shadow: var(--shadow);
-}
-
-.dashboard-content {
-  min-width: 0;
-  padding: 1rem;
-}
-
-.dashboard-header {
-  position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 1rem;
-  padding: 0.95rem 1rem 1rem;
-}
-
-.dashboard-header-accent {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  border-radius: var(--radius) var(--radius) 0 0;
-  background: linear-gradient(90deg, var(--green), #57d18d);
-}
-
-.dashboard-kicker,
-.dashboard-subtitle,
-.header-stat-label,
-.chart-label {
-  margin: 0;
-  color: var(--muted);
-  font-size: 0.8rem;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-
-.dashboard-title,
-.dash-title {
-  margin: 0.32rem 0;
-  font-weight: 800;
-  font-size: clamp(1.25rem, 2.3vw, 2.05rem);
-  color: #0c7340;
-  letter-spacing: 0.05em;
-}
-
-.dashboard-header-stats,
-.dash-header-stats {
-  display: grid;
-  grid-template-columns: auto auto;
-  gap: 0.65rem;
-  justify-content: end;
-}
-
-.header-stat-card,
-.panel-stat-item {
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--panel);
-  padding: 5px 0.7rem;
-}
-
-.header-stat-card-market {
-  width: 138px;
-}
-
-.header-stat-card-amount {
-  width: 253px;
-}
-
-.header-stat-value,
-.panel-stat-item strong {
-  display: block;
-  margin-top: 0.1rem;
-  color: #0c7340;
-}
-
-.save-message {
-  margin-top: 0.85rem;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 0.65rem 0.8rem;
-  font-weight: 600;
-}
-
-.save-message-success,
-.save-message-warning {
-  background: #e6f8ef;
-  border-color: #bce9cd;
-  color: #0c6f3d;
-}
-
-.save-message-error,
-.save-message-danger {
-  background: #fde9e9;
-  border-color: #f6c8c8;
-  color: #8d2525;
-}
-
-.dashboard-table-container {
-  margin-top: 0.9rem;
-  overflow: hidden;
-}
-
-.grid-table-container {
-  border: 0;
-  box-shadow: none;
-  border-radius: 0;
-}
-
-.grid-table-wrapper {
-  position: relative;
-  overflow: auto;
-  max-height: 56vh;
-  background: #fff;
-}
-
-.table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.table th,
-.table td {
-  border: 1px solid var(--line);
-}
-
-.table th {
-  padding: 9px 10px;
-  background: color-mix(in srgb, var(--green-soft) 34%, white);
-  color: #395569;
-  font-size: 0.72rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  position: sticky;
-  top: 0;
-  z-index: 20;
-}
-
-.table td {
-  background: #fff;
-}
-
-.table-hover tbody tr:hover td,
-.table-hover tbody tr:hover td.action-cell {
-  background: #f8fbf9;
-}
-
-.row-stopped td,
-.row-stopped td.action-cell {
-  background: #f3f3f3;
-  color: #727272;
-}
-
-.grid-cell {
-  vertical-align: middle;
-}
-
-.editable-cell {
-  background: #fff;
-}
-
-.readonly-cell {
-  background: #f7f8f9;
-}
-
-.cell-input {
-  width: 100%;
-  border: 1px solid var(--line);
-  border-radius: 9px;
-  background: #fff;
-  color: #243242;
-  padding: 0.42rem 0.56rem;
-  min-height: 34px;
-  font-size: 0.82rem;
-}
-
-.cell-input:focus {
-  outline: none;
-  border-color: #67bb91;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 18%, white);
-}
-
-.cell-date-wrap {
-  position: relative;
-}
-
-.cell-date {
-  padding-right: 2rem;
-}
-
-.cell-date-trigger {
-  position: absolute;
-  right: 0.45rem;
-  top: 50%;
-  transform: translateY(-50%);
-  border: 0;
-  background: transparent;
-  cursor: pointer;
-}
-
-.cell-date-trigger-icon {
-  width: 15px;
-  height: 15px;
-  display: block;
-  border: 2px solid #7b8b99;
-  border-top-width: 6px;
-  border-radius: 4px;
-}
-
-.cell-value {
-  min-height: 34px;
-  padding: 0.42rem 0.2rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  font-size: 0.82rem;
-}
-
-.action-cell {
-  position: sticky;
-  left: 0;
-  z-index: 15;
-  min-width: 132px;
-  background: #fff;
-  box-shadow: 4px 0 8px -8px rgba(18, 34, 48, 0.45);
-}
-
-.table thead th:first-child {
-  position: sticky;
-  left: 0;
-  z-index: 30;
-  background: color-mix(in srgb, var(--green-soft) 34%, white);
-  box-shadow: 4px 0 8px -8px rgba(18, 34, 48, 0.45);
-}
-
-.action-btn {
-  border: 1px solid var(--line-strong);
-  background: #fff;
-  color: #2d4456;
-  border-radius: 9px;
-  width: 30px;
-  height: 30px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-
-.action-btn-save {
-  border-color: #7bcda1;
-  color: #0f8148;
-  background: #ecf8f1;
-}
-
-.action-btn-delete {
-  border-color: #ebb2b2;
-  color: #b73939;
-  background: #fff1f1;
-}
-
-.action-btn-stop {
-  border-color: #d9c28f;
-  color: #7d6434;
-  background: #f7f0df;
-}
-
-.action-icon {
-  width: 15px;
-  height: 15px;
-}
-
-.status-pill-inline {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999px;
-  margin: 0.35rem;
-  font-size: 0.74rem;
-  font-weight: 700;
-  border: 1px solid var(--line);
-}
-
-.status-tone-late {
-  background: #fde8e8;
-  color: #a63131;
-}
-
-.status-tone-progress {
-  background: #e8f4ff;
-  color: #1f669d;
-}
-
-.status-tone-ontime {
-  background: #e8f8ef;
-  color: #0f7b43;
-}
-
-.status-tone-done {
-  background: #e3f8ef;
-  color: #0a6f3b;
-}
-
-.status-tone-stopped {
-  background: #f4ede2;
-  color: #6c5332;
-}
-
-.status-tone-default {
-  background: #eff2f5;
-  color: #516171;
-}
-
-.table-add-row-area {
-  border-top: 1px solid var(--line);
-  padding: 0.62rem 0.8rem;
-}
-
-.global-add-row-fab,
-.password-modal-btn {
-  border: 1px solid var(--line-strong);
-  border-radius: 999px;
-  background: #fff;
-  color: #2f3d4c;
-  font-weight: 700;
-  cursor: pointer;
-  transition: 0.2s ease;
-  text-decoration: none;
-}
-
-.global-add-row-fab {
-  padding: 0.52rem 1rem;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.44rem;
-  background: linear-gradient(180deg, #15ba66, var(--green-strong));
-  border-color: color-mix(in srgb, var(--green-strong) 62%, white);
-  color: #fff;
-}
-
-.global-add-row-fab:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.add-row-btn-icon {
-  font-size: 1rem;
-  line-height: 1;
-}
-
-.form-dark-floating-add-row {
-  display: none;
-}
-
-.password-modal-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 90;
-  background: rgba(18, 24, 32, 0.45);
-  backdrop-filter: blur(3px);
-  display: grid;
-  place-items: center;
-  padding: 1rem;
-}
-
-.password-modal-card {
-  width: min(460px, 100%);
-  padding: 1rem;
-}
-
-.password-modal-message {
-  margin: 0 0 0.8rem;
-  color: var(--muted);
-}
-
-.password-input-wrap {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 0.5rem;
-}
-
-.password-modal-input,
-.password-toggle-btn {
-  border: 1px solid var(--line);
-  border-radius: 10px;
-}
-
-.password-modal-input {
-  min-height: 40px;
-  padding: 0.5rem 0.75rem;
-  font-size: 0.9rem;
-}
-
-.password-toggle-btn {
-  width: 40px;
-  background: #fff;
-  cursor: pointer;
-}
-
-.password-modal-actions {
-  margin-top: 0.8rem;
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.5rem;
-}
-
-.password-modal-btn {
-  padding: 0.5rem 0.9rem;
-}
-
-.password-modal-btn-primary {
-  background: linear-gradient(180deg, #15ba66, var(--green-strong));
-  border-color: color-mix(in srgb, var(--green-strong) 62%, white);
-  color: #fff;
-}
-
-.date-validation-popup {
-  position: fixed;
-  z-index: 95;
-  right: 1rem;
-  bottom: 1rem;
-  width: min(420px, calc(100vw - 2rem));
-  border-radius: 12px;
-  border: 1px solid #f2cc97;
-  background: #fff5e7;
-  color: #744e1d;
-  padding: 0.75rem 0.85rem;
-  box-shadow: var(--shadow);
-}
-
-.method-required-popup {
-  border-color: #b7e2ca;
-  background: #eaf9f1;
-  color: #0b6c3b;
-}
-
-.date-validation-popup-title {
-  font-weight: 800;
-  font-size: 0.82rem;
-  margin-bottom: 0.25rem;
-}
-
-.date-validation-popup-text {
-  font-size: 0.8rem;
-  line-height: 1.35;
-}
-
-.dash-page {
-  min-height: calc(100vh - 78px);
-  padding: 0.8rem;
-}
-
-.dashboard-style-master.dashboard-scroll-shell {
-  height: 100vh;
-  overflow: hidden;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-}
-
-.dashboard-style-master.dashboard-scroll-shell .dash-page {
-  overflow-y: auto;
-}
-
-.dashboard-style-master.dashboard-scroll-shell .app-topline {
-  display: none;
-}
-
-.dash-header {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 0.9rem;
-}
-
-.dash-kicker {
-  margin: 0.5rem 0 0;
-  font-size: 0.9rem;
-  color: var(--muted);
-}
-
-.panel-stat-item {
-  padding: 0.62rem 0.78rem;
-  display: grid;
-  gap: 0.5rem;
-}
-
-.panel-stat-item span {
-  font-size: 0.73rem;
-  color: var(--muted);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.dash-row-mid {
-  margin-top: 0.8rem;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.8rem;
-}
-
-.dash-panel {
-  padding: 0.75rem;
-}
-
-.dash-panel h2 {
-  margin: 0 0 0.6rem;
-  font-size: 1.1rem;
-}
-
-.dash-charts-container {
-  display: grid;
-  gap: 0.55rem;
-}
-
-.chart-item {
-  padding: 0.62rem;
-}
-
-.chart-label {
-  margin-bottom: 0.4rem;
-  font-size: 0.68rem;
-  letter-spacing: 0.09em;
-}
-
-.chart-visual-row {
-  display: grid;
-  grid-template-columns: 142px 1fr;
-  gap: 0.6rem;
-  align-items: center;
-}
-
-.dash-donut {
-  width: 142px;
-  height: 142px;
-  border-radius: 50%;
-  position: relative;
-  display: grid;
-  place-items: center;
-  background: #f0f3f6;
-}
-
-.dash-donut-svg {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-}
-
-.dash-donut-track {
-  stroke: #d8dee4;
-}
-
-.dash-donut-arc {
-  stroke-dasharray: 100;
-  stroke-dashoffset: 100;
-  animation-name: donutFill;
-  animation-timing-function: linear;
-  animation-fill-mode: forwards;
-}
-
-.dash-donut-pct-label {
-  font-size: 8px;
-  font-weight: 700;
-}
-
-.dash-donut-center {
-  width: 72px;
-  height: 72px;
-  border-radius: 50%;
-  border: 1px solid #d4dce4;
-  background: #fff;
-  display: grid;
-  place-items: center;
-}
-
-.dash-center-photo {
-  opacity: 0.78;
-}
-
-.dash-legend {
+@theme {
+  /* Optionnel : si tu veux lier tes variables CSS au moteur Tailwind */
+  --color-ucp-green: var(--green);
+  --radius-ucp: var(--radius);
+  --font-sans: var(--font-ui), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-code), ui-monospace, monospace;
+}
+
+html, body {
   margin: 0;
   padding: 0;
-  list-style: none;
+  height: 100%;
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui), ui-sans-serif, system-ui, sans-serif;
 }
 
-.dash-legend li {
-  display: grid;
-  grid-template-columns: 10px 1fr;
-  gap: 0.45rem;
-  align-items: center;
-  border-bottom: 1px solid #ebeff3;
-  padding: 0.34rem 0;
-  font-size: 0.78rem;
-  color: #415669;
+/* En Tailwind v4, on définit les composants personnalisés 
+   directement après l'import sans forcément utiliser @layer 
+*/
+.btn-ucp-gradient {
+  @apply bg-emerald-600 text-white shadow-sm transition-all;
+  background-image: linear-gradient(180deg, #15ba66, var(--green-strong));
+  border: 1px solid rgba(5, 150, 105, 0.2);
 }
 
-.dash-legend i {
-  width: 10px;
-  height: 10px;
-  border-radius: 2px;
+.btn-ucp-gradient:hover {
+  @apply brightness-105;
 }
 
-.dash-legend-side {
-  opacity: 0;
-  transform: translateX(-10px);
-  max-height: 0;
-  overflow: hidden;
-  transition: 0.24s ease;
+.btn-ucp-gradient:active {
+  @apply scale-95;
 }
 
-.dash-legend-side.open {
-  opacity: 1;
-  transform: translateX(0);
-  max-height: 240px;
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
-@keyframes donutFill {
-  from { stroke-dashoffset: 100; }
-  to { stroke-dashoffset: 0; }
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-@media (max-width: 1150px) {
-  .dashboard,
-  .dash-row-mid {
-    grid-template-columns: 1fr;
+@keyframes dashFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes dashIntroSlide {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
   }
 }
 
-@media (max-width: 900px) {
-  .dashboard-header,
-  .dash-header,
-  .dashboard-header-stats,
-  .dash-header-stats,
-  .chart-visual-row {
-    grid-template-columns: 1fr;
+@keyframes saveMessageSlide {
+  from {
+    opacity: 0;
+    transform: translateX(120px);
   }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
 
-  .header-stat-card,
-  .header-stat-card-market,
-  .header-stat-card-amount {
-    width: 100%;
-  }
+.page-enter {
+  animation: dashFadeIn 0.4s ease-out both;
+}
 
-  .table-add-row-area {
-    display: none;
-  }
+.page-enter-up {
+  animation: dashIntroSlide 0.55s ease-out both;
+}
 
-  .form-dark-floating-add-row {
-    display: block;
-    position: fixed;
-    right: 1rem;
-    bottom: 1rem;
-    z-index: 50;
-  }
+.animate-saveMessageSlide {
+  animation-name: saveMessageSlide;
+  animation-duration: 0.5s;
+  animation-timing-function: cubic-bezier(0.22, 0.61, 0.36, 1);
+  animation-fill-mode: both;
 }

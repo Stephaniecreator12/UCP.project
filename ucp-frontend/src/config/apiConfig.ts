@@ -42,18 +42,3 @@ export function buildApiUrl(endpoint: string): string {
   return `${API_BASE_URL}${cleanPrefix}/${cleanEndpoint}`;
 }
 
-/**
- * Test de connexion au backend
- * Retourne true si le backend est accessible
- */
-export async function testBackendConnection(): Promise<boolean> {
-  try {
-    const response = await fetch(buildApiUrl("procurements/"), {
-      method: "HEAD", // Juste vérifier que ça répond, sans charger les données
-    });
-    return response.ok || response.status === 405; // 405 = Method not allowed mais serveur répond
-  } catch (error) {
-    console.error("Backend non accessible:", error);
-    return false;
-  }
-}

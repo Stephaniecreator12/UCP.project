@@ -33,6 +33,17 @@ export default function GridTable({
     title: string;
     message: string;
   } | null>(null);
+   
+    const formatDateForDisplay = (dateStr: string | null | undefined): string => {
+    if (!dateStr) return "";
+    // Si c'est au format ISO (AAAA-MM-JJ)
+    if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      const [year, month, day] = dateStr.split('-');
+      return `${day}/${month}/${year}`;
+    }
+    
+    return dateStr;
+    };
 
   const showDateValidationPopup = (message: string) => {
     setUiPopup({ kind: "date", title: "Date non valide", message });
@@ -381,11 +392,16 @@ export default function GridTable({
     return latestValues;
   };
 
+  const parseDateValue = (value: unknown): number | null => {
+    const raw = String(value ?? "").trim();
+    if (!raw) return null;
+    const timestamp = Date.parse(raw);
+    return Number.isNaN(timestamp) ? null : timestamp;
+  };
+
   const getStatusToneClass = (value: unknown, row: GridRow): string => {
     const normalized = String(value ?? "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    if (!row.listesetspecifications_reel || String(row.listesetspecifications_reel).trim() === "") {
-      if (normalized.includes("en cours")) return "bg-[#eff2f5] text-[#516171]";
-    }
+    
     if (normalized.includes("retard")) return "bg-[#fde8e8] text-[#a63131]";
     if (normalized.includes("en cours") || normalized.includes("encours") || normalized.includes("traitement")) return "bg-[#e8f4ff] text-[#1f669d]";
     if (normalized.includes("dans les temps")) return "bg-[#e8f8ef] text-[#0f7b43]";
@@ -523,7 +539,7 @@ export default function GridTable({
               rows.map((row) => {
                 const normalizedStatus = String(row.status ?? "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
                 const isRowStopped = Boolean(row._isStopped) || normalizedStatus === "arrete";
-                const isRowClosed = isRowStopped || normalizedStatus === "termine";
+                const isRowClosed = normalizedStatus === "termine";
                 const isNewRow = String(row._id ?? "").startsWith("_new_");
 
                 return (
@@ -552,8 +568,8 @@ export default function GridTable({
                       </button>
                       <button
                         className="border border-[#7bcda1] bg-[#ecf8f1] text-[#0f8148] rounded-[9px] w-[22px] h-[22px] inline-flex items-center justify-center cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                        onClick={(e) => { e.stopPropagation(); if (!isRowClosed && onRowSave) onRowSave(row); }}
-                        disabled={isRowClosed}
+                        onClick={(e) => { e.stopPropagation(); if ((!isRowStopped && !isRowClosed) && onRowSave) onRowSave(row); }}
+                        disabled={isRowStopped || isRowClosed}
                         title="Enregistrer la ligne"
                         aria-label="Enregistrer la ligne"
                       >
@@ -564,9 +580,7 @@ export default function GridTable({
                       </button>
                       <button
                         className="border border-[#ebb2b2] bg-[#fff1f1] text-[#b73939] rounded-[9px] w-[22px] h-[22px] inline-flex items-center justify-center cursor-pointer"
-                        onClick={(e) => { e.stopPropagation(); if (row._id && onRowDelete && (isRowStopped || isNewRow)) onRowDelete(row._id); }}
-                        disabled={isRowClosed || (!isRowStopped && !isNewRow)}
-                        aria-disabled={isRowClosed || (!isRowStopped && !isNewRow)}
+                        onClick={(e) => { e.stopPropagation(); if (row._id && onRowDelete) onRowDelete(row._id); }}
                         title="Supprimer"
                         aria-label="Supprimer la ligne"
                       >
@@ -577,11 +591,17 @@ export default function GridTable({
                     </div>
                   </td>
 
-                  {columns.map((column) => {
-                    const isStatusColumn = column.key === "status";
-                    const isColumnEditableForRow = column.isSplit ? (isCellEditable(row, column, false) || isCellEditable(row, column, true)) : isCellEditable(row, column, false);
-
-                    return (
+                      {columns.map((column) => {
+                            const isStatusColumn = column.key === "status";
+                            const isColumnEditableForRow = column.isSplit 
+                              ? (isCellEditable(row, column, false) || isCellEditable(row, column, true)) 
+                              : isCellEditable(row, column, false);
+                            
+                            const cellValue = getCellValue(row, column);
+                            
+                            const statusDisplayValue = cellValue; 
+                            const statusToneClass = isStatusColumn ? getStatusToneClass(statusDisplayValue, row) : "";
+                        return (
                     <td
                       key={`${row._id}-${column.key}`}
                       data-col-key={column.key}
@@ -638,9 +658,9 @@ export default function GridTable({
                                 {isActive && isCellEditable(row, column, isActual) ? (
                                   <GridCell column={column} value={row[effectiveKey] ?? ""} onChange={(val) => commitCellValue(row, column, effectiveKey, val, false)} onConfirm={(val) => commitCellValue(row, column, effectiveKey, val, true)} onValidationMessage={showDateValidationPopup} onBlur={() => undefined} onKeyDown={handleClassicInputKeyDown} minDate={column.type === "date" ? getDateBounds(row, effectiveKey).minDate : undefined} maxDate={column.type === "date" ? getDateBounds(row, effectiveKey).maxDate : undefined} />
                                 ) : (
-                      <div className="flex items-center justify-center text-center min-h-[18px] py-[0.2rem] px-[0.2rem] text-[0.82rem] overflow-hidden text-ellipsis whitespace-nowrap font-medium">
-                                    {String(row[effectiveKey] ?? "")}
-                                  </div>
+                             <div className="flex items-center justify-center text-center min-h-[18px] py-[0.2rem] px-[0.2rem] text-[0.82rem] overflow-hidden text-ellipsis whitespace-nowrap font-medium">
+                               {column.type === "date" ? formatDateForDisplay(String(row[effectiveKey] ?? "")) : String(row[effectiveKey] ?? "")}
+                             </div>
                                 )}
                               </div>
                             );
@@ -648,7 +668,7 @@ export default function GridTable({
                         </div>
                       ) : (
                         <div
-                          className={isStatusColumn ? `flex items-center justify-center rounded-full m-[0.35rem] text-[0.74rem] font-bold border border-[#d9dee3] h-full w-full ${getStatusToneClass(getCellValue(row, column), row)}` : "h-full w-full p-2 flex items-center justify-center"}
+                          className={isStatusColumn ? `flex items-center justify-center rounded-full m-[0.35rem] text-[0.74rem] font-bold border border-[#d9dee3] h-full w-full ${statusToneClass}` : "h-full w-full p-2 flex items-center justify-center"}
                           onClick={() => { if (column.type === "action_button" && column.key === "action_calculation") handleCalculate(row); }}
                         >
                           {column.type === "action_button" ? (
@@ -659,8 +679,9 @@ export default function GridTable({
                             <GridCell column={column} value={row[column.key] ?? ""} onChange={(val) => commitCellValue(row, column, column.key, val, false)} onBlur={() => undefined} onConfirm={(val) => commitCellValue(row, column, column.key, val, true)} onValidationMessage={showDateValidationPopup} onKeyDown={handleClassicInputKeyDown} minDate={column.type === "date" ? getDateBounds(row, column.key).minDate : undefined} maxDate={column.type === "date" ? getDateBounds(row, column.key).maxDate : undefined} />
                           ) : (
                             <div className="flex items-center justify-center text-center min-h-[18px] py-[0.2rem] px-[0.2rem] text-[0.82rem]">
-                              {getCellValue(row, column)}
-                            </div>
+                              {isStatusColumn ? statusDisplayValue : 
+                              column.type === "date" ? formatDateForDisplay(cellValue) : cellValue}
+                             </div>
                           )}
                         </div>
                       )}

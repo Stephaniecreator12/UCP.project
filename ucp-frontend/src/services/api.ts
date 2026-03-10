@@ -458,6 +458,7 @@ export async function getProcurementStatus(
         : `${API_BASE_URL}/api/Biens/statutBiens/`;
 
     dates_prevues = {
+      listesetspecifications_prevu: toDateValue(row.specifications_date),
       dossiers_appel_prevu: toDateValue(row.tender_documents_date),
       date_lancement_prevu: toDateValue(row.launch_date),
       date_ouverture_prevu: toDateValue(row.opening_date),
@@ -467,6 +468,7 @@ export async function getProcurementStatus(
     };
 
     dates_reels = {
+      listesetspecifications_reel: toDateValue(row.specifications_date_actual),
       dossiers_appel_reel: toDateValue(row.tender_documents_date_actual),
       date_lancement_reel: toDateValue(row.launch_date_actual),
       date_ouverture_reel: toDateValue(row.opening_date_actual),

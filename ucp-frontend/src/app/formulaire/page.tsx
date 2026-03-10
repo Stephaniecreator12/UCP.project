@@ -127,17 +127,57 @@ export default function GestionMarches() {
   };
 
   const handleRowChange = (rowId: string, columnKey: string, value: unknown) => {
-    setRows((prevRows) => prevRows.map((row) => row._id === rowId ? { ...row, [columnKey]: value } : row));
-  };
+  setRows((prevRows) => 
+    prevRows.map((row) => {
+      if (row._id === rowId) {
+        const updatedRow = { ...row, [columnKey]: value };
+        
+        // Si on modifie une date, on recalcule le statut
+        if (columnKey.includes('date') || columnKey === 'specifications_date') {
+          // Recalculer le statut asynchrone
+          setTimeout(async () => {
+            try {
+              const typeMapping: Record<string, "Travaux" | "Biens" | "Consultance"> = { 
+                works: "Travaux", 
+                "goods-services": "Biens", 
+                consultants: "Consultance" 
+              };
+              const newStatus = await getProcurementStatus(
+                typeMapping[activeMenu], 
+                updatedRow
+              );
+              
+              setRows((currentRows) => 
+                currentRows.map((r) => 
+                  r._id === rowId ? { ...r, status: newStatus } : r
+                    )
+                  );
+                } catch (error) {
+                  console.error("Erreur calcul statut:", error);
+                }
+              }, 100);
+            }
+            
+            return updatedRow;
+          }
+          return row;
+        })
+      );
+    };
 
   const handleRowDelete = async (rowId: string) => {
     try {
       if (!rowId.startsWith("_new_")) {
+        const numericId = Number(rowId);
+        if (!Number.isFinite(numericId) || numericId <= 0) {
+          setSaveMessage({ type: "error", message: "Id de ligne invalide." });
+          return;
+        }
         const password = await requestPasswordConfirmation({ title: "Supprimer la ligne", message: "Confirme l'action avec ton mot de passe.", confirmLabel: "Supprimer" });
         if (!password) { setSaveMessage({ type: "error", message: "Suppression annulée." }); return; }
         const typeMapping: Record<MenuItemType, "Travaux" | "Biens" | "Consultance"> = { works: "Travaux", "goods-services": "Biens", consultants: "Consultance" };
         const rowToDelete = rows.find((r) => r._id === rowId);
-        await deleteProcurement(Number(rowId), (rowToDelete?.type as "Travaux" | "Biens" | "Consultance") ?? typeMapping[activeMenu], password);
+        await deleteProcurement(numericId, (rowToDelete?.type as "Travaux" | "Biens" | "Consultance") ?? typeMapping[activeMenu], password);
       }
       setRows((prev) => prev.filter((r) => r._id !== rowId));
       setSaveMessage({ type: "danger", message: "Ligne supprimée." });
@@ -211,7 +251,7 @@ export default function GestionMarches() {
           <SidebarMenu activeMenu={activeMenu} onMenuSelect={setActiveMenu} />
         </div>
 
-        <main className="page-enter-up min-w-0 p-4 border border-[#d9dee3] rounded-[14px] bg-white shadow-[0_18px_36px_-30px_rgba(34,44,52,0.5)] overflow-hidden flex flex-col " style={{ animationDelay: "0.14s", position: "relative", height: "calc(100vh - 109px)" }}>
+        <main className="page-enter-up min-w-0 p-3 border border-[#d9dee3] rounded-[14px] bg-white shadow-[0_18px_36px_-30px_rgba(34,44,52,0.5)] overflow-hidden flex flex-col py-2" style={{ animationDelay: "0.14s", position: "relative", height: "calc(100vh - 109px)" }}>
           <header className="page-enter-up relative grid grid-cols-[minmax(0,1fr)_auto] max-[900px]:grid-cols-1 gap-4 pt-[0.95rem] px-4 pb-4 border border-[#d9dee3] rounded-[14px] bg-white shadow-[0_18px_36px_-30px_rgba(34,44,52,0.5)]" style={{ animationDelay: "0.2s" }}>
             <div className="absolute top-0 inset-x-0 h-1 rounded-t-[14px] bg-gradient-to-r from-[#0ea85b] to-[#57d18d]" aria-hidden="true" />
             

@@ -31,6 +31,7 @@ export default function GridCell({
   const [draftDate, setDraftDate] = React.useState<string>(typeof value === "string" ? value : "");
   const inputValue = typeof value === "string" || typeof value === "number" ? value : "";
 
+
  const baseInputClasses = "w-full bg-transparent border-none focus:ring-2 focus:ring-emerald-500/30 rounded-md px-2 py-0 transition-all outline-none text-[0.875rem] min-h-[24px]";
   useEffect(() => {
     if (autoFocus && inputRef.current) inputRef.current.focus();
@@ -134,38 +135,38 @@ export default function GridCell({
   }
 
   if (column.type === "date") {
-    return (
-      <div className="relative flex items-center group w-full">
-        <input
-          ref={inputRef as React.Ref<HTMLInputElement>}
-          type="date"
-          value={draftDate}
-          min={minDate}
-          max={maxDate}
-          onChange={(e) => setDraftDate(e.target.value)}
-          onBlur={(e) => {
-            const nextValue = e.target.value;
-            let accepted = true;
-            if (onConfirm) accepted = onConfirm(nextValue) !== false;
-            else onChange(nextValue);
-            if (!accepted) setDraftDate(typeof value === "string" ? value : "");
-            onBlur();
-          }}
-          onKeyDown={onKeyDown}
-          className={`${baseInputClasses} text-slate-700 pr-8 appearance-none`}
-        />
-        <button
-          type="button"
-          className="absolute right-2 text-slate-400 hover:text-emerald-600"
-          onClick={() => (inputRef.current as HTMLInputElement)?.showPicker?.()}
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
-        </button>
-      </div>
-    );
-  }
+  return (
+    <div className="relative flex items-center group w-full">
+      <input
+        ref={inputRef as React.Ref<HTMLInputElement>}
+        type="date"
+        value={draftDate}
+        min={minDate}
+        max={maxDate}
+        onChange={(e) => setDraftDate(e.target.value)}
+        onBlur={(e) => {
+          const nextValue = e.target.value;
+          let accepted = true;
+          if (onConfirm) accepted = onConfirm(nextValue) !== false;
+          else onChange(nextValue);
+          if (!accepted) setDraftDate(typeof value === "string" ? value : "");
+          onBlur();
+        }}
+        onKeyDown={onKeyDown}
+        className={`${baseInputClasses} text-slate-700 pr-8 appearance-none`}
+      />
+      <button
+        type="button"
+        className="absolute right-2 text-slate-400 hover:text-emerald-600"
+        onClick={() => (inputRef.current as HTMLInputElement)?.showPicker?.()}
+      >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+          </button>
+        </div>
+      );
+    }
 
   if (column.type === "textarea") {
     return (

@@ -450,6 +450,8 @@ export default function GridTable({
   };
 
   const isCellEditable = (row: GridRow, column: ColumnConfig, isActual: boolean) => {
+    const normalizedStatus = String(row.status ?? "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    if (normalizedStatus === "arrete") return false;
     const isConsultanceForfaitAfterCalc = row.type === "Consultance" && row._isCalculated === true && String(row.pricing_type ?? "forfait").toLowerCase() === "forfait";
     if (column.type === "action_button" || column.key === "status" || column.readonly || column.editable === false) return false;
     if (!isActual && (column.key === "delivery_date" || column.key === "mission_end_date")) return true;
@@ -488,20 +490,20 @@ export default function GridTable({
         @keyframes methodFocus { 0% { transform: scale(1); } 40% { transform: scale(1.03); } 100% { transform: scale(1); } }
       `}</style>
       
-      <div className="relative overflow-auto max-h-[80vh] bg-white" ref={wrapperRef}>
+      <div className="relative overflow-auto max-h-[56vh] bg-white" ref={wrapperRef}>
         <table className="w-full border-collapse mb-0">
           <thead>
             <tr>
               <th
-                className="text-center sticky top-0 left-0 z-30 bg-[#f3fbf6] text-[#395569] text-[0.65rem] tracking-[0.04em] uppercase py-[9px] px-[10px] border border-[#d9dee3] shadow-[4px_0_8px_-8px_rgba(18,34,48,0.45)]"
-                style={{ width: "120px", minWidth: "120px", fontFamily: "var(--font-ui), Segoe UI, Arial, sans-serif" }}
+                className="text-center sticky top-0 left-0 z-30 bg-[#f3fbf6] text-[#395569] text-[0.72rem] tracking-[0.04em] uppercase py-[9px] px-[10px] border border-[#d9dee3] shadow-[4px_0_8px_-8px_rgba(18,34,48,0.45)]"
+                style={{ width: "124px", minWidth: "124px", fontFamily: "var(--font-ui), Segoe UI, Arial, sans-serif" }}
               >
                 Action
               </th>
               {columns.map((column) => (
                 <th
                   key={column.key}
-                  className="sticky top-0 z-20 bg-[#f3fbf6] text-[#395569] text-[0.65rem] tracking-[0.04em] uppercase py-[9px] px-[10px] border border-[#d9dee3] text-center"
+                  className="sticky top-0 z-20 bg-[#f3fbf6] text-[#395569] text-[0.72rem] tracking-[0.04em] uppercase py-[9px] px-[10px] border border-[#d9dee3] text-center"
                   style={{ width: getColumnWidth(column), minWidth: getColumnWidth(column) }}
                 >
                   {column.label}
@@ -520,7 +522,7 @@ export default function GridTable({
             ) : (
               rows.map((row) => {
                 const normalizedStatus = String(row.status ?? "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                const isRowStopped = normalizedStatus === "arrete";
+                const isRowStopped = Boolean(row._isStopped) || normalizedStatus === "arrete";
                 const isRowClosed = isRowStopped || normalizedStatus === "termine";
                 const isNewRow = String(row._id ?? "").startsWith("_new_");
 
@@ -529,14 +531,15 @@ export default function GridTable({
                   key={row._id}
                   data-row-id={String(row._id ?? "")}
                   className={`group ${isRowStopped ? "bg-[#f3f3f3] text-[#727272]" : "hover:bg-[#f8fbf9]"} ${isNewRow ? "animate-[rowAddGlow_0.45s_ease]" : ""}`}
+                  style={isRowStopped ? { filter: "grayscale(0.65)", opacity: 0.85 } : undefined}
                 >
                   <td
-                    className={`text-center align-middle sticky left-0 z-15 border border-[#d9dee3] p-2 shadow-[4px_0_8px_-8px_rgba(18,34,48,0.45)] ${isRowStopped ? "bg-[#f3f3f3]" : "bg-white group-hover:bg-[#f8fbf9]"}`}
+                  className={`text-center align-middle sticky left-0 z-15 border border-[#d9dee3] p-[0.2rem] shadow-[4px_0_8px_-8px_rgba(18,34,48,0.45)] ${isRowStopped ? "bg-[#f3f3f3]" : "bg-white group-hover:bg-[#f8fbf9]"}`}
                     style={{ width: "124px", minWidth: "124px" }}
                   >
-                    <div className="flex gap-2 justify-center p-[0.36rem]">
+                      <div className="flex gap-2 justify-center p-[0.16rem]">
                       <button
-                        className="border border-[#d9c28f] bg-[#f7f0df] text-[#7d6434] rounded-[9px] w-[30px] h-[30px] inline-flex items-center justify-center cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="border border-[#d9c28f] bg-[#f7f0df] text-[#7d6434] rounded-[9px] w-[22px] h-[22px] inline-flex items-center justify-center cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                         onClick={(e) => { e.stopPropagation(); if (row._id && onRowStop && !isNewRow && !isRowStopped) onRowStop(row._id); }}
                         disabled={isNewRow || isRowStopped}
                         title="Arrêter"
@@ -548,7 +551,7 @@ export default function GridTable({
                         </svg>
                       </button>
                       <button
-                        className="border border-[#7bcda1] bg-[#ecf8f1] text-[#0f8148] rounded-[9px] w-[30px] h-[30px] inline-flex items-center justify-center cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="border border-[#7bcda1] bg-[#ecf8f1] text-[#0f8148] rounded-[9px] w-[22px] h-[22px] inline-flex items-center justify-center cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                         onClick={(e) => { e.stopPropagation(); if (!isRowClosed && onRowSave) onRowSave(row); }}
                         disabled={isRowClosed}
                         title="Enregistrer la ligne"
@@ -560,8 +563,10 @@ export default function GridTable({
                         </svg>
                       </button>
                       <button
-                        className="border border-[#ebb2b2] bg-[#fff1f1] text-[#b73939] rounded-[9px] w-[30px] h-[30px] inline-flex items-center justify-center cursor-pointer"
-                        onClick={(e) => { e.stopPropagation(); if (row._id && onRowDelete) onRowDelete(row._id); }}
+                        className="border border-[#ebb2b2] bg-[#fff1f1] text-[#b73939] rounded-[9px] w-[22px] h-[22px] inline-flex items-center justify-center cursor-pointer"
+                        onClick={(e) => { e.stopPropagation(); if (row._id && onRowDelete && (isRowStopped || isNewRow)) onRowDelete(row._id); }}
+                        disabled={isRowClosed || (!isRowStopped && !isNewRow)}
+                        aria-disabled={isRowClosed || (!isRowStopped && !isNewRow)}
                         title="Supprimer"
                         aria-label="Supprimer la ligne"
                       >
@@ -580,8 +585,8 @@ export default function GridTable({
                     <td
                       key={`${row._id}-${column.key}`}
                       data-col-key={column.key}
-                      className={`align-middle border border-[#d9dee3] ${isStatusColumn ? "" : isRowStopped ? "" : isColumnEditableForRow ? "bg-white group-hover:bg-[#f8fbf9]" : "bg-[#f7f8f9]"}`}
-                      style={{ width: getColumnWidth(column), minWidth: getColumnWidth(column), padding: isStatusColumn ? "0" : "8px 12px", cursor: isColumnEditableForRow && !isStatusColumn ? "pointer" : "not-allowed" }}
+                      className={`align-middle border border-[#d9dee3] ${isStatusColumn ? "" : isRowStopped ? "" : isColumnEditableForRow ? "bg-white group-hover:bg-[#f8fbf9]" : "bg-[#f7f8f9]"} ${isRowStopped ? "pointer-events-none select-none" : ""}`}
+                      style={{ width: getColumnWidth(column), minWidth: getColumnWidth(column), padding: isStatusColumn ? "0" : "4px 8px", cursor: isColumnEditableForRow && !isStatusColumn ? "pointer" : "not-allowed" }}
                     >
                       {column.isSplit ? (
                         <div className="flex flex-col h-full">
@@ -615,7 +620,7 @@ export default function GridTable({
                                 <div
                                   key={isActual ? "bottom" : "top"}
                                   className={`flex-grow p-2 flex items-center justify-center m-1 ${isActual ? "border-t border-[#d9dee3]" : ""}`}
-                                  style={{ ...buttonStyle, minHeight: "35px", borderRadius: "8px", cursor: isRowStopped || switchBlockedReason ? "not-allowed" : "pointer", fontWeight: "700", fontSize: "0.80rem", letterSpacing: "0.025em", transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)", userSelect: "none", opacity: isRowStopped || switchBlockedReason ? 0.6 : 1 }}
+                                  style={{ ...buttonStyle, minHeight: "18px", borderRadius: "8px", cursor: isRowStopped || switchBlockedReason ? "not-allowed" : "pointer", fontWeight: "700", fontSize: "0.80rem", letterSpacing: "0.025em", transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)", userSelect: "none", opacity: isRowStopped || switchBlockedReason ? 0.6 : 1 }}
                                   onClick={(e) => { e.stopPropagation(); if (isRowStopped) return; if (switchBlockedReason) return alert(switchBlockedReason); if (onRowChange && row._id) onRowChange(row._id, column.key, targetValue); }}
                                 >
                                   {isActual ? (isPricing ? "Temps passé" : "Réel") : (isPricing ? "Forfait" : "Prévu")}
@@ -628,12 +633,12 @@ export default function GridTable({
                               <div
                                 key={isActual ? "bottom" : "top"}
                                 className={`flex-grow p-2 ${isActual ? "border-t border-[#d9dee3]" : ""}`}
-                                style={{ backgroundColor: bgColor, color: textColor, minHeight: "35px", cursor: (isActive && isCellEditable(row, column, isActual)) ? "text" : "not-allowed", transition: "all 0.2s ease" }}
+                                style={{ backgroundColor: bgColor, color: textColor, minHeight: "18px", cursor: (isActive && isCellEditable(row, column, isActual)) ? "text" : "not-allowed", transition: "all 0.2s ease" }}
                               >
                                 {isActive && isCellEditable(row, column, isActual) ? (
                                   <GridCell column={column} value={row[effectiveKey] ?? ""} onChange={(val) => commitCellValue(row, column, effectiveKey, val, false)} onConfirm={(val) => commitCellValue(row, column, effectiveKey, val, true)} onValidationMessage={showDateValidationPopup} onBlur={() => undefined} onKeyDown={handleClassicInputKeyDown} minDate={column.type === "date" ? getDateBounds(row, effectiveKey).minDate : undefined} maxDate={column.type === "date" ? getDateBounds(row, effectiveKey).maxDate : undefined} />
                                 ) : (
-                                  <div className="flex items-center justify-center text-center min-h-[34px] py-[0.42rem] px-[0.2rem] text-[0.82rem] overflow-hidden text-ellipsis whitespace-nowrap font-medium">
+                      <div className="flex items-center justify-center text-center min-h-[18px] py-[0.2rem] px-[0.2rem] text-[0.82rem] overflow-hidden text-ellipsis whitespace-nowrap font-medium">
                                     {String(row[effectiveKey] ?? "")}
                                   </div>
                                 )}
@@ -653,7 +658,7 @@ export default function GridTable({
                           ) : isColumnEditableForRow && !isStatusColumn ? (
                             <GridCell column={column} value={row[column.key] ?? ""} onChange={(val) => commitCellValue(row, column, column.key, val, false)} onBlur={() => undefined} onConfirm={(val) => commitCellValue(row, column, column.key, val, true)} onValidationMessage={showDateValidationPopup} onKeyDown={handleClassicInputKeyDown} minDate={column.type === "date" ? getDateBounds(row, column.key).minDate : undefined} maxDate={column.type === "date" ? getDateBounds(row, column.key).maxDate : undefined} />
                           ) : (
-                            <div className="flex items-center justify-center text-center min-h-[24px] py-0 px-[0.2rem] text-[0.82rem]">
+                            <div className="flex items-center justify-center text-center min-h-[18px] py-[0.2rem] px-[0.2rem] text-[0.82rem]">
                               {getCellValue(row, column)}
                             </div>
                           )}

@@ -108,7 +108,6 @@ function formatLabel(label: string) {
     .join(" ");
 }
 
-// Hook pour animation de compteur
 function useCountAnimation(end: number, duration: number = 1500, startDelay: number = 0) {
   const [count, setCount] = useState(0);
 
@@ -145,14 +144,9 @@ function useCountAnimation(end: number, duration: number = 1500, startDelay: num
   return count;
 }
 
-// Composant pour le compteur animé
 function AnimatedNumber({ value, duration = 1500, delay = 0, formatter }: { value: number; duration?: number; delay?: number; formatter?: (value: number) => string }) {
   const count = useCountAnimation(value, duration, delay);
-  
-  if (formatter) {
-    return <>{formatter(count)}</>;
-  }
-  
+  if (formatter) return <>{formatter(count)}</>;
   return <>{count.toLocaleString("fr-FR")}</>;
 }
 
@@ -192,7 +186,8 @@ export default function DashboardPage() {
       if (!dist[type]) return;
 
       dist[type].count += 1;
-      dist[type].amount += Number(p.amount || 0);
+      const amountValue = parseFloat(String(p.estimated_amount || 0));
+      dist[type].amount += isNaN(amountValue) ? 0 : amountValue;
     });
 
     (Object.keys(dist) as ProcurementType[]).forEach((type) => {
@@ -204,9 +199,13 @@ export default function DashboardPage() {
     return dist;
   }, [procurements]);
 
-  // Calcul des totaux globaux
   const totalMarches = procurements.length;
-  const totalMontant = procurements.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+  const totalMontant = useMemo(() => {
+    return procurements.reduce((sum, p) => {
+      const val = parseFloat(String(p.estimated_amount || 0));
+      return sum + (isNaN(val) ? 0 : val);
+    }, 0);
+  }, [procurements]);
 
   if (loading) return <div className="flex h-screen items-center justify-center bg-slate-50 text-slate-500">Chargement du tableau de bord...</div>;
 
@@ -231,44 +230,55 @@ export default function DashboardPage() {
 
       <TopHeader />
 
-      <main className="max-w-[1480px] mx-auto p-4 md:p-8 animate-[dashFadeIn_0.4s_ease-out]">
-        <header className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4">
+      <main className="max-w-[1480px] mx-auto p-4 md:pt-4 md:px-8 md:pb-8 animate-[dashFadeIn_0.4s_ease-out]">
+        <header className="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-2">
           <div className="animate-[dashIntroSlide_0.5s_ease-out_forwards]">
-            <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-[#17212e] mb-2" style={{ fontFamily: "var(--font-ui), Segoe UI, Arial, sans-serif" }}>
+            <h1 className="text-[1.6rem] font-extrabold tracking-tight text-[#17212e] mb-1">
               Tableau de Bord <span className="text-[#0ea85b]">UCP</span>
             </h1>
-            <p className="text-slate-500 font-medium">Suivi en temps reel des passations de marches</p>
+            <p className="text-slate-500 text-[0.85rem] font-medium">Suivi en temps réel des passations de marchés</p>
           </div>
 
           <div className="flex gap-3 animate-[dashIntroSlide_0.6s_ease-out_forwards]">
             {/* Card Nombre total de marchés */}
             <div className="bg-white px-5 py-3 rounded-2xl border border-[#d9dee3] shadow-sm flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
               </div>
               <div>
                 <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Marchés</div>
-                <div className="text-2xl font-black text-slate-800 count-animate">
-                  <AnimatedNumber value={totalMarches} duration={1800} />
+                <div className="text-[1.3rem] font-black text-slate-800 count-animate">
+                  <AnimatedNumber value={totalMarches} duration={900} />
                 </div>
               </div>
             </div>
 
-            {/* Card Montant total avec animation */}
+            {/* Card Montant total */}
             <div className="bg-white px-5 py-3 rounded-2xl border border-[#d9dee3] shadow-sm flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
+             <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600">
+              <svg 
+                className="w-6 h-6" 
+                viewBox="0 0 24 24" 
+                fill="none" 
+                stroke="currentColor" 
+                strokeWidth="2" 
+                strokeLinecap="round" 
+                strokeLinejoin="round"
+                >
+                <path d="M11 15h2a2 2 0 1 0 0-4h-3c-.6 0-1.1.2-1.4.6L3 17" />
+                <path d="m7 21 1.6-1.4c.3-.4.8-.6 1.4-.6h4c1.1 0 2.1-.4 2.8-1.2l4.6-5.4a2 2 0 0 0-3-2.7L15 13" />
+                <path d="M5 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" />
+                <path d="M11 5h2a2 2 0 1 0 0-4h-2a2 2 0 1 0 0 4Z" />
+              </svg>
+            </div>
               <div>
                 <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Montant Total</div>
-                <div className="text-2xl font-black text-slate-800 count-animate">
+                <div className="text-[1.3rem] font-black text-slate-800 count-animate">
                   <AnimatedNumber 
                     value={totalMontant} 
-                    duration={2000} 
+                    duration={900} 
                     delay={200}
                     formatter={(val) => new Intl.NumberFormat("fr-FR", { style: "currency", currency: "MGA", maximumFractionDigits: 0 }).format(val)}
                   />
@@ -282,8 +292,6 @@ export default function DashboardPage() {
           {(Object.keys(stats) as ProcurementType[]).map((type, index) => {
             const methodSegments = getSegments(stats[type].methods, METHOD_COLORS, FALLBACK_METHOD_COLOR);
             const statusSegments = getSegments(stats[type].status, STATUS_COLORS, FALLBACK_STATUS_COLOR);
-            const topMethod = methodSegments[0];
-            const topStatus = statusSegments[0];
 
             return (
               <article
@@ -292,72 +300,48 @@ export default function DashboardPage() {
                 style={{ animationDelay: `${index * 0.1}s` }}
               >
                 <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-                  <div>
-                    <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight">{type}</h2>
-                  </div>
-                  <div
-                    className="w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-inner"
-                    style={{ backgroundColor: TYPE_COLORS[type] }}
-                  >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                    </svg>
-                  </div>
+                  <h2 className=" font-black text-slate-800 uppercase tracking-tight" style={{ color: TYPE_COLORS[type] }}>{type}</h2>
                 </div>
-
                 <div className="p-6 space-y-8">
-                  {/* Suppression de l'estimation budgétaire individuelle */}
-
                   <div className="grid grid-cols-2 gap-4">
                     <div className="flex flex-col items-center gap-3">
-                      <span className="text-[0.6rem] font-bold text-slate-500 uppercase">Methodes</span>
+                      <span className="text-[0.8rem] font-bold text-slate-500 uppercase">Méthode</span>
                       <div className="relative w-20 h-20 flex items-center justify-center">
                         <svg className="w-full h-full -rotate-90" viewBox="0 0 32 32">
-                          <circle cx="16" cy="16" r="14" fill="transparent" stroke="#f1f5f9" strokeWidth="4" />
+                          <circle cx="16" cy="16" r="16" fill="transparent" stroke="#f1f5f9" strokeWidth="4" />
                           {methodSegments.map((segment) => (
-                            <circle
-                              key={segment.label}
-                              cx="16"
-                              cy="16"
-                              r="14"
-                              fill="transparent"
-                              stroke={segment.color}
-                              strokeWidth="4"
-                              strokeDasharray={segment.strokeDasharray}
-                              strokeDashoffset={segment.strokeDashoffset}
-                              className="animate-[donutGrow_1s_ease-out]"
-                            />
+                            <circle key={segment.label} cx="16" cy="16" r="14" fill="transparent" stroke={segment.color} strokeWidth="4" strokeDasharray={segment.strokeDasharray} strokeDashoffset={segment.strokeDashoffset} className="animate-[donutGrow_1s_ease-out]" />
                           ))}
                         </svg>
-                        <span className="absolute text-[0.7rem] font-black text-slate-700">
-                          {topMethod ? `${Math.round(topMethod.percent)}%` : "0%"}
-                        </span>
+                        <div className="absolute text-slate-400">
+                          <svg 
+                            className="w-9 h-9" 
+                            viewBox="0 0 24 24" 
+                            fill="none" 
+                            stroke="currentColor" 
+                           strokeWidth="2" 
+                            strokeLinejoin="round"
+                          >
+                            <path d="M9 9l3 9 2-6 6-2-11-3z" />
+                          </svg>
+                        </div>
                       </div>
                     </div>
 
                     <div className="flex flex-col items-center gap-3">
-                      <span className="text-[0.6rem] font-bold text-slate-500 uppercase">Statuts</span>
+                      <span className="text-[0.8rem] font-bold text-slate-500 uppercase">Statut</span>
                       <div className="relative w-20 h-20 flex items-center justify-center">
                         <svg className="w-full h-full -rotate-90" viewBox="0 0 32 32">
                           <circle cx="16" cy="16" r="14" fill="transparent" stroke="#f1f5f9" strokeWidth="4" />
                           {statusSegments.map((segment) => (
-                            <circle
-                              key={segment.label}
-                              cx="16"
-                              cy="16"
-                              r="14"
-                              fill="transparent"
-                              stroke={segment.color}
-                              strokeWidth="4"
-                              strokeDasharray={segment.strokeDasharray}
-                              strokeDashoffset={segment.strokeDashoffset}
-                              className="animate-[donutGrow_1s_ease-out]"
-                            />
+                            <circle key={segment.label} cx="16" cy="16" r="14" fill="transparent" stroke={segment.color} strokeWidth="4" strokeDasharray={segment.strokeDasharray} strokeDashoffset={segment.strokeDashoffset} className="animate-[donutGrow_1s_ease-out]" />
                           ))}
                         </svg>
-                        <span className="absolute text-[0.7rem] font-black text-slate-700">
-                          {topStatus ? `${Math.round(topStatus.percent)}%` : "0%"}
-                        </span>
+                        <div className="absolute text-slate-400">
+                          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -370,9 +354,8 @@ export default function DashboardPage() {
                             <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: segment.color }} />
                             <span className="font-medium text-slate-600 truncate">{formatLabel(segment.label)}</span>
                           </div>
-                          <span className="font-bold shrink-0">{segment.value}</span>
                         </li>
-                      )) : <li className="text-xs text-slate-400">Aucune methode</li>}
+                      )) : <li className="text-xs text-slate-400">Aucune méthode</li>}
                     </ul>
                     <ul className="space-y-2">
                       {statusSegments.length > 0 ? statusSegments.map((segment) => (
@@ -381,7 +364,6 @@ export default function DashboardPage() {
                             <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: segment.color }} />
                             <span className="font-medium text-slate-600 truncate">{formatLabel(segment.label)}</span>
                           </div>
-                          <span className="font-bold shrink-0">{segment.value}</span>
                         </li>
                       )) : <li className="text-xs text-slate-400">Aucun statut</li>}
                     </ul>

@@ -211,7 +211,7 @@ export default function GestionMarches() {
           <SidebarMenu activeMenu={activeMenu} onMenuSelect={setActiveMenu} />
         </div>
 
-        <main className="page-enter-up min-w-0 p-3 border border-[#d9dee3] rounded-[14px] bg-white shadow-[0_18px_36px_-30px_rgba(34,44,52,0.5)] overflow-hidden flex flex-col py-2" style={{ animationDelay: "0.14s", position: "relative", height: "calc(100vh - 109px)" }}>
+        <main className="page-enter-up min-w-0 p-4 border border-[#d9dee3] rounded-[14px] bg-white shadow-[0_18px_36px_-30px_rgba(34,44,52,0.5)] overflow-hidden flex flex-col " style={{ animationDelay: "0.14s", position: "relative", height: "calc(100vh - 109px)" }}>
           <header className="page-enter-up relative grid grid-cols-[minmax(0,1fr)_auto] max-[900px]:grid-cols-1 gap-4 pt-[0.95rem] px-4 pb-4 border border-[#d9dee3] rounded-[14px] bg-white shadow-[0_18px_36px_-30px_rgba(34,44,52,0.5)]" style={{ animationDelay: "0.2s" }}>
             <div className="absolute top-0 inset-x-0 h-1 rounded-t-[14px] bg-gradient-to-r from-[#0ea85b] to-[#57d18d]" aria-hidden="true" />
             

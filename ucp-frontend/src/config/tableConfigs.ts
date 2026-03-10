@@ -51,7 +51,7 @@ export const WORKS_GOODS_COLUMNS: ColumnConfig[] = [
   },
   {
     key: "estimated_amount",
-    label: "Montant estimatif (Ar)",
+    label: "Montant estimatif (MGA)",
     width: "150px",
     type: "number",
     editable: true,
@@ -218,7 +218,7 @@ export const CONSULTANTS_COLUMNS: ColumnConfig[] = [
   },
   {
     key: "estimated_amount",
-    label: "Montant estimatif (Ar)",
+    label: "Montant estimatif (MGA)",
     width: "150px",
     type: "number",
     editable: true,

@@ -143,15 +143,21 @@ export default function GridCell({
         value={draftDate}
         min={minDate}
         max={maxDate}
-        onChange={(e) => setDraftDate(e.target.value)}
-        onBlur={(e) => {
-          const nextValue = e.target.value;
-          let accepted = true;
-          if (onConfirm) accepted = onConfirm(nextValue) !== false;
-          else onChange(nextValue);
-          if (!accepted) setDraftDate(typeof value === "string" ? value : "");
-          onBlur();
-        }}
+        onChange={(e) => {
+  const nextValue = e.target.value;
+  setDraftDate(nextValue);
+  onChange(nextValue); // commit immédiat dans la row (sans validation stricte)
+          }}
+          onBlur={(e) => {
+            const nextValue = e.target.value;
+            let accepted = true;
+
+            // Validation stricte au blur (ordre des dates, etc.)
+            if (onConfirm) accepted = onConfirm(nextValue) !== false;
+
+            if (!accepted) setDraftDate(typeof value === "string" ? value : "");
+            onBlur();
+          }}
         onKeyDown={onKeyDown}
         className={`${baseInputClasses} text-slate-700 pr-8 appearance-none`}
       />
@@ -196,3 +202,5 @@ export default function GridCell({
     />
   );
 }
+
+

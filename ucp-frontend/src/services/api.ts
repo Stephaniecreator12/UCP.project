@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Service API pour appeler le backend Django (backend_PPM)
  * Ce service gère désormais les 3 types de marchés : Travaux, Biens, Consultance
  */
@@ -76,11 +76,23 @@ interface BackendProcurementItem {
   approches?: string;
   commentaire?: string;
   statut?: string;
+  
+  // Travaux & Biens - Dates prévues
+  listesetspecifications_prevu?: string;
+  dossiers_appel_prevu?: string;
   date_lancement_prevu?: string;
   date_ouverture_prevu?: string;
+  rapport_evaluation_prevu?: string;
   date_signature_prevu?: string;
   date_livraison_prevu?: string;
-  // Consultance-specific fields (based on planning payload)
+  
+  // Travaux & Biens - Dates réelles
+  listesetspecifications_reel?: string;
+  dossiers_appel_reel?: string;
+  date_lancement_reel?: string;
+  date_livraison_reel?: string;
+  
+  // Consultance - Dates prévues
   TdR_prevu?: string;
   ami_prevu?: string;
   liste_restreinte_prevu?: string;
@@ -88,6 +100,31 @@ interface BackendProcurementItem {
   date_invitation_prevu?: string;
   ouverture_plis_prevu?: string;
   date_fin_prevu?: string;
+  
+  // Consultance - Dates réelles
+  TdR_reel?: string;
+  ami_reel?: string;
+  liste_restreinte_reel?: string;
+  demande_proposition_reel?: string;
+  date_invitation_reel?: string;
+  ouverture_plis_reel?: string;
+  projet_contrat_reel?: string;
+  date_fin_reel?: string;
+  
+  // champs communs
+  date_ouverture_reel?: string;
+  rapport_evaluation_reel?: string;
+  date_signature_reel?: string;
+  
+  // Autres champs
+  agmo?: string;
+  agmoxdirection?: string;
+  revue?: string;
+  prevu?: string;
+  reel?: string;
+  forfaitxtemps?: string;
+  methode?: string;
+  approche?: string;
 }
 
 export interface PlanningResponse {
@@ -130,67 +167,99 @@ export async function getAllProcurements(): Promise<Procurement[]> {
     const responses = await Promise.all(
       urls.map(async (url): Promise<BackendListResponse> => {
         const res = await fetch(url);
-        return res
-          .json()
-          .catch(() => ({ travaux: [], biens: [], consultance: [] }));
+        const data = await res.json().catch(() => ({ travaux: [], biens: [], consultance: [] }));
+        
+        // 🔍 DEBUG - Voir ce que retourne chaque endpoint
+        console.log(`Réponse de ${url}:`, data);
+        
+        return data;
       }),
     );
-
-    // Note: Le backend renvoie souvent { travaux: [...] } et non directement [...]
-    // Il faut vérifier la structure exacte de la réponse JSON de tes vues 'listTravaux'
-    // Tes vues renvoient: return JsonResponse({'travaux': data})
 
     const travauxList = responses[0].travaux || [];
     const biensList = responses[1].biens || [];
     const consultanceList = responses[2].consultance || [];
 
+    // 🔍 DEBUG - Voir les données brutes
+    console.log('Travaux bruts:', travauxList);
+    console.log('Biens bruts:', biensList);
+    console.log('Consultance bruts:', consultanceList);
+
     // Fonction de mapping pour transformer un item Backend en Procurement Frontend
-    const mapItem = (
-      item: BackendProcurementItem,
-      type: "Travaux" | "Biens" | "Consultance",
-    ): Procurement => {
-      const base: Procurement = {
-        id: item.id,
-        type,
-        ref_number: item.code_suivi, // Ou null si pas de ref
-        title: item.intitule,
-        tracking_code: item.code_suivi,
-        estimated_amount: Number(item.montant_estimatif ?? 0),
-        method: type === "Biens" ? item.methode_epm : item.methode_pm,
-        approach: item.approches,
-        review_notes: item.commentaire,
-        status: item.statut,
-      };
+  const mapItem = (
+  item: BackendProcurementItem,
+  type: "Travaux" | "Biens" | "Consultance",
+   ): Procurement => {
+  console.log(`Mapping item ${type}:`, item);
 
-      if (type === "Consultance") {
-        return {
-          ...base,
-          terms_of_reference: item.TdR_prevu,
-          ami: item.ami_prevu,
-          restricted_list: item.liste_restreinte_prevu,
-          request_for_proposal: item.demande_proposition_prevu,
-          invitation_date: item.date_invitation_prevu,
-          submissions_opening_date: item.date_ouverture_prevu,
-          financial_opening_date: item.ouverture_plis_prevu,
-          contract_date: item.date_signature_prevu,
-          mission_end_date: item.date_fin_prevu,
-        };
-      }
+  const base: Procurement = {
+    id: item.id,
+    type,
+    ref_number: item.code_suivi,
+    title: item.intitule,
+    tracking_code: item.code_suivi,
+    estimated_amount: Number(item.montant_estimatif ?? 0),
+    method: type === "Biens" ? item.methode_epm : (item.methode || item.methode_pm), // ← CORRECTION
+    approach: item.approche || item.approches, // ← CORRECTION
+    review_notes: item.commentaire,
+    status: item.statut,
+    agmo: item.agmo || item.agmoxdirection, // ← AJOUT
+    pricing_type: item.forfaitxtemps, // ← AJOUT pour Consultance
+  };
 
-      return {
-        ...base,
-        date_invitation: item.date_lancement_prevu,
-        date_opening_submissions: item.date_ouverture_prevu,
-        date_contract_signed: item.date_signature_prevu,
-        date_mission_end: item.date_livraison_prevu,
-      };
+  if (type === "Consultance") {
+    const mapped = {
+      ...base,
+      terms_of_reference: item.TdR_prevu,
+      ami: item.ami_prevu,
+      restricted_list: item.liste_restreinte_prevu,
+      request_for_proposal: item.demande_proposition_prevu,
+      invitation_date: item.date_invitation_prevu,
+      submissions_opening_date: item.date_ouverture_prevu,
+      financial_opening_date: item.ouverture_plis_prevu,
+      contract_date: item.date_signature_prevu,
+      mission_end_date: item.date_fin_prevu,
+      evaluation_report: item.rapport_evaluation_prevu,
+      contract_draft: item.projet_contrat_prevu,
     };
+    console.log('Mapped Consultance:', mapped);
+    return mapped;
+  }
+
+// Pour Travaux et Biens
+const mapped = {
+  ...base,
+  // Dates prévues
+  specifications_date: item.listesetspecifications_prevu,
+  tender_documents_date: item.dossiers_appel_prevu,
+  launch_date: item.date_lancement_prevu,
+  opening_date: item.date_ouverture_prevu,
+  evaluation_report: item.rapport_evaluation_prevu,
+  contract_date: item.date_signature_prevu,
+  delivery_date: item.date_livraison_prevu,
+  
+  // Dates réelles
+  specifications_date_actual: item.listesetspecifications_reel,
+  tender_documents_date_actual: item.dossiers_appel_reel,
+  launch_date_actual: item.date_lancement_reel,
+  opening_date_actual: item.date_ouverture_reel,
+  evaluation_report_actual: item.rapport_evaluation_reel,
+  contract_date_actual: item.date_signature_reel,
+  delivery_date_actual: item.date_livraison_reel,
+  
+  // Autres champs
+  comments: item.commentaire,
+  review_status: item.revue,
+  prevu: item.prevu,
+  reel: item.reel,
+};
+  console.log('Mapped Travaux/Biens:', mapped);
+  return mapped;
+};
 
     const travaux = travauxList.map((item) => mapItem(item, "Travaux"));
     const biens = biensList.map((item) => mapItem(item, "Biens"));
-    const consultance = consultanceList.map((item) =>
-      mapItem(item, "Consultance"),
-    );
+    const consultance = consultanceList.map((item) => mapItem(item, "Consultance"));
 
     return [...travaux, ...biens, ...consultance];
   } catch (error) {
@@ -278,34 +347,72 @@ export async function createProcurement(
  * Construire le payload backend en fonction du type de marché
  */
 function buildProcurementPayload(data: Procurement): Record<string, unknown> {
+  const toBackendDate = (value: unknown): string | null => {
+    if (value === null || value === undefined) return null;
+    const raw = String(value).trim();
+    if (!raw) return null;
+
+    // Keep date part of full ISO timestamps.
+    const datePart = raw.includes("T") ? raw.split("T")[0] : raw;
+
+    // Normalize common human formats to YYYY-MM-DD.
+    if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) return datePart;
+    if (/^\d{2}-\d{2}-\d{4}$/.test(datePart)) {
+      const [day, month, year] = datePart.split("-");
+      return `${year}-${month}-${day}`;
+    }
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(datePart)) {
+      const [day, month, year] = datePart.split("/");
+      return `${year}-${month}-${day}`;
+    }
+
+    return null;
+  };
+
   const basePayload = {
-    intitule: data.title || "Sans Titre",
+    intitule: data.title || " ",
     montant_estimatif: data.estimated_amount || 0,
     commentaire: data.review_notes || "",
   };
 
   if (data.type === "Consultance") {
-    const consultancePayload: Record<string, unknown> = {
-      ...basePayload,
-    };
-    const addIfValue = (key: string, value: unknown) => {
-      if (value === null || value === undefined || String(value).trim() === "") return;
-      consultancePayload[key] = value;
-    };
+  const consultancePayload: Record<string, unknown> = {
+    ...basePayload,
+    // Champs obligatoires pour Consultance
+    methode: data.method || "SMC",
+    approche: data.approach || "open",
+    revue: data.review_notes || "",
+    forfaitxtemps: data.pricing_type || "forfait",
+    // Ajoute aussi ces champs
+    ref_code_suivi: data.tracking_code || "",
+    agmoxdirection: data.agmo || "Direction Générale",
+   };
+  
+   console.log("Payload Consultance avant ajout dates:", consultancePayload); // DEBUG
 
-    addIfValue("TdR_prevu", data.terms_of_reference);
-    addIfValue("ami_prevu", data.ami);
-    addIfValue("demande_proposition_prevu", data.request_for_proposal);
-    addIfValue("date_ouverture_prevu", data.submissions_opening_date);
-    addIfValue("ouverture_plis_prevu", data.financial_opening_date);
-    addIfValue("date_signature_prevu", data.contract_date);
-    addIfValue("date_fin_prevu", data.mission_end_date);
-    addIfValue("date_invitation_prevu", data.invitation_date);
-    addIfValue("liste_restreinte_prevu", data.restricted_list);
+   const addIfDate = (key: string, value: unknown) => {
+    const normalized = toBackendDate(value);
+    if (!normalized) return;
+    consultancePayload[key] = normalized;
+   };
 
+     addIfDate("TdR_prevu", data.terms_of_reference);
+     addIfDate("ami_prevu", data.ami);
+     addIfDate("liste_restreinte_prevu", data.restricted_list);
+     addIfDate("demande_proposition_prevu", data.request_for_proposal);
+     addIfDate("date_invitation_prevu", data.invitation_date);
+     addIfDate("date_ouverture_prevu", data.submissions_opening_date);
+     addIfDate("ouverture_plis_prevu", data.financial_opening_date);
+     addIfDate("date_signature_prevu", data.contract_date);
+     addIfDate("date_fin_prevu", data.mission_end_date);
+     addIfDate("rapport_evaluation_prevu", data.evaluation_report);
+     addIfDate("projet_contrat_prevu", data.contract_draft);
+
+    console.log("Payload Consultance final:", consultancePayload); // DEBUG
     return consultancePayload;
   }
 
+  // Pour Travaux et Biens
   return {
     code_suivi: data.tracking_code || "",
     ...basePayload,
@@ -315,11 +422,13 @@ function buildProcurementPayload(data: Procurement): Record<string, unknown> {
       : { methode_pm: data.method || "aoi" }),
     approches: data.approach || "Non défini",
     revue: data.review_notes || "Non défini",
-    dossiers_appel_prevu: data.date_invitation || null,
-    date_lancement_prevu: data.date_invitation || null,
-    date_ouverture_prevu: data.date_opening_submissions || null,
-    date_signature_prevu: data.date_contract_signed || null,
-    date_livraison_prevu: data.date_mission_end || null,
+    dossiers_appel_prevu: toBackendDate(data.tender_documents_date),
+    date_lancement_prevu: toBackendDate(data.launch_date),
+    date_ouverture_prevu: toBackendDate(data.opening_date),
+    date_signature_prevu: toBackendDate(data.contract_date),
+    date_livraison_prevu: toBackendDate(data.delivery_date),
+    listesetspecifications_prevu: toBackendDate(data.specifications_date),
+    rapport_evaluation_prevu: toBackendDate(data.evaluation_report),
   };
 }
 
@@ -345,6 +454,8 @@ export async function updateProcurement(
       endpoint = `${API_BASE_URL}/api/Biens/updateBiens/${id}/`;
     else if (data.type === "Consultance")
       endpoint = `${API_BASE_URL}/api/Consultance/updateConsultance/${id}/`;
+
+    console.log("Envoi payload update:", payload); // DEBUG
 
     const response = await fetch(endpoint, {
       method: "PUT",
@@ -406,6 +517,9 @@ export async function calculatePlanning(
         ? { date_fin: dateFin, methode, duree }
         : { date_livr: dateFin, methode, duree };
 
+    console.log("🔵 calculatePlanning payload:", payload); // DEBUG
+    console.log("🔵 calculatePlanning endpoint:", endpoint); // DEBUG
+    
     const response = await fetch(endpoint, {
       method: "POST",
       headers,
@@ -423,7 +537,9 @@ export async function calculatePlanning(
       );
     }
 
-    return await response.json();
+    const result = await response.json();
+    console.log("🔵 calculatePlanning result:", result); // DEBUG
+    return result;
   } catch (error) {
     console.error("Erreur calcul:", error);
     throw error;

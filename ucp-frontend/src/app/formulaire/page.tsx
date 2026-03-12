@@ -59,23 +59,46 @@ export default function GestionMarches() {
     maximumFractionDigits: 2,
   }).format(totalEstimatedAmount);
 
-  const loadData = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const allData = await getAllProcurements();
-      const filteredData = allData.filter((item) => {
-        if (activeMenu === "works") return item.type === "Travaux";
-        if (activeMenu === "goods-services") return item.type === "Biens";
-        if (activeMenu === "consultants") return item.type === "Consultance";
-        return true;
+const loadData = useCallback(async () => {
+  setIsLoading(true);
+  try {
+    const allData = await getAllProcurements();
+    const filteredData = allData.filter((item) => {
+      if (activeMenu === "works") return item.type === "Travaux";
+      if (activeMenu === "goods-services") return item.type === "Biens";
+      if (activeMenu === "consultants") return item.type === "Consultance";
+      return true;
+    });
+
+    // Formater les dates pour l'affichage (JJ-MM-AAAA)
+    const formattedRows = filteredData.map((item: Procurement) => {
+      const row = { ...item, _id: String(item.id) };
+      
+      // Liste des clés de dates à formater
+      const dateKeys = [
+        'specifications_date', 'launch_date', 'opening_date', 
+        'contract_date', 'delivery_date', 'invitation_date', 
+        'submissions_opening_date', 'mission_end_date'
+      ];
+
+      dateKeys.forEach(key => {
+        const val = row[key];
+        if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(val)) {
+          const [y, m, d] = val.split('-');
+          row[key] = `${d}-${m}-${y}`;
+        }
       });
-      setRows(filteredData.map((item: Procurement) => ({ ...item, _id: String(item.id) })));
-    } catch {
-      setSaveMessage({ type: "error", message: "Erreur de chargement" });
-    } finally {
-      setIsLoading(false);
-    }
-  }, [activeMenu]);
+
+      return row;
+    });
+
+    setRows(formattedRows);
+  } catch {
+    setSaveMessage({ type: "error", message: "Erreur de chargement" });
+  } finally {
+    setIsLoading(false);
+  }
+}, [activeMenu]);
 
   useEffect(() => {
     if (!getToken()) router.replace("/login");
@@ -133,7 +156,7 @@ export default function GestionMarches() {
         const updatedRow = { ...row, [columnKey]: value };
         
         // Si on modifie une date, on recalcule le statut
-        if (columnKey.includes('date') || columnKey === 'specifications_date') {
+        if (false && columnKey.includes('date') || columnKey === 'specifications_date') {
           // Recalculer le statut asynchrone
           setTimeout(async () => {
             try {
@@ -202,43 +225,110 @@ export default function GestionMarches() {
     }
   };
 
-  const handleRowSave = async (row: GridRow) => {
-    setIsSaving(true);
-    try {
-      const typeMapping: Record<string, "Travaux" | "Biens" | "Consultance"> = { works: "Travaux", "goods-services": "Biens", consultants: "Consultance" };
-      const procurementData: Procurement = {
-        ...row,
-        type: typeMapping[activeMenu],
-        title: String(row.title ?? "Sans titre"),
-        review_notes: typeof row.review_status === "string" ? row.review_status : undefined,
-        date_invitation: typeof (row.specifications_date || row.launch_date) === "string" ? String(row.specifications_date || row.launch_date) : undefined,
-        date_opening_submissions: typeof row.opening_date === "string" ? row.opening_date : undefined,
-        date_contract_signed: typeof row.contract_date === "string" ? row.contract_date : undefined,
-        date_mission_end: typeof (row.delivery_date || row.mission_end_date) === "string" ? String(row.delivery_date || row.mission_end_date) : undefined,
-      };
+const handleRowSave = async (row: GridRow) => {
+  setIsSaving(true);
+  try {
+    const typeMapping: Record<string, "Travaux" | "Biens" | "Consultance"> = { 
+      works: "Travaux", 
+      "goods-services": "Biens", 
+      consultants: "Consultance" 
+    };
 
-      const rowId = String(row._id ?? "");
-      const isNewRow = rowId.startsWith("_new_");
-      const numericId = Number.parseInt(rowId, 10);
-      const canUpdate = !isNewRow && Number.isFinite(numericId);
-
-      const result = canUpdate ? await updateProcurement(numericId, procurementData) : await createProcurement(procurementData);
-
-      if (result) {
-        const savedRow = { ...row, ...result, _id: String(result.id) };
-        let computedStatus = "";
-        try { computedStatus = await getProcurementStatus(typeMapping[activeMenu], savedRow); } catch { computedStatus = savedRow.status ? String(savedRow.status) : "Statut indisponible"; }
-        setRows((currentRows) => currentRows.map((r) => r._id === row._id ? { ...savedRow, status: computedStatus } : r));
-        setSaveMessage({ type: "success", message: canUpdate ? "Ligne modifiée avec succès." : "Ligne enregistrée avec succès." });
+    // Nettoyage strict pour le Backend (YYYY-MM-DD)
+    const formatForBackend = (val: unknown): string | undefined => {
+      if (!val || typeof val !== "string" || val.trim() === "") return undefined;
+      
+      // Si c'est déjà au format YYYY-MM-DD, on garde tel quel
+      if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
+      
+      // Si c'est au format JJ-MM-AAAA, on convertit pour le backend
+      if (/^\d{2}-\d{2}-\d{4}$/.test(val)) {
+        const [d, m, y] = val.split("-");
+        return `${y}-${m}-${d}`;
       }
-    } catch (e: unknown) {
-      setSaveMessage({ type: "error", message: `Erreur: ${e instanceof Error ? e.message : "inconnue"}` });
-    } finally {
-      setIsSaving(false);
+      if (val.includes("-") && val.length < 10 && !/^\d{4}/.test(val)) {
+        return undefined;
+      }
+      return undefined;
+    };
+
+    const procurementData: Procurement = {
+      ...row,
+      type: typeMapping[activeMenu],
+      title: String(row.title ?? " "),
+// --- MAPPING DES DATES POUR TRAVAUX ET BIENS ---
+  // Ces champs correspondent aux modèles Biens.py et Travaux.py
+  listesetspecifications_prevu: formatForBackend(row.specifications_date),
+  listesetspecifications_reel: formatForBackend(row.specifications_date),
+  
+  dossiers_appel_prevu: formatForBackend(row.tender_documents_date),
+  dossiers_appel_reel: formatForBackend(row.tender_documents_date),
+  
+  date_lancement_prevu: formatForBackend(row.launch_date),
+  date_lancement_reel: formatForBackend(row.launch_date),
+
+  date_ouverture_prevu: formatForBackend(row.opening_date || row.submissions_opening_date),
+  date_ouverture_reel: formatForBackend(row.opening_date || row.submissions_opening_date),
+  
+  rapport_evaluation_prevu: formatForBackend(row.evaluation_report || row.technical_evaluation),
+  rapport_evaluation_reel: formatForBackend(row.evaluation_report || row.technical_evaluation),
+
+  date_signature_prevu: formatForBackend(row.contract_date),
+  date_signature_reel: formatForBackend(row.contract_date),
+  
+  date_livraison_prevu: formatForBackend(row.delivery_date),
+  date_livraison_reel: formatForBackend(row.delivery_date),
+
+  // --- MAPPING DES DATES POUR CONSULTANTS ---
+  // Ces champs correspondent au modèle Consultance.py
+  TdR_prevu: formatForBackend(row.terms_of_reference),
+  TdR_reel: formatForBackend(row.terms_of_reference),
+  
+  ami_prevu: formatForBackend(row.ami),
+  ami_reel: formatForBackend(row.ami),
+  
+  liste_restreinte_prevu: formatForBackend(row.restricted_list),
+  liste_restreinte_reel: formatForBackend(row.restricted_list),
+  
+  demande_proposition_prevu: formatForBackend(row.request_for_proposal),
+  demande_proposition_reel: formatForBackend(row.request_for_proposal),
+  
+  date_invitation_prevu: formatForBackend(row.invitation_date),
+  date_invitation_reel: formatForBackend(row.invitation_date),
+
+  ouverture_plis_prevu: formatForBackend(row.financial_opening_date),
+  ouverture_plis_reel: formatForBackend(row.financial_opening_date),
+  
+  projet_contrat_prevu: formatForBackend(row.contract_draft),
+  projet_contrat_reel: formatForBackend(row.contract_draft),
+  
+  date_fin_prevu: formatForBackend(row.mission_end_date),
+  date_fin_reel: formatForBackend(row.mission_end_date),
+    };
+
+    const rowId = String(row._id ?? "");
+    const isNewRow = rowId.startsWith("_new_");
+    const numericId = Number.parseInt(rowId, 10);
+    const canUpdate = !isNewRow && Number.isFinite(numericId);
+
+    const result = canUpdate 
+      ? await updateProcurement(numericId, procurementData) 
+      : await createProcurement(procurementData);
+
+    if (result) {
+      setSaveMessage({ type: "success", message: "Enregistré avec succès" });
+      await loadData(); // Recharge pour l'affichage propre
     }
-  };
+  } catch (e: unknown) {
+    console.error("Erreur complète:", e);
+    setSaveMessage({ type: "error", message: e instanceof Error ? e.message : "Erreur inconnue" });
+  } finally {
+    setIsSaving(false);
+  }
+};
 
   const handleRowUpdate = (updatedRow: GridRow) => {
+    console.log("🟢 handleRowUpdate appelé avec:", updatedRow); // DEBUG
     setRows((prevRows) => prevRows.map((row) => (row._id === updatedRow._id ? updatedRow : row)));
   };
 

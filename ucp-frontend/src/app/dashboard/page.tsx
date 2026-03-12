@@ -51,7 +51,6 @@ const STATUS_COLORS: Record<string, string> = {
   "en cours": "#3b82f6",
   termine: "#10b981",
   annule: "#ef4444",
-  suspendu: "#f59e0b",
   arrete: "#8b5e3c",
   retard: "#f97316",
   "dans les temps": "#14b8a6",
@@ -82,9 +81,9 @@ function buildDistribution(items: Procurement[], getValue: (item: Procurement) =
     .sort((a, b) => b.value - a.value);
 }
 
-function getSegments(items: DistributionItem[], colors: Record<string, string>, fallbackColor: string): DonutSegment[] {
+function getSegments(items: DistributionItem[], colors: Record<string, string>, fallbackColor: string): (DonutSegment & { angle: number })[] {
   const total = items.reduce((sum, item) => sum + item.value, 0);
-  let offset = 0;
+  let currentAngle = 0;
 
   return items.map((item) => {
     const percent = total > 0 ? (item.value / total) * 100 : 0;
@@ -93,11 +92,40 @@ function getSegments(items: DistributionItem[], colors: Record<string, string>, 
       percent,
       color: colors[item.label] ?? fallbackColor,
       strokeDasharray: `${percent} ${Math.max(0, 100 - percent)}`,
-      strokeDashoffset: -offset,
+      strokeDashoffset: -currentAngle,
+      angle: currentAngle,
     };
-    offset += percent;
+    currentAngle += percent;
     return segment;
   });
+}
+
+function darkenColor(color: string, amount: number = 0.25) {
+  const normalized = color.trim();
+  const match = normalized.match(/^#?([0-9a-f]{3,8})$/i);
+  if (!match) return normalized;
+
+  let hex = match[1];
+  let alphaHex = "";
+  if (hex.length === 3) {
+    hex = hex.split("").map((char) => char + char).join("");
+  }
+  if (hex.length === 8) {
+    alphaHex = hex.slice(6);
+    hex = hex.slice(0, 6);
+  }
+
+  const channels = [hex.slice(0, 2), hex.slice(2, 4), hex.slice(4, 6)].map((chunk) => parseInt(chunk, 16));
+  if (channels.some((value) => Number.isNaN(value))) return normalized;
+
+  const darkened = channels.map((value) => Math.round(Math.max(0, Math.min(255, value * (1 - amount)))));
+
+  if (alphaHex) {
+    const alpha = Math.round((parseInt(alphaHex, 16) / 255) * 100) / 100;
+    return `rgba(${darkened.join(", ")}, ${alpha})`;
+  }
+
+  return `#${darkened.map((value) => value.toString(16).padStart(2, "0")).join("")}`;
 }
 
 function formatLabel(label: string) {
@@ -303,48 +331,124 @@ export default function DashboardPage() {
                   <h2 className=" font-black text-slate-800 uppercase tracking-tight" style={{ color: TYPE_COLORS[type] }}>{type}</h2>
                 </div>
                 <div className="p-6 space-y-8">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="flex flex-col items-center gap-3">
-                      <span className="text-[0.8rem] font-bold text-slate-500 uppercase">Méthode</span>
-                      <div className="relative w-20 h-20 flex items-center justify-center">
-                        <svg className="w-full h-full -rotate-90" viewBox="0 0 32 32">
-                          <circle cx="16" cy="16" r="16" fill="transparent" stroke="#f1f5f9" strokeWidth="4" />
-                          {methodSegments.map((segment) => (
-                            <circle key={segment.label} cx="16" cy="16" r="14" fill="transparent" stroke={segment.color} strokeWidth="4" strokeDasharray={segment.strokeDasharray} strokeDashoffset={segment.strokeDashoffset} className="animate-[donutGrow_1s_ease-out]" />
-                          ))}
-                        </svg>
-                        <div className="absolute text-slate-400">
-                          <svg 
-                            className="w-9 h-9" 
-                            viewBox="0 0 24 24" 
-                            fill="none" 
-                            stroke="currentColor" 
-                           strokeWidth="2" 
-                            strokeLinejoin="round"
-                          >
-                            <path d="M9 9l3 9 2-6 6-2-11-3z" />
-                          </svg>
-                        </div>
-                      </div>
-                    </div>
 
-                    <div className="flex flex-col items-center gap-3">
-                      <span className="text-[0.8rem] font-bold text-slate-500 uppercase">Statut</span>
-                      <div className="relative w-20 h-20 flex items-center justify-center">
-                        <svg className="w-full h-full -rotate-90" viewBox="0 0 32 32">
-                          <circle cx="16" cy="16" r="14" fill="transparent" stroke="#f1f5f9" strokeWidth="4" />
-                          {statusSegments.map((segment) => (
-                            <circle key={segment.label} cx="16" cy="16" r="14" fill="transparent" stroke={segment.color} strokeWidth="4" strokeDasharray={segment.strokeDasharray} strokeDashoffset={segment.strokeDashoffset} className="animate-[donutGrow_1s_ease-out]" />
-                          ))}
-                        </svg>
-                        <div className="absolute text-slate-400">
-                          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                        </div>
-                      </div>
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Méthode */}
+                  <div className="flex flex-col items-center gap-3">
+                    <span className="text-[0.8rem] font-bold text-slate-500 uppercase">Méthode</span>
+                    <div className="relative w-40 h-40 flex items-center justify-center">
+                      <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
+                        <circle cx="50" cy="50" r="38" fill="transparent" stroke="#f1f5f9" strokeWidth="14" />
+                        {methodSegments.map((segment, idx) => {
+                          // Calculer les angles
+                          const startAngle = methodSegments.slice(0, idx).reduce((acc, s) => acc + s.percent, 0);
+                          const midAngle = startAngle + segment.percent / 2;
+                          
+                          // Convertir en radians pour le positionnement (ajustement de -90° car le svg est tourné)
+                          const midRad = (midAngle * (2 * Math.PI)) / 100 ;
+                          
+                          // Position du texte (à l'intérieur de l'arc)
+                          const textRadius = 37; // Rayon pour le texte (à l'intérieur)
+                          const x = 50 + textRadius * Math.cos(midRad);
+                          const y = 50 + textRadius * Math.sin(midRad);
+                          const labelColor = darkenColor(segment.color, 0.32);
+                          const labelShadow = "0 1px 8px rgba(15,23,42,0.55)";
+
+                          return (
+                            <g key={segment.label}>
+                              <circle
+                                cx="50"
+                                cy="50"
+                                r="38"
+                                fill="transparent"
+                                stroke={segment.color}
+                                strokeWidth="17"
+                                strokeDasharray={`${segment.percent * 2.39} ${239}`} 
+                                strokeDashoffset={-methodSegments.slice(0, idx).reduce((acc, s) => acc + (s.percent * 2.39), 0)}
+                                className="animate-[donutGrow_1s_ease-out]"
+                                strokeLinecap="butt"
+                              />
+                              {segment.percent >= 5 && (
+                                <text
+                                  x={x}
+                                  y={y}
+                                  textAnchor="middle"
+                                  dominantBaseline="middle"
+                                  fill="white"
+                                  fontSize="7"
+                                  fontWeight="bold"
+                                  className="select-none"
+                                  style={{ textShadow: labelShadow }}
+                                  transform={`rotate(90, ${x}, ${y})`}
+                                >
+                                  {segment.percent.toFixed(0)}%
+                                </text>
+                              )}
+                            </g>
+                          );
+                        })}
+                      </svg>
                     </div>
                   </div>
+
+                  {/* Statut */}
+                  <div className="flex flex-col items-center gap-3">
+                    <span className="text-[0.8rem] font-bold text-slate-500 uppercase">Statut</span>
+                    <div className="relative w-40 h-40 flex items-center justify-center">
+                      <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
+                        <circle cx="50" cy="50" r="38" fill="transparent" stroke="#f1f5f9" strokeWidth="14" />
+                        {statusSegments.map((segment, idx) => {
+                          // Calculer les angles
+                          const startAngle = statusSegments.slice(0, idx).reduce((acc, s) => acc + s.percent, 0);
+                          const midAngle = startAngle + segment.percent / 2;
+
+                          // Convertir en radians pour le positionnement (ajustement de -90° car le svg est tourné)
+                          const midRad = (midAngle * (2 * Math.PI)) / 100 ;
+                          
+                          // Position du texte (à l'intérieur de l'arc)
+                          const textRadius = 37; // Rayon pour le texte (à l'intérieur)
+                          const x = 50 + textRadius * Math.cos(midRad);
+                          const y = 50 + textRadius * Math.sin(midRad);
+                          const labelColor = darkenColor(segment.color, 0.25);
+                          const labelShadow = "0 1px 6px rgba(15,23,42,0.6)";
+
+                          return (
+                            <g key={segment.label}>
+                              <circle
+                                cx="50"
+                                cy="50"
+                                r="38"
+                                fill="transparent"
+                                stroke={segment.color}
+                                strokeWidth="17"
+                                strokeDasharray={`${segment.percent * 2.39} ${239}`}
+                                strokeDashoffset={-statusSegments.slice(0, idx).reduce((acc, s) => acc + (s.percent * 2.39), 0)}
+                                className="animate-[donutGrow_1s_ease-out]"
+                                strokeLinecap="butt"
+                              />
+                              {segment.percent >= 5 && (
+                                <text
+                                  x={x}
+                                  y={y}
+                                  textAnchor="middle"
+                                  dominantBaseline="middle"
+                                  fill="white"
+                                  fontSize="7"
+                                  fontWeight="bold"
+                                  className="select-none"
+                                  style={{ textShadow: labelShadow }}
+                                  transform={`rotate(90, ${x}, ${y})`}
+                                >
+                                  {segment.percent.toFixed(0)}%
+                                </text>
+                              )}
+                            </g>
+                          );
+                        })}
+                      </svg>
+                    </div>
+                  </div>
+                </div>
 
                   <div className="pt-4 border-t border-slate-50 grid grid-cols-2 gap-4">
                     <ul className="space-y-2">
@@ -352,7 +456,7 @@ export default function DashboardPage() {
                         <li key={segment.label} className="flex items-center justify-between text-xs gap-3">
                           <div className="flex items-center gap-2 min-w-0">
                             <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: segment.color }} />
-                            <span className="font-medium text-slate-600 truncate">{formatLabel(segment.label)}</span>
+                            <span className="font-medium text-slate-600 truncate uppercase">{formatLabel(segment.label)}</span>
                           </div>
                         </li>
                       )) : <li className="text-xs text-slate-400">Aucune méthode</li>}

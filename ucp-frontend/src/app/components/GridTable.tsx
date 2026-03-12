@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { ColumnConfig, GridRow } from "@/types/grid";
 import GridCell from "./GridCell";
 
@@ -33,7 +33,30 @@ export default function GridTable({
     title: string;
     message: string;
   } | null>(null);
-   
+  
+  const [savedScrollPosition, setSavedScrollPosition] = useState(0);
+  const isScrollRestoring = useRef(false);
+
+  // Sauvegarder la position avant tout changement
+    const saveScrollPosition = () => {
+      if (wrapperRef.current) {
+        setSavedScrollPosition(wrapperRef.current.scrollTop);
+      }
+    };
+
+    // Restaurer la position après render
+    useEffect(() => {
+      if (wrapperRef.current && savedScrollPosition > 0 && !isScrollRestoring.current) {
+        isScrollRestoring.current = true;
+        requestAnimationFrame(() => {
+          if (wrapperRef.current) {
+            wrapperRef.current.scrollTop = savedScrollPosition;
+            isScrollRestoring.current = false;
+          }
+        });
+      }
+    }, [rows, savedScrollPosition]);
+
     const formatDateForDisplay = (dateStr: string | null | undefined): string => {
     if (!dateStr) return "";
     // Si c'est au format ISO (AAAA-MM-JJ)
@@ -44,7 +67,7 @@ export default function GridTable({
     
     return dateStr;
     };
-
+      
   const showDateValidationPopup = (message: string) => {
     setUiPopup({ kind: "date", title: "Date non valide", message });
     if (datePopupTimeoutRef.current) {
@@ -371,26 +394,37 @@ export default function GridTable({
     return String(value);
   };
 
-  const getLatestDriverDates = (row: GridRow) => {
-    const latestValues: Partial<GridRow> = {};
-    const rowId = String(row._id ?? "");
+const getLatestDriverDates = (row: GridRow) => {
+  const latestValues: Partial<GridRow> = {};
+  const rowId = String(row._id ?? "");
 
-    if (!rowId || !wrapperRef.current) {
-      return latestValues;
-    }
-
-    const driverKeys = ["delivery_date", "mission_end_date"] as const;
-
-    driverKeys.forEach((key) => {
-      const cell = wrapperRef.current?.querySelector<HTMLTableCellElement>(`tr[data-row-id="${rowId}"] td[data-col-key="${key}"]`);
-      const input = cell?.querySelector<HTMLInputElement>('input[type="date"]');
-      if (input?.value) {
-        latestValues[key] = input.value;
-      }
-    });
-
+  if (!rowId || !wrapperRef.current) {
     return latestValues;
-  };
+  }
+
+  const driverKeys = ["delivery_date", "mission_end_date"] as const;
+
+  driverKeys.forEach((key) => {
+    // Chercher d'abord dans le DOM (valeur affichée/modifiée)
+    const cell = wrapperRef.current?.querySelector<HTMLTableCellElement>(`tr[data-row-id="${rowId}"] td[data-col-key="${key}"]`);
+    const input = cell?.querySelector<HTMLInputElement>('input[type="date"]');
+    
+    if (input?.value) {
+      // Si un input existe et a une valeur, l'utiliser
+      latestValues[key] = input.value;
+      console.log(`getLatestDriverDates - ${key} depuis input:`, input.value); // DEBUG
+    } else {
+      // Sinon, utiliser la valeur du row
+      const value = row[key];
+      if (value && typeof value === 'string' && value.trim() !== '') {
+        latestValues[key] = value;
+        console.log(`getLatestDriverDates - ${key} depuis row:`, value); // DEBUG
+      }
+    }
+  });
+
+  return latestValues;
+};
 
   const parseDateValue = (value: unknown): number | null => {
     const raw = String(value ?? "").trim();
@@ -410,32 +444,48 @@ export default function GridTable({
     return "bg-[#eff2f5] text-[#516171]";
   };
 
-  const handleCalculate = async (row: GridRow) => {
-    const latestDriverDates = getLatestDriverDates(row);
-    const rowForCalculation = { ...row, ...latestDriverDates };
-    const driverDate = String(
-      rowForCalculation.delivery_date ||
-      rowForCalculation.delivery_date_actual ||
-      rowForCalculation.mission_end_date ||
-      rowForCalculation.mission_end_date_actual ||
-      ""
-    );
-    if (!driverDate) {
-      alert("Veuillez d'abord saisir une date de fin (Livraison ou Fin de mission).");
-      return;
-    }
-    if (!isSupportedMethodValue(rowForCalculation.method)) {
-      showMethodRequiredPopup();
-      if (row._id) scrollToMethodCell(String(row._id));
-      return;
-    }
+const handleCalculate = async (row: GridRow) => {
+  saveScrollPosition();
+  console.log("🟠 handleCalculate start - row reçue:", row);
+  
+  // Récupérer les dernières valeurs des champs de date directement depuis le DOM
+  const latestDriverDates = getLatestDriverDates(row);
+  console.log("🟠 latestDriverDates:", latestDriverDates);
+  
+  // IMPORTANT: Utiliser la date du DOM si disponible, sinon celle du row
+  const driverDate = String(
+    latestDriverDates.delivery_date ||
+    latestDriverDates.mission_end_date ||
+    row.delivery_date ||
+    row.delivery_date_actual ||
+    row.mission_end_date ||
+    row.mission_end_date_actual ||
+    ""
+  );
+  console.log("🟠 driverDate utilisée:", driverDate);
+  
+  if (!driverDate) {
+    alert("Veuillez d'abord saisir une date de fin (Livraison ou Fin de mission).");
+    return;
+  }
+  
+  if (!isSupportedMethodValue(row.method)) {
+    showMethodRequiredPopup();
+    if (row._id) scrollToMethodCell(String(row._id));
+    return;
+  }
 
-    try {
-      const { calculatePlanning } = await import("@/services/api");
-      const type = (rowForCalculation.type as "Travaux" | "Biens" | "Consultance" | undefined) ?? "Travaux";
-      const newDates = await calculatePlanning(type, driverDate, String(rowForCalculation.method).toLowerCase());
+  try {
+    const { calculatePlanning } = await import("@/services/api");
+    const type = (row.type as "Travaux" | "Biens" | "Consultance" | undefined) ?? "Travaux";
+    const newDates = await calculatePlanning(type, driverDate, String(row.method).toLowerCase());
+    console.log("🟠 nouvelles dates reçues de l'API:", newDates);
 
-      const mappedDates: GridRow = type === "Consultance" ? {
+    // Construction des nouvelles dates calculées
+    let mappedDates: GridRow = {};
+    
+    if (type === "Consultance") {
+      mappedDates = {
         terms_of_reference: newDates.TdR_prevu,
         ami: newDates.ami_prevu,
         request_for_proposal: newDates.demande_proposition_prevu,
@@ -443,27 +493,69 @@ export default function GridTable({
         financial_opening_date: newDates.ouverture_plis_prevu,
         contract_date: newDates.date_signature_prevu,
         mission_end_date: newDates.date_fin_prevu,
-      } : {
+        evaluation_report: newDates.rapport_evaluation_prevu,
+        contract_draft: newDates.projet_contrat_prevu,
+        invitation_date: newDates.date_invitation_prevu,
+        restricted_list: newDates.liste_restreinte_prevu,
+      };
+    } else {
+      // Pour Travaux et Biens
+      mappedDates = {
         tender_documents_date: newDates.dossiers_appel_prevu,
         launch_date: newDates.date_lancement_prevu,
         opening_date: newDates.date_ouverture_prevu,
         evaluation_report: newDates.rapport_evaluation_prevu,
         contract_date: newDates.date_signature_prevu,
+        delivery_date: newDates.date_livraison_prevu,
+        specifications_date: newDates.listesetspecifications_prevu,
       };
-
-      if (onRowUpdate && row._id) {
-        onRowUpdate({
-          ...rowForCalculation,
-          ...mappedDates,
-          ...(type === "Consultance" ? { pricing_type: String(rowForCalculation.pricing_type ?? "").trim() || "forfait" } : {}),
-          _isCalculated: true
-        });
-      }
-      alert("Calcul terminé avec succès !");
-    } catch (error: unknown) {
-      alert("Erreur: " + (error instanceof Error && error.message === "Failed to fetch" ? "Impossible de contacter le serveur. Vérifiez que le backend est lancé sur l'adresse IP configurée." : error instanceof Error ? error.message : "Erreur inconnue"));
     }
-  };
+
+    console.log("Nouvelles dates calculées:", mappedDates);
+    console.log("Anciennes dates:", {
+      // Pour Consultance
+      terms_of_reference: row.terms_of_reference,
+      ami: row.ami,
+      request_for_proposal: row.request_for_proposal,
+      submissions_opening_date: row.submissions_opening_date,
+      financial_opening_date: row.financial_opening_date,
+      contract_date: row.contract_date,
+      mission_end_date: row.mission_end_date,
+      evaluation_report: row.evaluation_report,
+      contract_draft: row.contract_draft,
+      invitation_date: row.invitation_date,
+      restricted_list: row.restricted_list,
+      // Pour Travaux/Biens
+      tender_documents_date: row.tender_documents_date,
+      launch_date: row.launch_date,
+      opening_date: row.opening_date,
+      delivery_date: row.delivery_date,
+      specifications_date: row.specifications_date,
+    });
+
+    console.log("🟠 mappedDates à appliquer:", mappedDates);
+    
+    if (onRowUpdate && row._id) {
+      console.log("🟠 Appel onRowUpdate avec:", {
+        ...row,
+        ...mappedDates,
+      });
+      
+      onRowUpdate({
+        ...row,
+        ...mappedDates,
+        ...(type === "Consultance" ? { pricing_type: String(row.pricing_type ?? "").trim() || "forfait" } : {}),
+        _isCalculated: true
+      });
+    } else {
+      console.log("🟠 onRowUpdate non défini ou row._id manquant!");
+    }
+    
+    alert("Calcul terminé avec succès !");
+  } catch (error: unknown) {
+    alert("Erreur: " + (error instanceof Error && error.message === "Failed to fetch" ? "Impossible de contacter le serveur. Vérifiez que le backend est lancé sur l'adresse IP configurée." : error instanceof Error ? error.message : "Erreur inconnue"));
+  }
+};
 
   const isCellEditable = (row: GridRow, column: ColumnConfig, isActual: boolean) => {
     const normalizedStatus = String(row.status ?? "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -476,6 +568,8 @@ export default function GridTable({
       if (isManualPlannedDateKey(column.key)) return true;
       if (column.key === "tender_documents_date" && row._isCalculated === true) return true;
       if (isConsultanceForfaitAfterCalc) return true;
+      // If the backend already provided a value, allow editing even if previous steps are empty.
+      if (hasValue(row[column.key])) return true;
       const dateColumns = columns.filter(c => c.type === "date" && c.isSplit);
       const myIndex = dateColumns.findIndex(c => c.key === column.key);
       if (myIndex > 0 && !row[dateColumns[myIndex - 1].key]) {
@@ -504,6 +598,9 @@ export default function GridTable({
         @keyframes rowAddGlow { from { background-color: #e8f8ef; } to { background-color: transparent; } }
         @keyframes methodPulse { 0% { box-shadow: 0 0 0 0 rgba(11, 128, 70, 0.35); } 100% { box-shadow: 0 0 0 13px rgba(11, 128, 70, 0); } }
         @keyframes methodFocus { 0% { transform: scale(1); } 40% { transform: scale(1.03); } 100% { transform: scale(1); } }
+       input::-webkit-calendar-picker-indicator {
+       display: none !important;
+      -webkit-appearance: none; }
       `}</style>
       
       <div className="relative overflow-auto max-h-[56vh] bg-white" ref={wrapperRef}>
@@ -544,7 +641,7 @@ export default function GridTable({
 
                 return (
                 <tr
-                  key={row._id}
+                  key={`${row._id}-${Date.now()}`}  // ← Force le re-render à chaque calcul
                   data-row-id={String(row._id ?? "")}
                   className={`group ${isRowStopped ? "bg-[#f3f3f3] text-[#727272]" : "hover:bg-[#f8fbf9]"} ${isNewRow ? "animate-[rowAddGlow_0.45s_ease]" : ""}`}
                   style={isRowStopped ? { filter: "grayscale(0.65)", opacity: 0.85 } : undefined}

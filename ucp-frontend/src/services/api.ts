@@ -99,6 +99,7 @@ interface BackendProcurementItem {
   demande_proposition_prevu?: string;
   date_invitation_prevu?: string;
   ouverture_plis_prevu?: string;
+  projet_contrat_prevu?: string;
   date_fin_prevu?: string;
   
   // Consultance - Dates réelles
@@ -127,7 +128,7 @@ interface BackendProcurementItem {
   approche?: string;
 }
 
-export interface PlanningResponse {
+export interface PlanningResponse { 
   TdR_prevu?: string;
   ami_prevu?: string;
   demande_proposition_prevu?: string;
@@ -136,9 +137,14 @@ export interface PlanningResponse {
   date_ouverture_prevu?: string;
   ouverture_plis_prevu?: string;
   rapport_evaluation_prevu?: string;
+  projet_contrat_prevu?: string;
   date_signature_prevu?: string;
   date_fin_prevu?: string;
-}
+  date_livraison_prevu?: string;
+  date_invitation_prevu?: string;
+  liste_restreinte_prevu?: string;
+  listesetspecifications_prevu?: string;
+  }
 
 /**
  * Utilitaires pour mapper les URLs selon le type
@@ -166,7 +172,7 @@ export async function getAllProcurements(): Promise<Procurement[]> {
 
     const responses = await Promise.all(
       urls.map(async (url): Promise<BackendListResponse> => {
-        const res = await fetch(url);
+        const res = await fetch(url, { cache: "no-store" }); // Ajout de no-store pour éviter les problèmes de cache
         const data = await res.json().catch(() => ({ travaux: [], biens: [], consultance: [] }));
         
         // 🔍 DEBUG - Voir ce que retourne chaque endpoint
@@ -216,11 +222,23 @@ export async function getAllProcurements(): Promise<Procurement[]> {
       request_for_proposal: item.demande_proposition_prevu,
       invitation_date: item.date_invitation_prevu,
       submissions_opening_date: item.date_ouverture_prevu,
+      technical_evaluation: item.rapport_evaluation_prevu,
       financial_opening_date: item.ouverture_plis_prevu,
+      contract_draft: item.projet_contrat_prevu,
       contract_date: item.date_signature_prevu,
       mission_end_date: item.date_fin_prevu,
-      evaluation_report: item.rapport_evaluation_prevu,
-      contract_draft: item.projet_contrat_prevu,
+      // Dates réelles
+      terms_of_reference_actual: item.TdR_reel,
+      ami_actual: item.ami_reel,
+      restricted_list_actual: item.liste_restreinte_reel,
+      request_for_proposal_actual: item.demande_proposition_reel,
+      invitation_date_actual: item.date_invitation_reel,
+      submissions_opening_date_actual: item.date_ouverture_reel,
+      technical_evaluation_actual: item.rapport_evaluation_reel,
+      financial_opening_date_actual: item.ouverture_plis_reel,
+      contract_draft_actual: item.projet_contrat_reel,
+      contract_date_actual: item.date_signature_reel,
+      mission_end_date_actual: item.date_fin_reel,
     };
     console.log('Mapped Consultance:', mapped);
     return mapped;
@@ -369,23 +387,24 @@ function buildProcurementPayload(data: Procurement): Record<string, unknown> {
     return null;
   };
 
+  const dataExtras = data as unknown as Record<string, unknown>;
+
   const basePayload = {
-    intitule: data.title || " ",
-    montant_estimatif: data.estimated_amount || 0,
     commentaire: data.review_notes || "",
+    montant_estimatif: data.estimated_amount || 0,
   };
 
   if (data.type === "Consultance") {
   const consultancePayload: Record<string, unknown> = {
     ...basePayload,
     // Champs obligatoires pour Consultance
-    methode: data.method || "SMC",
-    approche: data.approach || "open",
+    methode: data.method ,
+    approche: data.approach ,
     revue: data.review_notes || "",
-    forfaitxtemps: data.pricing_type || "forfait",
+    forfaitxtemps: data.pricing_type ,
     // Ajoute aussi ces champs
-    ref_code_suivi: data.tracking_code || "",
-    agmoxdirection: data.agmo || "Direction Générale",
+    ref_code_suivi: data.tracking_code ,
+    agmoxdirection: data.agmo ,
    };
   
    console.log("Payload Consultance avant ajout dates:", consultancePayload); // DEBUG
@@ -406,7 +425,19 @@ function buildProcurementPayload(data: Procurement): Record<string, unknown> {
      addIfDate("date_signature_prevu", data.contract_date);
      addIfDate("date_fin_prevu", data.mission_end_date);
      addIfDate("rapport_evaluation_prevu", data.evaluation_report);
-     addIfDate("projet_contrat_prevu", data.contract_draft);
+      addIfDate("projet_contrat_prevu", data.contract_draft);
+      // Dates réelles
+      addIfDate("TdR_reel", dataExtras["terms_of_reference_actual"]);
+      addIfDate("ami_reel", dataExtras["ami_actual"]);
+      addIfDate("liste_restreinte_reel", dataExtras["restricted_list_actual"]);
+      addIfDate("demande_proposition_reel", dataExtras["request_for_proposal_actual"]);
+      addIfDate("date_invitation_reel", dataExtras["invitation_date_actual"]);
+      addIfDate("date_ouverture_reel", dataExtras["submissions_opening_date_actual"]);
+      addIfDate("ouverture_plis_reel", dataExtras["financial_opening_date_actual"]);
+      addIfDate("date_signature_reel", dataExtras["contract_date_actual"]);
+      addIfDate("date_fin_reel", dataExtras["mission_end_date_actual"]);
+      addIfDate("rapport_evaluation_reel", dataExtras["evaluation_report_actual"]);
+      addIfDate("projet_contrat_reel", dataExtras["contract_draft_actual"]);
 
     console.log("Payload Consultance final:", consultancePayload); // DEBUG
     return consultancePayload;
@@ -416,12 +447,12 @@ function buildProcurementPayload(data: Procurement): Record<string, unknown> {
   return {
     code_suivi: data.tracking_code || "",
     ...basePayload,
-    agmo: data.agmo || "Direction Générale",
+    agmo: data.agmo ,
     ...(data.type === "Biens"
-      ? { methode_epm: data.method || "aoi" }
-      : { methode_pm: data.method || "aoi" }),
-    approches: data.approach || "Non défini",
-    revue: data.review_notes || "Non défini",
+      ? { methode_epm: data.method }
+      : { methode_pm: data.method }),
+    approches: data.approach ,
+    revue: data.review_notes || "",
     dossiers_appel_prevu: toBackendDate(data.tender_documents_date),
     date_lancement_prevu: toBackendDate(data.launch_date),
     date_ouverture_prevu: toBackendDate(data.opening_date),
@@ -429,6 +460,15 @@ function buildProcurementPayload(data: Procurement): Record<string, unknown> {
     date_livraison_prevu: toBackendDate(data.delivery_date),
     listesetspecifications_prevu: toBackendDate(data.specifications_date),
     rapport_evaluation_prevu: toBackendDate(data.evaluation_report),
+    // Dates réelles (Réel)
+    dossiers_appel_reel: toBackendDate(dataExtras["tender_documents_date_actual"]),
+    date_lancement_reel: toBackendDate(dataExtras["launch_date_actual"]),
+    date_ouverture_reel: toBackendDate(dataExtras["opening_date_actual"]),
+    rapport_evaluation_reel: toBackendDate(dataExtras["evaluation_report_actual"]),
+    date_signature_reel: toBackendDate(dataExtras["contract_date_actual"]),
+    date_livraison_reel: toBackendDate(dataExtras["delivery_date_actual"]),
+    listesetspecifications_reel: toBackendDate(dataExtras["specifications_date_actual"]),
+
   };
 }
 

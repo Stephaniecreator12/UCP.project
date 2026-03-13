@@ -641,7 +641,7 @@ const handleCalculate = async (row: GridRow) => {
 
                 return (
                 <tr
-                  key={`${row._id}-${Date.now()}`}  // ← Force le re-render à chaque calcul
+                  key={row._id}  
                   data-row-id={String(row._id ?? "")}
                   className={`group ${isRowStopped ? "bg-[#f3f3f3] text-[#727272]" : "hover:bg-[#f8fbf9]"} ${isNewRow ? "animate-[rowAddGlow_0.45s_ease]" : ""}`}
                   style={isRowStopped ? { filter: "grayscale(0.65)", opacity: 0.85 } : undefined}

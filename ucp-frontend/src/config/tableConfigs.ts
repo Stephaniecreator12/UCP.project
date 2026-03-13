@@ -325,7 +325,7 @@ export const CONSULTANTS_COLUMNS: ColumnConfig[] = [
     splitController: "pricing_type",
     // Saisie manuelle
   },
-  {
+  { 
     // DATE CALCULÉE (Retro-planning)
     key: "financial_opening_date",
     label: "Ouverture des plis financiers",
@@ -337,7 +337,7 @@ export const CONSULTANTS_COLUMNS: ColumnConfig[] = [
     splitController: "pricing_type",
     // Editable après calcul
   },
-  {
+  { 
     key: "contract_draft",
     label: "Projet de contrat négocié",
     width: "140px",

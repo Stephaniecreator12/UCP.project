@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
@@ -59,7 +59,7 @@ export default function GestionMarches() {
     maximumFractionDigits: 2,
   }).format(totalEstimatedAmount);
 
-const loadData = useCallback(async () => {
+const loadData = useCallback(async (): Promise<GridRow[]> => {
   setIsLoading(true);
   try {
     const allData = await getAllProcurements();
@@ -70,35 +70,47 @@ const loadData = useCallback(async () => {
       return true;
     });
 
-    // Formater les dates pour l'affichage (JJ-MM-AAAA)
-    const formattedRows = filteredData.map((item: Procurement) => {
-      const row = { ...item, _id: String(item.id) };
-      
-      // Liste des clés de dates à formater
-      const dateKeys = [
-        'specifications_date', 'launch_date', 'opening_date', 
-        'contract_date', 'delivery_date', 'invitation_date', 
-        'submissions_opening_date', 'mission_end_date'
-      ];
+    const normalizeDateForInput = (value: unknown): string => {
+      if (typeof value !== "string") return "";
+      const s = value.trim();
+      if (!s) return "";
 
-      dateKeys.forEach(key => {
-        const val = row[key];
-        if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(val)) {
-          const [y, m, d] = val.split('-');
-          row[key] = `${d}-${m}-${y}`;
-        }
+      if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+      const isoMatch = s.match(/^(\d{4}-\d{2}-\d{2})T/);
+      if (isoMatch) return isoMatch[1];
+
+      const dmyMatch = s.match(/^(\d{2})[/-](\d{2})[/-](\d{4})$/);
+      if (dmyMatch) {
+        const [, dd, mm, yyyy] = dmyMatch;
+        return `${yyyy}-${mm}-${dd}`;
+      }
+
+      return s;
+    };
+
+    const dateKeysFromConfig = config.columns
+      .filter((col) => col.type === "date")
+      .flatMap((col) => (col.isSplit ? [col.key, `${col.key}_actual`] : [col.key]));
+
+    const formattedRows: GridRow[] = filteredData.map((item: Procurement) => {
+      const row: GridRow = { ...(item as unknown as GridRow), _id: String(item.id) };
+
+      dateKeysFromConfig.forEach((key) => {
+        row[key] = normalizeDateForInput(row[key]);
       });
 
       return row;
     });
 
     setRows(formattedRows);
+    return formattedRows;
   } catch {
     setSaveMessage({ type: "error", message: "Erreur de chargement" });
+    return [];
   } finally {
     setIsLoading(false);
   }
-}, [activeMenu]);
+}, [activeMenu, config.columns]);
 
   useEffect(() => {
     if (!getToken()) router.replace("/login");
@@ -150,43 +162,10 @@ const loadData = useCallback(async () => {
   };
 
   const handleRowChange = (rowId: string, columnKey: string, value: unknown) => {
-  setRows((prevRows) => 
-    prevRows.map((row) => {
-      if (row._id === rowId) {
-        const updatedRow = { ...row, [columnKey]: value };
-        
-        // Si on modifie une date, on recalcule le statut
-        if (false && columnKey.includes('date') || columnKey === 'specifications_date') {
-          // Recalculer le statut asynchrone
-          setTimeout(async () => {
-            try {
-              const typeMapping: Record<string, "Travaux" | "Biens" | "Consultance"> = { 
-                works: "Travaux", 
-                "goods-services": "Biens", 
-                consultants: "Consultance" 
-              };
-              const newStatus = await getProcurementStatus(
-                typeMapping[activeMenu], 
-                updatedRow
-              );
-              
-              setRows((currentRows) => 
-                currentRows.map((r) => 
-                  r._id === rowId ? { ...r, status: newStatus } : r
-                    )
-                  );
-                } catch (error) {
-                  console.error("Erreur calcul statut:", error);
-                }
-              }, 100);
-            }
-            
-            return updatedRow;
-          }
-          return row;
-        })
-      );
-    };
+    setRows((prevRows) =>
+      prevRows.map((row) => (row._id === rowId ? { ...row, [columnKey]: value } : row)),
+    );
+  };
 
   const handleRowDelete = async (rowId: string) => {
     try {
@@ -197,13 +176,13 @@ const loadData = useCallback(async () => {
           return;
         }
         const password = await requestPasswordConfirmation({ title: "Supprimer la ligne", message: "Confirme l'action avec ton mot de passe.", confirmLabel: "Supprimer" });
-        if (!password) { setSaveMessage({ type: "error", message: "Suppression annulée." }); return; }
+        if (!password) { setSaveMessage({ type: "error", message: "Suppression annulÃ©e." }); return; }
         const typeMapping: Record<MenuItemType, "Travaux" | "Biens" | "Consultance"> = { works: "Travaux", "goods-services": "Biens", consultants: "Consultance" };
         const rowToDelete = rows.find((r) => r._id === rowId);
         await deleteProcurement(numericId, (rowToDelete?.type as "Travaux" | "Biens" | "Consultance") ?? typeMapping[activeMenu], password);
       }
       setRows((prev) => prev.filter((r) => r._id !== rowId));
-      setSaveMessage({ type: "danger", message: "Ligne supprimée." });
+      setSaveMessage({ type: "danger", message: "Ligne supprimÃ©e." });
     } catch (e: unknown) {
       setSaveMessage({ type: "error", message: e instanceof Error ? e.message : "Erreur suppression" });
     }
@@ -212,98 +191,38 @@ const loadData = useCallback(async () => {
   const handleRowStop = async (rowId: string) => {
     try {
       if (rowId.startsWith("_new_")) { setSaveMessage({ type: "error", message: "Enregistre d'abord la ligne." }); return; }
-      const password = await requestPasswordConfirmation({ title: "Arrêter la ligne", message: "Confirme l'arrêt avec ton mot de passe.", confirmLabel: "Arrêter" });
-      if (!password) { setSaveMessage({ type: "error", message: "Arrêt annulé." }); return; }
+      const password = await requestPasswordConfirmation({ title: "ArrÃªter la ligne", message: "Confirme l'arrÃªt avec ton mot de passe.", confirmLabel: "ArrÃªter" });
+      if (!password) { setSaveMessage({ type: "error", message: "ArrÃªt annulÃ©." }); return; }
       const rowToStop = rows.find((r) => r._id === rowId);
       if (!rowToStop) return;
       const typeMapping: Record<MenuItemType, "Travaux" | "Biens" | "Consultance"> = { works: "Travaux", "goods-services": "Biens", consultants: "Consultance" };
       const result = await stopProcurement(Number(rowId), (rowToStop.type as "Travaux" | "Biens" | "Consultance") ?? typeMapping[activeMenu], password);
-      setRows((prev) => prev.map((r) => r._id === rowId ? { ...r, status: result.statut || "Arrêté" } : r));
-      setSaveMessage({ type: "warning", message: "Ligne arrêtée." });
+      setRows((prev) => prev.map((r) => r._id === rowId ? { ...r, status: result.statut || "ArrÃªtÃ©" } : r));
+      setSaveMessage({ type: "warning", message: "Ligne arrÃªtÃ©e." });
     } catch (e: unknown) {
-      setSaveMessage({ type: "error", message: e instanceof Error ? e.message : "Erreur arrêt" });
+      setSaveMessage({ type: "error", message: e instanceof Error ? e.message : "Erreur arrÃªt" });
     }
   };
+
 
 const handleRowSave = async (row: GridRow) => {
   setIsSaving(true);
   try {
-    const typeMapping: Record<string, "Travaux" | "Biens" | "Consultance"> = { 
-      works: "Travaux", 
-      "goods-services": "Biens", 
-      consultants: "Consultance" 
+    const typeMapping: Record<string, "Travaux" | "Biens" | "Consultance"> = {
+      works: "Travaux",
+      "goods-services": "Biens",
+      consultants: "Consultance",
     };
 
-    // Nettoyage strict pour le Backend (YYYY-MM-DD)
-    const formatForBackend = (val: unknown): string | undefined => {
-      if (!val || typeof val !== "string" || val.trim() === "") return undefined;
-      
-      // Si c'est déjà au format YYYY-MM-DD, on garde tel quel
-      if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
-      
-      // Si c'est au format JJ-MM-AAAA, on convertit pour le backend
-      if (/^\d{2}-\d{2}-\d{4}$/.test(val)) {
-        const [d, m, y] = val.split("-");
-        return `${y}-${m}-${d}`;
-      }
-      if (val.includes("-") && val.length < 10 && !/^\d{4}/.test(val)) {
-        return undefined;
-      }
-      return undefined;
-    };
-
+    // Option 2 (architecture): on envoie le modÃ¨le UI et on laisse
+    // `buildProcurementPayload` (services/api.ts) mapper vers le backend.
     const procurementData: Procurement = {
       ...row,
       type: typeMapping[activeMenu],
       title: String(row.title ?? " "),
-// --- MAPPING DES DATES POUR TRAVAUX ET BIENS ---
-  // Ces champs correspondent aux modèles Biens.py et Travaux.py
-  listesetspecifications_prevu: formatForBackend(row.specifications_date),
-  listesetspecifications_reel: formatForBackend(row.specifications_date),
-  
-  dossiers_appel_prevu: formatForBackend(row.tender_documents_date),
-  dossiers_appel_reel: formatForBackend(row.tender_documents_date),
-  
-  date_lancement_prevu: formatForBackend(row.launch_date),
-  date_lancement_reel: formatForBackend(row.launch_date),
-
-  date_ouverture_prevu: formatForBackend(row.opening_date || row.submissions_opening_date),
-  date_ouverture_reel: formatForBackend(row.opening_date || row.submissions_opening_date),
-  
-  rapport_evaluation_prevu: formatForBackend(row.evaluation_report || row.technical_evaluation),
-  rapport_evaluation_reel: formatForBackend(row.evaluation_report || row.technical_evaluation),
-
-  date_signature_prevu: formatForBackend(row.contract_date),
-  date_signature_reel: formatForBackend(row.contract_date),
-  
-  date_livraison_prevu: formatForBackend(row.delivery_date),
-  date_livraison_reel: formatForBackend(row.delivery_date),
-
-  // --- MAPPING DES DATES POUR CONSULTANTS ---
-  // Ces champs correspondent au modèle Consultance.py
-  TdR_prevu: formatForBackend(row.terms_of_reference),
-  TdR_reel: formatForBackend(row.terms_of_reference),
-  
-  ami_prevu: formatForBackend(row.ami),
-  ami_reel: formatForBackend(row.ami),
-  
-  liste_restreinte_prevu: formatForBackend(row.restricted_list),
-  liste_restreinte_reel: formatForBackend(row.restricted_list),
-  
-  demande_proposition_prevu: formatForBackend(row.request_for_proposal),
-  demande_proposition_reel: formatForBackend(row.request_for_proposal),
-  
-  date_invitation_prevu: formatForBackend(row.invitation_date),
-  date_invitation_reel: formatForBackend(row.invitation_date),
-
-  ouverture_plis_prevu: formatForBackend(row.financial_opening_date),
-  ouverture_plis_reel: formatForBackend(row.financial_opening_date),
-  
-  projet_contrat_prevu: formatForBackend(row.contract_draft),
-  projet_contrat_reel: formatForBackend(row.contract_draft),
-  
-  date_fin_prevu: formatForBackend(row.mission_end_date),
-  date_fin_reel: formatForBackend(row.mission_end_date),
+      review_notes: String(
+        (row as unknown as Record<string, unknown>).comments ?? row.review_notes ?? "",
+      ),
     };
 
     const rowId = String(row._id ?? "");
@@ -311,24 +230,42 @@ const handleRowSave = async (row: GridRow) => {
     const numericId = Number.parseInt(rowId, 10);
     const canUpdate = !isNewRow && Number.isFinite(numericId);
 
-    const result = canUpdate 
-      ? await updateProcurement(numericId, procurementData) 
+    const result = canUpdate
+      ? await updateProcurement(numericId, procurementData)
       : await createProcurement(procurementData);
 
     if (result) {
-      setSaveMessage({ type: "success", message: "Enregistré avec succès" });
-      await loadData(); // Recharge pour l'affichage propre
+      setSaveMessage({ type: "success", message: "EnregistrÃ© avec succÃ¨s" });
+      const refreshedRows = await loadData();
+
+      try {
+        const savedId = String(result.id ?? "");
+        const savedRow = refreshedRows.find((r) => String(r._id ?? "") === savedId);
+        if (savedRow) {
+          const newStatus = await getProcurementStatus(typeMapping[activeMenu], savedRow);
+          setRows((prev) =>
+            prev.map((r) =>
+              String(r._id ?? "") === savedId ? { ...r, status: newStatus } : r,
+            ),
+          );
+        }
+      } catch (error) {
+        console.error("Erreur calcul statut:", error);
+      }
     }
   } catch (e: unknown) {
     console.error("Erreur complète:", e);
-    setSaveMessage({ type: "error", message: e instanceof Error ? e.message : "Erreur inconnue" });
+    setSaveMessage({
+      type: "error",
+      message: e instanceof Error ? e.message : "Erreur inconnue",
+    });
   } finally {
     setIsSaving(false);
   }
 };
 
   const handleRowUpdate = (updatedRow: GridRow) => {
-    console.log("🟢 handleRowUpdate appelé avec:", updatedRow); // DEBUG
+    console.log("ðŸŸ¢ handleRowUpdate appelÃ© avec:", updatedRow); // DEBUG
     setRows((prevRows) => prevRows.map((row) => (row._id === updatedRow._id ? updatedRow : row)));
   };
 
@@ -346,13 +283,13 @@ const handleRowSave = async (row: GridRow) => {
             <div className="absolute top-0 inset-x-0 h-1 rounded-t-[14px] bg-gradient-to-r from-[#0ea85b] to-[#57d18d]" aria-hidden="true" />
             
             <div>
-              <p className="m-0 text-[#627080] text-[0.7rem] tracking-[0.05em] uppercase">Passation de marchés</p>
+              <p className="m-0 text-[#627080] text-[0.7rem] tracking-[0.05em] uppercase">Passation de marchÃ©s</p>
               <h1 className="my-[0.32rem] font-bold text-[1.3rem] text-[#0c7340] tracking-[0.05em]">{config.label}</h1>
             </div>
             
             <div className="grid grid-cols-[auto_auto] max-[900px]:grid-cols-1 gap-[0.65rem] justify-end">
               <div className="border border-[#d9dee3] rounded-xl bg-[#f6f7f8] py-[5px] px-[0.7rem] w-[138px] max-[900px]:w-full">
-                <span className="m-0 text-[#627080] text-[0.7rem] tracking-[0.05em] uppercase">Marchés</span>
+                <span className="m-0 text-[#627080] text-[0.7rem] tracking-[0.05em] uppercase">MarchÃ©s</span>
                 <strong className="block mt-[0.06rem] text-[#0c7340]">{rows.length}</strong>
               </div>
               <div className="border border-[#d9dee3] rounded-xl bg-[#f6f7f8] py-[5px] px-[0.7rem] w-[253px] max-[900px]:w-full">
@@ -362,7 +299,7 @@ const handleRowSave = async (row: GridRow) => {
             </div>
           </header>
 
-          {/* SaveMessage en bas à droite, animé droite -> gauche */}
+          {/* SaveMessage en bas Ã  droite, animÃ© droite -> gauche */}
           {saveMessage && (
             <div
               className={`fixed z-[100] right-6 bottom-[20px] min-w-[220px] max-w-[340px] border rounded-[10px] py-[0.65rem] px-[0.8rem] font-semibold shadow-lg transition-opacity duration-200 animate-saveMessageSlide ${
@@ -489,3 +426,4 @@ const handleRowSave = async (row: GridRow) => {
     </div>
   );
 }
+

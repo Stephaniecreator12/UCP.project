@@ -41,7 +41,6 @@ INSTALLED_APPS = [
     'corsheaders',
     'rest_framework',
     'rest_framework_simplejwt',
-    'achats',
 ]
 
 MIDDLEWARE = [
@@ -74,7 +73,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'config_app.controller.wsgi.application'
+WSGI_APPLICATION = 'config_app.wsgi.application'
 
 
 # Database
@@ -128,7 +127,7 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
-#autoriser acces a stephanie
+#autoriser acces a front
 
 CORS_ALLOWED_ORIGINS = [
 "http://localhost:3000",

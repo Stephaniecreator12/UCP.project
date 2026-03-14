@@ -16,15 +16,17 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import include, path
-from config_app.service import TravauxService, BiensService, ConsultanceService, ProcurementService
+from config_app.services import TravauxService, BiensService, ConsultanceService, ProcurementService
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
 )
+from config_app.controllers import DemandeAchatController
+
 
 urlpatterns = [
+    path('api/demandes-achat/', DemandeAchatController.creer_demande, name='api_creer_demande'),
     path('admin/', admin.site.urls),
-    path('api/', include('achats.urls')),
     path('api/Travaux/addTravaux/', TravauxService.insert_mock_travaux, name='api_add_travaux'),
     path('api/Travaux/updateTravaux/<int:id>/', TravauxService.update_travaux, name='api_update_travaux'),
     path('api/Travaux/listTravaux/', TravauxService.lister_travaux, name='api_list_travaux'),

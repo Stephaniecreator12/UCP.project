@@ -4,9 +4,10 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { getToken, login } from "@/services/auth";
+import { getCurrentUserProfile } from "@/services/demandeAchat";
 import TopHeader from "@/app/components/TopHeader";
 
-const DEFAULT_AFTER_LOGIN_ROUTE = "/formulaire";
+const DEFAULT_AFTER_LOGIN_ROUTE = "/dashboard";
 
 export default function LoginPage() {
   const [username, setUsername] = useState("");
@@ -16,9 +17,19 @@ export default function LoginPage() {
   const router = useRouter();
 
   useEffect(() => {
-    if (getToken()) {
-      router.replace(DEFAULT_AFTER_LOGIN_ROUTE);
-    }
+    const checkExistingSession = async () => {
+      const token = getToken();
+      if (!token) return;
+      try {
+        router.replace("/dashboard");
+      } catch {
+        // Token invalide : on reste sur la page de login
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("refresh_token");
+      }
+    };
+
+    checkExistingSession();
   }, [router]);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -28,13 +39,10 @@ export default function LoginPage() {
     const result = await login(username, password);
 
     if (result.success) {
-      // Redirection immédiate vers le formulaire après connexion réussie
-      router.push("/formulaire");
-    } else {
-      setError(result.error || "Une erreur est survenue");
+      router.replace("/dashboard");
+      router.refresh();
     }
   };
-
   return (
     <div className="app-shell">
       <TopHeader />
@@ -108,20 +116,67 @@ export default function LoginPage() {
                     type="button"
                     className="absolute right-2 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground transition hover:opacity-90"
                     onClick={() => setShowPassword((prev) => !prev)}
-                    aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                    aria-label={
+                      showPassword
+                        ? "Masquer le mot de passe"
+                        : "Afficher le mot de passe"
+                    }
                     title={showPassword ? "Masquer" : "Afficher"}
                   >
                     {showPassword ? (
-                      <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4" aria-hidden="true">
-                        <path d="M3 3l18 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                        <path d="M10.7 10.7a2 2 0 102.6 2.6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                        <path d="M9.5 5.2A11.4 11.4 0 0112 4c5.5 0 9.5 4 10 8a10.5 10.5 0 01-3 5.2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                        <path d="M6.2 7.1A11.6 11.6 0 002 12c.2 1.8 1.4 3.6 3.1 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        className="h-4 w-4"
+                        aria-hidden="true"
+                      >
+                        <path
+                          d="M3 3l18 18"
+                          stroke="currentColor"
+                          strokeWidth="1.8"
+                          strokeLinecap="round"
+                        />
+                        <path
+                          d="M10.7 10.7a2 2 0 102.6 2.6"
+                          stroke="currentColor"
+                          strokeWidth="1.8"
+                          strokeLinecap="round"
+                        />
+                        <path
+                          d="M9.5 5.2A11.4 11.4 0 0112 4c5.5 0 9.5 4 10 8a10.5 10.5 0 01-3 5.2"
+                          stroke="currentColor"
+                          strokeWidth="1.8"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                        <path
+                          d="M6.2 7.1A11.6 11.6 0 002 12c.2 1.8 1.4 3.6 3.1 5"
+                          stroke="currentColor"
+                          strokeWidth="1.8"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
                       </svg>
                     ) : (
-                      <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4" aria-hidden="true">
-                        <path d="M2 12c.5-4 4.5-8 10-8s9.5 4 10 8c-.5 4-4.5 8-10 8S2.5 16 2 12z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-                        <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.8" />
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        className="h-4 w-4"
+                        aria-hidden="true"
+                      >
+                        <path
+                          d="M2 12c.5-4 4.5-8 10-8s9.5 4 10 8c-.5 4-4.5 8-10 8S2.5 16 2 12z"
+                          stroke="currentColor"
+                          strokeWidth="1.8"
+                          strokeLinejoin="round"
+                        />
+                        <circle
+                          cx="12"
+                          cy="12"
+                          r="3"
+                          stroke="currentColor"
+                          strokeWidth="1.8"
+                        />
                       </svg>
                     )}
                   </button>

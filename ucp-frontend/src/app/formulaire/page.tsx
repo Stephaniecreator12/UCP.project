@@ -376,18 +376,18 @@ export default function GestionMarches() {
   const tableInnerStyle: React.CSSProperties = {
     minHeight: 0,
     minWidth: 0,
-    maxHeight: "56vh",
+    maxHeight: "64vh",
     overflow: "hidden",
   };
 
   const addRowAreaStyle: React.CSSProperties = {
     position: "relative",
     zIndex: 90,
-    minHeight: "58px",
+    minHeight: "48px",
     display: "flex",
     alignItems: "center",
     justifyContent: "flex-start",
-    padding: "10px 14px",
+    padding: "8px 12px",
     borderTop: "1px solid rgba(171, 187, 177, 0.7)",
     background:
       "linear-gradient(180deg, rgba(246, 250, 248, 0.98), rgba(236, 243, 239, 0.98))",

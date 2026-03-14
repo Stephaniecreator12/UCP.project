@@ -757,3 +757,97 @@
     font-size: 13px;
   }
 }
+
+/* Compact dashboard pass: reduce oversized blocks and show more above the fold */
+.dashboard-scroll-shell .app-top-header .app-top-header-inner {
+  height: 68px !important;
+  padding: 0 14px !important;
+}
+
+.dashboard-scroll-shell .app-brand-logo {
+  width: 46px !important;
+  height: 46px !important;
+}
+
+.dashboard-scroll-shell .app-top-header .app-brand-text strong {
+  font-size: 23px !important;
+}
+
+.dashboard-scroll-shell .app-top-header .app-brand-text span {
+  font-size: 12px !important;
+}
+
+.dashboard-scroll-shell .app-top-header .quick-link-btn,
+.dashboard-scroll-shell .app-top-header .theme-toggle-btn,
+.dashboard-scroll-shell .app-top-header .logout-btn {
+  min-height: 36px !important;
+  padding: 7px 12px !important;
+  font-size: 13px !important;
+}
+
+.dashboard-scroll-shell .dash-page {
+  padding: 12px 14px 14px !important;
+}
+
+.dash-title {
+  font-size: clamp(22px, 2.2vw, 28px) !important;
+}
+
+.dash-kicker {
+  margin-top: 6px !important;
+  font-size: 13px !important;
+}
+
+.dash-row-mid {
+  gap: 12px !important;
+  margin-top: 24px !important;
+}
+
+.dash-panel {
+  padding: 12px !important;
+  border-radius: 12px !important;
+}
+
+.dash-panel h2 {
+  margin-bottom: 8px !important;
+  font-size: 20px !important;
+}
+
+.dash-panel-content {
+  grid-template-columns: minmax(0, 210px) minmax(0, 1fr) minmax(0, 1fr) !important;
+  gap: 10px !important;
+}
+
+.dash-panel-stats {
+  gap: 8px !important;
+  margin-top: 10px !important;
+}
+
+.panel-stat-item {
+  padding: 8px !important;
+  gap: 10px !important;
+}
+
+.panel-stat-item span {
+  font-size: 12px !important;
+  letter-spacing: 0.06em !important;
+}
+
+.panel-stat-item strong {
+  font-size: 17px !important;
+}
+
+.chart-item {
+  width: 82% !important;
+  padding: 10px !important;
+}
+
+@media (max-width: 900px) {
+  .dash-panel-content {
+    grid-template-columns: 1fr !important;
+  }
+
+  .chart-item {
+    width: 100% !important;
+  }
+}

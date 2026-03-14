@@ -16,12 +16,43 @@ export type SourceFinancementOption =
 export type StatutDemande =
   | "Brouillon"
   | "Soumise"
+  | "Validée Service"
   | "Validée Budget"
   | "Validée Direction"
   | "Rejetée"
   | "Transmise aux Marchés";
 
+export interface WorkflowUserSummary {
+  id: number;
+  username: string;
+  full_name: string;
+  email: string;
+  role: string;
+  service: string;
+  fonction: string;
+}
+
+export interface ValidationDemandeAchatItem {
+  id: number;
+  etape: "service" | "budget" | "direction" | "transmission_marches";
+  role_validateur: string;
+  decision: "Approuvé" | "Rejeté" | "Transmis";
+  commentaire: string;
+  fonds_statut: string;
+  visa: string;
+  date_validation: string;
+  validateur: WorkflowUserSummary;
+}
+
+export interface CurrentUserProfile {
+  user: WorkflowUserSummary;
+  role: string;
+  service: string;
+  fonction: string;
+}
+
 export interface DemandeAchat {
+  id?: number;
   numero_demande: string;
   date_demande: string;
   service_demandeur: string;
@@ -61,4 +92,7 @@ export interface DemandeAchat {
   validateur3_date: string;
   validateur3_visa: string;
   date_transmission_marches: string;
+  validations?: ValidationDemandeAchatItem[];
+  demandeur_info?: WorkflowUserSummary | null;
+  prochain_validateur?: WorkflowUserSummary | null;
 }

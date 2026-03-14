@@ -30,21 +30,6 @@ export default function RootLayout({
   return (
     <html lang="en" data-theme="light" suppressHydrationWarning>
       <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function () {
-                try {
-                  var savedTheme = localStorage.getItem("theme");
-                  var theme = savedTheme === "light" || savedTheme === "dark" ? savedTheme : "light";
-                  document.documentElement.setAttribute("data-theme", theme);
-                } catch (e) {
-                  document.documentElement.setAttribute("data-theme", "light");
-                }
-              })();
-            `,
-          }}
-        />
         <link
           rel="stylesheet"
           href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css"

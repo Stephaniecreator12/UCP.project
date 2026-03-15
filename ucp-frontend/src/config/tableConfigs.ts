@@ -67,7 +67,7 @@ export const WORKS_GOODS_COLUMNS: ColumnConfig[] = [
   },
   {
     key: "method",
-    label: "Méthode P.M.",
+    label: "Méthode P.M" ,
     width: "100px",
     type: "select",
     editable: true,
@@ -215,6 +215,14 @@ export const CONSULTANTS_COLUMNS: ColumnConfig[] = [
     type: "text",
     editable: true,
     placeholder: "Intitulé de la consultation",
+  },
+  {
+    key: "agmoxdirection",
+    label: "Agmo/Direction",
+    width: "120px",
+    type: "text",
+    editable: true,
+    placeholder: "Agmo/Direction",
   },
   {
     key: "estimated_amount",

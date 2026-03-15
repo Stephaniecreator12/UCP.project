@@ -53,6 +53,13 @@ export interface Procurement {
   financial_opening_date?: string;
   contract_date?: string;
   mission_end_date?: string;
+  technical_evaluation?: string;
+  evaluation_report?: string;
+  contract_draft?: string;
+  specifications_date?: string;
+  tender_documents_date?: string;
+  launch_date?: string;
+  delivery_date?: string;
 
   // Dates réelles (Exécuté) - À adapter selon les nouveaux modèles
   // Les modèles semblent utiliser des tables séparées pour les détails prévus/réels
@@ -219,6 +226,7 @@ export async function getAllProcurements(): Promise<Procurement[]> {
   if (type === "Consultance") {
     const mapped = {
       ...base,
+      agmoxdirection: item.agmoxdirection,
       terms_of_reference: item.TdR_prevu,
       ami: item.ami_prevu,
       restricted_list: item.liste_restreinte_prevu,
@@ -402,13 +410,16 @@ function buildProcurementPayload(data: Procurement): Record<string, unknown> {
   const consultancePayload: Record<string, unknown> = {
     ...basePayload,
     // Champs obligatoires pour Consultance
+    intitule: String(data.title ?? "").trim() || " ",
     methode: data.method ,
     approche: data.approach ,
     revue: data.review_notes || "",
     forfaitxtemps: data.pricing_type ,
     // Ajoute aussi ces champs
     ref_code_suivi: data.tracking_code ,
-    agmoxdirection: data.agmo ,
+    agmoxdirection: String(
+      (data as unknown as Record<string, unknown>).agmoxdirection ?? data.agmo ?? "",
+    ).trim(),
    };
   
    console.log("Payload Consultance avant ajout dates:", consultancePayload); // DEBUG
@@ -429,7 +440,6 @@ function buildProcurementPayload(data: Procurement): Record<string, unknown> {
      addIfDate("date_signature_prevu", data.contract_date);
      addIfDate("date_fin_prevu", data.mission_end_date);
      addIfDate("evaluation_technique_prevu", data.technical_evaluation);
-     addIfDate("evaluation_technique_prevu", data.evaluation_report);
      addIfDate("projet_contrat_prevu", data.contract_draft);
       // Dates réelles
       addIfDate("TdR_reel", dataExtras["terms_of_reference_actual"]);
@@ -451,6 +461,7 @@ function buildProcurementPayload(data: Procurement): Record<string, unknown> {
   // Pour Travaux et Biens
   return {
     code_suivi: data.tracking_code || "",
+    intitule: String(data.title ?? "").trim() || " ",
     ...basePayload,
     agmo: data.agmo ,
     ...(data.type === "Biens"

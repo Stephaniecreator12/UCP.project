@@ -81,9 +81,7 @@ interface BackendProcurementItem {
   listesetspecifications_prevu?: string;
   dossiers_appel_prevu?: string;
   date_lancement_prevu?: string;
-  date_ouverture_prevu?: string;
   rapport_evaluation_prevu?: string;
-  date_signature_prevu?: string;
   date_livraison_prevu?: string;
   
   // Travaux & Biens - Dates réelles
@@ -91,7 +89,8 @@ interface BackendProcurementItem {
   dossiers_appel_reel?: string;
   date_lancement_reel?: string;
   date_livraison_reel?: string;
-  
+  rapport_evaluation_reel?: string;
+
   // Consultance - Dates prévues
   TdR_prevu?: string;
   ami_prevu?: string;
@@ -100,6 +99,7 @@ interface BackendProcurementItem {
   date_invitation_prevu?: string;
   ouverture_plis_prevu?: string;
   projet_contrat_prevu?: string;
+  evaluation_technique_prevu?: string;
   date_fin_prevu?: string;
   
   // Consultance - Dates réelles
@@ -110,11 +110,13 @@ interface BackendProcurementItem {
   date_invitation_reel?: string;
   ouverture_plis_reel?: string;
   projet_contrat_reel?: string;
+  evaluation_technique_reel?: string;
   date_fin_reel?: string;
   
   // champs communs
+  date_ouverture_prevu?: string;
+  date_signature_prevu?: string;
   date_ouverture_reel?: string;
-  rapport_evaluation_reel?: string;
   date_signature_reel?: string;
   
   // Autres champs
@@ -136,7 +138,7 @@ export interface PlanningResponse {
   date_lancement_prevu?: string;
   date_ouverture_prevu?: string;
   ouverture_plis_prevu?: string;
-  rapport_evaluation_prevu?: string;
+  evaluation_technique_prevu?: string;
   projet_contrat_prevu?: string;
   date_signature_prevu?: string;
   date_fin_prevu?: string;
@@ -144,6 +146,7 @@ export interface PlanningResponse {
   date_invitation_prevu?: string;
   liste_restreinte_prevu?: string;
   listesetspecifications_prevu?: string;
+  rapport_evaluation_prevu?: string;
   }
 
 /**
@@ -222,11 +225,12 @@ export async function getAllProcurements(): Promise<Procurement[]> {
       request_for_proposal: item.demande_proposition_prevu,
       invitation_date: item.date_invitation_prevu,
       submissions_opening_date: item.date_ouverture_prevu,
-      technical_evaluation: item.rapport_evaluation_prevu,
+      technical_evaluation: item.evaluation_technique_prevu,
       financial_opening_date: item.ouverture_plis_prevu,
       contract_draft: item.projet_contrat_prevu,
       contract_date: item.date_signature_prevu,
       mission_end_date: item.date_fin_prevu,
+      evaluation_report: item.evaluation_technique_prevu, // ← AJOUT pour correspondre au champ de planning
       // Dates réelles
       terms_of_reference_actual: item.TdR_reel,
       ami_actual: item.ami_reel,
@@ -234,7 +238,7 @@ export async function getAllProcurements(): Promise<Procurement[]> {
       request_for_proposal_actual: item.demande_proposition_reel,
       invitation_date_actual: item.date_invitation_reel,
       submissions_opening_date_actual: item.date_ouverture_reel,
-      technical_evaluation_actual: item.rapport_evaluation_reel,
+      technical_evaluation_actual: item.evaluation_technique_reel,
       financial_opening_date_actual: item.ouverture_plis_reel,
       contract_draft_actual: item.projet_contrat_reel,
       contract_date_actual: item.date_signature_reel,
@@ -424,8 +428,9 @@ function buildProcurementPayload(data: Procurement): Record<string, unknown> {
      addIfDate("ouverture_plis_prevu", data.financial_opening_date);
      addIfDate("date_signature_prevu", data.contract_date);
      addIfDate("date_fin_prevu", data.mission_end_date);
-     addIfDate("rapport_evaluation_prevu", data.evaluation_report);
-      addIfDate("projet_contrat_prevu", data.contract_draft);
+     addIfDate("evaluation_technique_prevu", data.technical_evaluation);
+     addIfDate("evaluation_technique_prevu", data.evaluation_report);
+     addIfDate("projet_contrat_prevu", data.contract_draft);
       // Dates réelles
       addIfDate("TdR_reel", dataExtras["terms_of_reference_actual"]);
       addIfDate("ami_reel", dataExtras["ami_actual"]);
@@ -436,7 +441,7 @@ function buildProcurementPayload(data: Procurement): Record<string, unknown> {
       addIfDate("ouverture_plis_reel", dataExtras["financial_opening_date_actual"]);
       addIfDate("date_signature_reel", dataExtras["contract_date_actual"]);
       addIfDate("date_fin_reel", dataExtras["mission_end_date_actual"]);
-      addIfDate("rapport_evaluation_reel", dataExtras["evaluation_report_actual"]);
+      addIfDate("evaluation_technique_reel", dataExtras["technical_evaluation_actual"]);
       addIfDate("projet_contrat_reel", dataExtras["contract_draft_actual"]);
 
     console.log("Payload Consultance final:", consultancePayload); // DEBUG
@@ -645,6 +650,8 @@ export async function getProcurementStatus(
       ouverture_plis_prevu: toDateValue(row.financial_opening_date),
       date_signature_prevu: toDateValue(row.contract_date),
       date_fin_prevu: toDateValue(row.mission_end_date),
+      evaluation_technique_prevu: toDateValue(row.technical_evaluation),
+      projet_contrat_prevu: toDateValue(row.contract_draft),
     };
 
     dates_reels = {
@@ -657,6 +664,8 @@ export async function getProcurementStatus(
       ouverture_plis_reel: toDateValue(row.financial_opening_date_actual),
       date_signature_reel: toDateValue(row.contract_date_actual),
       date_fin_reel: toDateValue(row.mission_end_date_actual),
+      evaluation_technique_reel: toDateValue(row.technical_evaluation_actual),
+      projet_contrat_reel: toDateValue(row.contract_draft_actual),
     };
   }
 

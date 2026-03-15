@@ -493,7 +493,7 @@ const handleCalculate = async (row: GridRow) => {
         financial_opening_date: newDates.ouverture_plis_prevu,
         contract_date: newDates.date_signature_prevu,
         mission_end_date: newDates.date_fin_prevu,
-        evaluation_report: newDates.rapport_evaluation_prevu,
+        technical_evaluation: newDates.evaluation_technique_prevu,
         contract_draft: newDates.projet_contrat_prevu,
         invitation_date: newDates.date_invitation_prevu,
         restricted_list: newDates.liste_restreinte_prevu,
@@ -521,7 +521,7 @@ const handleCalculate = async (row: GridRow) => {
       financial_opening_date: row.financial_opening_date,
       contract_date: row.contract_date,
       mission_end_date: row.mission_end_date,
-      evaluation_report: row.evaluation_report,
+      technical_evaluation: row.technical_evaluation,
       contract_draft: row.contract_draft,
       invitation_date: row.invitation_date,
       restricted_list: row.restricted_list,
@@ -562,9 +562,10 @@ const handleCalculate = async (row: GridRow) => {
     if (normalizedStatus === "arrete") return false;
     const isConsultanceForfaitAfterCalc = row.type === "Consultance" && row._isCalculated === true && String(row.pricing_type ?? "forfait").toLowerCase() === "forfait";
     if (column.type === "action_button" || column.key === "status" || column.readonly || column.editable === false) return false;
-    if (!isActual && (column.key === "delivery_date" || column.key === "mission_end_date")) return true;
-
     if (!isActual && column.type === "date") {
+      if (row._isCalculated === true) return true;
+      if (column.key === "delivery_date" || column.key === "mission_end_date") return true;
+      if (column.key === "restricted_list" || column.key === "invitation_date" || column.key === "technical_evaluation") return true;
       if (isManualPlannedDateKey(column.key)) return true;
       if (column.key === "tender_documents_date" && row._isCalculated === true) return true;
       if (isConsultanceForfaitAfterCalc) return true;
@@ -738,7 +739,8 @@ const handleCalculate = async (row: GridRow) => {
                                   key={isActual ? "bottom" : "top"}
                                   className={`flex-grow p-2 flex items-center justify-center m-1 ${isActual ? "border-t border-[#d9dee3]" : ""}`}
                                   style={{ ...buttonStyle, minHeight: "18px", borderRadius: "8px", cursor: isRowStopped || switchBlockedReason ? "not-allowed" : "pointer", fontWeight: "700", fontSize: "0.80rem", letterSpacing: "0.025em", transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)", userSelect: "none", opacity: isRowStopped || switchBlockedReason ? 0.6 : 1 }}
-                                  onClick={(e) => { e.stopPropagation(); if (isRowStopped) return; if (switchBlockedReason) return alert(switchBlockedReason); if (onRowChange && row._id) onRowChange(row._id, column.key, targetValue); }}
+                                  onClick={(e) => { e.stopPropagation(); if (isRowStopped) return; if (switchBlockedReason) return alert(switchBlockedReason); if (onRowChange && row._id) onRowChange(row._id, column.key, targetValue);localStorage.setItem(`pvact:${row._id}`, targetValue); // targetValue = "planned" ou "actual"
+}}
                                 >
                                   {isActual ? (isPricing ? "Temps passé" : "Réel") : (isPricing ? "Forfait" : "Prévu")}
                                 </div>

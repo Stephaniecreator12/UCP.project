@@ -38,6 +38,15 @@ export default function GestionMarches() {
   const saveMessageTimeoutRef = useRef<number | null>(null);
 
   const config = TABLE_CONFIGS[activeMenu];
+  const columnsForGrid = config.columns.map((c) =>
+  c.key === "method"
+    ? {
+        ...c,
+        label: activeMenu === "goods-services" ? "Méthode E.P.M" : "Méthode P.M",
+      }
+    : c,
+);
+
   const hasUnsavedRow = rows.some((row) => String(row._id ?? "").startsWith("_new_"));
 
   // ... [Garde tes fonctions existantes intactes : parseAmount, loadData, handleRowChange, etc. Ne modifie que le JSX en bas] ...
@@ -191,7 +200,7 @@ const loadData = useCallback(async (): Promise<GridRow[]> => {
         await deleteProcurement(numericId, (rowToDelete?.type as "Travaux" | "Biens" | "Consultance") ?? typeMapping[activeMenu], password);
       }
       setRows((prev) => prev.filter((r) => r._id !== rowId));
-      setSaveMessage({ type: "danger", message: "Ligne supprimÃ©e." });
+      setSaveMessage({ type: "danger", message: "Ligne supprimée." });
     } catch (e: unknown) {
       setSaveMessage({ type: "error", message: e instanceof Error ? e.message : "Erreur suppression" });
     }
@@ -200,16 +209,16 @@ const loadData = useCallback(async (): Promise<GridRow[]> => {
   const handleRowStop = async (rowId: string) => {
     try {
       if (rowId.startsWith("_new_")) { setSaveMessage({ type: "error", message: "Enregistre d'abord la ligne." }); return; }
-      const password = await requestPasswordConfirmation({ title: "ArrÃªter la ligne", message: "Confirme l'arrÃªt avec ton mot de passe.", confirmLabel: "ArrÃªter" });
-      if (!password) { setSaveMessage({ type: "error", message: "ArrÃªt annulÃ©." }); return; }
+      const password = await requestPasswordConfirmation({ title: "Arrêter la ligne", message: "Confirme l'arrêt avec ton mot de passe.", confirmLabel: "Arrêter" });
+      if (!password) { setSaveMessage({ type: "error", message: "Arrêt annulé." }); return; }
       const rowToStop = rows.find((r) => r._id === rowId);
       if (!rowToStop) return;
       const typeMapping: Record<MenuItemType, "Travaux" | "Biens" | "Consultance"> = { works: "Travaux", "goods-services": "Biens", consultants: "Consultance" };
       const result = await stopProcurement(Number(rowId), (rowToStop.type as "Travaux" | "Biens" | "Consultance") ?? typeMapping[activeMenu], password);
-      setRows((prev) => prev.map((r) => r._id === rowId ? { ...r, status: result.statut || "ArrÃªtÃ©" } : r));
-      setSaveMessage({ type: "warning", message: "Ligne arrÃªtÃ©e." });
+      setRows((prev) => prev.map((r) => r._id === rowId ? { ...r, status: result.statut || "Arrêté" } : r));
+      setSaveMessage({ type: "warning", message: "Ligne arrêtée." });
     } catch (e: unknown) {
-      setSaveMessage({ type: "error", message: e instanceof Error ? e.message : "Erreur arrÃªt" });
+      setSaveMessage({ type: "error", message: e instanceof Error ? e.message : "Erreur arrêt" });
     }
   };
 
@@ -326,7 +335,7 @@ const handleRowSave = async (row: GridRow) => {
           <div className="page-enter-up mt-[0.9rem] overflow-hidden grid grid-rows-[minmax(0,1fr)_auto] min-h-0 border border-[#d9dee3] rounded-[14px] bg-white shadow-[0_18px_36px_-30px_rgba(34,44,52,0.5)] flex-1" style={{ animationDelay: "0.28s", display: "flex", flexDirection: "column" }}>
             <div className="min-h-0 max-h-[56vh] overflow-auto flex-1">
               <GridTable
-                columns={config.columns}
+                columns={columnsForGrid}
                 rows={rows}
                 onRowChange={handleRowChange}
                 onRowSave={handleRowSave}

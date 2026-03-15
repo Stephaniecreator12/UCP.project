@@ -101,9 +101,18 @@ const loadData = useCallback(async (): Promise<GridRow[]> => {
 
       return row;
     });
+    
+    const rowsWithSwitch = formattedRows.map((row) => {
+  const saved = localStorage.getItem(`pvact:${row._id}`);
+  return {
+    ...row,
+    planned_vs_actual: saved === "actual" ? "actual" : "planned",
+  };
+});
 
-    setRows(formattedRows);
-    return formattedRows;
+  setRows(rowsWithSwitch);
+  return rowsWithSwitch;
+
   } catch {
     setSaveMessage({ type: "error", message: "Erreur de chargement" });
     return [];
@@ -235,7 +244,7 @@ const handleRowSave = async (row: GridRow) => {
       : await createProcurement(procurementData);
 
     if (result) {
-      setSaveMessage({ type: "success", message: "EnregistrÃ© avec succÃ¨s" });
+      setSaveMessage({ type: "success", message: "Enregistré avec succès" });
       const refreshedRows = await loadData();
 
       try {
@@ -253,6 +262,7 @@ const handleRowSave = async (row: GridRow) => {
         console.error("Erreur calcul statut:", error);
       }
     }
+
   } catch (e: unknown) {
     console.error("Erreur complète:", e);
     setSaveMessage({

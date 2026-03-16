@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useRef, type MouseEvent } from "react";
 import { logout } from "@/services/auth";
+import Menu from "@/app/components/menu";
 
 export default function TopHeader() {
   const pathname = usePathname();
@@ -42,16 +43,17 @@ export default function TopHeader() {
   };
 
   return (
-    <header
+    <div className="sticky top-0 z-40">
+      <header
       ref={headerRef}
       onMouseMove={handleHeaderMove}
       onMouseLeave={resetHeaderGlow}
       style={{ "--mx": "50%", "--my": "50%" } as React.CSSProperties}
-      className="sticky top-0 z-40 overflow-hidden border-b border-slate-200/60 bg-white/90 backdrop-blur-md 
+      className="h-[2cm] overflow-hidden border-b border-slate-200/60 bg-white/90 backdrop-blur-md relative
                  before:content-[''] before:absolute before:inset-0 
                  before:bg-[radial-gradient(420px_circle_at_var(--mx)_var(--my),rgba(34,197,94,0.16),transparent_60%)] 
                  before:pointer-events-none"
-    >
+      >
       {/* Ligne de couleur en haut */}
       <div className="h-[3px] bg-gradient-to-r from-[#22c55e] via-[#1fcf78] to-[#22c55e]" aria-hidden="true" />
       
@@ -59,7 +61,7 @@ export default function TopHeader() {
       <div className="absolute -top-[52px] -left-[34px] w-[130px] h-[130px] rounded-full blur-[28px] pointer-events-none opacity-45 bg-[#22c55e]/35" aria-hidden="true" />
       <div className="absolute -top-[68px] -right-[42px] w-[150px] h-[150px] rounded-full blur-[28px] pointer-events-none opacity-45 bg-[#7ed7ff]/30" aria-hidden="true" />
 
-      <div className="relative z-10 max-w-[1480px] mx-auto px-4 py-[0.78rem] grid grid-cols-1 md:grid-cols-[auto_1fr_auto] items-center gap-4">
+      <div className="relative z-10 max-w-[1480px] mx-auto h-[calc(2cm-3px)] px-4 py-0 grid grid-cols-1 md:grid-cols-[auto_1fr_auto] items-center gap-4">
         
         {/* Logo & Brand */}
         <Link href={showAuthenticatedActions ? "/formulaire" : "/login"} className="inline-flex items-center gap-3 no-underline text-inherit">
@@ -79,34 +81,6 @@ export default function TopHeader() {
           </div>
         </Link>
 
-        {/* Navigation - Quick Links */}
-        <nav className="justify-self-center flex items-center gap-[0.55rem]">
-          {showAuthenticatedActions && (
-            <>
-              <Link
-                href="/formulaire"
-                className={`px-[0.95rem] py-[0.48rem] rounded-full border text-[0.84rem] font-bold transition-all duration-200 shadow-[0_10px_20px_-16px_rgba(6,20,34,0.65)]
-                  ${pathname === "/formulaire" 
-                    ? "border-green-500 bg-gradient-to-b from-[#15ba66] to-[#10b981] text-white shadow-[0_8px_16px_-11px_rgba(5,123,64,0.8)]" 
-                    : "border-slate-300 bg-white text-[#2f3d4c] hover:bg-slate-50"
-                  }`}
-              >
-                PPM
-              </Link>
-              <Link
-                href="/dashboard"
-                className={`px-[0.95rem] py-[0.48rem] rounded-full border text-[0.84rem] font-bold transition-all duration-200 shadow-[0_10px_20px_-16px_rgba(6,20,34,0.65)]
-                  ${pathname === "/dashboard" 
-                    ? "border-green-500 bg-gradient-to-b from-[#15ba66] to-[#10b981] text-white shadow-[0_8px_16px_-11px_rgba(5,123,64,0.8)]" 
-                    : "border-slate-300 bg-white text-[#2f3d4c] hover:bg-slate-50"
-                  }`}
-              >
-                Dashboard
-              </Link>
-            </>
-          )}
-        </nav>
-
         {/* Actions - Déconnexion */}
         <div className="justify-self-end">
           {showAuthenticatedActions && (
@@ -120,6 +94,18 @@ export default function TopHeader() {
           )}
         </div>
       </div>
+
     </header>
+
+      {showAuthenticatedActions && (
+        <div className="-mt-px">
+          <div className="max-w-[1480px] mx-auto px-1 py-1 ">
+            <div className="inline-flex">
+              <Menu />
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

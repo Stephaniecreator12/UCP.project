@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { getToken, login } from "@/services/auth";
 
-const DEFAULT_AFTER_LOGIN_ROUTE = "/formulaire";
+const DEFAULT_AFTER_LOGIN_ROUTE = "/dashboard";
 
 export default function LoginPage() {
   const [username, setUsername] = useState("");
@@ -27,7 +27,7 @@ export default function LoginPage() {
     const result = await login(username, password);
 
     if (result.success) {
-      router.push("/formulaire");
+      router.push("/dashboard");
     } else {
       setError(result.error || "Une erreur est survenue");
     }

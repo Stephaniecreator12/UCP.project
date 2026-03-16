@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import TopHeader from "@/app/components/TopHeader";
 import { getAllProcurements, Procurement } from "@/services/api";
 import { getToken } from "@/services/auth";
+import { Cell, Pie, PieChart, ResponsiveContainer } from "recharts";
 
 type ProcurementType = "Travaux" | "Biens" | "Consultance";
 
@@ -26,6 +27,33 @@ type DonutSegment = DistributionItem & {
   strokeDasharray: string;
   strokeDashoffset: number;
 };
+
+const RADIAN = Math.PI / 180;
+
+function renderPercentLabel(props: any) {
+  const { cx, cy, midAngle, innerRadius, outerRadius, percent } = props ?? {};
+  if (typeof percent !== "number" || percent < 0.05) return null;
+
+  const radius = (Number(innerRadius) + Number(outerRadius)) / 2;
+  const x = Number(cx) + radius * Math.cos(-Number(midAngle) * RADIAN);
+  const y = Number(cy) + radius * Math.sin(-Number(midAngle) * RADIAN);
+
+  return (
+    <text
+      x={x}
+      y={y}
+      textAnchor="middle"
+      dominantBaseline="middle"
+      fill="white"
+      fontSize={11}
+      fontWeight={800}
+      className="select-none"
+      style={{ textShadow: "0 1px 8px rgba(15,23,42,0.55)" }}
+    >
+      {Math.round(percent * 100)}%
+    </text>
+  );
+}
 
 const TYPE_COLORS: Record<ProcurementType, string> = {
   Travaux: "#1f9d8b",
@@ -56,6 +84,16 @@ const STATUS_COLORS: Record<string, string> = {
   "dans les temps": "#14b8a6",
 };
 
+const STATUS_DONUT_COLORS: Record<string, string> = {
+  "non demarre dans le temps": STATUS_COLORS["dans les temps"],
+  "non demarre en retard": STATUS_COLORS["retard"],
+  "en cours dans le temps": STATUS_COLORS["dans les temps"],
+  "en cours en retard": STATUS_COLORS["retard"],
+  supprime: STATUS_COLORS.annule,
+  arrete: STATUS_COLORS.arrete,
+  termine: STATUS_COLORS.termine,
+};
+
 const FALLBACK_METHOD_COLOR = "#94a3b8";
 const FALLBACK_STATUS_COLOR = "#64748b";
 
@@ -74,6 +112,50 @@ function buildDistribution(items: Procurement[], getValue: (item: Procurement) =
     const key = normalizeKey(getValue(item));
     if (!key || key === "-") return;
     counts.set(key, (counts.get(key) ?? 0) + 1);
+  });
+
+  return Array.from(counts.entries())
+    .map(([label, value]) => ({ label, value }))
+    .sort((a, b) => b.value - a.value);
+}
+
+function mapStatusCategory(status: unknown): string | null {
+  const key = normalizeKey(status);
+  if (!key || key === "-") return null;
+
+  if (key === "dans les temps") return "en cours dans le temps";
+  if (key === "retard") return "en cours en retard";
+  if (key === "en cours") return "en cours dans le temps";
+
+  if (key.includes("termine")) return "termine";
+  if (key.includes("arrete")) return "arrete";
+  if (key.includes("supprime") || key.includes("annule")) return "supprime";
+
+  const isNonDemarre = key.includes("non demarre");
+  const isEnCours = key.includes("en cours");
+  const isInTime = key.includes("dans les temps") || key.includes("dans le temps");
+  const isLate = key.includes("retard") || key.includes("en retard");
+
+  if (isNonDemarre) {
+    if (isLate) return "non demarre en retard";
+    return "non demarre dans le temps";
+  }
+
+  if (isEnCours) {
+    if (isLate) return "en cours en retard";
+    return "en cours dans le temps";
+  }
+
+  return null;
+}
+
+function buildStatusDistribution(items: Procurement[]) {
+  const counts = new Map<string, number>();
+
+  items.forEach((item) => {
+    const category = mapStatusCategory((item as any)?.status);
+    if (!category) return;
+    counts.set(category, (counts.get(category) ?? 0) + 1);
   });
 
   return Array.from(counts.entries())
@@ -221,7 +303,7 @@ export default function DashboardPage() {
     (Object.keys(dist) as ProcurementType[]).forEach((type) => {
       const items = procurements.filter((p) => p.type === type);
       dist[type].methods = buildDistribution(items, (item) => item.method);
-      dist[type].status = buildDistribution(items, (item) => item.status);
+      dist[type].status = buildStatusDistribution(items);
     });
 
     return dist;
@@ -319,7 +401,7 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {(Object.keys(stats) as ProcurementType[]).map((type, index) => {
             const methodSegments = getSegments(stats[type].methods, METHOD_COLORS, FALLBACK_METHOD_COLOR);
-            const statusSegments = getSegments(stats[type].status, STATUS_COLORS, FALLBACK_STATUS_COLOR);
+            const statusSegments = getSegments(stats[type].status, STATUS_DONUT_COLORS, FALLBACK_STATUS_COLOR);
 
             return (
               <article
@@ -337,57 +419,42 @@ export default function DashboardPage() {
                   <div className="flex flex-col items-center gap-3">
                     <span className="text-[0.8rem] font-bold text-slate-500 uppercase">Méthode</span>
                     <div className="relative w-40 h-40 flex items-center justify-center">
-                      <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
-                        <circle cx="50" cy="50" r="38" fill="transparent" stroke="#f1f5f9" strokeWidth="14" />
-                        {methodSegments.map((segment, idx) => {
-                          // Calculer les angles
-                          const startAngle = methodSegments.slice(0, idx).reduce((acc, s) => acc + s.percent, 0);
-                          const midAngle = startAngle + segment.percent / 2;
-                          
-                          // Convertir en radians pour le positionnement (ajustement de -90° car le svg est tourné)
-                          const midRad = (midAngle * (2 * Math.PI)) / 100 ;
-                          
-                          // Position du texte (à l'intérieur de l'arc)
-                          const textRadius = 37; // Rayon pour le texte (à l'intérieur)
-                          const x = 50 + textRadius * Math.cos(midRad);
-                          const y = 50 + textRadius * Math.sin(midRad);
-                          const labelColor = darkenColor(segment.color, 0.32);
-                          const labelShadow = "0 1px 8px rgba(15,23,42,0.55)";
-
-                          return (
-                            <g key={segment.label}>
-                              <circle
-                                cx="50"
-                                cy="50"
-                                r="38"
-                                fill="transparent"
-                                stroke={segment.color}
-                                strokeWidth="17"
-                                strokeDasharray={`${segment.percent * 2.39} ${239}`} 
-                                strokeDashoffset={-methodSegments.slice(0, idx).reduce((acc, s) => acc + (s.percent * 2.39), 0)}
-                                className="animate-[donutGrow_1s_ease-out]"
-                                strokeLinecap="butt"
-                              />
-                              {segment.percent >= 5 && (
-                                <text
-                                  x={x}
-                                  y={y}
-                                  textAnchor="middle"
-                                  dominantBaseline="middle"
-                                  fill="white"
-                                  fontSize="7"
-                                  fontWeight="bold"
-                                  className="select-none"
-                                  style={{ textShadow: labelShadow }}
-                                  transform={`rotate(90, ${x}, ${y})`}
-                                >
-                                  {segment.percent.toFixed(0)}%
-                                </text>
-                              )}
-                            </g>
-                          );
-                        })}
-                      </svg>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={[{ name: "bg", value: 1 }]}
+                            dataKey="value"
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={45}
+                            outerRadius={70}
+                            isAnimationActive={false}
+                            stroke="none"
+                          >
+                            <Cell fill="#f1f5f9" />
+                          </Pie>
+                          <Pie
+                            data={methodSegments.map((segment) => ({ name: segment.label, value: segment.value, color: segment.color }))}
+                            dataKey="value"
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={45}
+                            outerRadius={70}
+                            paddingAngle={5}
+                            isAnimationActive
+                            animationDuration={900}
+                            animationEasing="ease-out"
+                            startAngle={90}
+                            endAngle={-270}
+                            labelLine={false}
+                            label={renderPercentLabel}
+                          >
+                            {methodSegments.map((segment) => (
+                              <Cell key={segment.label} fill={segment.color} />
+                            ))}
+                          </Pie>
+                        </PieChart>
+                      </ResponsiveContainer>
                     </div>
                   </div>
 
@@ -395,57 +462,42 @@ export default function DashboardPage() {
                   <div className="flex flex-col items-center gap-3">
                     <span className="text-[0.8rem] font-bold text-slate-500 uppercase">Statut</span>
                     <div className="relative w-40 h-40 flex items-center justify-center">
-                      <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
-                        <circle cx="50" cy="50" r="38" fill="transparent" stroke="#f1f5f9" strokeWidth="14" />
-                        {statusSegments.map((segment, idx) => {
-                          // Calculer les angles
-                          const startAngle = statusSegments.slice(0, idx).reduce((acc, s) => acc + s.percent, 0);
-                          const midAngle = startAngle + segment.percent / 2;
-
-                          // Convertir en radians pour le positionnement (ajustement de -90° car le svg est tourné)
-                          const midRad = (midAngle * (2 * Math.PI)) / 100 ;
-                          
-                          // Position du texte (à l'intérieur de l'arc)
-                          const textRadius = 37; // Rayon pour le texte (à l'intérieur)
-                          const x = 50 + textRadius * Math.cos(midRad);
-                          const y = 50 + textRadius * Math.sin(midRad);
-                          const labelColor = darkenColor(segment.color, 0.25);
-                          const labelShadow = "0 1px 6px rgba(15,23,42,0.6)";
-
-                          return (
-                            <g key={segment.label}>
-                              <circle
-                                cx="50"
-                                cy="50"
-                                r="38"
-                                fill="transparent"
-                                stroke={segment.color}
-                                strokeWidth="17"
-                                strokeDasharray={`${segment.percent * 2.39} ${239}`}
-                                strokeDashoffset={-statusSegments.slice(0, idx).reduce((acc, s) => acc + (s.percent * 2.39), 0)}
-                                className="animate-[donutGrow_1s_ease-out]"
-                                strokeLinecap="butt"
-                              />
-                              {segment.percent >= 5 && (
-                                <text
-                                  x={x}
-                                  y={y}
-                                  textAnchor="middle"
-                                  dominantBaseline="middle"
-                                  fill="white"
-                                  fontSize="7"
-                                  fontWeight="bold"
-                                  className="select-none"
-                                  style={{ textShadow: labelShadow }}
-                                  transform={`rotate(90, ${x}, ${y})`}
-                                >
-                                  {segment.percent.toFixed(0)}%
-                                </text>
-                              )}
-                            </g>
-                          );
-                        })}
-                      </svg>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={[{ name: "bg", value: 1 }]}
+                            dataKey="value"
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={45}
+                            outerRadius={70}
+                            isAnimationActive={false}
+                            stroke="none"
+                          >
+                            <Cell fill="#f1f5f9" /> 
+                          </Pie>
+                          <Pie
+                            data={statusSegments.map((segment) => ({ name: segment.label, value: segment.value, color: segment.color }))}
+                            dataKey="value"
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={45}
+                            outerRadius={70}
+                            paddingAngle={5}
+                            isAnimationActive
+                            animationDuration={900}
+                            animationEasing="ease-out"
+                            startAngle={90}
+                            endAngle={-270}
+                            labelLine={false}
+                            label={renderPercentLabel}
+                          >
+                            {statusSegments.map((segment) => (
+                              <Cell key={segment.label} fill={segment.color} />
+                            ))}
+                          </Pie>
+                        </PieChart>
+                      </ResponsiveContainer>
                     </div>
                   </div>
                 </div>

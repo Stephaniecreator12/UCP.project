@@ -1,31 +1,30 @@
 from django.db import models
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 
 class DemandeAchat(models.Model):
 
-    TYPE_MARCHE = [
+    STATUT_CHOICES = [
+        ("BROUILLON", "Brouillon"),
+        ("SOUMISE", "Soumise"),
+        ("VALIDE_SERVICE", "Validée service"),
+        ("VALIDE_BUDGET", "Validée budget"),
+        ("VALIDE_DIRECTION", "Validée direction"),
+        ("REJETEE", "Rejetée"),
+        ("TRANSMISE_MARCHES", "Transmise aux marchés"),
+    ]
+
+    TYPE_MARCHE_CHOICES = [
         ("BIENS", "Biens"),
         ("SERVICES", "Services"),
         ("TRAVAUX", "Travaux"),
     ]
 
-    NATURE_ACTIVITE = [
-        ("FORMATION", "Formation"),
-        ("REUNION", "Réunion"),
-        ("SUPERVISION", "Supervision"),
-        ("REVUE", "Revue"),
-        ("CONSTRUCTION", "Construction"),
-        ("AUTRE", "Autre"),
-    ]
-
-    SOURCE_FINANCEMENT = [
-        ("FONDS_MONDIAL", "Fonds Mondial"),
-        ("GAVI", "Gavi"),
-        ("BANQUE_MONDIALE", "Banque mondiale"),
-        ("BUDGET_ETAT", "Budget Etat"),
-        ("AUTRE", "Autre"),
-    ]
+    # -----------------------
+    # SECTION A IDENTIFICATION
+    # -----------------------
 
     numero_demande = models.CharField(max_length=50, unique=True)
 
@@ -33,35 +32,69 @@ class DemandeAchat(models.Model):
 
     service_demandeur = models.CharField(max_length=200)
 
-    demandeur = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    demandeur = models.ForeignKey(
+        User,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL
+    )
 
     fonction_demandeur = models.CharField(max_length=200)
 
+    # -----------------------
+    # SECTION B FINANCIER
+    # -----------------------
+
     activite_ptba = models.CharField(max_length=255)
 
-    indicateur_performance = models.CharField(max_length=255, blank=True, null=True)
+    indicateur_performance = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True
+    )
 
-    source_financement = models.CharField(max_length=50, choices=SOURCE_FINANCEMENT)
+    source_financement = models.CharField(max_length=200)
 
     ligne_budgetaire = models.CharField(max_length=100)
 
-    budget_estime = models.DecimalField(max_digits=12, decimal_places=2)
+    budget_estime = models.DecimalField(
+        max_digits=12,
+        decimal_places=2
+    )
 
-    devise = models.CharField(max_length=10)
+    devise = models.CharField(
+        max_length=10,
+        default="USD"
+    )
 
-    type_marche = models.CharField(max_length=20, choices=TYPE_MARCHE)
+    # -----------------------
+    # SECTION C DESCRIPTION
+    # -----------------------
 
-    nature_activite = models.CharField(max_length=50, choices=NATURE_ACTIVITE)
+    type_marche = models.CharField(
+        max_length=20,
+        choices=TYPE_MARCHE_CHOICES
+    )
+
+    nature_activite = models.CharField(max_length=200)
 
     objet_demande = models.CharField(max_length=255)
 
     description = models.TextField()
 
-    piece_jointe = models.FileField(upload_to="demandes/", null=True, blank=True)
+    pieces_jointes = models.FileField(
+        upload_to="demandes/",
+        blank=True,
+        null=True
+    )
+
+    # -----------------------
+    # SECTION D PLANIFICATION
+    # -----------------------
 
     region = models.CharField(max_length=200)
 
-    adresse_livraison = models.TextField()
+    adresse_livraison = models.CharField(max_length=255)
 
     date_debut = models.DateField()
 
@@ -69,14 +102,24 @@ class DemandeAchat(models.Model):
 
     urgent = models.BooleanField(default=False)
 
-    justification_urgence = models.TextField(blank=True, null=True)
+    justification_urgence = models.TextField(
+        blank=True,
+        null=True
+    )
+
+    # -----------------------
+    # WORKFLOW
+    # -----------------------
 
     statut = models.CharField(
-        max_length=50,
+        max_length=30,
+        choices=STATUT_CHOICES,
         default="BROUILLON"
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
+
+    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return self.numero_demande

@@ -87,12 +87,15 @@ WSGI_APPLICATION = 'config.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'passation_db', 
-        'USER': 'postgres',             
-        'PASSWORD': 'passation',               
+        'NAME': 'passation_db',
+        'USER': 'postgres',
+        'PASSWORD': 'passation',
         'HOST': 'localhost',
         'PORT': '5432',
-        
+        'TEST': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': ':memory:',
+}
     }
 }
 
@@ -140,11 +143,11 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
-    ],
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework.authentication.SessionAuthentication",
+        "rest_framework.authentication.BasicAuthentication",
+    ]
 }
-
 CORS_ALLOW_ALL_ORIGINS = True
 
 from datetime import timedelta

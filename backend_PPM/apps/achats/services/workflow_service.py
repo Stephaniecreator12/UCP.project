@@ -1,9 +1,14 @@
-def get_next_step(statut):
+#déterminer le prochain statut
+ 
+def get_next_status(current_status, decision):
+
+    if decision == "REJETE":
+        return "REJETEE"
 
     workflow = {
-        "BROUILLON": "CHEF_SERVICE",
-        "CHEF_SERVICE": "DIRECTION",
-        "DIRECTION": "PASSATION_MARCHE",
+        "SOUMISE": "VALIDE_SERVICE",
+        "VALIDE_SERVICE": "VALIDE_BUDGET",
+        "VALIDE_BUDGET": "VALIDE_DIRECTION",
     }
 
-    return workflow.get(statut)
+    return workflow.get(current_status, current_status)

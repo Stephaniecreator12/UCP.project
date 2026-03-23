@@ -1,15 +1,12 @@
 import type { Metadata } from "next";
-import { JetBrains_Mono, Manrope, Space_Grotesk } from "next/font/google";
-import "./styles/base/globals.css";
+import { Albert_Sans, JetBrains_Mono } from "next/font/google";
+import "./globals.css";
+import TopRightSidebar from "@/app/components/TopRightSidebar";
 
-const manrope = Manrope({
+const albertSans = Albert_Sans({
   variable: "--font-ui",
   subsets: ["latin"],
-});
-
-const spaceGrotesk = Space_Grotesk({
-  variable: "--font-display",
-  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
 });
 
 const jetbrainsMono = JetBrains_Mono({
@@ -28,7 +25,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" data-theme="light" suppressHydrationWarning>
+    <html lang="en">
       <head>
         <link
           rel="stylesheet"
@@ -38,9 +35,10 @@ export default function RootLayout({
         />
       </head>
       <body
-        className={`${manrope.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable} antialiased`}
+        className={`${albertSans.variable} ${jetbrainsMono.variable} antialiased`}
       >
         {children}
+        <TopRightSidebar />
       </body>
     </html>
   );

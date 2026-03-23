@@ -1,3 +1,189 @@
+@import "tailwindcss";
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  /* Base Colors - Spectacular Slate Theme */
+  --background: #2f3a33;
+  /* green gray dark */
+  --foreground: #f8fafc;
+  /* Slate 50 */
+  --card-bg: #e7eeea;
+  --table-header: #4b6a56;
+  --table-row-even: #ffffff;
+  --table-row-odd: #f4f7f5;
+  --primary-accent: #5ea874;
+  --text-dark: #32423a;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-ui);
+  --font-mono: var(--font-code);
+}
+
+html,
+body {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  font-size: 16px;
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-ui), "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#__next {
+  height: 100%;
+  overflow: hidden;
+}
+
+/* === SCROLLBAR GLOBAL === */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0a0a0a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* === UTILITY === */
+.text-center {
+  text-align: center;
+}
+
+.text-muted {
+  color: #777;
+}
+
+.font-bold {
+  font-weight: 600;
+}
+
+.opacity-50 {
+  opacity: 0.5;
+}
+
+.d-flex {
+  display: flex;
+}
+
+.flex-column {
+  flex-direction: column;
+}
+
+.align-items-center {
+  align-items: center;
+}
+
+.justify-content-center {
+  justify-content: center;
+}
+
+.h-100 {
+  height: 100%;
+}
+
+.w-100 {
+  width: 100%;
+}
+
+.p-2 {
+  padding: 0.5rem;
+}
+
+.p-3 {
+  padding: 1rem;
+}
+
+.m-1 {
+  margin: 0.25rem;
+}
+
+.gap-1 {
+  gap: 0.25rem;
+}
+
+.gap-2 {
+  gap: 0.5rem;
+}
+
+.mb-0 {
+  margin-bottom: 0;
+}
+
+.bg-light {
+  background: #0f0f0f;
+}
+
+.border-top {
+  border-top: 1px solid #222;
+}
+
+.align-middle {
+  vertical-align: middle;
+}
+
+.py-5 {
+  padding-top: 3rem;
+  padding-bottom: 3rem;
+}
+
+.table-light {
+  background: #141414;
+}
+
+.text-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 600;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.btn-sm {
+  font-size: 13px;
+  padding: 7px 11px;
+}
+
+/* === FOCUS STATES (White Glow) === */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 1px solid white;
+  outline-offset: 1px;
+}
+
 /* =========================================
    DASHBOARD STYLES (Monochrome Luxury)
    ========================================= */
@@ -275,11 +461,11 @@
 }
 
 .action-cell {
-  background: rgba(71, 85, 105, 0.12);
+  background: #f8fafc;
   position: sticky;
   right: 0;
   z-index: 12;
-  box-shadow: -2px 0 0 rgba(148, 163, 184, 0.35);
+  box-shadow: -2px 0 0 #e2e8f0;
 }
 
 .action-buttons {
@@ -287,30 +473,29 @@
 }
 
 .action-btn {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  border: 1px solid rgba(128, 142, 133, 0.32);
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: 1px solid #c4d8cc;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   line-height: 1;
   cursor: pointer;
-  color: rgba(76, 98, 86, 0.75);
-  background: rgba(255, 255, 255, 0.12);
-  backdrop-filter: blur(3px);
+  color: #4f7560;
+  background: #eef3f0;
   transition:
-    transform 0.18s ease,
-    box-shadow 0.18s ease,
-    background-color 0.18s ease,
-    border-color 0.18s ease,
-    color 0.18s ease,
-    filter 0.18s ease;
+    transform 0.16s ease,
+    box-shadow 0.16s ease,
+    background-color 0.16s ease,
+    border-color 0.16s ease,
+    color 0.16s ease;
 }
 
 .action-btn:hover {
   transform: translateY(-1px);
-  filter: saturate(1.08);
+  background: #e3ebe6;
+  border-color: #a6c2b1;
 }
 
 .action-btn:active {
@@ -318,42 +503,36 @@
 }
 
 .action-btn-save {
-  color: rgba(48, 119, 74, 0.72);
-  border-color: rgba(46, 144, 85, 0.3);
-  box-shadow: none;
+  color: #4f7560;
+  background: #eef3f0;
+  border-color: #c4d8cc;
+  box-shadow: 0 4px 10px rgba(73, 111, 89, 0.18);
 }
 
 .action-btn-save:hover {
-  color: #ecfff4;
-  background: linear-gradient(140deg, #2da05f 0%, #257f4d 100%);
-  border-color: rgba(35, 123, 73, 0.95);
-  box-shadow: 0 10px 18px -12px rgba(35, 123, 73, 0.9);
+  background: #e3ebe6;
 }
 
 .action-btn-delete {
-  color: rgba(171, 62, 62, 0.78);
-  border-color: rgba(184, 66, 66, 0.32);
-  box-shadow: none;
+  color: #4f7560;
+  background: #eef3f0;
+  border-color: #c4d8cc;
+  box-shadow: 0 4px 10px rgba(73, 111, 89, 0.18);
 }
 
 .action-btn-delete:hover {
-  color: #fff4f4;
-  background: linear-gradient(140deg, #dc4b4b 0%, #b93030 100%);
-  border-color: rgba(155, 38, 38, 0.95);
-  box-shadow: 0 10px 18px -12px rgba(155, 38, 38, 0.92);
+  background: #e3ebe6;
 }
 
 .action-btn-stop {
-  color: rgba(164, 109, 35, 0.78);
-  border-color: rgba(177, 124, 47, 0.34);
-  box-shadow: none;
+  color: #4f7560;
+  background: #eef3f0;
+  border-color: #c4d8cc;
+  box-shadow: 0 4px 10px rgba(73, 111, 89, 0.18);
 }
 
 .action-btn-stop:hover {
-  color: #fffaf1;
-  background: linear-gradient(140deg, #c98a2f 0%, #a66d1f 100%);
-  border-color: rgba(140, 90, 27, 0.95);
-  box-shadow: 0 10px 18px -12px rgba(140, 90, 27, 0.9);
+  background: #e3ebe6;
 }
 
 .action-btn:disabled {
@@ -364,8 +543,8 @@
 }
 
 .action-icon {
-  width: 17px;
-  height: 17px;
+  width: 13px;
+  height: 13px;
   display: block;
 }
 
@@ -690,7 +869,7 @@ tr.row-stopped .action-cell * {
 
 .sidebar-menu {
   position: relative;
-  width: 248px;
+  width: 292px;
   margin: 14px;
   border-radius: 20px;
   height: calc(100vh - 28px);
@@ -1061,4 +1240,3 @@ tr.row-stopped .action-cell * {
     font-size: 11px;
   }
 }
-

@@ -3,21 +3,10 @@
  * Ce service gère désormais les 3 types de marchés : Travaux, Biens, Consultance
  */
 
+import { type } from "os";
+
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
-const SESSION_EXPIRED_MESSAGE = "Session expirée. Connecte-toi puis réessaie.";
-
-const clearSessionAndRedirectToLogin = () => {
-  if (typeof window === "undefined") return;
-  localStorage.removeItem("access_token");
-  localStorage.removeItem("refresh_token");
-  window.location.href = "/login";
-};
-
-const throwSessionExpiredError = (): never => {
-  clearSessionAndRedirectToLogin();
-  throw new Error(SESSION_EXPIRED_MESSAGE);
-};
 
 // Interface commune pour un marché (Travaux, Biens ou Consultance)
 // Note: Les champs peuvent varier légèrement entre les modèles Django,
@@ -34,26 +23,13 @@ export interface Procurement {
 
   // Champs communs
   method?: string; // mode
-  approach?: string;
-  status?: string;
   review_notes?: string;
 
   // Dates prévues (Planifié)
-  specifications_date?: string;
   date_invitation?: string;
   date_opening_submissions?: string;
-  date_opening_financial?: string;
   date_contract_signed?: string;
   date_mission_end?: string;
-  terms_of_reference?: string;
-  ami?: string;
-  restricted_list?: string;
-  request_for_proposal?: string;
-  invitation_date?: string;
-  submissions_opening_date?: string;
-  financial_opening_date?: string;
-  contract_date?: string;
-  mission_end_date?: string;
 
   // Dates réelles (Exécuté) - À adapter selon les nouveaux modèles
   // Les modèles semblent utiliser des tables séparées pour les détails prévus/réels
@@ -73,36 +49,21 @@ interface BackendProcurementItem {
   intitule?: string;
   montant_estimatif?: string | number;
   methode_pm?: string;
-  methode_epm?: string;
   approches?: string;
   commentaire?: string;
   statut?: string;
   date_lancement_prevu?: string;
-  listesetspecifications?: string;
   date_ouverture_prevu?: string;
   date_signature_prevu?: string;
   date_livraison_prevu?: string;
-  // Consultance-specific fields (based on planning payload)
-  TdR_prevu?: string;
-  ami_prevu?: string;
-  liste_restreinte_prevu?: string;
-  demande_proposition_prevu?: string;
-  date_invitation_prevu?: string;
-  ouverture_plis_prevu?: string;
-  date_fin_prevu?: string;
 }
 
 export interface PlanningResponse {
-  TdR_prevu?: string;
-  ami_prevu?: string;
-  demande_proposition_prevu?: string;
   dossiers_appel_prevu?: string;
   date_lancement_prevu?: string;
   date_ouverture_prevu?: string;
-  ouverture_plis_prevu?: string;
   rapport_evaluation_prevu?: string;
   date_signature_prevu?: string;
-  date_fin_prevu?: string;
   listesetspecifications?: string;
 }
 
@@ -151,44 +112,24 @@ export async function getAllProcurements(): Promise<Procurement[]> {
     const mapItem = (
       item: BackendProcurementItem,
       type: "Travaux" | "Biens" | "Consultance",
-    ): Procurement => {
-      const base: Procurement = {
-        id: item.id,
-        type,
-        ref_number: item.code_suivi, // Ou null si pas de ref
-        title: item.intitule,
-        tracking_code: item.code_suivi,
-        estimated_amount: Number(item.montant_estimatif ?? 0),
-        method: type === "Biens" ? item.methode_epm : item.methode_pm,
-        approach: item.approches,
-        review_notes: item.commentaire,
-        status: item.statut,
-      };
+    ): Procurement => ({
+      id: item.id,
+      type: type,
+      ref_number: item.code_suivi, // Ou null si pas de ref
+      title: item.intitule,
+      tracking_code: item.code_suivi,
+      estimated_amount: Number(item.montant_estimatif ?? 0),
+      method: item.methode_pm,
+      approach: item.approches,
+      review_notes: item.commentaire,
 
-      if (type === "Consultance") {
-        return {
-          ...base,
-          terms_of_reference: item.TdR_prevu,
-          ami: item.ami_prevu,
-          restricted_list: item.liste_restreinte_prevu,
-          request_for_proposal: item.demande_proposition_prevu,
-          invitation_date: item.date_invitation_prevu,
-          submissions_opening_date: item.date_ouverture_prevu,
-          financial_opening_date: item.ouverture_plis_prevu,
-          contract_date: item.date_signature_prevu,
-          mission_end_date: item.date_fin_prevu,
-        };
-      }
-
-      return {
-        ...base,
-        specifications_date: item.listesetspecifications,
-        date_invitation: item.date_lancement_prevu,
-        date_opening_submissions: item.date_ouverture_prevu,
-        date_contract_signed: item.date_signature_prevu,
-        date_mission_end: item.date_livraison_prevu,
-      };
-    };
+      // Dates
+      date_invitation: item.date_lancement_prevu,
+      date_opening_submissions: item.date_ouverture_prevu,
+      date_contract_signed: item.date_signature_prevu,
+      date_mission_end: item.date_livraison_prevu,
+      status: item.statut,
+    });
 
     const travaux = travauxList.map((item) => mapItem(item, "Travaux"));
     const biens = biensList.map((item) => mapItem(item, "Biens"));
@@ -209,14 +150,9 @@ export async function getAllProcurements(): Promise<Procurement[]> {
  */
 export async function getProcurementById(
   id: number,
-  type?: "Travaux" | "Biens" | "Consultance",
+  type: "Travaux" | "Biens" | "Consultance",
 ): Promise<Procurement | null> {
   try {
-    if (!type) {
-      const all = await getAllProcurements();
-      return all.find((item) => item.id === id) || null;
-    }
-
     const endpoint = getEndpoint(type);
     // Note: Les URLs Django semblent être orientées action (list/add),
     // il faudra vérifier s'il existe une vue 'detail' standard : api/Travaux/{id}/
@@ -225,7 +161,7 @@ export async function getProcurementById(
     const response = await fetch(`${endpoint}/${id}/`);
 
     if (!response.ok) throw new Error("Marché non trouvé");
-    return (await response.json()) as Procurement;
+    return await response.json();
   } catch (error) {
     console.error("Erreur API:", error);
     return null;
@@ -243,8 +179,36 @@ export async function createProcurement(
     return null;
   }
 
-  const payload = buildProcurementPayload(data);
+  // 1. On prépare les données pour le Backend (Mapping)
+  const payload = {
+    // Champs communs
+    code_suivi: data.tracking_code || "",
 
+    // ICI : On met une valeur par défaut si c'est vide !
+    intitule: data.title || "Sans Titre",
+    montant_estimatif: data.estimated_amount || 0,
+
+    // Champs spécifiques
+    agmo: data.agmo || "Direction Générale",
+    methode_pm: data.method || "Non défini",
+    approches: data.approach || "Non défini",
+    revue: data.review_notes || "Non défini",
+
+    // Dates (null si vide)
+    listesetspecifications: data.date_invitation || null,
+
+    // Mapping des dates prévues
+    date_lancement_prevu: data.date_invitation || null,
+    date_ouverture_prevu: data.date_opening_submissions || null,
+    date_signature_prevu: data.date_contract_signed || null,
+    date_livraison_prevu: data.date_mission_end || null,
+
+    commentaire: data.review_notes || "",
+  };
+
+  /**
+   * MODIFIER un marché (Stub - Non implémenté sur le backend)
+   */
   try {
     let endpoint = "";
     if (data.type === "Travaux")
@@ -279,99 +243,16 @@ export async function createProcurement(
 }
 
 /**
- * Construire le payload backend en fonction du type de marché
- */
-function buildProcurementPayload(data: Procurement): Record<string, unknown> {
-  const basePayload = {
-    intitule: data.title || "Sans Titre",
-    montant_estimatif: data.estimated_amount || 0,
-    commentaire: data.review_notes || "",
-  };
-
-  if (data.type === "Consultance") {
-    const consultancePayload: Record<string, unknown> = {
-      ...basePayload,
-    };
-    const addIfValue = (key: string, value: unknown) => {
-      if (value === null || value === undefined || String(value).trim() === "") return;
-      consultancePayload[key] = value;
-    };
-
-    addIfValue("TdR_prevu", data.terms_of_reference);
-    addIfValue("ami_prevu", data.ami);
-    addIfValue("demande_proposition_prevu", data.request_for_proposal);
-    addIfValue("date_ouverture_prevu", data.submissions_opening_date);
-    addIfValue("ouverture_plis_prevu", data.financial_opening_date);
-    addIfValue("date_signature_prevu", data.contract_date);
-    addIfValue("date_fin_prevu", data.mission_end_date);
-    addIfValue("date_invitation_prevu", data.invitation_date);
-    addIfValue("liste_restreinte_prevu", data.restricted_list);
-
-    return consultancePayload;
-  }
-
-  return {
-    code_suivi: data.tracking_code || "",
-    ...basePayload,
-    agmo: data.agmo || "Direction Générale",
-    ...(data.type === "Biens"
-      ? { methode_epm: data.method || "aoi" }
-      : { methode_pm: data.method || "aoi" }),
-    approches: data.approach || "Non défini",
-    revue: data.review_notes || "Non défini",
-    listesetspecifications: data.specifications_date || null,
-    date_lancement_prevu: data.date_invitation || null,
-    date_ouverture_prevu: data.date_opening_submissions || null,
-    date_signature_prevu: data.date_contract_signed || null,
-    date_livraison_prevu: data.date_mission_end || null,
-  };
-}
-
-/**
- * MODIFIER un marché
+ * MODIFIER un marché (Stub - Non implémenté sur le backend)
  */
 export async function updateProcurement(
   id: number,
   data: Partial<Procurement>,
 ): Promise<Procurement | null> {
-  if (!data.type) {
-    console.error("Type de marché manquant pour la mise à jour");
-    return null;
-  }
-
-  const payload = buildProcurementPayload(data as Procurement);
-
-  try {
-    let endpoint = "";
-    if (data.type === "Travaux")
-      endpoint = `${API_BASE_URL}/api/Travaux/updateTravaux/${id}/`;
-    else if (data.type === "Biens")
-      endpoint = `${API_BASE_URL}/api/Biens/updateBiens/${id}/`;
-    else if (data.type === "Consultance")
-      endpoint = `${API_BASE_URL}/api/Consultance/updateConsultance/${id}/`;
-
-    const response = await fetch(endpoint, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      const errorMessage =
-        errorData.error || "Erreur lors de la mise à jour du marché";
-      console.error("Erreur API:", errorMessage);
-      throw new Error(errorMessage);
-    }
-
-    const updatedItem = await response.json();
-    return { ...(data as Procurement), id: updatedItem.id };
-  } catch (error: unknown) {
-    console.error("Erreur API:", error);
-    throw error;
-  }
+  void id;
+  void data;
+  console.warn("Update non supporté par le backend actuel");
+  return null;
 }
 
 /**
@@ -415,10 +296,6 @@ export async function calculatePlanning(
       headers,
       body: JSON.stringify(payload),
     });
-
-    if (response.status === 401 || response.status === 403) {
-      throwSessionExpiredError();
-    }
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
@@ -512,10 +389,6 @@ export async function getProcurementStatus(
     body: JSON.stringify({ dates_prevues, dates_reels }),
   });
 
-  if (response.status === 401 || response.status === 403) {
-    throwSessionExpiredError();
-  }
-
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(
@@ -525,6 +398,44 @@ export async function getProcurementStatus(
 
   return data.statut || "Statut indisponible";
 }
+
+/** REDIRECTION vers login si session expirée */
+// Fonction pour afficher la notification
+function showSessionExpiredNotification() {
+  // Créer l'élément de notification
+  const notification = document.createElement('div');
+  notification.className = 'notification-session';
+  notification.textContent = "Session expirée. Connecte-toi puis réessaie.";
+  
+  // Ajouter le CSS s'il n'est pas déjà chargé
+  if (!document.querySelector('link[href="/styles/notification.css"]')) {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = '/styles/notification.css';
+    document.head.appendChild(link);
+  }
+  
+  // Ajouter la notification au body
+  document.body.appendChild(notification);
+  
+  // Retourner la notification pour pouvoir la manipuler si nécessaire
+  return notification;
+}
+
+// Fonction pour gérer l'expiration de session
+function handleSessionExpired() {
+  if (typeof window !== "undefined") {
+    showSessionExpiredNotification();
+    
+    // Rediriger après un court délai
+    setTimeout(() => {
+      window.location.href = "/login";
+    }, 100);
+  }
+  throw new Error("Session expirée. Connecte-toi puis réessaie.");
+}
+
+export { handleSessionExpired, showSessionExpiredNotification };
 
 /**
  * SUPPRIMER un marché
@@ -563,6 +474,58 @@ export async function deleteProcurement(
     return newAccess;
   };
 
+  // Fonction pour afficher la notification de session expirée
+  const showSessionExpiredNotification = () => {
+    // Vérifier si la notification existe déjà
+    if (document.querySelector('.notification-session')) return;
+    
+    // Stocker dans localStorage que la session est expirée
+    localStorage.setItem('session_expired', 'true');
+    
+    // Créer l'élément de notification
+    const notification = document.createElement('div');
+    notification.className = 'notification-session';
+    notification.textContent = "Session expirée. Connecte-toi puis réessaie.";
+    
+    // Ajouter le CSS s'il n'est pas déjà chargé
+    if (!document.querySelector('style[data-session-css]')) {
+      const style = document.createElement('style');
+      style.setAttribute('data-session-css', 'true');
+      style.textContent = `
+        .notification-session {
+          position: fixed;
+          top: 20px;
+          left: 50%;
+          transform: translateX(-50%);
+          background-color: #f44336;
+          color: white;
+          padding: 16px 24px;
+          border-radius: 8px;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+          z-index: 9999;
+          font-family: Arial, sans-serif;
+          font-size: 16px;
+          animation: slideDown 0.3s ease;
+        }
+        
+        @keyframes slideDown {
+          from {
+            top: -100px;
+            opacity: 0;
+          }
+          to {
+            top: 20px;
+            opacity: 1;
+          }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+    
+    // Ajouter la notification au body
+    document.body.appendChild(notification);
+  };
+
   let endpoint = "";
   if (type === "Travaux")
     endpoint = `${API_BASE_URL}/api/Travaux/deleteTravaux/${id}/`;
@@ -572,8 +535,15 @@ export async function deleteProcurement(
 
   let accessToken =
     typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
+  
   if (!accessToken) {
-    throwSessionExpiredError();
+    if (typeof window !== "undefined") {
+      showSessionExpiredNotification();
+      setTimeout(() => {
+        window.location.href = "/login?message=session_expiree";
+      }, 100);
+    }
+    throw new Error("Session expirée. Connecte-toi puis réessaie.");
   }
 
   let response = await fetch(endpoint, {
@@ -585,7 +555,13 @@ export async function deleteProcurement(
   if (response.status === 401) {
     accessToken = await refreshAccessToken();
     if (!accessToken) {
-      throwSessionExpiredError();
+      if (typeof window !== "undefined") {
+        showSessionExpiredNotification();
+        setTimeout(() => {
+          window.location.href = "/login?message=session_expiree";
+        }, 100);
+      }
+      throw new Error("Session expirée. Connecte-toi puis réessaie.");
     }
     response = await fetch(endpoint, {
       method: "DELETE",
@@ -593,7 +569,7 @@ export async function deleteProcurement(
       body: JSON.stringify({ password }),
     });
   }
-
+  
   if (!response.ok) {
     const data = await response.json().catch(() => ({}));
     throw new Error(
@@ -604,6 +580,9 @@ export async function deleteProcurement(
   return true;
 }
 
+/**
+ * ARRETER un marché
+ */
 export async function stopProcurement(
   id: number,
   type: "Travaux" | "Biens" | "Consultance",
@@ -611,12 +590,9 @@ export async function stopProcurement(
 ): Promise<{ statut: string }> {
   const token =
     typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
-  if (!token) {
-    throwSessionExpiredError();
-  }
 
   const headers: HeadersInit = { "Content-Type": "application/json" };
-  headers.Authorization = `Bearer ${token}`;
+  if (token) headers.Authorization = `Bearer ${token}`;
 
   let endpoint = "";
   if (type === "Travaux")
@@ -630,11 +606,6 @@ export async function stopProcurement(
     headers,
     body: JSON.stringify({ password }),
   });
-
-  if (res.status === 401 || res.status === 403) {
-    throwSessionExpiredError();
-  }
-
   const data = await res.json().catch(() => ({}));
 
   if (!res.ok) throw new Error(data.error || data.detail || "Erreur arrêt");

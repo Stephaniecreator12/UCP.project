@@ -7,7 +7,8 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.utils import timezone
-from .ProcurementService import delete_service, arreter_service
+from types import SimpleNamespace
+from .ProcurementService import delete_service, arreter_service, statut_service
 
 # INSERER DONNEES
 @csrf_exempt
@@ -51,6 +52,33 @@ def insert_mock_biens(request):
             # 3. Création de l'objet en une seule ligne grâce au dépaquetage de dictionnaire (**)
             biens = Biens.objects.create(**data)
 
+            # Calculer et persister le statut à la création (si possible)
+            if getattr(biens, "statut", None) != "Arrêté":
+                dates_prevues = {
+                    "listesetspecifications_prevu": biens.listesetspecifications_prevu,
+                    "dossiers_appel_prevu": biens.dossiers_appel_prevu,
+                    "date_lancement_prevu": biens.date_lancement_prevu,
+                    "date_ouverture_prevu": biens.date_ouverture_prevu,
+                    "rapport_evaluation_prevu": biens.rapport_evaluation_prevu,
+                    "date_signature_prevu": biens.date_signature_prevu,
+                    "date_livraison_prevu": biens.date_livraison_prevu,
+                }
+                dates_reels = {
+                    "listesetspecifications_reel": biens.listesetspecifications_reel,
+                    "dossiers_appel_reel": biens.dossiers_appel_reel,
+                    "date_lancement_reel": biens.date_lancement_reel,
+                    "date_ouverture_reel": biens.date_ouverture_reel,
+                    "rapport_evaluation_reel": biens.rapport_evaluation_reel,
+                    "date_signature_reel": biens.date_signature_reel,
+                    "date_livraison_reel": biens.date_livraison_reel,
+                }
+
+                fake_request = SimpleNamespace(data={"dates_prevues": dates_prevues, "dates_reels": dates_reels})
+                computed = statut_service(fake_request).data.get("statut")
+                if computed and computed != "Données insuffisantes" and computed != biens.statut:
+                    biens.statut = computed
+                    biens.save(update_fields=["statut"])
+
             return JsonResponse({'status': 'success', 'id': biens.id}, status=201)
 
         except json.JSONDecodeError:
@@ -72,6 +100,33 @@ def update_biens(request, id):
             if hasattr(biens, key):
                 setattr(biens, key, value)
         biens.save()
+
+        # Calculer et persister le statut à chaque enregistrement (sans écraser "Arrêté")
+        if getattr(biens, "statut", None) != "Arrêté":
+            dates_prevues = {
+                "listesetspecifications_prevu": biens.listesetspecifications_prevu,
+                "dossiers_appel_prevu": biens.dossiers_appel_prevu,
+                "date_lancement_prevu": biens.date_lancement_prevu,
+                "date_ouverture_prevu": biens.date_ouverture_prevu,
+                "rapport_evaluation_prevu": biens.rapport_evaluation_prevu,
+                "date_signature_prevu": biens.date_signature_prevu,
+                "date_livraison_prevu": biens.date_livraison_prevu,
+            }
+            dates_reels = {
+                "listesetspecifications_reel": biens.listesetspecifications_reel,
+                "dossiers_appel_reel": biens.dossiers_appel_reel,
+                "date_lancement_reel": biens.date_lancement_reel,
+                "date_ouverture_reel": biens.date_ouverture_reel,
+                "rapport_evaluation_reel": biens.rapport_evaluation_reel,
+                "date_signature_reel": biens.date_signature_reel,
+                "date_livraison_reel": biens.date_livraison_reel,
+            }
+
+            fake_request = SimpleNamespace(data={"dates_prevues": dates_prevues, "dates_reels": dates_reels})
+            computed = statut_service(fake_request).data.get("statut")
+            if computed and computed != "Données insuffisantes" and computed != biens.statut:
+                biens.statut = computed
+                biens.save(update_fields=["statut"])
         return JsonResponse({'status': 'success', 'id': biens.id}, status=200)
     except Biens.DoesNotExist:
         return JsonResponse({'error': 'Biens non trouve'}, status=404)

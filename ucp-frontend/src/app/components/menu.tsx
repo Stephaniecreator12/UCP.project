@@ -12,8 +12,15 @@ type MenuLink = {
 };
 
 const LINKS: MenuLink[] = [
-  { label: "PPM", href: "/formulaire", match: (pathname) => pathname === "/formulaire" },
+  { label: "PPM", href: "/formulaire", match: (pathname) => pathname === "/formulaire" }, 
   { label: "Dashboard", href: "/dashboard", match: (pathname) => pathname === "/dashboard" },
+  {
+    label: "demande d'achat",
+    href: "/demandeAchat",
+    match: (pathname) =>
+      pathname === "/demandeAchat" || pathname.startsWith("/demande-achat/"),
+  },
+  { label: "validation", href: "/validation", match: (pathname) => pathname === "/validation" },
 ];
 
 export default function Menu({ className = "" }: { className?: string }) {
@@ -25,17 +32,11 @@ export default function Menu({ className = "" }: { className?: string }) {
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const [open, setOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
   const [menuPos, setMenuPos] = useState<{ left: number; top: number } | null>(null);
   const [hoverTimeout, setHoverTimeout] = useState<NodeJS.Timeout | null>(null);
 
   const showAuthenticatedActions = pathname !== "/login";
-
-  useEffect(() => setMounted(true), []);
-
-  useEffect(() => {
-    setOpen(false);
-  }, [pathname]);
+  const canPortal = typeof document !== "undefined";
 
   const measureMenuPosition = useCallback(() => {
     const button = buttonRef.current;
@@ -150,7 +151,7 @@ export default function Menu({ className = "" }: { className?: string }) {
         />
       </button>
 
-      {open && mounted && menuPos && createPortal(
+      {open && canPortal && menuPos && createPortal(
         <div
           id={menuId}
           ref={menuRef}

@@ -7,7 +7,8 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.utils import timezone
-from .ProcurementService import delete_service, arreter_service
+from types import SimpleNamespace
+from .ProcurementService import delete_service, arreter_service, statut_service
 
 # INSERER DONNEES
 @csrf_exempt
@@ -54,6 +55,41 @@ def insert_mock_consultance(request):
             
             data.update(request_data)
             consultance = Consultance.objects.create(**data)
+
+            # Calculer et persister le statut à la création (si possible)
+            if getattr(consultance, "statut", None) != "Arrêté":
+                dates_prevues = {
+                    "TdR_prevu": consultance.TdR_prevu,
+                    "ami_prevu": consultance.ami_prevu,
+                    "liste_restreinte_prevu": consultance.liste_restreinte_prevu,
+                    "demande_proposition_prevu": consultance.demande_proposition_prevu,
+                    "date_invitation_prevu": consultance.date_invitation_prevu,
+                    "date_ouverture_prevu": consultance.date_ouverture_prevu,
+                    "ouverture_plis_prevu": consultance.ouverture_plis_prevu,
+                    "date_signature_prevu": consultance.date_signature_prevu,
+                    "date_fin_prevu": consultance.date_fin_prevu,
+                    "evaluation_technique_prevu": consultance.evaluation_technique_prevu,
+                    "projet_contrat_prevu": consultance.projet_contrat_prevu,
+                }
+                dates_reels = {
+                    "TdR_reel": consultance.TdR_reel,
+                    "ami_reel": consultance.ami_reel,
+                    "liste_restreinte_reel": consultance.liste_restreinte_reel,
+                    "demande_proposition_reel": consultance.demande_proposition_reel,
+                    "date_invitation_reel": consultance.date_invitation_reel,
+                    "date_ouverture_reel": consultance.date_ouverture_reel,
+                    "ouverture_plis_reel": consultance.ouverture_plis_reel,
+                    "date_signature_reel": consultance.date_signature_reel,
+                    "date_fin_reel": consultance.date_fin_reel,
+                    "evaluation_technique_reel": consultance.evaluation_technique_reel,
+                    "projet_contrat_reel": consultance.projet_contrat_reel,
+                }
+
+                fake_request = SimpleNamespace(data={"dates_prevues": dates_prevues, "dates_reels": dates_reels})
+                computed = statut_service(fake_request).data.get("statut")
+                if computed and computed != "Données insuffisantes" and computed != consultance.statut:
+                    consultance.statut = computed
+                    consultance.save(update_fields=["statut"])
             
             return JsonResponse({'status': 'success', 'id': consultance.id}, status=201)
         except Exception as e:
@@ -70,6 +106,41 @@ def update_consultance(request, id):
             if hasattr(consultance, key):
                 setattr(consultance, key, value)
         consultance.save()
+
+        # Calculer et persister le statut à chaque enregistrement (sans écraser "Arrêté")
+        if getattr(consultance, "statut", None) != "Arrêté":
+            dates_prevues = {
+                "TdR_prevu": consultance.TdR_prevu,
+                "ami_prevu": consultance.ami_prevu,
+                "liste_restreinte_prevu": consultance.liste_restreinte_prevu,
+                "demande_proposition_prevu": consultance.demande_proposition_prevu,
+                "date_invitation_prevu": consultance.date_invitation_prevu,
+                "date_ouverture_prevu": consultance.date_ouverture_prevu,
+                "ouverture_plis_prevu": consultance.ouverture_plis_prevu,
+                "date_signature_prevu": consultance.date_signature_prevu,
+                "date_fin_prevu": consultance.date_fin_prevu,
+                "evaluation_technique_prevu": consultance.evaluation_technique_prevu,
+                "projet_contrat_prevu": consultance.projet_contrat_prevu,
+            }
+            dates_reels = {
+                "TdR_reel": consultance.TdR_reel,
+                "ami_reel": consultance.ami_reel,
+                "liste_restreinte_reel": consultance.liste_restreinte_reel,
+                "demande_proposition_reel": consultance.demande_proposition_reel,
+                "date_invitation_reel": consultance.date_invitation_reel,
+                "date_ouverture_reel": consultance.date_ouverture_reel,
+                "ouverture_plis_reel": consultance.ouverture_plis_reel,
+                "date_signature_reel": consultance.date_signature_reel,
+                "date_fin_reel": consultance.date_fin_reel,
+                "evaluation_technique_reel": consultance.evaluation_technique_reel,
+                "projet_contrat_reel": consultance.projet_contrat_reel,
+            }
+
+            fake_request = SimpleNamespace(data={"dates_prevues": dates_prevues, "dates_reels": dates_reels})
+            computed = statut_service(fake_request).data.get("statut")
+            if computed and computed != "Données insuffisantes" and computed != consultance.statut:
+                consultance.statut = computed
+                consultance.save(update_fields=["statut"])
         return JsonResponse({'status': 'success', 'id': consultance.id}, status=200)
     except Consultance.DoesNotExist:
         return JsonResponse({'error': 'Consultance non trouvee'}, status=404)

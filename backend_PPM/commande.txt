@@ -31,7 +31,7 @@ git push origin nom_de_ma_branche
 #PRENDRE LE CODE DE LA BRANCHE DE QQLQ
 git switch ma-branche
 git fetch origin : recupere le code de la branche de qqlq
-git reset --hard origin/Stephanie
+git merge origin/branchedeqlq : merge le code de la branche de qqlq >>attention<<
 
 #SOUS DOSSIER DANS MAIN
 git checkout ma-branche

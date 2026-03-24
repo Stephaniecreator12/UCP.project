@@ -16,7 +16,7 @@ export default function DemandesPage() {
   const [demandes, setDemandes] = useState<Demande[]>([]);
 
   useEffect(() => {
-    fetch("http://127.0.0.1:8000/api/achats/")
+    fetch("/api/achats/")
       .then((res) => res.json())
       .then((data) => setDemandes(data));
   }, []);

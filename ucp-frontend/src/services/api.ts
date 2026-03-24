@@ -4,7 +4,7 @@
  */
 
 export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+  "";
 const SESSION_EXPIRED_MESSAGE = "Session expirée. Connecte-toi puis réessaie.";
 
 const clearSessionAndRedirectToLogin = () => {
@@ -83,6 +83,7 @@ interface BackendProcurementItem {
   approches?: string;
   commentaire?: string;
   statut?: string;
+  listesetspecifications?: string;
   
   // Travaux & Biens - Dates prévues
   listesetspecifications_prevu?: string;
@@ -160,7 +161,9 @@ export interface PlanningResponse {
  * Utilitaires pour mapper les URLs selon le type
  */
 const getEndpoint = (type: "Travaux" | "Biens" | "Consultance") => {
-  return `${API_BASE_URL}/api/${type}`;
+  const segment =
+    type === "Travaux" ? "travaux" : type === "Biens" ? "biens" : "consultances";
+  return `${API_BASE_URL}/api/ppm/${segment}`;
 };
 
 const toDateValue = (value: unknown): string | null => {
@@ -175,14 +178,28 @@ const toDateValue = (value: unknown): string | null => {
 export async function getAllProcurements(): Promise<Procurement[]> {
   try {
     const urls = [
-      `${API_BASE_URL}/api/Travaux/listTravaux/`,
-      `${API_BASE_URL}/api/Biens/listBiens/`,
-      `${API_BASE_URL}/api/Consultance/listConsultance/`,
+      `${API_BASE_URL}/api/ppm/travaux/list/`,
+      `${API_BASE_URL}/api/ppm/biens/list/`,
+      `${API_BASE_URL}/api/ppm/consultances/list/`,
     ];
 
     const responses = await Promise.all(
       urls.map(async (url): Promise<BackendListResponse> => {
-        const res = await fetch(url, { cache: "no-store" }); // Ajout de no-store pour éviter les problèmes de cache
+        const res = await fetch(url, { cache: "no-store" }).catch((err) => {
+          const detail = err instanceof Error ? err.message : String(err);
+          throw new Error(
+            `Impossible de joindre l'API (${url}). Détail: ${detail}`,
+          );
+        }); // Ajout de no-store pour éviter les problèmes de cache
+
+        if (!res.ok) {
+          const responseForText = res.clone();
+          const body = await responseForText.text().catch(() => "");
+          const snippet = body.trim().slice(0, 300);
+          throw new Error(
+            `Erreur API (${url}) (HTTP ${res.status})${snippet ? ` : ${snippet}` : ""}`,
+          );
+        }
         const data = await res.json().catch(() => ({ travaux: [], biens: [], consultance: [] }));
         
         // 🔍 DEBUG - Voir ce que retourne chaque endpoint
@@ -260,7 +277,7 @@ export async function getAllProcurements(): Promise<Procurement[]> {
 const mapped = {
   ...base,
   // Dates prévues
-  specifications_date: item.listesetspecifications_prevu,
+  specifications_date: item.listesetspecifications ?? item.listesetspecifications_prevu,
   tender_documents_date: item.dossiers_appel_prevu,
   launch_date: item.date_lancement_prevu,
   opening_date: item.date_ouverture_prevu,
@@ -343,11 +360,11 @@ export async function createProcurement(
   try {
     let endpoint = "";
     if (data.type === "Travaux")
-      endpoint = `${API_BASE_URL}/api/Travaux/addTravaux/`;
+      endpoint = `${API_BASE_URL}/api/ppm/travaux/add/`;
     else if (data.type === "Biens")
-      endpoint = `${API_BASE_URL}/api/Biens/addBiens/`;
+      endpoint = `${API_BASE_URL}/api/ppm/biens/add/`;
     else if (data.type === "Consultance")
-      endpoint = `${API_BASE_URL}/api/Consultance/addConsultance/`;
+      endpoint = `${API_BASE_URL}/api/ppm/consultances/add/`;
 
     const response = await fetch(endpoint, {
       method: "POST",
@@ -505,11 +522,11 @@ export async function updateProcurement(
   try {
     let endpoint = "";
     if (data.type === "Travaux")
-      endpoint = `${API_BASE_URL}/api/Travaux/updateTravaux/${id}/`;
+      endpoint = `${API_BASE_URL}/api/ppm/travaux/update/${id}/`;
     else if (data.type === "Biens")
-      endpoint = `${API_BASE_URL}/api/Biens/updateBiens/${id}/`;
+      endpoint = `${API_BASE_URL}/api/ppm/biens/update/${id}/`;
     else if (data.type === "Consultance")
-      endpoint = `${API_BASE_URL}/api/Consultance/updateConsultance/${id}/`;
+      endpoint = `${API_BASE_URL}/api/ppm/consultances/update/${id}/`;
 
     console.log("Envoi payload update:", payload); // DEBUG
 
@@ -548,11 +565,11 @@ export async function calculatePlanning(
 ): Promise<PlanningResponse> {
   let endpoint = "";
   if (type === "Consultance") {
-    endpoint = `${API_BASE_URL}/api/Consultance/calculerPlanningConsultance/`;
+    endpoint = `${API_BASE_URL}/api/ppm/consultances/planning/`;
   } else if (type === "Biens") {
-    endpoint = `${API_BASE_URL}/api/Biens/calculerPlanningBiens/`;
+    endpoint = `${API_BASE_URL}/api/ppm/biens/planning/`;
   } else {
-    endpoint = `${API_BASE_URL}/api/Travaux/calculerPlanningTravaux/`;
+    endpoint = `${API_BASE_URL}/api/ppm/travaux/planning/`;
   }
   try {
     const token =
@@ -587,10 +604,31 @@ export async function calculatePlanning(
     }
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(
-        errorData.error || errorData.detail || "Erreur de calcul",
-      );
+      const responseForJson = response.clone();
+      const responseForText = response.clone();
+
+      const errorData: unknown = await responseForJson.json().catch(() => null);
+      const errorText: string = await responseForText.text().catch(() => "");
+
+      const asTrimmedString = (v: unknown): string => {
+        return typeof v === "string" ? v.trim() : "";
+      };
+
+      const fromJson =
+        errorData && typeof errorData === "object"
+          ? asTrimmedString((errorData as { error?: unknown }).error) ||
+            asTrimmedString((errorData as { detail?: unknown }).detail) ||
+            asTrimmedString((errorData as { message?: unknown }).message)
+          : asTrimmedString(errorData);
+
+      const fromText = asTrimmedString(errorText);
+
+      const details = fromJson || fromText;
+      const message = details
+        ? `Erreur de calcul (HTTP ${response.status}) : ${details}`
+        : `Erreur de calcul (HTTP ${response.status})`;
+
+      throw new Error(message);
     }
 
     const result = await response.json();
@@ -626,8 +664,8 @@ export async function getProcurementStatus(
   if (type === "Travaux" || type === "Biens") {
     endpoint =
       type === "Travaux"
-        ? `${API_BASE_URL}/api/Travaux/statutTravaux/`
-        : `${API_BASE_URL}/api/Biens/statutBiens/`;
+        ? `${API_BASE_URL}/api/ppm/travaux/status/`
+        : `${API_BASE_URL}/api/ppm/biens/status/`;
 
     dates_prevues = {
       listesetspecifications_prevu: toDateValue(row.specifications_date),
@@ -649,7 +687,7 @@ export async function getProcurementStatus(
       date_livraison_reel: toDateValue(row.delivery_date_actual),
     };
   } else {
-    endpoint = `${API_BASE_URL}/api/Consultance/statutConsultance/`;
+    endpoint = `${API_BASE_URL}/api/ppm/consultances/status/`;
 
     dates_prevues = {
       TdR_prevu: toDateValue(row.terms_of_reference),
@@ -739,10 +777,10 @@ export async function deleteProcurement(
 
   let endpoint = "";
   if (type === "Travaux")
-    endpoint = `${API_BASE_URL}/api/Travaux/deleteTravaux/${id}/`;
+    endpoint = `${API_BASE_URL}/api/ppm/travaux/delete/${id}/`;
   else if (type === "Biens")
-    endpoint = `${API_BASE_URL}/api/Biens/deleteBiens/${id}/`;
-  else endpoint = `${API_BASE_URL}/api/Consultance/deleteConsultance/${id}/`;
+    endpoint = `${API_BASE_URL}/api/ppm/biens/delete/${id}/`;
+  else endpoint = `${API_BASE_URL}/api/ppm/consultances/delete/${id}/`;
 
   let accessToken =
     typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
@@ -794,10 +832,10 @@ export async function stopProcurement(
 
   let endpoint = "";
   if (type === "Travaux")
-    endpoint = `${API_BASE_URL}/api/Travaux/arreter/${id}/`;
+    endpoint = `${API_BASE_URL}/api/ppm/travaux/arreter/${id}/`;
   else if (type === "Biens")
-    endpoint = `${API_BASE_URL}/api/Biens/arreter/${id}/`;
-  else endpoint = `${API_BASE_URL}/api/Consultance/arreter/${id}/`;
+    endpoint = `${API_BASE_URL}/api/ppm/biens/arreter/${id}/`;
+  else endpoint = `${API_BASE_URL}/api/ppm/consultances/arreter/${id}/`;
 
   const res = await fetch(endpoint, {
     method: "POST",

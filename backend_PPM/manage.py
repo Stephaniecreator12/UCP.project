@@ -12,7 +12,7 @@ def main():
     sys.path.insert(0, current_path)
     
     # On utilise le nouveau nom du dossier
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config_app.settings')
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
     
     try:
         from django.core.management import execute_from_command_line

@@ -34,6 +34,38 @@ html, body {
   font-family: var(--font-ui), ui-sans-serif, system-ui, sans-serif;
 }
 
+/* Réduction d'affichage "type zoom 80%" (écran PC) */
+@media (min-width: 1024px) and (pointer: fine) {
+  html {
+    zoom: 0.8;
+  }
+
+  /* Compense le zoom pour garder la mÃªme largeur visuelle des conteneurs centrÃ©s */
+  .max-w-\[1480px\] {
+    max-width: 1850px;
+  }
+
+  /* compense le zoom pour garder la hauteur visuelle des éléments à 100vh */
+  .h-screen {
+    height: 120vh;
+  }
+
+  /* Le header utilise `mx-30` : on le recentre proprement sur PC */
+  .mx-30 {
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+
+/* Fallback (navigateurs sans support de `zoom`, ex: Firefox) */
+@supports not (zoom: 1) {
+  @media (min-width: 1024px) and (pointer: fine) {
+    html {
+      font-size: 80%;
+    }
+  }
+}
+
 /* En Tailwind v4, on définit les composants personnalisés 
    directement après l'import sans forcément utiliser @layer 
 */

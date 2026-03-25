@@ -16,11 +16,20 @@ const LINKS: MenuLink[] = [
   { label: "Dashboard", href: "/dashboard", match: (pathname) => pathname === "/dashboard" },
   {
     label: "demande d'achat",
-    href: "/demandeAchat",
+    href: "/demande-achat",
     match: (pathname) =>
-      pathname === "/demandeAchat" || pathname.startsWith("/demande-achat/"),
+      pathname === "/demande-achat" || pathname.startsWith("/demande-achat/"),
   },
-  { label: "validation", href: "/validation", match: (pathname) => pathname === "/validation" },
+  {
+    label: "validation",
+    href: "/validation",
+    match: (pathname) => pathname === "/validation" || pathname.startsWith("/validation/"),
+  },
+  {
+    label: "reception",
+    href: "/reception",
+    match: (pathname) => pathname === "/reception" || pathname.startsWith("/reception/"),
+  },
 ];
 
 export default function Menu({ className = "" }: { className?: string }) {

@@ -13,7 +13,7 @@ import {
   submitDemandeAchat,
   transmitDemandeAchat,
   updateDemandeAchat,
-} from "@/services/demandeAchat";
+} from "@/services/api";
 import {
   CurrentUserProfile,
   DemandeAchat,
@@ -21,7 +21,7 @@ import {
   SourceFinancementOption,
   StatutDemande,
   TypeMarche,
-} from "@/types/demandeAchat";
+} from "@/services/api";
 
 const SERVICES = [
   "Direction des Infrastructures",

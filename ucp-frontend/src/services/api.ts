@@ -852,3 +852,359 @@ export async function stopProcurement(
   if (!res.ok) throw new Error(data.error || data.detail || "Erreur arrêt");
   return { statut: data.statut || "Arrêté" };
 }
+
+// ---------------------------------------------------------------------------
+// Achats (Demandes d'achat + Validation)
+// ---------------------------------------------------------------------------
+
+export type StatutDemande = string;
+export type TypeMarche = string;
+export type NatureActivite = string;
+export type SourceFinancementOption = string;
+
+export interface CurrentUserProfile {
+  id?: number;
+  username?: string;
+  email?: string;
+  first_name?: string;
+  last_name?: string;
+  is_active?: boolean;
+  role?: string;
+  [key: string]: unknown;
+}
+
+export interface ValidationDemandeAchatItem {
+  id?: number;
+  validateur: { full_name: string };
+  role_validateur: string;
+  etape: string;
+  decision: string;
+  commentaire?: string;
+  fonds_statut?: string;
+  visa?: string;
+  date_validation?: string;
+  [key: string]: unknown;
+}
+
+export interface DemandeAchat {
+  id?: number;
+  numero_demande?: string;
+  date_demande?: string;
+  service_demandeur?: string;
+  nom_demandeur?: string;
+  fonction_demandeur?: string;
+  activite_ptba?: string;
+  sous_activite_ptba?: string;
+  indicateur_performance?: string;
+  source_financement?: string[];
+  source_financement_subvention_fm?: string;
+  source_financement_projet_bm?: string;
+  source_financement_autre?: string;
+  ligne_budgetaire?: string;
+  budget_estime?: string | number;
+  devise?: string;
+  type_marche?: string;
+  nature_activite?: string;
+  nature_activite_autre?: string;
+  intitule_demande?: string;
+  description_detaillee?: string;
+  region_district?: string;
+  adresse_precise?: string;
+  date_debut_souhaitee?: string;
+  date_fin_souhaitee?: string;
+  urgent?: boolean;
+  justification_urgence?: string;
+  statut?: string;
+  date_transmission_marches?: string;
+  validations?: ValidationDemandeAchatItem[];
+  [key: string]: unknown;
+}
+
+type BackendValidation = {
+  id?: number;
+  validateur_username?: string;
+  validateur_nom?: string;
+  role?: string;
+  role_display?: string;
+  statut?: string;
+  statut_display?: string;
+  commentaire?: string;
+  fonds_statut?: string | null;
+  fonds_statut_display?: string;
+  visa?: string;
+  date_validation?: string;
+};
+
+type BackendDemandeAchat = {
+  id?: number;
+  numero_demande?: string;
+  date_demande?: string;
+  service_demandeur?: string;
+  demandeur_username?: string;
+  demandeur_nom?: string;
+  fonction_demandeur?: string;
+  activite_ptba?: string;
+  indicateur_performance?: string | null;
+  source_financement?: string;
+  ligne_budgetaire?: string;
+  budget_estime?: string | number;
+  devise?: string;
+  type_marche?: string;
+  nature_activite?: string;
+  objet_demande?: string;
+  description?: string;
+  region?: string;
+  adresse_livraison?: string;
+  date_debut?: string;
+  date_fin?: string;
+  urgent?: boolean;
+  justification_urgence?: string | null;
+  statut?: string;
+  statut_display?: string;
+  date_transmission_marches?: string | null;
+  validations?: BackendValidation[];
+};
+
+const normalizeStatutDisplay = (label: string): string => {
+  const trimmed = label.trim();
+  if (!trimmed) return trimmed;
+  const map: Record<string, string> = {
+    "Validée service": "Validée Service",
+    "Validée budget": "Validée Budget",
+    "Validée direction": "Validée Direction",
+    "Transmise aux marchés": "Transmise aux Marchés",
+  };
+  return map[trimmed] ?? trimmed;
+};
+
+const mapTypeMarcheFromBackend = (value: string | undefined): string => {
+  if (!value) return "";
+  if (value === "BIENS") return "Biens";
+  if (value === "SERVICES") return "Services";
+  if (value === "TRAVAUX") return "Travaux";
+  return value;
+};
+
+const mapTypeMarcheToBackend = (value: unknown): string | undefined => {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  if (trimmed === "Biens") return "BIENS";
+  if (trimmed === "Services") return "SERVICES";
+  if (trimmed === "Travaux") return "TRAVAUX";
+  return trimmed.toUpperCase();
+};
+
+const mapValidationFromBackend = (v: BackendValidation): ValidationDemandeAchatItem => {
+  const fullName = (v.validateur_nom || v.validateur_username || "").trim();
+  const role = (v.role_display || v.role || "").trim();
+  const decision = (v.statut_display || v.statut || "").trim();
+  const fonds = (v.fonds_statut_display || v.fonds_statut || "").toString().trim();
+
+  return {
+    id: v.id,
+    validateur: { full_name: fullName || "—" },
+    role_validateur: role,
+    etape: role,
+    decision,
+    commentaire: v.commentaire || undefined,
+    fonds_statut: fonds || undefined,
+    visa: v.visa || undefined,
+    date_validation: v.date_validation || undefined,
+  };
+};
+
+const mapDemandeFromBackend = (
+  backend: BackendDemandeAchat,
+  seed: Partial<DemandeAchat> = {},
+): DemandeAchat => {
+  const statutLabel = normalizeStatutDisplay(backend.statut_display || "");
+  const validations = Array.isArray(backend.validations)
+    ? backend.validations.map(mapValidationFromBackend)
+    : [];
+
+  return {
+    ...seed,
+    id: backend.id ?? seed.id,
+    numero_demande: backend.numero_demande ?? seed.numero_demande,
+    date_demande: backend.date_demande ?? seed.date_demande,
+    service_demandeur: backend.service_demandeur ?? seed.service_demandeur,
+    nom_demandeur: backend.demandeur_nom ?? seed.nom_demandeur,
+    fonction_demandeur: backend.fonction_demandeur ?? seed.fonction_demandeur,
+    activite_ptba: backend.activite_ptba ?? seed.activite_ptba,
+    indicateur_performance: (backend.indicateur_performance ?? "") as string,
+    source_financement:
+      typeof backend.source_financement === "string" && backend.source_financement.trim()
+        ? backend.source_financement.split(/[;,/|]+/).map((s) => s.trim()).filter(Boolean)
+        : seed.source_financement,
+    ligne_budgetaire: backend.ligne_budgetaire ?? seed.ligne_budgetaire,
+    budget_estime: backend.budget_estime ?? seed.budget_estime,
+    devise: backend.devise ?? seed.devise,
+    type_marche: mapTypeMarcheFromBackend(backend.type_marche) || (seed.type_marche as string),
+    nature_activite: backend.nature_activite ?? seed.nature_activite,
+    intitule_demande: backend.objet_demande ?? seed.intitule_demande,
+    description_detaillee: backend.description ?? seed.description_detaillee,
+    region_district: backend.region ?? seed.region_district,
+    adresse_precise: backend.adresse_livraison ?? seed.adresse_precise,
+    date_debut_souhaitee: backend.date_debut ?? seed.date_debut_souhaitee,
+    date_fin_souhaitee: backend.date_fin ?? seed.date_fin_souhaitee,
+    urgent: backend.urgent ?? seed.urgent,
+    justification_urgence: (backend.justification_urgence ?? "") as string,
+    statut: statutLabel || seed.statut,
+    date_transmission_marches:
+      backend.date_transmission_marches ?? seed.date_transmission_marches,
+    validations,
+  };
+};
+
+const mapDemandePayloadToBackendWrite = (
+  front: Partial<DemandeAchat>,
+): Record<string, unknown> => {
+  const payload: Record<string, unknown> = {
+    service_demandeur: front.service_demandeur,
+    fonction_demandeur: front.fonction_demandeur,
+    activite_ptba: front.activite_ptba,
+    indicateur_performance: front.indicateur_performance || undefined,
+    source_financement: Array.isArray(front.source_financement)
+      ? front.source_financement.filter(Boolean).join(" / ")
+      : undefined,
+    ligne_budgetaire: front.ligne_budgetaire,
+    budget_estime:
+      typeof front.budget_estime === "string"
+        ? Number.parseFloat(front.budget_estime.replace(",", "."))
+        : front.budget_estime,
+    devise: front.devise,
+    type_marche: mapTypeMarcheToBackend(front.type_marche),
+    nature_activite:
+      front.nature_activite === "Autre" && front.nature_activite_autre
+        ? front.nature_activite_autre
+        : front.nature_activite,
+    objet_demande: front.intitule_demande,
+    description: front.description_detaillee,
+    region: front.region_district,
+    adresse_livraison: front.adresse_precise,
+    date_debut: front.date_debut_souhaitee,
+    date_fin: front.date_fin_souhaitee,
+    urgent: front.urgent,
+    justification_urgence: front.justification_urgence || undefined,
+  };
+
+  Object.keys(payload).forEach((k) => {
+    if (payload[k] === undefined || payload[k] === null || payload[k] === "") {
+      delete payload[k];
+    }
+  });
+
+  return payload;
+};
+
+const achatsFetchJson = async <T>(path: string, init: RequestInit = {}): Promise<T> => {
+  const token =
+    typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
+
+  const headers = new Headers(init.headers);
+  if (!headers.has("Content-Type") && init.body) {
+    headers.set("Content-Type", "application/json");
+  }
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+
+  const response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers });
+
+  if (response.status === 401 || response.status === 403) {
+    throwSessionExpiredError();
+  }
+
+  const data: unknown = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const detail =
+      data && typeof data === "object"
+        ? ((data as { detail?: unknown; error?: unknown }).detail ??
+            (data as { detail?: unknown; error?: unknown }).error) ||
+          data
+        : data;
+    throw new Error(typeof detail === "string" && detail.trim() ? detail : "Erreur API");
+  }
+  return data as T;
+};
+
+export async function getCurrentUserProfile(): Promise<CurrentUserProfile> {
+  return achatsFetchJson<CurrentUserProfile>("/api/users/me/", { method: "GET" });
+}
+
+export async function getPendingDemandesAchat(): Promise<DemandeAchat[]> {
+  const raw = await achatsFetchJson<BackendDemandeAchat[]>(
+    "/api/achats/validations/pending/",
+    { method: "GET" },
+  );
+  return raw.map((item) => mapDemandeFromBackend(item));
+}
+
+export async function createDemandeAchat(payload: Partial<DemandeAchat>): Promise<DemandeAchat> {
+  const backend = await achatsFetchJson<BackendDemandeAchat>("/api/achats/demandes/", {
+    method: "POST",
+    body: JSON.stringify(mapDemandePayloadToBackendWrite(payload)),
+  });
+  return mapDemandeFromBackend(backend, payload);
+}
+
+export async function updateDemandeAchat(
+  id: number,
+  payload: Partial<DemandeAchat>,
+): Promise<DemandeAchat> {
+  const backend = await achatsFetchJson<BackendDemandeAchat>(`/api/achats/demandes/${id}/`, {
+    method: "PATCH",
+    body: JSON.stringify(mapDemandePayloadToBackendWrite(payload)),
+  });
+  return mapDemandeFromBackend(backend, payload);
+}
+
+export async function submitDemandeAchat(id: number): Promise<DemandeAchat> {
+  const backend = await achatsFetchJson<BackendDemandeAchat>(`/api/achats/demandes/${id}/submit/`, {
+    method: "POST",
+  });
+  return mapDemandeFromBackend(backend);
+}
+
+export async function transmitDemandeAchat(
+  id: number,
+  _comment?: string,
+): Promise<DemandeAchat> {
+  void _comment;
+  const backend = await achatsFetchJson<BackendDemandeAchat>(
+    `/api/achats/demandes/${id}/transmit/`,
+    { method: "POST" },
+  );
+  return mapDemandeFromBackend(backend);
+}
+
+export async function decideDemandeAchat(
+  demandeId: number,
+  payload: {
+    decision: "Approuvé" | "Rejeté";
+    commentaire?: string;
+    fonds_statut?: "Fonds disponibles" | "Fonds insuffisants";
+    visa?: string;
+  },
+): Promise<DemandeAchat> {
+  const decision =
+    payload.decision === "Approuvé" ? "APPROUVE" : payload.decision === "Rejeté" ? "REJETE" : payload.decision;
+  const fondsStatut =
+    payload.fonds_statut === "Fonds disponibles"
+      ? "DISPONIBLES"
+      : payload.fonds_statut === "Fonds insuffisants"
+        ? "INSUFFISANTS"
+        : undefined;
+
+  const backend = await achatsFetchJson<BackendDemandeAchat>("/api/achats/validations/decision/", {
+    method: "POST",
+    body: JSON.stringify({
+      demande_id: demandeId,
+      decision,
+      commentaire: payload.commentaire || undefined,
+      fonds_statut: fondsStatut,
+      visa: payload.visa || undefined,
+    }),
+  });
+
+  return mapDemandeFromBackend(backend);
+}

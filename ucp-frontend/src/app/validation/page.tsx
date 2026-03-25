@@ -5,13 +5,13 @@ import {
   CurrentUserProfile,
   DemandeAchat,
   ValidationDemandeAchatItem,
-} from "@/types/demandeAchat";
+} from "@/services/api";
 import {
   decideDemandeAchat,
   getCurrentUserProfile,
   getPendingDemandesAchat,
   transmitDemandeAchat,
-} from "@/services/demandeAchat";
+} from "@/services/api";
 import { logout } from "@/services/auth";
 import { useRouter } from "next/navigation";
 

@@ -10,6 +10,7 @@ urlpatterns = [
     path("api/ppm/", include("apps.ppm.urls")),
     path("api/achats/", include("apps.achats.urls")),
     path("api/users/", include("apps.users.urls")),
+    path("api/reception/", include("apps.reception.urls")),
 
     #path("URL", fonction_qui_repond, name="nom")
     path("api/login/", TokenObtainPairView.as_view(), name="token_obtain_pair"),#login → créer un token

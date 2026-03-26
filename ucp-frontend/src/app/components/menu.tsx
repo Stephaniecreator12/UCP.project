@@ -25,11 +25,6 @@ const LINKS: MenuLink[] = [
     href: "/validation",
     match: (pathname) => pathname === "/validation" || pathname.startsWith("/validation/"),
   },
-  {
-    label: "reception",
-    href: "/reception",
-    match: (pathname) => pathname === "/reception" || pathname.startsWith("/reception/"),
-  },
 ];
 
 export default function Menu({ className = "" }: { className?: string }) {

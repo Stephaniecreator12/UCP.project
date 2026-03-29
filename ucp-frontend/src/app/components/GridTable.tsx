@@ -1,11 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { ColumnConfig, GridRow } from "@/types/grid";
 import GridCell from "./GridCell";
 
-
-// Props pour le composant GridTable
 interface GridTableProps {
   columns: ColumnConfig[];
   rows: GridRow[];
@@ -13,7 +11,6 @@ interface GridTableProps {
   onRowSave?: (row: GridRow) => void;
   onRowDelete?: (rowId: string) => void;
   onRowStop?: (rowId: string) => void;
-  onAddRow?: () => void;
   onRowUpdate?: (updatedRow: GridRow) => void;
   isLoading?: boolean;
 }
@@ -25,65 +22,168 @@ export default function GridTable({
   onRowSave,
   onRowDelete,
   onRowStop,
-  onAddRow,
   onRowUpdate,
   isLoading = false,
 }: GridTableProps) {
-  // Etat pour tracker quelle cellule est en cours d'edition
-  const [editingCell, setEditingCell] = useState<{
-    rowId: string;
-    columnKey: string;
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const previousRowsCountRef = useRef(rows.length);
+  const datePopupTimeoutRef = useRef<number | null>(null);
+  const [uiPopup, setUiPopup] = React.useState<{
+    kind: "date" | "method";
+    title: string;
+    message: string;
   } | null>(null);
+  
+  const [savedScrollPosition, setSavedScrollPosition] = useState(0);
+  const isScrollRestoring = useRef(false);
 
-  // Etat pour la valeur actuellement tapee dans l'input
-  const [editValue, setEditValue] = useState<unknown>("");
+  // Sauvegarder la position avant tout changement
+    const saveScrollPosition = () => {
+      if (wrapperRef.current) {
+        setSavedScrollPosition(wrapperRef.current.scrollTop);
+      }
+    };
+
+    // Restaurer la position après render
+    useEffect(() => {
+      if (wrapperRef.current && savedScrollPosition > 0 && !isScrollRestoring.current) {
+        isScrollRestoring.current = true;
+        requestAnimationFrame(() => {
+          if (wrapperRef.current) {
+            wrapperRef.current.scrollTop = savedScrollPosition;
+            isScrollRestoring.current = false;
+          }
+        });
+      }
+    }, [rows, savedScrollPosition]);
+
+    const formatDateForDisplay = (dateStr: string | null | undefined): string => {
+    if (!dateStr) return "";
+    // Si c'est au format ISO (AAAA-MM-JJ)
+    if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      const [year, month, day] = dateStr.split('-');
+      return `${day}/${month}/${year}`;
+    }
+    
+    return dateStr;
+    };
+      
+  const showDateValidationPopup = (message: string) => {
+    setUiPopup({ kind: "date", title: "Date non valide", message });
+    if (datePopupTimeoutRef.current) {
+      window.clearTimeout(datePopupTimeoutRef.current);
+    }
+    datePopupTimeoutRef.current = window.setTimeout(() => {
+      setUiPopup(null);
+      datePopupTimeoutRef.current = null;
+    }, 1600);
+  };
+
+  const showMethodRequiredPopup = () => {
+    setUiPopup({
+      kind: "method",
+      title: "Méthode requise",
+      message: "Choisissez d'abord une méthode de passation avant de planifier.",
+    });
+    if (datePopupTimeoutRef.current) {
+      window.clearTimeout(datePopupTimeoutRef.current);
+    }
+    datePopupTimeoutRef.current = window.setTimeout(() => {
+      setUiPopup(null);
+      datePopupTimeoutRef.current = null;
+    }, 2200);
+  };
+
+  const scrollToMethodCell = (rowId: string) => {
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
+    const selector = `tr[data-row-id="${rowId}"] td[data-col-key="method"]`;
+    const methodCell = wrapper.querySelector<HTMLElement>(selector);
+    if (!methodCell) return;
+
+    methodCell.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+    methodCell.classList.add("animate-[methodPulse_0.9s_ease_2]");
+    const methodInput = methodCell.querySelector<HTMLElement>("select, input, textarea, button");
+    if (methodInput) {
+      requestAnimationFrame(() => methodInput.focus());
+      methodInput.classList.add("animate-[methodFocus_0.65s_ease]");
+      window.setTimeout(() => methodInput.classList.remove("animate-[methodFocus_0.65s_ease]"), 1800);
+    }
+    window.setTimeout(() => {
+      methodCell.classList.remove("animate-[methodPulse_0.9s_ease_2]");
+    }, 3600);
+  };
+
+  useEffect(() => {
+    const previousCount = previousRowsCountRef.current;
+    previousRowsCountRef.current = rows.length;
+
+    if (rows.length <= previousCount) return;
+
+    const lastRow = rows[rows.length - 1];
+    if (!lastRow || !String(lastRow._id ?? "").startsWith("_new_")) return;
+
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
+
+    requestAnimationFrame(() => {
+      wrapper.scrollTo({ top: wrapper.scrollHeight, behavior: "smooth" });
+      const targetRowId = String(lastRow._id ?? "");
+      const targetRow = wrapper.querySelector<HTMLTableRowElement>(
+        `tr[data-row-id="${targetRowId}"]`,
+      );
+      if (targetRow) {
+        targetRow.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
+      }
+    });
+  }, [rows]);
+
+  useEffect(() => {
+    return () => {
+      if (datePopupTimeoutRef.current) {
+        window.clearTimeout(datePopupTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const splitDateColumns = columns.filter((c) => c.type === "date" && c.isSplit);
+  const linearDateColumns = columns.filter((c) => c.type === "date" && !c.isSplit);
   const isDriverDateKey = (key: string): boolean => {
     return key === "delivery_date" || key === "mission_end_date";
+  };
+  const isManualPlannedDateKey = (key: string): boolean => {
+    return key === "specifications_date";
+  };
+  const isOptionalLeadingPlannedDateKey = (key: string): boolean => {
+    return key === "specifications_date";
   };
 
   const hasValue = (value: unknown): boolean => {
     return value !== null && value !== undefined && String(value).trim() !== "";
   };
-
-  const isRowComplete = (row: GridRow): boolean => {
-    const status = String(row.status ?? "").trim();
-    const normalizedStatus = status
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "");
-
-    if (normalizedStatus === "arrete" || normalizedStatus === "termine") {
-      return true;
-    }
-
-    const requiredColumns = columns.filter(
-      (col) => col.editable !== false && !col.readonly && col.type !== "action_button",
-    );
-
-    return requiredColumns.every((col) => {
-      if (col.isSplit && col.splitController) {
-        const controllerKey = col.splitController;
-        const isPricing = controllerKey === "pricing_type";
-        const VAL_TOP = isPricing ? "forfait" : "planned";
-        const VAL_BOTTOM = isPricing ? "time_based" : "actual";
-        const currentValue = row[controllerKey] || VAL_TOP;
-        const effectiveKey = currentValue === VAL_BOTTOM ? `${col.key}_actual` : col.key;
-        return hasValue(row[effectiveKey]);
-      }
-      return hasValue(row[col.key]);
-    });
-  };
-
-  const getTodayLocalIso = (): string => {
-    const now = new Date();
-    const tzOffsetMs = now.getTimezoneOffset() * 60 * 1000;
-    return new Date(now.getTime() - tzOffsetMs).toISOString().split("T")[0];
+  const isSupportedMethodValue = (value: unknown): boolean => {
+    const method = String(value ?? "").trim().toLowerCase();
+    if (!method || method === "non défini" || method === "non defini") return false;
+    return ["aon", "aoi", "dc", "ed", "sfq", "sfqc", "smc", "sqc", "sci", "sed"].includes(method);
   };
 
   const maxIsoDate = (a: string, b: string): string => {
     return a > b ? a : b;
+  };
+
+  const minIsoDate = (a: string, b: string): string => {
+    return a < b ? a : b;
+  };
+
+  const getTodayLocalIso = (): string => {
+    const now = new Date();
+    return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().split("T")[0];
+  };
+
+  const getTomorrowLocalIso = (): string => {
+    const now = new Date();
+    now.setDate(now.getDate() + 1);
+    return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().split("T")[0];
   };
 
   const getBottomSwitchBlockReason = (
@@ -110,11 +210,15 @@ export default function GridTable({
     const isActual = columnKey.endsWith("_actual");
     const baseKey = isActual ? columnKey.replace(/_actual$/, "") : columnKey;
     const columnConfig = splitDateColumns.find((c) => c.key === baseKey);
-
     if (!columnConfig) return null;
+    return { isActual, baseKey, index: splitDateColumns.findIndex((c) => c.key === baseKey) };
+  };
 
-    const index = splitDateColumns.findIndex((c) => c.key === baseKey);
-    return { isActual, baseKey, index };
+  const getColumnConfig = (columnKey: string) => {
+    const baseKey = columnKey.endsWith("_actual")
+      ? columnKey.replace(/_actual$/, "")
+      : columnKey;
+    return columns.find((c) => c.key === baseKey);
   };
 
   const validateDateOrder = (
@@ -122,18 +226,27 @@ export default function GridTable({
     columnKey: string,
     nextValue: unknown
   ): string | null => {
+    const columnConfig = getColumnConfig(columnKey);
+    if (!columnConfig || columnConfig.type !== "date") return null;
     if (!hasValue(nextValue)) return null;
 
     const nextDate = String(nextValue);
-    const minDate = getMinDateForColumn(row, columnKey);
+    const { minDate, maxDate } = getDateBounds(row, columnKey);
     if (minDate && nextDate < minDate) {
       return `La date doit être supérieure ou égale à ${minDate}.`;
+    }
+    if (maxDate && nextDate > maxDate) {
+      return `La date doit être inférieure ou égale à ${maxDate}.`;
     }
 
     const dateContext = getSplitDateContext(columnKey);
     if (!dateContext) return null;
 
     const { isActual, baseKey, index } = dateContext;
+
+    if (!isActual && isManualPlannedDateKey(baseKey)) {
+      return null;
+    }
 
     if (isDriverDateKey(baseKey)) {
       return null;
@@ -149,6 +262,9 @@ export default function GridTable({
         ? `${previousColumn.key}_actual`
         : previousColumn.key;
       const previousValue = row[previousKey];
+      if (!hasValue(previousValue) && !isActual && row._isCalculated === true && isOptionalLeadingPlannedDateKey(previousColumn.key)) {
+        return null;
+      }
 
       if (!hasValue(previousValue)) {
         return "Remplissez d'abord la colonne précédente.";
@@ -163,805 +279,514 @@ export default function GridTable({
   };
 
   const getMinDateForColumn = (row: GridRow, columnKey: string): string | undefined => {
-    let minDate = getTodayLocalIso();
+    const columnConfig = getColumnConfig(columnKey);
+    if (!columnConfig || columnConfig.type !== "date") return undefined;
+    let minDate: string | undefined;
     const dateContext = getSplitDateContext(columnKey);
 
     if (!dateContext) {
+      const linearIndex = linearDateColumns.findIndex((c) => c.key === columnKey);
+      if (linearIndex > 0 && hasValue(row[linearDateColumns[linearIndex - 1].key])) {
+        minDate = String(row[linearDateColumns[linearIndex - 1].key]);
+      }
       return minDate;
     }
 
     const { isActual, baseKey, index } = dateContext;
 
-    if (isActual) {
-      const plannedDate = row[baseKey];
-      if (hasValue(plannedDate)) {
-        minDate = maxIsoDate(minDate, String(plannedDate));
-      }
+    if (!isActual && isDriverDateKey(baseKey)) {
+      minDate = getTomorrowLocalIso();
     }
 
     if (index > 0) {
-      const previousColumn = splitDateColumns[index - 1];
-      const previousKey = isActual
-        ? `${previousColumn.key}_actual`
-        : previousColumn.key;
-      const previousValue = row[previousKey];
+      const previousValue = row[isActual ? `${splitDateColumns[index - 1].key}_actual` : splitDateColumns[index - 1].key];
       if (hasValue(previousValue)) {
-        minDate = maxIsoDate(minDate, String(previousValue));
+        minDate = minDate ? maxIsoDate(minDate, String(previousValue)) : String(previousValue);
       }
     }
 
     return minDate;
   };
 
-  // Quand on clique sur une cellule
-  const handleCellClick = (rowId: string | undefined, column: ColumnConfig) => {
-    if (!rowId || !column.editable || column.readonly) {
-      return;
-    }
+  const getMaxDateForColumn = (row: GridRow, columnKey: string): string | undefined => {
+    const columnConfig = getColumnConfig(columnKey);
+    if (!columnConfig || columnConfig.type !== "date") return undefined;
 
-    setEditingCell({ rowId, columnKey: column.key });
-    const currentValue = rows.find((r) => r._id === rowId)?.[column.key];
-    setEditValue(currentValue ?? "");
-  };
-
-  // Quand on change la valeur dans l'input
-  const handleCellChange = (value: unknown) => {
-    setEditValue(value);
-  };
-
-  // Quand on quitte une cellule ou appuie sur Entree
-  const handleCellBlur = () => {
-    if (!editingCell) return;
-
-    const row = rows.find((r) => r._id === editingCell.rowId);
-
-    if (row && onRowChange) {
-      const dateValidationError = validateDateOrder(
-        row,
-        editingCell.columnKey,
-        editValue
-      );
-
-      if (dateValidationError) {
-        alert(dateValidationError);
-        return;
+    let maxDate: string | undefined;
+    const dateContext = getSplitDateContext(columnKey);
+    if (!dateContext) {
+      const linearIndex = linearDateColumns.findIndex((c) => c.key === columnKey);
+      if (linearIndex >= 0 && linearIndex < linearDateColumns.length - 1 && hasValue(row[linearDateColumns[linearIndex + 1].key])) {
+        maxDate = String(row[linearDateColumns[linearIndex + 1].key]);
       }
-
-      console.log("Saving row change:", editingCell.rowId, editingCell.columnKey, editValue);
-      onRowChange(editingCell.rowId, editingCell.columnKey, editValue);
-      // REMOVED AUTO-SAVE: onRowSave is now only called manually via the main button
+      return maxDate;
     }
 
-    setEditingCell(null);
-    setEditValue("");
+    const { isActual, index } = dateContext;
+    if (!isActual && isManualPlannedDateKey(dateContext.baseKey)) {
+      return undefined;
+    }
+    if (isActual) {
+      maxDate = getTodayLocalIso();
+    }
+
+    if (index < splitDateColumns.length - 1) {
+      const nextValue = row[isActual ? `${splitDateColumns[index + 1].key}_actual` : splitDateColumns[index + 1].key];
+      if (hasValue(nextValue)) {
+        maxDate = maxDate ? minIsoDate(maxDate, String(nextValue)) : String(nextValue);
+      }
+    }
+
+    return maxDate;
   };
 
-  // Gestion des touches (Enter = save, Escape = cancel)
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const getDateBounds = (row: GridRow, columnKey: string) => {
+    const minDate = getMinDateForColumn(row, columnKey);
+    let maxDate = getMaxDateForColumn(row, columnKey);
+    if (minDate && maxDate && maxDate < minDate) {
+      maxDate = minDate;
+    }
+    return { minDate, maxDate };
+  };
+
+  const commitCellValue = (
+    row: GridRow,
+    column: ColumnConfig,
+    columnKey: string,
+    value: unknown,
+    validateDateRules: boolean = true
+  ): boolean => {
+    if (!row._id || !onRowChange) return false;
+
+    if (column.type === "date" && validateDateRules) {
+      const dateValidationError = validateDateOrder(row, columnKey, value);
+      if (dateValidationError) {
+        showDateValidationPopup(dateValidationError);
+        return false;
+      }
+    }
+
+    onRowChange(row._id, columnKey, value);
+    return true;
+  };
+
+  const handleClassicInputKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
-      handleCellBlur();
-    } else if (e.key === "Escape") {
-      setEditingCell(null);
-      setEditValue("");
+      (e.currentTarget as HTMLElement).blur();
     }
   };
 
-  // Obtenir la largeur d'une colonne
   const getColumnWidth = (column: ColumnConfig): string => {
-    const configuredWidth = column.width || "150px";
-    const configuredWidthPx = Number.parseInt(configuredWidth, 10);
-    const safeConfiguredWidth = Number.isNaN(configuredWidthPx)
-      ? 150
-      : configuredWidthPx;
-    const compactConfiguredWidth = Math.round(safeConfiguredWidth * 0.62);
-    const headerBasedMinWidth = Math.max(56, column.label.length * 5 + 14);
-    return `${Math.max(compactConfiguredWidth, headerBasedMinWidth)}px`;
+    const safeConfiguredWidth = Number.isNaN(Number.parseInt(column.width || "150px", 10)) ? 150 : Number.parseInt(column.width || "150px", 10);
+    const compactConfiguredWidth = column.type === "date" ? safeConfiguredWidth : Math.round(safeConfiguredWidth * 0.9);
+    return `${Math.max(compactConfiguredWidth, Math.max(86, column.label.length * 6 + 24), column.type === "date" ? 138 : 0)}px`;
   };
 
-  // Afficher la valeur d'une cellule
   const getCellValue = (row: GridRow, column: ColumnConfig): string => {
-    if (column.calculated && column.calculateValue) {
-      return String(column.calculateValue(row));
-    }
-
+    if (column.calculated && column.calculateValue) return String(column.calculateValue(row));
     const value = row[column.key];
-
-    if (value === null || value === undefined) {
-      return "";
-    }
-
-    // Si c'est un select, on affiche le Label correspondant à la valeur
+    if (value === null || value === undefined) return "";
     if (column.type === "select" && column.options) {
       const option = column.options.find((opt) => opt.value === value);
       return option ? option.label : String(value);
     }
-
-    if (typeof value === "boolean") {
-      return value ? "oui" : "non";
-    }
-
+    if (typeof value === "boolean") return value ? "oui" : "non";
     return String(value);
   };
 
-  const getStatusInlineStyle = (value: unknown): React.CSSProperties => {
-    const status = String(value ?? "").trim().toLowerCase();
-    const normalized = status
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "");
+const getLatestDriverDates = (row: GridRow) => {
+  const latestValues: Partial<GridRow> = {};
+  const rowId = String(row._id ?? "");
 
-    if (normalized.includes("retard")) {
-      return { backgroundColor: "#b91c1c", color: "#ffffff" };
+  if (!rowId || !wrapperRef.current) {
+    return latestValues;
+  }
+
+  const driverKeys = ["delivery_date", "mission_end_date"] as const;
+
+  driverKeys.forEach((key) => {
+    // Chercher d'abord dans le DOM (valeur affichée/modifiée)
+    const cell = wrapperRef.current?.querySelector<HTMLTableCellElement>(`tr[data-row-id="${rowId}"] td[data-col-key="${key}"]`);
+    const input = cell?.querySelector<HTMLInputElement>('input[type="date"]');
+    
+    if (input?.value) {
+      // Si un input existe et a une valeur, l'utiliser
+      latestValues[key] = input.value;
+      console.log(`getLatestDriverDates - ${key} depuis input:`, input.value); // DEBUG
+    } else {
+      // Sinon, utiliser la valeur du row
+      const value = row[key];
+      if (value && typeof value === 'string' && value.trim() !== '') {
+        latestValues[key] = value;
+        console.log(`getLatestDriverDates - ${key} depuis row:`, value); // DEBUG
+      }
     }
-    if (normalized.includes("dans les temps")) {
-      return { backgroundColor: "#6b8e23", color: "#ffffff" };
-    }
-    if (normalized.includes("termine")) {
-      return { backgroundColor: "#3a79be", color: "#ffffff" };
-    }
-    if (normalized.includes("arrete")) {
-      return { backgroundColor: "#64748b", color: "#ffffff" };
-    }
-    return {};
+  });
+
+  return latestValues;
+};
+
+  const parseDateValue = (value: unknown): number | null => {
+    const raw = String(value ?? "").trim();
+    if (!raw) return null;
+    const timestamp = Date.parse(raw);
+    return Number.isNaN(timestamp) ? null : timestamp;
   };
 
-  // CALCUL des dates (via Backend)
-  const handleCalculate = async (row: GridRow) => {
-    // 1. Determine Driver Date
-    const driverDate =
-      row.delivery_date ||
-      row.delivery_date_actual ||
-      row.mission_end_date ||
-      row.mission_end_date_actual;
-    if (!driverDate) {
-      alert("Veuillez d'abord saisir une date de fin (Livraison ou Fin de mission).");
-      return;
-    }
-    if (!hasValue(row.method)) {
-      alert("Veuillez d'abord choisir une méthode.");
-      return;
-    }
-
-    try {
-      // 2. Appel Backend
-      // Import dynamique ou passage en props si besoin, ici on utilise l'import direct
-      const { calculatePlanning } = await import("@/services/api");
-
-      const type =
-        (row.type as "Travaux" | "Biens" | "Consultance" | undefined) ?? "Travaux";
-      const method = String(row.method).toLowerCase();
-      const newDates = await calculatePlanning(type, driverDate, method);
-
-      // 3. Mapping des résultats (Backend -> Frontend keys)
-      // Le backend renvoie: dossiers_appel_prevu, date_lancement_prevu, etc.
-      // Le frontend attend: tender_documents_date, launch_date, etc.
-
-      const mappedDates: GridRow =
-        type === "Consultance"
-          ? {
-              terms_of_reference: newDates.TdR_prevu,
-              ami: newDates.ami_prevu,
-              request_for_proposal: newDates.demande_proposition_prevu,
-              submissions_opening_date: newDates.date_ouverture_prevu,
-              financial_opening_date: newDates.ouverture_plis_prevu,
-              contract_date: newDates.date_signature_prevu,
-              mission_end_date: newDates.date_fin_prevu,
-            }
-          : {
-              tender_documents_date: newDates.dossiers_appel_prevu,
-              launch_date: newDates.date_lancement_prevu,
-              opening_date: newDates.date_ouverture_prevu,
-              evaluation_report: newDates.rapport_evaluation_prevu,
-              contract_date: newDates.date_signature_prevu,
-              specifications_date:
-                newDates.listesetspecifications || newDates.dossiers_appel_prevu,
-            };
-
-      // Apply updates
-      if (onRowUpdate && row._id) {
-        // On doit mettre à jour plusieurs champs. 
-        const updatedRow = {
-          ...row,
-          ...mappedDates,
-          _isCalculated: true
-        };
-
-        onRowUpdate(updatedRow);
-      }
-
-      alert("Calcul terminé avec succès !");
-
-    } catch (error: unknown) {
-      console.error(error);
-      let msg = error instanceof Error ? error.message : "Erreur inconnue";
-      if (msg === "Failed to fetch") {
-        msg = "Impossible de contacter le serveur. Vérifiez que le backend est lancé sur l'adresse IP configurée.";
-      }
-      alert("Erreur: " + msg);
-    }
+  const getStatusToneClass = (value: unknown, row: GridRow): string => {
+    const normalized = String(value ?? "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    
+    if (normalized.includes("retard")) return "bg-[#fde8e8] text-[#a63131]";
+    if (normalized.includes("en cours") || normalized.includes("encours") || normalized.includes("traitement")) return "bg-[#e8f4ff] text-[#1f669d]";
+    if (normalized.includes("dans les temps")) return "bg-[#e8f8ef] text-[#0f7b43]";
+    if (normalized.includes("termine")) return "bg-[#e3f8ef] text-[#0a6f3b]";
+    if (normalized.includes("arrete")) return "bg-[#f4ede2] text-[#6c5332]";
+    return "bg-[#eff2f5] text-[#516171]";
   };
 
-  // CHECK: Can we edit this cell?
+const handleCalculate = async (row: GridRow) => {
+  saveScrollPosition();
+  console.log("🟠 handleCalculate start - row reçue:", row);
+  
+  // Récupérer les dernières valeurs des champs de date directement depuis le DOM
+  const latestDriverDates = getLatestDriverDates(row);
+  console.log("🟠 latestDriverDates:", latestDriverDates);
+  
+  // IMPORTANT: Utiliser la date du DOM si disponible, sinon celle du row
+  const driverDate = String(
+    latestDriverDates.delivery_date ||
+    latestDriverDates.mission_end_date ||
+    row.delivery_date ||
+    row.delivery_date_actual ||
+    row.mission_end_date ||
+    row.mission_end_date_actual ||
+    ""
+  );
+  console.log("🟠 driverDate utilisée:", driverDate);
+  
+  if (!driverDate) {
+    alert("Veuillez d'abord saisir une date de fin (Livraison ou Fin de mission).");
+    return;
+  }
+  
+  if (!isSupportedMethodValue(row.method)) {
+    showMethodRequiredPopup();
+    if (row._id) scrollToMethodCell(String(row._id));
+    return;
+  }
+
+  try {
+    const { calculatePlanning } = await import("@/services/api");
+    const type = (row.type as "Travaux" | "Biens" | "Consultance" | undefined) ?? "Travaux";
+    const newDates = await calculatePlanning(type, driverDate, String(row.method).toLowerCase());
+    console.log("🟠 nouvelles dates reçues de l'API:", newDates);
+
+    // Construction des nouvelles dates calculées
+    let mappedDates: GridRow = {};
+    
+    if (type === "Consultance") {
+      mappedDates = {
+        terms_of_reference: newDates.TdR_prevu,
+        ami: newDates.ami_prevu,
+        request_for_proposal: newDates.demande_proposition_prevu,
+        submissions_opening_date: newDates.date_ouverture_prevu,
+        financial_opening_date: newDates.ouverture_plis_prevu,
+        contract_date: newDates.date_signature_prevu,
+        mission_end_date: newDates.date_fin_prevu,
+        technical_evaluation: newDates.evaluation_technique_prevu,
+        contract_draft: newDates.projet_contrat_prevu,
+        invitation_date: newDates.date_invitation_prevu,
+        restricted_list: newDates.liste_restreinte_prevu,
+      };
+    } else {
+      // Pour Travaux et Biens
+      mappedDates = {
+        tender_documents_date: newDates.dossiers_appel_prevu,
+        launch_date: newDates.date_lancement_prevu,
+        opening_date: newDates.date_ouverture_prevu,
+        evaluation_report: newDates.rapport_evaluation_prevu,
+        contract_date: newDates.date_signature_prevu,
+        delivery_date: newDates.date_livraison_prevu,
+        specifications_date: newDates.listesetspecifications_prevu,
+      };
+    }
+
+    console.log("Nouvelles dates calculées:", mappedDates);
+    console.log("Anciennes dates:", {
+      // Pour Consultance
+      terms_of_reference: row.terms_of_reference,
+      ami: row.ami,
+      request_for_proposal: row.request_for_proposal,
+      submissions_opening_date: row.submissions_opening_date,
+      financial_opening_date: row.financial_opening_date,
+      contract_date: row.contract_date,
+      mission_end_date: row.mission_end_date,
+      technical_evaluation: row.technical_evaluation,
+      contract_draft: row.contract_draft,
+      invitation_date: row.invitation_date,
+      restricted_list: row.restricted_list,
+      // Pour Travaux/Biens
+      tender_documents_date: row.tender_documents_date,
+      launch_date: row.launch_date,
+      opening_date: row.opening_date,
+      delivery_date: row.delivery_date,
+      specifications_date: row.specifications_date,
+    });
+
+    console.log("🟠 mappedDates à appliquer:", mappedDates);
+    
+    if (onRowUpdate && row._id) {
+      console.log("🟠 Appel onRowUpdate avec:", {
+        ...row,
+        ...mappedDates,
+      });
+      
+      onRowUpdate({
+        ...row,
+        ...mappedDates,
+        ...(type === "Consultance" ? { pricing_type: String(row.pricing_type ?? "").trim() || "forfait" } : {}),
+        _isCalculated: true
+      });
+    } else {
+      console.log("🟠 onRowUpdate non défini ou row._id manquant!");
+    }
+    
+    alert("Calcul terminé avec succès !");
+  } catch (error: unknown) {
+    alert("Erreur: " + (error instanceof Error && error.message === "Failed to fetch" ? "Impossible de contacter le serveur. Vérifiez que le backend est lancé sur l'adresse IP configurée." : error instanceof Error ? error.message : "Erreur inconnue"));
+  }
+};
+
   const isCellEditable = (row: GridRow, column: ColumnConfig, isActual: boolean) => {
-    // 1. Global overrides
-    if (column.readonly) return false;
-    if (column.editable === false) return false;
-
-    // 2. Action Button -> Always clickable (handled separately, but not "editable" in input sense)
-    if (column.type === "action_button") return false;
-
-    // 3. Driver Dates -> Always editable
-    if (column.key === "delivery_date" || column.key === "mission_end_date") return true;
-
-    // 4. PLANNED DATES Logic
-    // "Ces dates prevue apres calcul deviennent editables"
-    // Heuristic: If we have a calculated marker OR values exist, allow edit.
+    const normalizedStatus = String(row.status ?? "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    if (normalizedStatus === "arrete") return false;
+    const isConsultanceForfaitAfterCalc = row.type === "Consultance" && row._isCalculated === true && String(row.pricing_type ?? "forfait").toLowerCase() === "forfait";
+    if (column.type === "action_button" || column.key === "status" || column.readonly || column.editable === false) return false;
     if (!isActual && column.type === "date") {
-      // If it's a date driver, we already returned true.
-      // For others:
-      const hasValues = !!row[column.key];
-      const isCalculated = row._isCalculated === true;
+      if (row._isCalculated === true) return true;
+      if (column.key === "delivery_date" || column.key === "mission_end_date") return true;
+      if (column.key === "restricted_list" || column.key === "invitation_date" || column.key === "technical_evaluation") return true;
+      if (isManualPlannedDateKey(column.key)) return true;
+      if (column.key === "tender_documents_date" && row._isCalculated === true) return true;
+      if (isConsultanceForfaitAfterCalc) return true;
+      // If the backend already provided a value, allow editing even if previous steps are empty.
+      if (hasValue(row[column.key])) return true;
       const dateColumns = columns.filter(c => c.type === "date" && c.isSplit);
       const myIndex = dateColumns.findIndex(c => c.key === column.key);
-
-      if (myIndex > 0) {
-        const prevColumn = dateColumns[myIndex - 1];
-        const prevPlannedValue = row[prevColumn.key];
-        if (!prevPlannedValue) return false;
+      if (myIndex > 0 && !row[dateColumns[myIndex - 1].key]) {
+        if (!(row._isCalculated === true && isOptionalLeadingPlannedDateKey(dateColumns[myIndex - 1].key))) {
+          return false;
+        }
       }
-
-      // Strict rule: before calculation, only the driver date is editable.
-      // Planned dates become editable only after calculation (or if already populated).
-      return hasValues || isCalculated;
+      return !!row[column.key] || row._isCalculated === true;
     }
 
-    // 5. ACTUAL DATES Logic (Strict Sequential)
     if (isActual && column.type === "date") {
-      // Rule A: Planned date must exist
-      const plannedValue = row[column.key];
-      if (!plannedValue) return false;
-
-      // Rule B: Previous Actual date must exist
-      // We need to find the "date index" in the columns list
-      // Filter only Date columns that are split (Planned/Actual)
+      if (!row[column.key]) return false;
       const dateColumns = columns.filter(c => c.type === "date" && c.isSplit);
       const myIndex = dateColumns.findIndex(c => c.key === column.key);
-
-      if (myIndex > 0) {
-        const prevColumn = dateColumns[myIndex - 1];
-        const prevActualKey = `${prevColumn.key}_actual`;
-        const prevActualValue = row[prevActualKey];
-        if (!prevActualValue) return false;
-      }
+      if (myIndex > 0 && !row[`${dateColumns[myIndex - 1].key}_actual`]) return false;
       return true;
     }
 
-    // Default for non-dates or non-split
     return true;
   };
 
-  // Check if we are currently editing (visual state)
-  const isEditing = (rowId: string | undefined, columnKey: string) => {
-    if (!rowId) return false;
-    return editingCell?.rowId === rowId && editingCell?.columnKey === columnKey;
-  };
-
-  // RENDU
   return (
-    <div className="grid-table-container">
-      <div className="grid-table-wrapper">
-        <table className="table table-bordered table-hover mb-0">
-          <thead className="table-light">
+    <>
+      <style>{`
+        @keyframes dashFadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes rowAddGlow { from { background-color: #e8f8ef; } to { background-color: transparent; } }
+        @keyframes methodPulse { 0% { box-shadow: 0 0 0 0 rgba(11, 128, 70, 0.35); } 100% { box-shadow: 0 0 0 13px rgba(11, 128, 70, 0); } }
+        @keyframes methodFocus { 0% { transform: scale(1); } 40% { transform: scale(1.03); } 100% { transform: scale(1); } }
+       input::-webkit-calendar-picker-indicator {
+       display: none !important;
+      -webkit-appearance: none; }
+      `}</style>
+      
+      <div className="relative overflow-auto max-h-[56vh] bg-white" ref={wrapperRef}>
+        <table className="w-full border-collapse mb-0">
+          <thead>
             <tr>
+              <th
+                className="text-center sticky top-0 left-0 z-30 bg-[#f3fbf6] text-[#395569] text-[0.72rem] tracking-[0.04em] uppercase py-[9px] px-[10px] border border-[#d9dee3] shadow-[4px_0_8px_-8px_rgba(18,34,48,0.45)]"
+                style={{ width: "124px", minWidth: "124px", fontFamily: "var(--font-ui), Segoe UI, Arial, sans-serif" }}
+              >
+                Action
+              </th>
               {columns.map((column) => (
                 <th
                   key={column.key}
-                  style={{
-                    width: getColumnWidth(column),
-                    minWidth: getColumnWidth(column),
-                  }}
-                  title={column.label}
+                  className="sticky top-0 z-20 bg-[#f3fbf6] text-[#395569] text-[0.72rem] tracking-[0.04em] uppercase py-[9px] px-[10px] border border-[#d9dee3] text-center"
+                  style={{ width: getColumnWidth(column), minWidth: getColumnWidth(column) }}
                 >
                   {column.label}
                 </th>
               ))}
-              <th className="text-center action-header" style={{ width: "84px", minWidth: "84px" }}>
-                Action
-              </th>
             </tr>
           </thead>
 
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td
-                  colSpan={columns.length + 1}
-                  className="text-center text-muted py-5"
-                >
-                  {isLoading
-                    ? "Chargement..."
-                    : "Aucune donnee. Cliquez sur Nouvelle ligne pour ajouter."}
+                <td colSpan={columns.length + 1} className="text-center text-[#627080] py-12 border border-[#d9dee3]">
+                  {isLoading ? "Chargement..." : "Aucune donnee disponible."}
                 </td>
               </tr>
             ) : (
               rows.map((row) => {
-                const normalizedRowStatus = String(row.status ?? "")
-                  .trim()
-                  .toLowerCase()
-                  .normalize("NFD")
-                  .replace(/[\u0300-\u036f]/g, "");
-                const isRowStopped = normalizedRowStatus === "arrete";
+                const normalizedStatus = String(row.status ?? "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                const isRowStopped = Boolean(row._isStopped) || normalizedStatus === "arrete";
+                const isRowClosed = normalizedStatus === "termine";
+                const isNewRow = String(row._id ?? "").startsWith("_new_");
 
                 return (
                 <tr
-                  key={row._id}
-                  className={isRowStopped ? "row-stopped" : ""}
+                  key={row._id}  
+                  data-row-id={String(row._id ?? "")}
+                  className={`group ${isRowStopped ? "bg-[#f3f3f3] text-[#727272]" : "hover:bg-[#f8fbf9]"} ${isNewRow ? "animate-[rowAddGlow_0.45s_ease]" : ""}`}
+                  style={isRowStopped ? { filter: "grayscale(0.65)", opacity: 0.85 } : undefined}
                 >
-                  {false && (
                   <td
-                    className="text-center align-middle action-cell"
-                    style={{ width: "84px", minWidth: "84px", padding: "4px" }}
+                  className={`text-center align-middle sticky left-0 z-15 border border-[#d9dee3] p-[0.2rem] shadow-[4px_0_8px_-8px_rgba(18,34,48,0.45)] ${isRowStopped ? "bg-[#f3f3f3]" : "bg-white group-hover:bg-[#f8fbf9]"}`}
+                    style={{ width: "124px", minWidth: "124px" }}
                   >
-                    <div className="d-flex gap-2 justify-content-center action-buttons">
-                      {(() => {
-                        const status = String(row.status ?? "").trim();
-                        const normalizedStatus = status
-                          .toLowerCase()
-                          .normalize("NFD")
-                          .replace(/[\u0300-\u036f]/g, "");
-                        const isNewRow = String(row._id ?? "").startsWith("_new_");
-                        const stopDisabled =
-                          isNewRow ||
-                          !status ||
-                          normalizedStatus === "arrete" ||
-                          normalizedStatus === "termine";
-
-                        return (
-                          <button
-                            className="action-btn action-btn-stop"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (row._id && onRowStop && !stopDisabled) onRowStop(row._id);
-                            }}
-                            disabled={stopDisabled}
-                            title="Arrêter"
-                            aria-label="Arrêter la ligne"
-                          >
-                            <svg
-                              className="action-icon"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              xmlns="http://www.w3.org/2000/svg"
-                            >
-                              <rect x="7" y="7" width="10" height="10" rx="2.2" fill="currentColor" />
-                            </svg>
-                          </button>
-                        );
-                      })()}
+                      <div className="flex gap-2 justify-center p-[0.16rem]">
                       <button
-                        className="action-btn action-btn-save"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (onRowSave && !isRowComplete(row)) {
-                            alert("Complète toute la ligne avant d'enregistrer.");
-                            return;
-                          }
-                          if (onRowSave) onRowSave(row);
-                          else console.warn("onRowSave not provided");
-                        }}
-                        disabled={!isRowComplete(row)}
-                        title="Enregistrer la ligne"
-                        aria-label="Enregistrer la ligne"
+                        className="border border-[#d9c28f] bg-[#f7f0df] text-[#7d6434] rounded-[9px] w-[22px] h-[22px] inline-flex items-center justify-center cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                        onClick={(e) => { e.stopPropagation(); if (row._id && onRowStop && !isNewRow && !isRowStopped) onRowStop(row._id); }}
+                        disabled={isNewRow || isRowStopped}
+                        title="Arrêter"
+                        aria-label="Arrêter la ligne"
                       >
-                        <svg
-                          className="action-icon"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          xmlns="http://www.w3.org/2000/svg"
-                        >
-                          <path d="M5 4.5A1.5 1.5 0 0 1 6.5 3h9L20 7.5v12a1.5 1.5 0 0 1-1.5 1.5h-12A1.5 1.5 0 0 1 5 19.5v-15Z" fill="currentColor" opacity="0.2" />
-                          <path d="M8 3v5h7V3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
-                          <rect x="8" y="13.5" width="8" height="5.5" rx="1.2" stroke="currentColor" strokeWidth="1.7" />
-                          <path d="M15 3v5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+                        <svg className="w-[15px] h-[15px]" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="2" />
+                          <rect x="9" y="9" width="6" height="6" rx="1" fill="currentColor" />
                         </svg>
                       </button>
                       <button
-                        className="action-btn action-btn-delete"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (row._id && onRowDelete) onRowDelete(row._id);
-                        }}
+                        className="border border-[#7bcda1] bg-[#ecf8f1] text-[#0f8148] rounded-[9px] w-[22px] h-[22px] inline-flex items-center justify-center cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                        onClick={(e) => { e.stopPropagation(); if ((!isRowStopped && !isRowClosed) && onRowSave) onRowSave(row); }}
+                        disabled={isRowStopped || isRowClosed}
+                        title="Enregistrer la ligne"
+                        aria-label="Enregistrer la ligne"
+                      >
+                        <svg className="w-[15px] h-[15px]" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M9 12l2 2 4-4" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                          <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
+                        </svg>
+                      </button>
+                      <button
+                        className="border border-[#ebb2b2] bg-[#fff1f1] text-[#b73939] rounded-[9px] w-[22px] h-[22px] inline-flex items-center justify-center cursor-pointer"
+                        onClick={(e) => { e.stopPropagation(); if (row._id && onRowDelete) onRowDelete(row._id); }}
                         title="Supprimer"
                         aria-label="Supprimer la ligne"
                       >
-                        <svg
-                          className="action-icon"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          xmlns="http://www.w3.org/2000/svg"
-                        >
-                          <path d="M9 4.5h6a1 1 0 0 1 1 1V7H8V5.5a1 1 0 0 1 1-1Z" fill="currentColor" opacity="0.2" />
-                          <path d="M4.5 7h15" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-                          <path d="M7.5 7.5 8.4 19a1.5 1.5 0 0 0 1.5 1.4h4.2a1.5 1.5 0 0 0 1.5-1.4l.9-11.5" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
-                          <path d="M10.2 10.5v6M13.8 10.5v6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+                        <svg className="w-[15px] h-[15px]" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14zM10 11v6M14 11v6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                       </button>
                     </div>
                   </td>
-                  )}
 
-                  {columns.map((column) => {
-                    const isStatusColumn = column.key === "status";
-                    const statusValue = isStatusColumn ? getCellValue(row, column) : "";
-                    const statusCellStyle = isStatusColumn ? getStatusInlineStyle(statusValue) : undefined;
-
-                    return (
+                      {columns.map((column) => {
+                            const isStatusColumn = column.key === "status";
+                            const isColumnEditableForRow = column.isSplit 
+                              ? (isCellEditable(row, column, false) || isCellEditable(row, column, true)) 
+                              : isCellEditable(row, column, false);
+                            
+                            const cellValue = getCellValue(row, column);
+                            
+                            const statusDisplayValue = cellValue; 
+                            const statusToneClass = isStatusColumn ? getStatusToneClass(statusDisplayValue, row) : "";
+                        return (
                     <td
                       key={`${row._id}-${column.key}`}
-                      className={`align-middle grid-cell ${column.editable && !column.readonly
-                        ? "editable-cell"
-                        : "readonly-cell"
-                        }`}
-                      style={{
-                        width: getColumnWidth(column),
-                        minWidth: getColumnWidth(column),
-                        padding: isStatusColumn ? "0" : "3px 5px",
-                        cursor:
-                          column.editable && !column.readonly
-                            ? "pointer"
-                            : "not-allowed",
-                        ...(statusCellStyle || {}),
-                      }}>
+                      data-col-key={column.key}
+                      className={`align-middle border border-[#d9dee3] ${isStatusColumn ? "" : isRowStopped ? "" : isColumnEditableForRow ? "bg-white group-hover:bg-[#f8fbf9]" : "bg-[#f7f8f9]"} ${isRowStopped ? "pointer-events-none select-none" : ""}`}
+                      style={{ width: getColumnWidth(column), minWidth: getColumnWidth(column), padding: isStatusColumn ? "0" : "4px 8px", cursor: isColumnEditableForRow && !isStatusColumn ? "pointer" : "not-allowed" }}
+                    >
                       {column.isSplit ? (
-                        <div className="d-flex flex-column h-100">
-                          {(() => {
-                            // 1. Determine Controller State
-                            // Identify keys and values
+                        <div className="flex flex-col h-full">
+                          {[false, true].map(isActual => {
                             const isPricing = column.splitController === "pricing_type" || column.key === "pricing_type";
-                            const controllerKey = column.splitController || column.key; // If self-controlled (label column)
-
-                            // Values map
+                            const controllerKey = column.splitController || column.key;
                             const VAL_TOP = isPricing ? "forfait" : "planned";
                             const VAL_BOTTOM = isPricing ? "time_based" : "actual";
-
-                            // Current state (Default to Top if empty)
                             const currentValue = row[controllerKey] || VAL_TOP;
-                            const isTopActive = currentValue === VAL_TOP;
-                            const isBottomActive = currentValue === VAL_BOTTOM;
+                            const isActive = isActual ? currentValue === VAL_BOTTOM : currentValue === VAL_TOP;
+                            const isLabelColumn = column.key === "planned_vs_actual" || column.key === "pricing_type";
+                            
+                            let bgColor = "transparent";
+                            let textColor = "#334155";
+                            if (isRowStopped) { bgColor = "transparent"; textColor = "inherit"; }
+                            else if (column.readonly || column.editable === false) { bgColor = "#f1f5f9"; textColor = "#64748b"; }
+                            else if (!isCellEditable(row, column, isActual)) { bgColor = "#f8fafc"; textColor = "#94a3b8"; }
+                            else if (!row[controllerKey]) { bgColor = "transparent"; }
+                            else if (isActive) { bgColor = "#ffffff"; }
+                            else { bgColor = "#f8fafc"; textColor = "#64748b"; }
 
-                            // 2. Check if this is the "Label/Controller" column itself
-                            const isLabelColumn =
-                              column.key === "planned_vs_actual" ||
-                              column.key === "pricing_type";
-
-                            // Labels
-                            let topLabel = "Prévu";
-                            let bottomLabel = "Réel";
-                            if (column.key === "pricing_type") {
-                              topLabel = "Forfait";
-                              bottomLabel = "Temps passé";
-                            }
-
-                            // HELPER: Render Half Cell
-                            const renderHalfCell = (isActual: boolean) => {
-                              const isActive = isActual ? isBottomActive : isTopActive;
-
-                              // Determine background color based on logic:
-                              // 1. Read-only columns are ALWAYS Grey (Visual consistency)
-                              // 2. Active Editable cells are White
-                              // 3. Inactive Editable cells are Rose (or Tinted) - "Animation" state
-                              // 4. Initial state is Neutral White
-
-                              const isEditable = isCellEditable(row, column, isActual);
-
-                              // SPECTACULAR THEME LOGIC
-                              // 1. Read-only columns: Slate 100 (#f1f5f9) - Subtle & Professional
-                              // 2. Active Editable cells: White (#ffffff) with Glow
-                              // 3. Inactive cells: Slate 50 (#f8fafc)
-
-                              const isColumnReadonly = column.readonly || column.editable === false;
-                              const hasExplicitState = !!row[controllerKey];
-
-                              let bgColor = "transparent";
-                              let textColor = "#334155"; // Slate 700
-
-                              if (isRowStopped) {
-                                bgColor = "transparent";
-                                textColor = "inherit";
-                              } else
-
-                              if (isColumnReadonly) {
-                                bgColor = "#f1f5f9"; // Slate 100
-                                textColor = "#64748b"; // Slate 500
-                              } else if (!isEditable) {
-                                bgColor = "#f8fafc";
-                                textColor = "#94a3b8";
-                              } else if (!hasExplicitState) {
-                                bgColor = "transparent";
-                              } else if (isActive) {
-                                bgColor = "#ffffff";
-                              } else {
-                                bgColor = "#f8fafc";
-                                textColor = "#64748b";
-                              }
-
-                              const bgStyle = { backgroundColor: bgColor, color: textColor };
-                              const cursorStyle = (isActive && isEditable) ? "text" : "not-allowed";
-
-                              // --- CONTROLLER BUTTON ---
-                              if (isLabelColumn) {
-                                const targetValue = isActual ? VAL_BOTTOM : VAL_TOP;
-                                const switchBlockedReason =
-                                  isActual
-                                    ? getBottomSwitchBlockReason(
-                                      row,
-                                      controllerKey,
-                                      bottomLabel,
-                                      topLabel
-                                    )
-                                    : null;
-                                const buttonStyle = isRowStopped
-                                  ? {
-                                      backgroundColor: "transparent",
-                                      color: "inherit",
-                                      border: "1px solid rgba(255, 255, 255, 0.25)",
-                                      boxShadow: "none",
-                                      transform: "none",
-                                    }
-                                  : isActive
-                                  ? {
-                                    backgroundColor: "#334155", // Slate 700 - Deep & Classy
-                                    color: "#ffffff",
-                                    boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-                                    transform: "translateY(-1px)"
-                                  }
-                                  : {
-                                    backgroundColor: "transparent",
-                                    color: "#94a3b8",
-                                    border: "1px solid #e2e8f0"
-                                  };
-
-                                return (
-                                  <div
-                                    className={`flex-grow-1 p-2 d-flex align-items-center justify-content-center m-1`}
-                                    style={{
-                                      ...buttonStyle,
-                                      minHeight: "21px",
-                                      borderRadius: "8px",
-                                      cursor: isRowStopped
-                                        ? "not-allowed"
-                                        : switchBlockedReason
-                                          ? "not-allowed"
-                                          : "pointer",
-                                      fontWeight: "700", // Bolder
-                                      fontSize: "0.66rem",
-                                      letterSpacing: "0.025em",
-                                      transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
-                                      userSelect: "none",
-                                      opacity: isRowStopped || switchBlockedReason ? 0.6 : 1
-                                    }}
-                                    onClick={(e) => {
-                                      if (isRowStopped) {
-                                        return;
-                                      }
-                                      e.stopPropagation();
-                                      if (switchBlockedReason) {
-                                        alert(switchBlockedReason);
-                                        return;
-                                      }
-                                      if (onRowChange && row._id) {
-                                        onRowChange(row._id, column.key, targetValue);
-                                      }
-                                    }}
-                                  >
-                                    {isActual ? bottomLabel : topLabel}
-                                  </div>
-                                );
-                              }
-
-                              // --- DATA COLUMN ---
-                              const effectiveKey = isActual ? `${column.key}_actual` : column.key;
-                              const cellValue = row[effectiveKey];
+                            if (isLabelColumn) {
+                              const targetValue = isActual ? VAL_BOTTOM : VAL_TOP;
+                              const switchBlockedReason = isActual ? getBottomSwitchBlockReason(row, controllerKey, isPricing ? "Temps passé" : "Réel", isPricing ? "Forfait" : "Prévu") : null;
+                              
+                              const buttonStyle = isRowStopped ? { backgroundColor: "rgba(235, 226, 214, 0.45)", color: "#7b6d5b", border: "1px solid rgba(162, 142, 117, 0.35)", boxShadow: "none", transform: "none" }
+                                : isActive ? { background: "linear-gradient(145deg, #7d6a54 0%, #6a5947 100%)", color: "#fdf7ee", border: "1px solid rgba(117, 96, 73, 0.9)", boxShadow: "0 8px 14px -10px rgba(79, 60, 39, 0.9)", transform: "translateY(-1px)" }
+                                : { background: "linear-gradient(180deg, rgba(245, 235, 220, 0.95), rgba(234, 220, 200, 0.95))", color: "#6d5e4c", border: "1px solid rgba(170, 150, 124, 0.6)" };
 
                               return (
                                 <div
-                                  className={`flex-grow-1 p-2 ${isActual ? "border-top-subtle" : ""}`}
-                                  style={{
-                                    ...bgStyle,
-                                    minHeight: "21px",
-                                    cursor: cursorStyle,
-                                    borderTop: isActual ? "1px solidrgb(242, 245, 248)" : "none",
-                                    transition: "all 0.2s ease"
-                                  }}
-                                  onClick={(e) => {
-                                    if (isActive && isEditable) {
-                                      e.stopPropagation();
-                                      setEditingCell({ rowId: row._id!, columnKey: effectiveKey });
-                                      setEditValue(cellValue ?? "");
-                                    }
-                                  }}
+                                  key={isActual ? "bottom" : "top"}
+                                  className={`flex-grow p-2 flex items-center justify-center m-1 ${isActual ? "border-t border-[#d9dee3]" : ""}`}
+                                  style={{ ...buttonStyle, minHeight: "18px", borderRadius: "8px", cursor: isRowStopped || switchBlockedReason ? "not-allowed" : "pointer", fontWeight: "700", fontSize: "0.80rem", letterSpacing: "0.025em", transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)", userSelect: "none", opacity: isRowStopped || switchBlockedReason ? 0.6 : 1 }}
+                                  onClick={(e) => { e.stopPropagation(); if (isRowStopped) return; if (switchBlockedReason) return alert(switchBlockedReason); if (onRowChange && row._id) onRowChange(row._id, column.key, targetValue);localStorage.setItem(`pvact:${row._id}`, targetValue); // targetValue = "planned" ou "actual"
+}}
                                 >
-                                  {editingCell?.rowId === row._id && editingCell?.columnKey === effectiveKey ? (
-                                    <GridCell
-                                      column={column}
-                                      value={editValue}
-                                      onChange={handleCellChange}
-                                      onConfirm={(val) => {
-                                        if (onRowChange && row._id) {
-                                          onRowChange(row._id, effectiveKey, val);
-                                        }
-                                        setEditingCell(null);
-                                        setEditValue("");
-                                      }}
-                                      onBlur={handleCellBlur}
-                                      onKeyDown={handleKeyDown}
-                                      minDate={column.type === "date" ? getMinDateForColumn(row, effectiveKey) : undefined}
-                                      autoFocus
-                                    />
-                                  ) : (
-                                    <div className="cell-value text-truncate" style={{ fontWeight: 500 }}>
-                                      {cellValue}
-                                    </div>
-                                  )}
+                                  {isActual ? (isPricing ? "Temps passé" : "Réel") : (isPricing ? "Forfait" : "Prévu")}
                                 </div>
                               );
-                            };
+                            }
 
+                            const effectiveKey = isActual ? `${column.key}_actual` : column.key;
                             return (
-                              <>
-                                {renderHalfCell(false)}
-                                {renderHalfCell(true)}
-                              </>
+                              <div
+                                key={isActual ? "bottom" : "top"}
+                                className={`flex-grow p-2 ${isActual ? "border-t border-[#d9dee3]" : ""}`}
+                                style={{ backgroundColor: bgColor, color: textColor, minHeight: "18px", cursor: (isActive && isCellEditable(row, column, isActual)) ? "text" : "not-allowed", transition: "all 0.2s ease" }}
+                              >
+                                {isActive && isCellEditable(row, column, isActual) ? (
+                                  <GridCell column={column} value={row[effectiveKey] ?? ""} onChange={(val) => commitCellValue(row, column, effectiveKey, val, false)} onConfirm={(val) => commitCellValue(row, column, effectiveKey, val, true)} onValidationMessage={showDateValidationPopup} onBlur={() => undefined} onKeyDown={handleClassicInputKeyDown} minDate={column.type === "date" ? getDateBounds(row, effectiveKey).minDate : undefined} maxDate={column.type === "date" ? getDateBounds(row, effectiveKey).maxDate : undefined} />
+                                ) : (
+                             <div className="flex items-center justify-center text-center min-h-[18px] py-[0.2rem] px-[0.2rem] text-[0.82rem] overflow-hidden text-ellipsis whitespace-nowrap font-medium">
+                               {column.type === "date" ? formatDateForDisplay(String(row[effectiveKey] ?? "")) : String(row[effectiveKey] ?? "")}
+                             </div>
+                                )}
+                              </div>
                             );
-                          })()}
+                          })}
                         </div>
                       ) : (
-                        (() => {
-                          const displayValue = getCellValue(row, column);
-
-                          return (
-                            <div
-                              className={
-                                isStatusColumn
-                                  ? "h-100 w-100 d-flex align-items-center justify-content-center"
-                                  : "h-100 w-100 p-2 d-flex align-items-center justify-content-center"
-                              }
-                              onClick={() => {
-                                if (column.type === "action_button") {
-                                  if (column.key === "action_calculation") {
-                                    handleCalculate(row);
-                                  }
-                                } else {
-                                  handleCellClick(row._id, column);
-                                }
-                              }}
-                            >
+                        <div
+                          className={isStatusColumn ? `flex items-center justify-center rounded-full m-[0.35rem] text-[0.74rem] font-bold border border-[#d9dee3] h-full w-full ${statusToneClass}` : "h-full w-full p-2 flex items-center justify-center"}
+                          onClick={() => { if (column.type === "action_button" && column.key === "action_calculation") handleCalculate(row); }}
+                        >
                           {column.type === "action_button" ? (
-                            <button className="btn btn-sm" style={{
-                              background: "linear-gradient",
-                              color: "white",
-                              border: "none",
-                            }} onClick={(e) => {
-                              e.stopPropagation();
-                              handleCalculate(row);
-                            }}>
-                              Calculer
+                            <button className="w-full box-border py-[6px] px-2 rounded-[9px] bg-[linear-gradient(145deg,#7d6a54_0%,#6a5947_100%)] text-[#fdf7ee] border border-[rgba(117,96,73,0.9)] shadow-[0_8px_14px_-10px_rgba(79,60,39,0.9)] font-['var(--font-ui),Segoe_UI,Arial,sans-serif'] text-[0.78rem] font-bold whitespace-nowrap text-center tracking-[0.01em] leading-[1.05]" onClick={(e) => { e.stopPropagation(); handleCalculate(row); }}>
+                              Planifier
                             </button>
-                          ) : isEditing(row._id, column.key) ? (
-                            <GridCell
-                              column={column}
-                              value={editValue}
-                              onChange={handleCellChange}
-                              onBlur={handleCellBlur}
-                              onConfirm={(val) => {
-                                if (onRowChange && row._id) {
-                                  onRowChange(row._id, column.key, val);
-                                }
-                                setEditingCell(null);
-                                setEditValue("");
-                              }}
-                              onKeyDown={handleKeyDown}
-                              minDate={column.type === "date" ? getMinDateForColumn(row, column.key) : undefined}
-                              autoFocus
-                            />
+                          ) : isColumnEditableForRow && !isStatusColumn ? (
+                            <GridCell column={column} value={row[column.key] ?? ""} onChange={(val) => commitCellValue(row, column, column.key, val, false)} onBlur={() => undefined} onConfirm={(val) => commitCellValue(row, column, column.key, val, true)} onValidationMessage={showDateValidationPopup} onKeyDown={handleClassicInputKeyDown} minDate={column.type === "date" ? getDateBounds(row, column.key).minDate : undefined} maxDate={column.type === "date" ? getDateBounds(row, column.key).maxDate : undefined} />
                           ) : (
-                            <div className="cell-value">
-                              {displayValue}
-                            </div>
+                            <div className="flex items-center justify-center text-center min-h-[18px] py-[0.2rem] px-[0.2rem] text-[0.82rem]">
+                              {isStatusColumn ? statusDisplayValue : 
+                              column.type === "date" ? formatDateForDisplay(cellValue) : cellValue}
+                             </div>
                           )}
-                            </div>
-                          );
-                        })()
+                        </div>
                       )}
                     </td>
                     );
                   })}
-                  <td
-                    className="text-center align-middle action-cell"
-                    style={{ width: "84px", minWidth: "84px", padding: "4px" }}
-                  >
-                    <div className="d-flex gap-2 justify-content-center action-buttons">
-                      {(() => {
-                        const status = String(row.status ?? "").trim();
-                        const normalizedStatus = status
-                          .toLowerCase()
-                          .normalize("NFD")
-                          .replace(/[\u0300-\u036f]/g, "");
-                        const isNewRow = String(row._id ?? "").startsWith("_new_");
-                        const stopDisabled =
-                          isNewRow ||
-                          !status ||
-                          normalizedStatus === "arrete" ||
-                          normalizedStatus === "termine";
-
-                        return (
-                          <button
-                            className="action-btn action-btn-stop"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (row._id && onRowStop && !stopDisabled) onRowStop(row._id);
-                            }}
-                            disabled={stopDisabled}
-                            title="Arrêter"
-                            aria-label="Arrêter la ligne"
-                          >
-                            <svg
-                              className="action-icon"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              xmlns="http://www.w3.org/2000/svg"
-                            >
-                              <rect x="6.5" y="6.5" width="11" height="11" rx="2" stroke="currentColor" strokeWidth="1.8" />
-                            </svg>
-                          </button>
-                        );
-                      })()}
-                      <button
-                        className="action-btn action-btn-save"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (onRowSave && !isRowComplete(row)) {
-                            alert("Complète toute la ligne avant d'enregistrer.");
-                            return;
-                          }
-                          if (onRowSave) onRowSave(row);
-                          else console.warn("onRowSave not provided");
-                        }}
-                        disabled={!isRowComplete(row)}
-                        title="Enregistrer la ligne"
-                        aria-label="Enregistrer la ligne"
-                      >
-                        <svg
-                          className="action-icon"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          xmlns="http://www.w3.org/2000/svg"
-                        >
-                          <path d="M6 3.5h10l2.5 2.5v14a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 4.5 20V5A1.5 1.5 0 0 1 6 3.5Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
-                          <path d="M8 3.5v5h7v-5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
-                          <path d="M9 14h6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-                        </svg>
-                      </button>
-                      <button
-                        className="action-btn action-btn-delete"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (row._id && onRowDelete) onRowDelete(row._id);
-                        }}
-                        title="Supprimer"
-                        aria-label="Supprimer la ligne"
-                      >
-                        <svg
-                          className="action-icon"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          xmlns="http://www.w3.org/2000/svg"
-                        >
-                          <path d="M9 5h6m-7 2h8m-7 3v6m4-6v6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-                          <path d="M7.5 7.5 8.3 19a1.5 1.5 0 0 0 1.5 1.4h4.4a1.5 1.5 0 0 0 1.5-1.4l.8-11.5" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
-                        </svg>
-                      </button>
-                    </div>
-                  </td>
                 </tr>
               );
               })
@@ -970,23 +795,12 @@ export default function GridTable({
         </table>
       </div>
 
-      <div className="d-flex gap-2 p-3 border-top" style={{ background: "#ffffff", borderBottomLeftRadius: "16px", borderBottomRightRadius: "16px" }}>
-        <button
-          className="btn"
-          style={{
-            background: "linear-gradient(180deg, #576b60 0%, #5ea874 100%)",
-            color: "white",
-            fontWeight: "bold",
-            border: "1px solid rgba(94, 168, 116, 0.85)",
-            boxShadow: "0 8px 14px -10px rgba(64, 94, 78, 0.7)",
-            padding: "10px 24px"
-          }}
-          onClick={onAddRow}
-          disabled={isLoading}
-        >
-          + Nouvelle ligne
-        </button>
-      </div>
-    </div >
+      {uiPopup && (
+        <div className={`fixed z-[95] right-4 bottom-4 w-[min(420px,calc(100vw-2rem))] rounded-xl border py-3 px-[0.85rem] shadow-[0_18px_36px_-30px_rgba(34,44,52,0.5)] animate-[dashFadeIn_0.2s_ease] ${uiPopup.kind === "method" ? "border-[#b7e2ca] bg-[#eaf9f1] text-[#0b6c3b]" : "border-[#f2cc97] bg-[#fff5e7] text-[#744e1d]"}`} role="alert" aria-live="assertive">
+          <div className="font-extrabold text-[0.82rem] mb-1">{uiPopup.title}</div>
+          <div className="text-[0.8rem] leading-[1.35]">{uiPopup.message}</div>
+        </div>
+      )}
+    </>
   );
 }

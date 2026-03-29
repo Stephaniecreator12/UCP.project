@@ -10,36 +10,26 @@ import { MenuItemType } from "@/types/grid";
 
 //BST:bien & service et travaux
 const METHOD_OPTIONS_BST: SelectOption[] = [
-  { value: "", label: "-- Sélectionner --" },
-  { value: "aon", label: "AON" },
-  { value: "aoi", label: "AOI" },
-  { value: "dc", label: "DC" },
-  { value: "ed", label: "ED" },
+  { value: "aon", label: "AON", description: "Appel d'Offres National" },
+  { value: "aoi", label: "AOI", description: "Appel d'Offres International" },
+  { value: "dc", label: "DC", description: "Demande de Cotations" },
+  { value: "ed", label: "ED", description: "Entente Directe" },
 ];
 
 // for Travaux
 const METHOD_OPTIONS_CONSULTANT: SelectOption[] = [
-  { value: "", label: "-- Sélectionner --" },
-  { value: "sfqc", label: "SFQC" },
-  { value: "smc", label: "SMC" },
-  { value: "sqc", label: "SQC" },
-  { value: "sci", label: "SCI" },
-  { value: "sed", label: "SED" },
+  { value: "sfq", label: "SFQ", description: "Sélection Fondée sur la Qualité" },
+  { value: "sfqc", label: "SFQC", description: "Sélection Fondée sur la Qualité et le Coût" },
+  { value: "smc", label: "SMC", description: "Sélection au Moindre Coût" },
+  { value: "sqc", label: "SQC", description: "Sélection fondée sur les Qualifications du Consultant" },
+  { value: "sci", label: "SCI", description: "Sélection de Consultants Individuels" },
+  { value: "sed", label: "SED", description: "Sélection par Entente Directe" },
 ];
 
 const APPROACH_OPTIONS: SelectOption[] = [
-  { value: "", label: "-- Sélectionner --" },
-  { value: "open", label: "Ouverte" },
-  { value: "restricted", label: "Restreinte" },
-  { value: "selective", label: "Sélective" },
-];
-
-const STATUS_OPTIONS: SelectOption[] = [
-  { value: "", label: "-- Sélectionner --" },
-  { value: "planned", label: "Planifié" },
-  { value: "in_progress", label: "En cours" },
-  { value: "completed", label: "Terminé" },
-  { value: "cancelled", label: "Annulé" },
+  { value: "open", label: "Ouverte", description: "Ouverte à tous les soumissionnaires qualifiés" },
+  { value: "restricted", label: "Restreinte", description: "Participation limitée aux soumissionnaires invités" },
+  { value: "selective", label: "Sélective", description: "Sélection sur critères techniques et administratifs" },
 ];
 
 // Colonnes pour Travaux et Biens & Services (identiques)
@@ -47,22 +37,22 @@ export const WORKS_GOODS_COLUMNS: ColumnConfig[] = [
   {
     key: "tracking_code",
     label: "Code suivi",
-    width: "120px",
+    width: "100px",
     editable: true,
-    placeholder: "Code suivi",
+    placeholder: "Code",
   },
   {
     key: "title",
     label: "Intitulé",
-    width: "250px",
+    width: "150px",
     type: "text",
     editable: true,
     placeholder: "Intitulé du marché",
   },
   {
     key: "estimated_amount",
-    label: "Montant estimatif ($)",
-    width: "190px",
+    label: "Montant estimatif (MGA)",
+    width: "150px",
     type: "number",
     editable: true,
     placeholder: "0.00",
@@ -70,15 +60,15 @@ export const WORKS_GOODS_COLUMNS: ColumnConfig[] = [
   {
     key: "agmo",
     label: "AGMO",
-    width: "150px",
+    width: "130px",
     type: "text",
     editable: true,
-    placeholder: "AGMO",
+    placeholder: "Saisir AGMO",
   },
   {
     key: "method",
-    label: "Méthode P.M.",
-    width: "180px",
+    label: "Méthode P.M" ,
+    width: "100px",
     type: "select",
     editable: true,
     options: METHOD_OPTIONS_BST,
@@ -86,7 +76,7 @@ export const WORKS_GOODS_COLUMNS: ColumnConfig[] = [
   {
     key: "approach",
     label: "Approches",
-    width: "150px",
+    width: "120px",
     type: "select",
     editable: true,
     options: APPROACH_OPTIONS,
@@ -94,16 +84,16 @@ export const WORKS_GOODS_COLUMNS: ColumnConfig[] = [
   {
     key: "review_status",
     label: "Revue",
-    width: "120px",
+    width: "90px",
     readonly: true,
     editable: false,
     calculated: true,
-    calculateValue: (row) => row.review_status || "post",
+    calculateValue: (row) => String(row.review_status ?? "post"),
   },
   {
     key: "planned_vs_actual",
     label: "Prévu vs Réel",
-    width: "140px",
+    width: "100px",
     editable: false,
     isSplit: true,
   },
@@ -111,7 +101,7 @@ export const WORKS_GOODS_COLUMNS: ColumnConfig[] = [
     // DATE CALCULÉE (Retro-planning)
     key: "specifications_date",
     label: "Listes et spécifications",
-    width: "140px",
+    width: "100px",
     type: "date",
     editable: true,
     readonly: false,
@@ -122,7 +112,7 @@ export const WORKS_GOODS_COLUMNS: ColumnConfig[] = [
     // DATE CALCULÉE (Retro-planning)
     key: "tender_documents_date",
     label: "Dossiers d'appel d'offres",
-    width: "140px",
+    width: "100px",
     type: "date",
     editable: true,
     readonly: false,
@@ -133,7 +123,7 @@ export const WORKS_GOODS_COLUMNS: ColumnConfig[] = [
     // DATE CALCULÉE (Retro-planning)
     key: "launch_date",
     label: "Date de lancement",
-    width: "130px",
+    width: "100px",
     type: "date",
     editable: true,
     readonly: false,
@@ -144,7 +134,7 @@ export const WORKS_GOODS_COLUMNS: ColumnConfig[] = [
     // DATE CALCULÉE (Retro-planning)
     key: "opening_date",
     label: "Date d'ouverture",
-    width: "130px",
+    width: "30px",
     type: "date",
     editable: true,
     readonly: false,
@@ -155,7 +145,7 @@ export const WORKS_GOODS_COLUMNS: ColumnConfig[] = [
     // DATE CALCULÉE (Retro-planning)
     key: "evaluation_report",
     label: "Rapport d'évaluation",
-    width: "140px",
+    width: "40px",
     type: "date",
     editable: true,
     readonly: false,
@@ -185,7 +175,7 @@ export const WORKS_GOODS_COLUMNS: ColumnConfig[] = [
   },
   {
     key: "action_calculation",
-    label: "Calcul",
+    label: "Planifier",
     width: "80px",
     type: "action_button",
     editable: false,
@@ -193,7 +183,7 @@ export const WORKS_GOODS_COLUMNS: ColumnConfig[] = [
   {
     key: "comments",
     label: "Commentaires",
-    width: "250px",
+    width: "200px",
     type: "textarea",
     editable: true,
     placeholder: "Ajouter des commentaires...",
@@ -201,11 +191,11 @@ export const WORKS_GOODS_COLUMNS: ColumnConfig[] = [
   {
     key: "status",
     label: "status",
-    width: "140px",
+    width: "150px",
     readonly: true,
     editable: false,
     calculated: true,
-    calculateValue: (row) => row.status || "-",
+    calculateValue: (row) => String(row.status ?? "-"),
   },
 ];
 
@@ -214,22 +204,30 @@ export const CONSULTANTS_COLUMNS: ColumnConfig[] = [
   {
     key: "tracking_code",
     label: "Réf N° / Code suivi",
-    width: "120px",
+    width: "100px",
     editable: true,
-    placeholder: "Réf N° / Code suivi",
+    placeholder: "Réf N°/ Code",
   },
   {
     key: "title",
     label: "Intitulé",
-    width: "250px",
+    width: "120px",
     type: "text",
     editable: true,
     placeholder: "Intitulé de la consultation",
   },
   {
+    key: "agmoxdirection",
+    label: "Agmo/Direction",
+    width: "120px",
+    type: "text",
+    editable: true,
+    placeholder: "Agmo/Direction",
+  },
+  {
     key: "estimated_amount",
-    label: "Montant estimatif ($)",
-    width: "190px",
+    label: "Montant estimatif (MGA)",
+    width: "150px",
     type: "number",
     editable: true,
     placeholder: "0.00",
@@ -237,7 +235,7 @@ export const CONSULTANTS_COLUMNS: ColumnConfig[] = [
   {
     key: "method",
     label: "Méthode",
-    width: "180px",
+    width: "120px",
     type: "select",
     editable: true,
     options: METHOD_OPTIONS_CONSULTANT,
@@ -245,7 +243,7 @@ export const CONSULTANTS_COLUMNS: ColumnConfig[] = [
   {
     key: "approach",
     label: "Approche",
-    width: "150px",
+    width: "120px",
     type: "select",
     editable: true,
     options: APPROACH_OPTIONS,
@@ -260,7 +258,7 @@ export const CONSULTANTS_COLUMNS: ColumnConfig[] = [
   {
     key: "pricing_type",
     label: "Forfait / Temps passé",
-    width: "140px",
+    width: "100px",
     editable: false,
     isSplit: true,
   },
@@ -268,7 +266,7 @@ export const CONSULTANTS_COLUMNS: ColumnConfig[] = [
     // DATE CALCULÉE (Retro-planning)
     key: "terms_of_reference",
     label: "Termes de référence",
-    width: "140px",
+    width: "100px",
     type: "date",
     editable: true,
     readonly: false,
@@ -328,34 +326,35 @@ export const CONSULTANTS_COLUMNS: ColumnConfig[] = [
     key: "technical_evaluation",
     label: "Rapport d'évaluation technique",
     width: "150px",
-    readonly: true,
-    editable: false,
-    calculated: true,
-    calculateValue: (row) => row.technical_evaluation_status || "-",
+    type: "date",
+    editable: true, // Saisie manuelle
+    readonly: false,
     isSplit: true,
     splitController: "pricing_type",
+    // Saisie manuelle
   },
-  {
+  { 
     // DATE CALCULÉE (Retro-planning)
     key: "financial_opening_date",
     label: "Ouverture des plis financiers",
     width: "150px",
     type: "date",
+    editable: true, // Editable après calcul
     readonly: false,
-    editable: true,
     isSplit: true,
     splitController: "pricing_type",
+    // Editable après calcul
   },
-  {
+  { 
     key: "contract_draft",
     label: "Projet de contrat négocié",
     width: "140px",
-    readonly: true,
-    editable: false,
-    calculated: true,
-    calculateValue: (row) => row.contract_draft_status || "-",
+    type: "date",
+    editable: true, // Saisie manuelle
+    readonly: false,
     isSplit: true,
     splitController: "pricing_type",
+    // Saisie manuelle
   },
   {
     // DATE CALCULÉE (Retro-planning)
@@ -363,10 +362,11 @@ export const CONSULTANTS_COLUMNS: ColumnConfig[] = [
     label: "Date signature contrat",
     width: "130px",
     type: "date",
+    editable: true, // Editable après calcul
     readonly: false,
-    editable: true,
     isSplit: true,
     splitController: "pricing_type",
+    // Editable après calcul
   },
   {
     // DATE DRIVER - ÉDITABLE (Date Fin)
@@ -381,7 +381,7 @@ export const CONSULTANTS_COLUMNS: ColumnConfig[] = [
   },
   {
     key: "action_calculation",
-    label: "Calcul",
+    label: "Planifier",
     width: "80px",
     type: "action_button",
     editable: false,
@@ -389,7 +389,7 @@ export const CONSULTANTS_COLUMNS: ColumnConfig[] = [
   {
     key: "comments",
     label: "Commentaires",
-    width: "250px",
+    width: "150px",
     type: "textarea",
     editable: true,
     placeholder: "Ajouter des commentaires...",
@@ -397,11 +397,11 @@ export const CONSULTANTS_COLUMNS: ColumnConfig[] = [
   {
     key: "status",
     label: "status",
-    width: "140px",
+    width: "150px",
     readonly: true,
     editable: false,
     calculated: true,
-    calculateValue: (row) => row.status || "-",
+    calculateValue: (row) => String(row.status ?? "-"),
   },
 ];
 
@@ -410,17 +410,17 @@ export const TABLE_CONFIGS = {
   works: {
     label: "Travaux",
     columns: WORKS_GOODS_COLUMNS,
-    icon: "\uD83D\uDEE0",
+    icon: "▣",
   },
   "goods-services": {
     label: "Biens & Services",
     columns: WORKS_GOODS_COLUMNS, // Identique à Travaux
-    icon: "\uD83D\uDCC1",
+    icon: "◫",
   },
   consultants: {
     label: "Consultants",
     columns: CONSULTANTS_COLUMNS,
-    icon: "\uD83E\uDDD1\u200D\uD83D\uDCBC",
+    icon: "◉",
   },
 };
 
@@ -430,4 +430,3 @@ export const MENU_ITEMS: MenuItemType[] = [
   "goods-services",
   "consultants",
 ];
-

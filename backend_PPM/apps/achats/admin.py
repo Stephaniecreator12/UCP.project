@@ -1,37 +1,24 @@
 from django.contrib import admin
 
-from apps.achats.models import DemandeAchat, ValidationDemande, WorkflowHistory
+from apps.achats.models import DemandeAchat, DocumentDemande, LigneBesoin
 
 
 @admin.register(DemandeAchat)
 class DemandeAchatAdmin(admin.ModelAdmin):
-    list_display = (
-        "numero_demande",
-        "service_demandeur",
-        "statut",
-        "demandeur",
-        "date_demande",
-    )
-    list_filter = ("statut", "type_marche", "urgent")
-    search_fields = ("numero_demande", "objet_demande", "service_demandeur")
+    list_display = ("id", "numero_demande", "objet", "type_demande", "statut", "created_at")
+    list_filter = ("statut", "type_demande", "priorite", "source_financement")
+    search_fields = ("numero_demande", "objet", "unite_technique", "service_beneficiaire")
 
 
-@admin.register(ValidationDemande)
-class ValidationDemandeAdmin(admin.ModelAdmin):
-    list_display = ("demande", "role", "statut", "validateur", "date_validation")
-    list_filter = ("role", "statut")
-    search_fields = ("demande__numero_demande", "commentaire")
+@admin.register(LigneBesoin)
+class LigneBesoinAdmin(admin.ModelAdmin):
+    list_display = ("id", "demande", "ordre", "designation", "type_service", "cout_total_estime")
+    list_filter = ("type_service",)
+    search_fields = ("designation", "marque_modele", "description_service")
 
 
-@admin.register(WorkflowHistory)
-class WorkflowHistoryAdmin(admin.ModelAdmin):
-    list_display = (
-        "demande",
-        "action",
-        "old_status",
-        "new_status",
-        "user",
-        "created_at",
-    )
-    list_filter = ("action",)
-    search_fields = ("demande__numero_demande", "commentaire")
+@admin.register(DocumentDemande)
+class DocumentDemandeAdmin(admin.ModelAdmin):
+    list_display = ("id", "demande", "type_document", "uploaded_at")
+    list_filter = ("type_document",)
+    search_fields = ("commentaire",)

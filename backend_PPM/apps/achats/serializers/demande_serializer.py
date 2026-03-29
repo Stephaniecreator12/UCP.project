@@ -1,107 +1,132 @@
 from rest_framework import serializers
 
-from apps.achats.models.demande_achat import DemandeAchat
-from apps.achats.serializers.validation_serializer import ValidationReadSerializer
-from apps.achats.serializers.workflow_history_serializer import WorkflowHistorySerializer
+from apps.achats.models import DemandeAchat, DocumentDemande, LigneBesoin
 
 
-class DemandeAchatWriteSerializer(serializers.ModelSerializer):
+class LigneBesoinSerializer(serializers.ModelSerializer):
     class Meta:
-        model = DemandeAchat
+        model = LigneBesoin
         fields = [
-            "service_demandeur",
-            "fonction_demandeur",
-            "activite_ptba",
-            "indicateur_performance",
-            "source_financement",
-            "ligne_budgetaire",
-            "budget_estime",
-            "devise",
-            "type_marche",
-            "nature_activite",
-            "objet_demande",
-            "description",
-            "pieces_jointes",
-            "region",
-            "adresse_livraison",
+            "id",
+            "ordre",
+            "designation",
+            "marque_modele",
+            "caracteristiques_techniques",
+            "quantite",
+            "unite",
+            "prix_unitaire_estime",
+            "cout_total_estime",
+            "lieu_livraison",
+            "destinataire_final",
+            "type_service",
+            "description_service",
             "date_debut",
             "date_fin",
-            "urgent",
-            "justification_urgence",
+            "duree_estimee",
+            "lieu_execution",
+            "livrables_attendus",
+            "nombre_beneficiaires",
         ]
-
-    def validate(self, attrs):
-        instance = getattr(self, "instance", None)
-
-        def value_of(field_name):
-            if field_name in attrs:
-                return attrs[field_name]
-            if instance is not None:
-                return getattr(instance, field_name, None)
-            return None
-
-        date_debut = value_of("date_debut")
-        date_fin = value_of("date_fin")
-        if date_debut and date_fin and date_fin < date_debut:
-            raise serializers.ValidationError(
-                {"date_fin": "La date de fin doit être postérieure ou égale à la date de début."}
-            )
-
-        urgent = value_of("urgent")
-        justification_urgence = value_of("justification_urgence")
-        if urgent and not justification_urgence:
-            raise serializers.ValidationError(
-                {"justification_urgence": "Ce champ est obligatoire si la demande est urgente."}
-            )
-
-        return attrs
+        read_only_fields = ["id", "cout_total_estime"]
 
 
-class DemandeAchatReadSerializer(serializers.ModelSerializer):
-    demandeur_username = serializers.CharField(source="demandeur.username", read_only=True)
-    demandeur_nom = serializers.SerializerMethodField()
-    statut_display = serializers.CharField(source="get_statut_display", read_only=True)
-    validations = ValidationReadSerializer(many=True, read_only=True)
-    workflow_history = WorkflowHistorySerializer(many=True, read_only=True)
+class DocumentDemandeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DocumentDemande
+        fields = [
+            "id",
+            "type_document",
+            "fichier",
+            "commentaire",
+            "uploaded_at",
+        ]
+        read_only_fields = ["id", "uploaded_at"]
+
+
+class DemandeAchatSerializer(serializers.ModelSerializer):
+    lignes_besoin = LigneBesoinSerializer(many=True, required=False)
+    documents = DocumentDemandeSerializer(many=True, required=False)
 
     class Meta:
         model = DemandeAchat
         fields = [
             "id",
             "numero_demande",
-            "date_demande",
-            "service_demandeur",
+            "version",
             "demandeur",
-            "demandeur_username",
-            "demandeur_nom",
-            "fonction_demandeur",
-            "activite_ptba",
-            "indicateur_performance",
-            "source_financement",
-            "ligne_budgetaire",
-            "budget_estime",
-            "devise",
-            "type_marche",
-            "nature_activite",
-            "objet_demande",
-            "description",
-            "pieces_jointes",
-            "region",
-            "adresse_livraison",
-            "date_debut",
-            "date_fin",
-            "urgent",
-            "justification_urgence",
+            "unite_technique",
             "statut",
-            "statut_display",
-            "date_transmission_marches",
+            "categorie_besoin",
+            "type_demande",
+            "priorite",
+            "objet",
+            "justification",
+            "lien_ptba",
+            "service_beneficiaire",
+            "ligne_budgetaire",
+            "source_financement",
+            "cout_total_estime",
             "created_at",
             "updated_at",
-            "validations",
-            "workflow_history",
+            "submitted_at",
+            "lignes_besoin",
+            "documents",
+        ]
+        read_only_fields = [
+            "id",
+            "numero_demande",
+            "version",
+            "demandeur",
+            "statut",
+            "cout_total_estime",
+            "created_at",
+            "updated_at",
+            "submitted_at",
         ]
 
-    def get_demandeur_nom(self, obj):
-        if not obj.demandeur:
-            return ""
-        return obj.demandeur.get_full_name() or obj.demandeur.username
+    def validate(self, attrs):
+        type_demande = attrs.get("type_demande")
+        lignes_besoin = attrs.get("lignes_besoin", [])
+
+        if not lignes_besoin:
+            raise serializers.ValidationError(
+                {"lignes_besoin": "Ajoute au moins une ligne de besoin."}
+            )
+
+        for index, ligne in enumerate(lignes_besoin, start=1):
+            if type_demande == DemandeAchat.TYPE_MATERIELS:
+                required_fields = {
+                    "designation": "La designation est obligatoire.",
+                    "caracteristiques_techniques": "Les caracteristiques techniques sont obligatoires.",
+                    "quantite": "La quantite est obligatoire.",
+                    "unite": "L unite est obligatoire.",
+                    "lieu_livraison": "Le lieu de livraison est obligatoire.",
+                    "destinataire_final": "Le destinataire final est obligatoire.",
+                }
+
+                for field_name, error_message in required_fields.items():
+                    if not ligne.get(field_name):
+                        raise serializers.ValidationError(
+                            {"lignes_besoin": f"Ligne {index}: {error_message}"}
+                        )
+
+            if type_demande in [
+                DemandeAchat.TYPE_PETITS_SERVICES,
+                DemandeAchat.TYPE_SERVICES_RECURRENTS,
+            ]:
+                required_fields = {
+                    "type_service": "Le type de service est obligatoire.",
+                    "description_service": "La description du service est obligatoire.",
+                    "date_debut": "La date de debut est obligatoire.",
+                    "date_fin": "La date de fin est obligatoire.",
+                    "lieu_execution": "Le lieu d execution est obligatoire.",
+                    "livrables_attendus": "Les livrables attendus sont obligatoires.",
+                }
+
+                for field_name, error_message in required_fields.items():
+                    if not ligne.get(field_name):
+                        raise serializers.ValidationError(
+                            {"lignes_besoin": f"Ligne {index}: {error_message}"}
+                        )
+
+        return attrs

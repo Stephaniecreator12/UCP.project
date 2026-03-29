@@ -8,9 +8,8 @@ urlpatterns = [
     path("admin/", admin.site.urls),
 
     path("api/ppm/", include("apps.ppm.urls")),
-    path("api/achats/", include("apps.achats.urls")),
     path("api/users/", include("apps.users.urls")),
-    path("api/TdR_ST/", include("apps.TdR_ST.urls")),
+    path("api/TdrSt/", include("apps.TdrSt.urls")),
 
     #path("URL", fonction_qui_repond, name="nom")
     path("api/login/", TokenObtainPairView.as_view(), name="token_obtain_pair"),#login → créer un token

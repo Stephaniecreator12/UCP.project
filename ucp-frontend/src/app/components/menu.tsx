@@ -14,17 +14,7 @@ type MenuLink = {
 const LINKS: MenuLink[] = [
   { label: "PPM", href: "/formulaire", match: (pathname) => pathname === "/formulaire" }, 
   { label: "Dashboard", href: "/dashboard", match: (pathname) => pathname === "/dashboard" },
-  {
-    label: "demande d'achat",
-    href: "/demande-achat",
-    match: (pathname) =>
-      pathname === "/demande-achat" || pathname.startsWith("/demande-achat/"),
-  },
-  {
-    label: "validation",
-    href: "/validation",
-    match: (pathname) => pathname === "/validation" || pathname.startsWith("/validation/"),
-  },
+  { label: "TdR / ST", href: "/TdrSt", match: (pathname) => pathname === "/TdrSt" },
 ];
 
 export default function Menu({ className = "" }: { className?: string }) {

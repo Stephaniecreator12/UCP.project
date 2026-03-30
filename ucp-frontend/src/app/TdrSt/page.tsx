@@ -81,7 +81,28 @@ type TdrStDocument = {
   };
 };
 
+type TdrStFormState = {
+  unite_technique: string;
+  type_document: DocumentType;
+  categorie_activite: CategorieActivite;
+  intitule: string;
+  reference_ptba: string;
+  periode_debut: string;
+  periode_fin: string;
+  duree_estimee_valeur: number;
+  duree_estimee_unite: DureeUnite;
+  sources_financement: FundingSource[];
+  numero_subvention: string;
+  ligne_budgetaire: string;
+  montant_estime_usd: string;
+  procedure_envisagee: Procedure;
+};
+
 const API_PREFIX = "/api/TdrSt";
+const BACKEND_BASE =
+  process.env.NEXT_PUBLIC_BACKEND_URL ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  "http://127.0.0.1:8000";
 
 const ROLE_LABEL: Record<UserRole, string> = {
   initiateur: "Initiateur (Cadre technique)",
@@ -103,6 +124,15 @@ const toErrorMessage = async (res: Response): Promise<string> => {
     // ignore
   }
   return text.slice(0, 300);
+};
+
+const resolveBackendUrl = (raw?: string): string | null => {
+  if (!raw) return null;
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) return trimmed;
+  if (trimmed.startsWith("/")) return `${BACKEND_BASE}${trimmed}`;
+  return `${BACKEND_BASE}/${trimmed}`;
 };
 
 async function fetchJson<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -138,6 +168,23 @@ const getStepIndex = (statut?: Statut): number => {
   if (statut === "EN_ATTENTE_ANO") return 3;
   return 3;
 };
+
+const makeEmptyForm = (): TdrStFormState => ({
+  unite_technique: "",
+  type_document: "TDR",
+  categorie_activite: "FORMATION",
+  intitule: "",
+  reference_ptba: "",
+  periode_debut: "",
+  periode_fin: "",
+  duree_estimee_valeur: 1,
+  duree_estimee_unite: "JOURS",
+  sources_financement: [],
+  numero_subvention: "",
+  ligne_budgetaire: "",
+  montant_estime_usd: "",
+  procedure_envisagee: "DC",
+});
 
 const getProgress = (
   statut?: Statut,
@@ -239,43 +286,43 @@ export default function TdRStPage() {
 
   const [documents, setDocuments] = useState<TdrStDocument[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  // Pour les validateurs (tech/final/bailleur) : après une décision, le document sort souvent
+  // de la liste "pending". On conserve donc une copie pour continuer d'afficher l'historique.
+  const [focusedDoc, setFocusedDoc] = useState<TdrStDocument | null>(null);
   const [decisionObs, setDecisionObs] = useState("");
 
   const selected = useMemo(
     () => (selectedId ? documents.find((d) => d.id === selectedId) || null : null),
     [documents, selectedId],
   );
+  const activeDoc = useMemo(() => focusedDoc ?? selected, [focusedDoc, selected]);
 
   // Verrouillage UI:
   // - initiateur peut éditer seulement BROUILLON / A_REVOIR
   // - autres rôles: toujours lecture seule sur le formulaire
   const isReadOnly = useMemo(() => {
     if (role !== "initiateur") return true;
-    if (!selected) return false;
-    return !(selected.statut === "BROUILLON" || selected.statut === "A_REVOIR");
-  }, [role, selected]);
+    if (!activeDoc) return false;
+    return !(activeDoc.statut === "BROUILLON" || activeDoc.statut === "A_REVOIR");
+  }, [role, activeDoc]);
 
-  const [form, setForm] = useState({
-    unite_technique: "",
-    type_document: "TDR" as DocumentType,
-    categorie_activite: "FORMATION" as CategorieActivite,
-    intitule: "",
-    reference_ptba: "",
-    periode_debut: "",
-    periode_fin: "",
-    duree_estimee_valeur: 1,
-    duree_estimee_unite: "JOURS" as DureeUnite,
-    sources_financement: [] as FundingSource[],
-    numero_subvention: "",
-    ligne_budgetaire: "",
-    montant_estime_usd: "",
-    procedure_envisagee: "DC" as Procedure,
-  });
+  const [form, setForm] = useState<TdrStFormState>(() => makeEmptyForm());
 
   const [pdfFile, setPdfFile] = useState<File | null>(null);
 
+  const startNewDraft = useCallback(() => {
+    if (role !== "initiateur") return;
+    setError(null);
+    setSuccess(null);
+    setDecisionObs("");
+    setPdfFile(null);
+    setFocusedDoc(null);
+    setSelectedId(null);
+    setForm(makeEmptyForm());
+  }, [role]);
+
   const refreshDocs = useCallback(
-    async (r: UserRole) => {
+    async (r: UserRole, opts?: { keepSelectedId?: number | null }) => {
       const url =
         r === "initiateur"
           ? `${API_PREFIX}/documents/me/`
@@ -287,7 +334,12 @@ export default function TdRStPage() {
 
       const data = await fetchJson<TdrStDocument[]>(url, { method: "GET" });
       setDocuments(data);
-      setSelectedId(data[0]?.id ?? null);
+      setSelectedId((prev) => {
+        const keep = opts?.keepSelectedId ?? null;
+        if (keep) return keep;
+        if (prev && data.some((d) => d.id === prev)) return prev;
+        return data[0]?.id ?? null;
+      });
       setDecisionObs("");
     },
     [],
@@ -317,25 +369,25 @@ export default function TdRStPage() {
 
   // Synchroniser le formulaire quand on sélectionne un document existant
   useEffect(() => {
-    if (selected) {
+    if (activeDoc) {
       setForm({
-        unite_technique: selected.unite_technique || "",
-        type_document: selected.type_document,
-        categorie_activite: selected.categorie_activite,
-        intitule: selected.intitule || "",
-        reference_ptba: selected.reference_ptba || "",
-        periode_debut: selected.periode_debut || "",
-        periode_fin: selected.periode_fin || "",
-        duree_estimee_valeur: selected.duree_estimee_valeur || 1,
-        duree_estimee_unite: selected.duree_estimee_unite || "JOURS",
-        sources_financement: selected.sources_financement || [],
-        numero_subvention: selected.numero_subvention || "",
-        ligne_budgetaire: selected.ligne_budgetaire || "",
-        montant_estime_usd: selected.montant_estime_usd?.toString() || "",
-        procedure_envisagee: selected.procedure_envisagee || "DC",
+        unite_technique: activeDoc.unite_technique || "",
+        type_document: activeDoc.type_document,
+        categorie_activite: activeDoc.categorie_activite,
+        intitule: activeDoc.intitule || "",
+        reference_ptba: activeDoc.reference_ptba || "",
+        periode_debut: activeDoc.periode_debut || "",
+        periode_fin: activeDoc.periode_fin || "",
+        duree_estimee_valeur: activeDoc.duree_estimee_valeur || 1,
+        duree_estimee_unite: activeDoc.duree_estimee_unite || "JOURS",
+        sources_financement: activeDoc.sources_financement || [],
+        numero_subvention: activeDoc.numero_subvention || "",
+        ligne_budgetaire: activeDoc.ligne_budgetaire || "",
+        montant_estime_usd: activeDoc.montant_estime_usd?.toString() || "",
+        procedure_envisagee: activeDoc.procedure_envisagee || "DC",
       });
     }
-  }, [selected]);
+  }, [activeDoc]);
 
   const toggleFunding = (source: FundingSource) => {
     if (isReadOnly) return;
@@ -431,7 +483,7 @@ export default function TdRStPage() {
       if (data.document) {
         setDocuments((prev) => prev.map((d) => (d.id === data.document!.id ? data.document! : d)));
       } else {
-        if (role) await refreshDocs(role);
+        if (role) await refreshDocs(role, { keepSelectedId: selected?.id ?? null });
       }
       setSuccess("Fichier PDF téléversé avec succès.");
       setPdfFile(null);
@@ -449,7 +501,7 @@ export default function TdRStPage() {
     setError(null);
     setSuccess(null);
     try {
-      await refreshDocs(role);
+      await refreshDocs(role, { keepSelectedId: focusedDoc?.id ?? selectedId });
       setSuccess("Liste rafraîchie.");
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -474,13 +526,15 @@ export default function TdRStPage() {
     setError(null);
     setSuccess(null);
     try {
-      await fetchJson<TdrStDocument>(url, {
+      const updated = await fetchJson<TdrStDocument>(url, {
         method: "POST",
         body: JSON.stringify({ decision, observations: decisionObs }),
       });
       setDecisionObs("");
+      setFocusedDoc(updated);
+      setSelectedId(updated.id);
       setSuccess("Décision enregistrée.");
-      await refreshDocs(role);
+      await refreshDocs(role, { keepSelectedId: updated.id });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       setError(msg);
@@ -523,28 +577,42 @@ export default function TdRStPage() {
                 <select
                   className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 shadow-[0_1px_2px_rgba(15,23,42,0.05)] focus:border-emerald-500 focus:outline-none focus:ring-4 focus:ring-emerald-500/12"
                   value={selectedId ?? ""}
-                  onChange={(e) => setSelectedId(e.target.value ? Number(e.target.value) : null)}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (role === "initiateur" && !value) {
+                      startNewDraft();
+                      return;
+                    }
+                    setFocusedDoc(null);
+                    setSelectedId(value ? Number(value) : null);
+                  }}
                 >
                   <option value="">{role === "initiateur" ? "— Nouveau document —" : "—"}</option>
+                  {focusedDoc && !documents.some((d) => d.id === focusedDoc.id) ? (
+                    <option value={focusedDoc.id}>
+                      {(focusedDoc.numero_document || `#${focusedDoc.id}`) + " — "}
+                      {STATUT_LABEL[focusedDoc.statut] ?? focusedDoc.statut} (traité)
+                    </option>
+                  ) : null}
                   {documents.map((d) => (
                     <option key={d.id} value={d.id}>
                       {d.numero_document || `#${d.id}`} — {STATUT_LABEL[d.statut] ?? d.statut}
                     </option>
                   ))}
                 </select>
-                {selected ? (
+                {activeDoc ? (
                   <div className="mt-3 grid grid-cols-3 gap-2 text-xs text-slate-600">
                     <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
                       <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">Type</p>
-                      <p className="font-medium text-slate-800">{selected.type_document}</p>
+                      <p className="font-medium text-slate-800">{activeDoc.type_document}</p>
                     </div>
                     <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
                       <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">Version</p>
-                      <p className="font-medium text-slate-800">{selected.version}</p>
+                      <p className="font-medium text-slate-800">{activeDoc.version}</p>
                     </div>
                     <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
                       <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">Statut</p>
-                      <p className="truncate font-medium text-emerald-700">{STATUT_LABEL[selected.statut]}</p>
+                      <p className="truncate font-medium text-emerald-700">{STATUT_LABEL[activeDoc.statut]}</p>
                     </div>
                   </div>
                 ) : null}
@@ -552,7 +620,7 @@ export default function TdRStPage() {
             </div>
 
             <div className="mt-5">
-              <StatusStepper statut={selected?.statut} />
+              <StatusStepper statut={activeDoc?.statut} />
             </div>
           </div>
         </header>
@@ -568,10 +636,10 @@ export default function TdRStPage() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className={`rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4 ${isReadOnly ? "opacity-75" : ""}`}>
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold">{selected ? "Modifier le document" : "Nouveau brouillon"}</h2>
+              <h2 className="text-lg font-semibold">{activeDoc ? "Modifier le document" : "Nouveau brouillon"}</h2>
               {isReadOnly && <span className="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded-full border">Lecture seule</span>}
             </div>
 
@@ -772,7 +840,17 @@ export default function TdRStPage() {
                   onClick={() => void saveDraft()}
                   disabled={loading || isReadOnly}
                 >
-                  {selected ? "Enregistrer" : "Enregistrer brouillon"}
+                  {activeDoc ? "Enregistrer" : "Enregistrer brouillon"}
+                </button>
+              ) : null}
+              {role === "initiateur" ? (
+                <button
+                  className="rounded-full border border-emerald-200 bg-emerald-50 px-6 py-2.5 text-sm font-semibold text-emerald-900 shadow-sm transition hover:-translate-y-[1px] hover:border-emerald-300 hover:bg-emerald-100 disabled:opacity-50"
+                  onClick={() => startNewDraft()}
+                  disabled={loading}
+                  title="Créer un nouveau brouillon vierge"
+                >
+                  Nouveau brouillon
                 </button>
               ) : null}
               <button
@@ -787,180 +865,23 @@ export default function TdRStPage() {
 
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">
             <div className="flex items-center justify-between gap-3">
-              <h2 className="text-lg font-semibold text-slate-900">Section F</h2>
-              {selected ? (
+              <h2 className="text-lg font-semibold text-slate-900">Processus de validation</h2>
+              {activeDoc ? (
                 <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                  {STATUT_LABEL[selected.statut] ?? selected.statut}
+                  {STATUT_LABEL[activeDoc.statut] ?? activeDoc.statut}
                 </span>
               ) : null}
             </div>
 
-            {!selected ? (
+            {!activeDoc ? (
               <p className="text-sm text-slate-600">Sélectionne un document.</p>
             ) : (
               <>
-                {role === "approbateur_final" && selected.requires_ano ? (
-                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
-                    <p className="text-sm font-semibold">Seuil bailleur dépassé</p>
-                    <p className="mt-1 text-xs">
-                      Après approbation, le document passera en <span className="font-semibold">En attente ANO</span>.
-                    </p>
-                  </div>
-                ) : null}
-
-                {role === "initiateur" ? (
-                  <div className="space-y-4">
-                    <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
-                      <h3 className="text-sm font-bold text-blue-900 mb-1 italic">Circuit de validation</h3>
-                      <p className="text-xs text-blue-800 leading-relaxed">
-                        {selected.statut === "BROUILLON" || selected.statut === "A_REVOIR"
-                          ? "Enregistrer, téléverser le PDF puis soumettre pour lancer la vérification technique."
-                          : "Formulaire en lecture seule. Consulte l'historique pour voir les commentaires."}
-                      </p>
-                    </div>
-
-                    <button
-                      className="w-full rounded-xl bg-indigo-600 py-3 text-sm font-bold text-white shadow-md transition hover:bg-indigo-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none"
-                      onClick={() => void submitSelected()}
-                      disabled={loading || !(selected.statut === "BROUILLON" || selected.statut === "A_REVOIR")}
-                    >
-                      {selected.statut === "BROUILLON" || selected.statut === "A_REVOIR"
-                        ? "Soumettre pour validation"
-                        : "Déjà soumis"}
-                    </button>
-
-                    <div className="border-t pt-6 space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div className="text-sm font-bold text-slate-900">Document PDF (Version {selected.version || 1})</div>
-                        {selected.fichier_courant?.fichier_pdf ? (
-                          <a
-                            href={selected.fichier_courant.fichier_pdf}
-                            target="_blank"
-                            className="text-xs font-bold text-emerald-600 hover:underline flex items-center gap-1"
-                            rel="noreferrer"
-                          >
-                            Visualiser le PDF actuel
-                          </a>
-                        ) : null}
-                      </div>
-
-                      <div
-                        className={`rounded-xl border-2 border-dashed p-6 text-center ${
-                          selected.statut === "BROUILLON" || selected.statut === "A_REVOIR"
-                            ? "bg-emerald-50/30 border-emerald-200"
-                            : "bg-slate-50 border-slate-200"
-                        }`}
-                      >
-                        <input
-                          type="file"
-                          id="pdf-upload"
-                          className="hidden"
-                          accept="application/pdf"
-                          onChange={(e) => setPdfFile(e.target.files?.[0] ?? null)}
-                          disabled={
-                            loading || !(selected.statut === "BROUILLON" || selected.statut === "A_REVOIR")
-                          }
-                        />
-                        <label
-                          htmlFor="pdf-upload"
-                          className={`block cursor-pointer text-sm font-medium ${
-                            selected.statut === "BROUILLON" || selected.statut === "A_REVOIR"
-                              ? "text-emerald-700"
-                              : "text-slate-400"
-                          }`}
-                        >
-                          {pdfFile ? `Fichier sélectionné : ${pdfFile.name}` : "Cliquez pour choisir le fichier PDF (Max 15Mo)"}
-                        </label>
-                      </div>
-
-                      <button
-                        className="w-full rounded-xl bg-emerald-600 py-2.5 text-sm font-semibold text-white shadow transition hover:bg-emerald-700 disabled:opacity-50"
-                        onClick={() => void uploadPdf()}
-                        disabled={
-                          loading ||
-                          !pdfFile ||
-                          !(selected.statut === "BROUILLON" || selected.statut === "A_REVOIR")
-                        }
-                      >
-                        Téléverser PDF
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    <div className="text-sm font-semibold text-slate-900">Décision</div>
-                    <textarea
-                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-[0_1px_2px_rgba(15,23,42,0.05)] focus:border-emerald-500 focus:outline-none focus:ring-4 focus:ring-emerald-500/12"
-                      rows={3}
-                      value={decisionObs}
-                      onChange={(e) => setDecisionObs(e.target.value)}
-                      placeholder="Observations (optionnel)"
-                    />
-
-                    {role === "verificateur_technique" ? (
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          className="rounded-full bg-emerald-600 px-4.5 py-2.5 text-sm font-semibold text-white shadow transition hover:-translate-y-[1px] hover:bg-emerald-700 disabled:opacity-50"
-                          onClick={() => void handleDecision("FAVORABLE")}
-                          disabled={loading}
-                        >
-                          Avis favorable
-                        </button>
-                        <button
-                          className="rounded-full border border-amber-300 bg-amber-50 px-4.5 py-2.5 text-sm font-semibold text-amber-900 shadow-sm transition hover:-translate-y-[1px] hover:border-amber-400 disabled:opacity-50"
-                          onClick={() => void handleDecision("A_REVOIR")}
-                          disabled={loading}
-                        >
-                          À revoir
-                        </button>
-                      </div>
-                    ) : null}
-
-                    {role === "approbateur_final" ? (
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          className="rounded-full bg-emerald-600 px-4.5 py-2.5 text-sm font-semibold text-white shadow transition hover:-translate-y-[1px] hover:bg-emerald-700 disabled:opacity-50"
-                          onClick={() => void handleDecision("APPROUVE")}
-                          disabled={loading}
-                        >
-                          Approuver
-                        </button>
-                        <button
-                          className="rounded-full border border-rose-300 bg-rose-50 px-4.5 py-2.5 text-sm font-semibold text-rose-900 shadow-sm transition hover:-translate-y-[1px] hover:border-rose-400 disabled:opacity-50"
-                          onClick={() => void handleDecision("REJETE")}
-                          disabled={loading}
-                        >
-                          Rejeter
-                        </button>
-                      </div>
-                    ) : null}
-
-                    {role === "bailleur" ? (
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          className="rounded-full bg-emerald-600 px-4.5 py-2.5 text-sm font-semibold text-white shadow transition hover:-translate-y-[1px] hover:bg-emerald-700 disabled:opacity-50"
-                          onClick={() => void handleDecision("ANO_ACCORDE")}
-                          disabled={loading}
-                        >
-                          Octroyer ANO
-                        </button>
-                        <button
-                          className="rounded-full border border-rose-300 bg-rose-50 px-4.5 py-2.5 text-sm font-semibold text-rose-900 shadow-sm transition hover:-translate-y-[1px] hover:border-rose-400 disabled:opacity-50"
-                          onClick={() => void handleDecision("ANO_REFUSE")}
-                          disabled={loading}
-                        >
-                          Refuser
-                        </button>
-                      </div>
-                    ) : null}
-                  </div>
-                )}
-
-                <div className="border-t pt-6 space-y-3">
+                <div className="space-y-3">
                   <div className="text-sm font-semibold text-slate-900">Historique</div>
-                  {selected.actions_validation?.length ? (
+                  {activeDoc.actions_validation?.length ? (
                     <div className="space-y-2">
-                      {selected.actions_validation.map((a) => (
+                      {activeDoc.actions_validation.map((a) => (
                         <div key={a.id} className="rounded-xl border border-slate-200 bg-white px-4 py-3">
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
@@ -979,6 +900,184 @@ export default function TdRStPage() {
                     <p className="text-sm text-slate-500">Aucun historique.</p>
                   )}
                 </div>
+
+                <div className="rounded-xl border border-slate-200 bg-white p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="text-sm font-bold text-slate-900">
+                      Document PDF (Version {activeDoc.version || 1})
+                    </div>
+                    {activeDoc.fichier_courant?.fichier_pdf ? (
+                      <a
+                        href={resolveBackendUrl(activeDoc.fichier_courant.fichier_pdf) ?? "#"}
+                        target="_blank"
+                        className="text-xs font-bold text-emerald-600 hover:underline"
+                        rel="noreferrer"
+                      >
+                        Visualiser le PDF actuel
+                      </a>
+                    ) : null}
+                  </div>
+                  {!activeDoc.fichier_courant?.fichier_pdf ? (
+                    <p className="mt-2 text-sm text-slate-600">Aucun PDF téléversé pour ce document.</p>
+                  ) : (
+                    <p className="mt-2 text-xs text-slate-500">
+                      Le PDF est la version officielle à relire/valider (lecture seule pour les validateurs).
+                    </p>
+                  )}
+                </div>
+
+                {role === "approbateur_final" && activeDoc.requires_ano ? (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
+                    <p className="text-sm font-semibold">Seuil bailleur dépassé</p>
+                    <p className="mt-1 text-xs">
+                      Après approbation, le document passera en <span className="font-semibold">En attente ANO</span>.
+                    </p>
+                  </div>
+                ) : null}
+
+                {role === "initiateur" ? (
+                  <div className="space-y-4">
+                    <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
+                        <h3 className="text-sm font-bold text-blue-900 mb-1 italic">Circuit de validation</h3>
+                        <p className="text-xs text-blue-800 leading-relaxed">
+                        {activeDoc.statut === "BROUILLON" || activeDoc.statut === "A_REVOIR"
+                          ? "Enregistrer, téléverser le PDF puis soumettre pour lancer la vérification technique."
+                          : "Formulaire en lecture seule. Consulte l'historique pour voir les commentaires."}
+                        </p>
+                      </div>
+
+                    <button
+                      className="w-full rounded-xl bg-indigo-600 py-3 text-sm font-bold text-white shadow-md transition hover:bg-indigo-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none"
+                      onClick={() => void submitSelected()}
+                      disabled={loading || !(activeDoc.statut === "BROUILLON" || activeDoc.statut === "A_REVOIR")}
+                    >
+                      {activeDoc.statut === "BROUILLON" || activeDoc.statut === "A_REVOIR"
+                        ? "Soumettre pour validation"
+                        : "Déjà soumis"}
+                    </button>
+
+                    <div className="border-t pt-6 space-y-4">
+                      <div className="text-sm font-bold text-slate-900">Téléverser un nouveau PDF</div>
+
+                      <div
+                        className={`rounded-xl border-2 border-dashed p-6 text-center ${
+                          activeDoc.statut === "BROUILLON" || activeDoc.statut === "A_REVOIR"
+                            ? "bg-emerald-50/30 border-emerald-200"
+                            : "bg-slate-50 border-slate-200"
+                        }`}
+                      >
+                        <input
+                          type="file"
+                          id="pdf-upload"
+                          className="hidden"
+                          accept="application/pdf"
+                          onChange={(e) => setPdfFile(e.target.files?.[0] ?? null)}
+                          disabled={
+                            loading || !(activeDoc.statut === "BROUILLON" || activeDoc.statut === "A_REVOIR")
+                          }
+                        />
+                        <label
+                          htmlFor="pdf-upload"
+                          className={`block cursor-pointer text-sm font-medium ${
+                            activeDoc.statut === "BROUILLON" || activeDoc.statut === "A_REVOIR"
+                              ? "text-emerald-700"
+                              : "text-slate-400"
+                          }`}
+                        >
+                          {pdfFile ? `Fichier sélectionné : ${pdfFile.name}` : "Cliquez pour choisir le fichier PDF (Max 15Mo)"}
+                        </label>
+                      </div>
+
+                      <button
+                        className="w-full rounded-xl bg-emerald-600 py-2.5 text-sm font-semibold text-white shadow transition hover:bg-emerald-700 disabled:opacity-50"
+                        onClick={() => void uploadPdf()}
+                        disabled={
+                          loading ||
+                          !pdfFile ||
+                          !(activeDoc.statut === "BROUILLON" || activeDoc.statut === "A_REVOIR")
+                        }
+                      >
+                        Téléverser PDF
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="text-sm font-semibold text-slate-900">Décision</div>
+                    {!selected ? (
+                      <p className="text-sm text-slate-600">
+                        Document traité. Sélectionne un autre document dans la liste pour prendre une nouvelle décision.
+                      </p>
+                    ) : (
+                      <>
+                        <textarea
+                          className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-[0_1px_2px_rgba(15,23,42,0.05)] focus:border-emerald-500 focus:outline-none focus:ring-4 focus:ring-emerald-500/12"
+                          rows={3}
+                          value={decisionObs}
+                          onChange={(e) => setDecisionObs(e.target.value)}
+                          placeholder="Observations (optionnel)"
+                        />
+
+                        {role === "verificateur_technique" ? (
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              className="rounded-full bg-emerald-600 px-4.5 py-2.5 text-sm font-semibold text-white shadow transition hover:-translate-y-[1px] hover:bg-emerald-700 disabled:opacity-50"
+                              onClick={() => void handleDecision("FAVORABLE")}
+                              disabled={loading}
+                            >
+                              Avis favorable
+                            </button>
+                            <button
+                              className="rounded-full border border-amber-300 bg-amber-50 px-4.5 py-2.5 text-sm font-semibold text-amber-900 shadow-sm transition hover:-translate-y-[1px] hover:border-amber-400 disabled:opacity-50"
+                              onClick={() => void handleDecision("A_REVOIR")}
+                              disabled={loading}
+                            >
+                              À revoir
+                            </button>
+                          </div>
+                        ) : null}
+
+                        {role === "approbateur_final" ? (
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              className="rounded-full bg-emerald-600 px-4.5 py-2.5 text-sm font-semibold text-white shadow transition hover:-translate-y-[1px] hover:bg-emerald-700 disabled:opacity-50"
+                              onClick={() => void handleDecision("APPROUVE")}
+                              disabled={loading}
+                            >
+                              Approuver
+                            </button>
+                            <button
+                              className="rounded-full border border-rose-300 bg-rose-50 px-4.5 py-2.5 text-sm font-semibold text-rose-900 shadow-sm transition hover:-translate-y-[1px] hover:border-rose-400 disabled:opacity-50"
+                              onClick={() => void handleDecision("REJETE")}
+                              disabled={loading}
+                            >
+                              Rejeter
+                            </button>
+                          </div>
+                        ) : null}
+
+                        {role === "bailleur" ? (
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              className="rounded-full bg-emerald-600 px-4.5 py-2.5 text-sm font-semibold text-white shadow transition hover:-translate-y-[1px] hover:bg-emerald-700 disabled:opacity-50"
+                              onClick={() => void handleDecision("ANO_ACCORDE")}
+                              disabled={loading}
+                            >
+                              Octroyer ANO
+                            </button>
+                            <button
+                              className="rounded-full border border-rose-300 bg-rose-50 px-4.5 py-2.5 text-sm font-semibold text-rose-900 shadow-sm transition hover:-translate-y-[1px] hover:border-rose-400 disabled:opacity-50"
+                              onClick={() => void handleDecision("ANO_REFUSE")}
+                              disabled={loading}
+                            >
+                              Refuser
+                            </button>
+                          </div>
+                        ) : null}
+                      </>
+                    )}
+                  </div>
+                )}
               </>
             )}
           </div>

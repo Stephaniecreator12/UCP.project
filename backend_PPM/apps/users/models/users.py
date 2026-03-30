@@ -9,6 +9,8 @@ class UserProfile(models.Model):
         APPROBATEUR_FINAL = "approbateur_final", "Approbateur final"
         BAILLEUR = "bailleur", "Bailleur"
 
+        
+
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,

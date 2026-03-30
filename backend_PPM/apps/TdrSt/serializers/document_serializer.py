@@ -79,12 +79,10 @@ class TdrStDocumentReadSerializer(serializers.ModelSerializer):
         return TdrStValidationActionSerializer(actions, many=True).data
 
     def get_requires_ano(self, obj) -> bool:
-        if obj.seuil_passation is None:
-            return False
-        try:
-            return obj.montant_estime_usd is not None and obj.montant_estime_usd > obj.seuil_passation
-        except Exception:
-            return False
+        # Centraliser la regle metier (inclut le fallback de seuil si `seuil_passation` est vide)
+        from apps.TdrSt.services.TdrStService import requires_ano
+
+        return bool(requires_ano(obj))
 
     class Meta:
         model = TdrStDocument

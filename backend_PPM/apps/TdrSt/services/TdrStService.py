@@ -1,10 +1,38 @@
 from __future__ import annotations
 
+from decimal import Decimal
+
+from django.conf import settings
 from django.db import transaction
 from django.db import models
 from rest_framework.exceptions import ValidationError
 
 from apps.TdrSt.models.TdrSt import TdrStDocument, TdrStDocumentFileVersion, TdrStValidationAction
+
+
+def _default_seuil_passation_usd() -> Decimal:
+    """
+    Valeur de fallback (configurable) du seuil a partir duquel on exige une etape ANO.
+
+    - Si `TDRST_SEUIL_PASSATION_DEFAULT_USD` est defini dans settings, on l'utilise.
+    - Sinon, on prend 50000.00 USD par defaut.
+
+    Le seuil au niveau document (`doc.seuil_passation`) reste prioritaire.
+    """
+    raw = getattr(settings, "TDRST_SEUIL_PASSATION_DEFAULT_USD", None)
+    if raw is None:
+        return Decimal("50000.00")
+    try:
+        return Decimal(str(raw))
+    except Exception:
+        return Decimal("50000.00")
+
+
+def _effective_seuil_passation(doc: TdrStDocument) -> Decimal | None:
+    # Si un seuil est defini sur le document, il prime; sinon on applique un fallback.
+    if doc.seuil_passation is not None:
+        return doc.seuil_passation
+    return _default_seuil_passation_usd()
 
 
 def _build_numero_document(doc: TdrStDocument) -> str:
@@ -157,10 +185,11 @@ def requires_ano(doc: TdrStDocument) -> bool:
     Business rule for extra bailleur step:
     if `seuil_passation` is set and the estimated amount exceeds it, require ANO.
     """
-    if doc.seuil_passation is None:
+    seuil = _effective_seuil_passation(doc)
+    if seuil is None:
         return False
     try:
-        return doc.montant_estime_usd is not None and doc.montant_estime_usd > doc.seuil_passation
+        return doc.montant_estime_usd is not None and doc.montant_estime_usd > seuil
     except Exception:
         return False
 

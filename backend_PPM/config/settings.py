@@ -136,6 +136,10 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
+# Media (uploads) - nécessaire pour servir les PDF téléversés en développement
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
+
 #autoriser acces a front
 
 CORS_ALLOWED_ORIGINS = [

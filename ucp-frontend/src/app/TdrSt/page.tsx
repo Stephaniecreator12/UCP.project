@@ -202,7 +202,7 @@ const getProgress = (
 function StatusStepper({ statut }: { statut?: Statut }) {
   const { pct, tone } = getProgress(statut);
   const idx = getStepIndex(statut);
-  const steps = ["Brouillon", "Soumis", "En validation", "DÃ©cision"];
+  const steps = ["Brouillon", "Soumis", "En validation", "Décision finale"];
 
   const toneClasses: Record<typeof tone, { bar: string; badge: string; dot: string }> = {
     slate: {
@@ -245,8 +245,8 @@ function StatusStepper({ statut }: { statut?: Statut }) {
             </p>
             <p className="text-sm text-slate-700">
               {statut
-                ? "Progression basÃ©e sur l'Ã©tat actuel."
-                : "SÃ©lectionne un document pour voir sa progression."}
+                ? "Progression basée sur l'état actuel."
+                : "Sélectionne un document pour voir sa progression."}
             </p>
           </div>
           <span
@@ -332,7 +332,7 @@ export default function TdRStPage() {
               ? `${API_PREFIX}/validations/final/pending/`
               : `${API_PREFIX}/bailleur/documents/`;
 
-      const data = await fetchJson<TdrStDocument[]>(url, { method: "GET" });
+      const data = await fetchJson<TdrStDocument[]>(url, { method: "GET", cache: "no-store" });
       setDocuments(data);
       setSelectedId((prev) => {
         const keep = opts?.keepSelectedId ?? null;
@@ -418,7 +418,7 @@ export default function TdRStPage() {
       });
 
       if (selected) {
-        setDocuments((prev) => prev.map((d) => (d.id === res.id ? res : d)));
+        setDocuments((prev) => prev.map((d) => (d.id === res.id ? { ...d, ...res } : d)));
       } else {
         setDocuments((prev) => [res, ...prev]);
         setSelectedId(res.id);
@@ -476,17 +476,26 @@ export default function TdRStPage() {
         method: "POST",
         headers,
         body: fd,
+        cache: "no-store",
       });
       if (!res.ok) throw new Error(await toErrorMessage(res));
 
-      const data = (await res.json()) as { document?: TdrStDocument };
-      if (data.document) {
-        setDocuments((prev) => prev.map((d) => (d.id === data.document!.id ? data.document! : d)));
-      } else {
-        if (role) await refreshDocs(role, { keepSelectedId: selected?.id ?? null });
-      }
-      setSuccess("Fichier PDF téléversé avec succès.");
-      setPdfFile(null);
+        const data = await res.json();
+
+        // Vérifier si Django a renvoyé { document: {...} } OU directement le document {...}
+        const updatedDoc = data.document || (data.id ? data : null);
+
+        if (updatedDoc) {
+          // On fusionne l'objet pour préserver les autres infos si besoin
+          setDocuments((prev) => 
+            prev.map((d) => (d.id === updatedDoc.id ? { ...d, ...updatedDoc } : d))
+          );
+        } else {
+          if (role) await refreshDocs(role, { keepSelectedId: selected?.id ?? null });
+        }
+
+        setSuccess("Fichier PDF téléversé avec succès.");
+        setPdfFile(null);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       setError(msg);

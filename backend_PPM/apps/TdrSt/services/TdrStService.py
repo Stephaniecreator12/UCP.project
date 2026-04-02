@@ -36,12 +36,31 @@ def _effective_seuil_passation(doc: TdrStDocument) -> Decimal | None:
 
 
 def _build_numero_document(doc: TdrStDocument) -> str:
-    year = doc.created_at.year if doc.created_at else None
-    if not year:
-        from django.utils import timezone
-
-        year = timezone.now().year
-    return f"UCP/DOC/{year}/{doc.id:05d}"
+    """
+    Construit le numéro de document au format:
+    - UCP/TDR/2026/0001 pour les TDR
+    - UCP/ST/2026/0001 pour les ST
+    L'incrémentation est séparée par type de document et par année.
+    """
+    from django.utils import timezone
+    
+    year = doc.created_at.year if doc.created_at else timezone.now().year
+    
+    # Déterminer le préfixe selon le type de document
+    prefix = "TDR" if doc.type_document == "TDR" else "ST"
+    
+    # Compter les documents du même type et de la même année
+    # On utilise filter sur l'année extraite de created_at
+    same_type_count = TdrStDocument.objects.filter(
+        type_document=doc.type_document,
+        created_at__year=year
+    ).count()
+    
+    # Le nouveau document n'est pas encore sauvegardé dans la base
+    # donc on ajoute 1 pour obtenir le prochain numéro
+    next_number = same_type_count + 1
+    
+    return f"UCP/{prefix}/{year}/{next_number:04d}"
 
 
 @transaction.atomic
@@ -119,7 +138,7 @@ def submit_document(doc: TdrStDocument, user) -> TdrStDocument:
     doc.save(update_fields=["statut", "updated_at"])
     TdrStValidationAction.objects.create(
         document=doc,
-        etape=TdrStValidationAction.Etape.VALIDATION_TECHNIQUE,
+        etape=TdrStValidationAction.Etape.DEPOT,
         acteur=user,
         meta={"action": "SUBMIT"},
     )

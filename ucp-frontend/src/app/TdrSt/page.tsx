@@ -178,7 +178,7 @@ const makeEmptyForm = (): TdrStFormState => ({
   periode_debut: "",
   periode_fin: "",
   duree_estimee_valeur: 1,
-  duree_estimee_unite: "JOURS",
+  duree_estimee_unite: "MOIS",
   sources_financement: [],
   numero_subvention: "",
   ligne_budgetaire: "",
@@ -646,7 +646,7 @@ export default function TdRStPage() {
         )}
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className={`rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4 ${isReadOnly ? "opacity-75" : ""}`}>
+           <div className={`rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4 ${isReadOnly ? "opacity-75" : ""}`}>
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold">{activeDoc ? "Modifier le document" : "Nouveau brouillon"}</h2>
               {isReadOnly && <span className="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded-full border">Lecture seule</span>}
@@ -946,25 +946,7 @@ export default function TdRStPage() {
 
                 {role === "initiateur" ? (
                   <div className="space-y-4">
-                    <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
-                        <h3 className="text-sm font-bold text-blue-900 mb-1 italic">Circuit de validation</h3>
-                        <p className="text-xs text-blue-800 leading-relaxed">
-                        {activeDoc.statut === "BROUILLON" || activeDoc.statut === "A_REVOIR"
-                          ? "Enregistrer, téléverser le PDF puis soumettre pour lancer la vérification technique."
-                          : "Formulaire en lecture seule. Consulte l'historique pour voir les commentaires."}
-                        </p>
-                      </div>
-
-                    <button
-                      className="w-full rounded-xl bg-indigo-600 py-3 text-sm font-bold text-white shadow-md transition hover:bg-indigo-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none"
-                      onClick={() => void submitSelected()}
-                      disabled={loading || !(activeDoc.statut === "BROUILLON" || activeDoc.statut === "A_REVOIR")}
-                    >
-                      {activeDoc.statut === "BROUILLON" || activeDoc.statut === "A_REVOIR"
-                        ? "Soumettre pour validation"
-                        : "Déjà soumis"}
-                    </button>
-
+                  
                     <div className="border-t pt-6 space-y-4">
                       <div className="text-sm font-bold text-slate-900">Téléverser un nouveau PDF</div>
 
@@ -996,19 +978,18 @@ export default function TdRStPage() {
                           {pdfFile ? `Fichier sélectionné : ${pdfFile.name}` : "Cliquez pour choisir le fichier PDF (Max 15Mo)"}
                         </label>
                       </div>
-
-                      <button
-                        className="w-full rounded-xl bg-emerald-600 py-2.5 text-sm font-semibold text-white shadow transition hover:bg-emerald-700 disabled:opacity-50"
-                        onClick={() => void uploadPdf()}
-                        disabled={
-                          loading ||
-                          !pdfFile ||
-                          !(activeDoc.statut === "BROUILLON" || activeDoc.statut === "A_REVOIR")
-                        }
-                      >
-                        Téléverser PDF
-                      </button>
                     </div>
+
+                    <button
+                      className="w-full rounded-xl bg-indigo-600 py-3 text-sm font-bold text-white shadow-md transition hover:bg-indigo-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none"
+                      onClick={() => { void uploadPdf(); void submitSelected(); }}
+                      disabled={loading || !(activeDoc.statut === "BROUILLON" || activeDoc.statut === "A_REVOIR")}
+                    >
+                      {activeDoc.statut === "BROUILLON" || activeDoc.statut === "A_REVOIR"
+                        ? "Soumettre pour validation"
+                        : "Déjà soumis"}
+                    </button>
+
                   </div>
                 ) : (
                   <div className="space-y-3">

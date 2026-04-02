@@ -144,19 +144,19 @@ class TdrStDocumentFileVersion(models.Model):
 
 class TdrStValidationAction(models.Model):
     class Etape(models.TextChoices):
-        DEPOT = "DEPOT", "DÃ©pÃ´t"
+        DEPOT = "DEPOT", "Dépôt"
         VALIDATION_TECHNIQUE = "VALIDATION_TECHNIQUE", "Validation technique"
         APPROBATION_FINALE = "APPROBATION_FINALE", "Approbation finale"
         ANO = "ANO", "Avis de Non-Objection (ANO)"
 
     class Decision(models.TextChoices):
         FAVORABLE = "FAVORABLE", "Favorable"
-        A_REVOIR = "A_REVOIR", "Ã€ revoir"
-        APPROUVE = "APPROUVE", "ApprouvÃ©"
-        REJETE = "REJETE", "RejetÃ©"
+        A_REVOIR = "A_REVOIR", "À revoir"
+        APPROUVE = "APPROUVE", "Approuvé"
+        REJETE = "REJETE", "Rejeté"
         SUSPENDU = "SUSPENDU", "Suspendu"
-        ANO_ACCORDE = "ANO_ACCORDE", "ANO accordÃ©"
-        ANO_REFUSE = "ANO_REFUSE", "ANO refusÃ©"
+        ANO_ACCORDE = "ANO_ACCORDE", "ANO accordé"
+        ANO_REFUSE = "ANO_REFUSE", "ANO refusé"
 
     document = models.ForeignKey(
         TdrStDocument,

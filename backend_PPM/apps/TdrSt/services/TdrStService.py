@@ -69,13 +69,6 @@ def create_document(validated_data: dict, user) -> TdrStDocument:
     doc.numero_document = _build_numero_document(doc)
     doc.save(update_fields=["numero_document"])
 
-    TdrStValidationAction.objects.create(
-        document=doc,
-        etape=TdrStValidationAction.Etape.DEPOT,
-        acteur=user,
-        meta={"action": "CREATE_DRAFT"},
-    )
-
     return doc
 
 
@@ -89,13 +82,6 @@ def update_document(doc: TdrStDocument, validated_data: dict, user) -> TdrStDocu
     for key, value in validated_data.items():
         setattr(doc, key, value)
     doc.save()
-
-    TdrStValidationAction.objects.create(
-        document=doc,
-        etape=TdrStValidationAction.Etape.DEPOT,
-        acteur=user,
-        meta={"action": "UPDATE_DRAFT"},
-    )
 
     return doc
 

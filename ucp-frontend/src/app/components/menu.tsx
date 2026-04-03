@@ -12,9 +12,9 @@ type MenuLink = {
 };
 
 const LINKS: MenuLink[] = [
-  { label: "PPM", href: "/formulaire", match: (pathname) => pathname === "/formulaire" }, 
+  { label: "PPM", href: "/formulaire", match: (pathname) => pathname === "/formulaire" },
   { label: "Dashboard", href: "/dashboard", match: (pathname) => pathname === "/dashboard" },
-  { label: "TdR / ST", href: "/TdrSt", match: (pathname) => pathname === "/TdrSt" },
+  { label: "TdR / ST", href: "/TdrSt/formulaire", match: (pathname) => pathname === "/TdrSt/formulaire" },
 ];
 
 export default function Menu({ className = "" }: { className?: string }) {

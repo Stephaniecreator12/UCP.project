@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import TopHeader from "@/app/components/TopHeader";
 
@@ -336,10 +336,18 @@ export default function TdRStPage() {
     return !(activeDoc.statut === "BROUILLON" || activeDoc.statut === "A_REVOIR");
   }, [role, activeDoc]);
 
+  const canSuspendSelectedDoc = useMemo(() => {
+    if (role !== "initiateur") return false;
+    if (!selected) return false;
+    const blockedStates: Statut[] = ["BROUILLON", "A_REVOIR", "SUSPENDU"];
+    return !blockedStates.includes(selected.statut);
+  }, [role, selected]);
+
   const [form, setForm] = useState<TdrStFormState>(() => makeEmptyForm());
 
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const notificationTimeoutRef = useRef<number | null>(null);
 
   const startNewDraft = useCallback(() => {
     if (role !== "initiateur") return;
@@ -434,6 +442,24 @@ export default function TdRStPage() {
     });
   };
 
+  useEffect(() => {
+    if (!error && !success) return;
+    if (notificationTimeoutRef.current) {
+      window.clearTimeout(notificationTimeoutRef.current);
+    }
+    notificationTimeoutRef.current = window.setTimeout(() => {
+      setError(null);
+      setSuccess(null);
+      notificationTimeoutRef.current = null;
+    }, 1800);
+    return () => {
+      if (notificationTimeoutRef.current) {
+        window.clearTimeout(notificationTimeoutRef.current);
+        notificationTimeoutRef.current = null;
+      }
+    };
+  }, [error, success]);
+
   const saveDraft = async (): Promise<boolean> => {
     if (role !== "initiateur") return false;
     if (isReadOnly) return false;
@@ -479,6 +505,29 @@ export default function TdRStPage() {
       });
       setDocuments((prev) => prev.map((d) => (d.id === updated.id ? updated : d)));
       setSuccess("Document soumis avec succès. Les modifications sont maintenant verrouillées.");
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const suspendSelectedDocument = async () => {
+    if (role !== "initiateur") return;
+    if (!selected) return;
+    if (!canSuspendSelectedDoc) return;
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const updated = await fetchJson<TdrStDocument>(`${API_PREFIX}/documents/${selected.id}/suspend/`, {
+        method: "POST",
+      });
+      setDocuments((prev) => prev.map((d) => (d.id === updated.id ? updated : d)));
+      setFocusedDoc(updated);
+      setSelectedId(updated.id);
+      setSuccess("Document suspendu : le workflow est arrêté.");
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       setError(msg);
@@ -970,14 +1019,24 @@ export default function TdRStPage() {
           </div>
         </header>
 
-        {error && (
-          <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-rose-900 shadow-sm flex items-center gap-2">
-            <span className="font-bold">Erreur:</span> {error}
-          </div>
-        )}
-        {success && (
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-900 shadow-sm flex items-center gap-2">
-            <span className="font-bold">Succès:</span> {success}
+        {(error || success) && (
+          <div className="fixed right-6 bottom-[20px] z-[100] space-y-2">
+            {error && (
+              <div
+                className="min-w-[220px] max-w-[340px] rounded-[10px] border px-[0.8rem] py-[0.65rem] font-semibold shadow-lg text-[#8d2525] bg-[#fde9e9] border-[#f6c8c8] transition-opacity duration-200 animate-saveMessageSlide"
+                style={{ animationDuration: "0.5s" }}
+              >
+                Erreur : {error}
+              </div>
+            )}
+            {success && (
+              <div
+                className="min-w-[220px] max-w-[340px] rounded-[10px] border px-[0.8rem] py-[0.65rem] font-semibold shadow-lg text-[#0c6f3d] bg-[#e6f8ef] border-[#bce9cd] transition-opacity duration-200 animate-saveMessageSlide"
+                style={{ animationDuration: "0.5s" }}
+              >
+                Succès : {success}
+              </div>
+            )}
           </div>
         )}
 
@@ -1090,6 +1149,20 @@ export default function TdRStPage() {
                           {activeDoc.statut === "BROUILLON" || activeDoc.statut === "A_REVOIR"
                             ? "Soumettre pour validation"
                             : "Déjà soumis"}
+                        </button>
+                        <button
+                          className="w-full rounded-xl border border-slate-200 bg-white py-3 text-sm font-semibold text-slate-900 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none"
+                          onClick={() => void suspendSelectedDocument()}
+                          disabled={loading || !canSuspendSelectedDoc}
+                          title={
+                            !selected
+                              ? "Sélectionne un document"
+                              : canSuspendSelectedDoc
+                                ? "Suspendre définitivement le workflow"
+                                : "Le document doit être soumis pour activer cette action"
+                          }
+                        >
+                          Suspendre le workflow
                         </button>
                       </div>
                     ) : (

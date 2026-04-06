@@ -5,6 +5,7 @@ from apps.TdrSt.views.document_view import (
     document_detail_view,
     my_documents_view,
     submit_document_view,
+    suspend_document_view,
     upload_pdf_view,
 )
 from apps.TdrSt.views.validation_view import (
@@ -22,6 +23,7 @@ urlpatterns = [
     path("documents/<int:id>/", document_detail_view),
     path("documents/<int:id>/submit/", submit_document_view),
     path("documents/<int:id>/upload/", upload_pdf_view),
+    path("documents/<int:id>/suspend/", suspend_document_view),
 
     # Validation workflow (role-based views)
     path("validations/tech/pending/", tech_pending_view),

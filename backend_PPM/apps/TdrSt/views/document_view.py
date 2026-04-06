@@ -17,7 +17,13 @@ from apps.TdrSt.serializers.document_serializer import (
     TdrStDocumentReadSerializer,
     TdrStDocumentWriteSerializer,
 )
-from apps.TdrSt.services.TdrStService import create_document, list_my_documents, submit_document, update_document
+from apps.TdrSt.services.TdrStService import (
+    create_document,
+    list_my_documents,
+    submit_document,
+    suspendre_document,
+    update_document,
+)
 
 
 @api_view(["POST"])
@@ -63,6 +69,18 @@ def submit_document_view(request, id: int):
     if not perm.has_object_permission(request, None, doc):
         return Response({"detail": "Accès refusé."}, status=status.HTTP_403_FORBIDDEN)
     doc = submit_document(doc, request.user)
+    return Response(TdrStDocumentReadSerializer(doc).data)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated, CanSubmitOrUploadOwnDocument])
+def suspend_document_view(request, id: int):
+    doc = get_object_or_404(TdrStDocument, id=id)
+    perm = CanSubmitOrUploadOwnDocument()
+    if not perm.has_object_permission(request, None, doc):
+        return Response({"detail": "Accès refusé."}, status=status.HTTP_403_FORBIDDEN)
+
+    doc = suspendre_document(doc, request.user)
     return Response(TdrStDocumentReadSerializer(doc).data)
 
 

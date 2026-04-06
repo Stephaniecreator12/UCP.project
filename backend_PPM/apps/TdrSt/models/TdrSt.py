@@ -148,6 +148,7 @@ class TdrStValidationAction(models.Model):
         VALIDATION_TECHNIQUE = "VALIDATION_TECHNIQUE", "Validation technique"
         APPROBATION_FINALE = "APPROBATION_FINALE", "Approbation finale"
         ANO = "ANO", "Avis de Non-Objection (ANO)"
+        SUSPENSION = "SUSPENSION", "Suspension"
 
     class Decision(models.TextChoices):
         FAVORABLE = "FAVORABLE", "Favorable"
@@ -178,6 +179,5 @@ class TdrStValidationAction(models.Model):
     class Meta:
         db_table = "tdr_st_validation_action"
         ordering = ["-horodatage"] 
-
 
 

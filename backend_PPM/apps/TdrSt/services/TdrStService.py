@@ -194,7 +194,7 @@ def requires_ano(doc: TdrStDocument) -> bool:
     if seuil is None:
         return False
     try:
-        return doc.montant_estime_usd is not None and doc.montant_estime_usd > seuil
+     return doc.montant_estime_usd is not None and doc.montant_estime_usd > seuil
     except Exception:
         return False
 
@@ -222,6 +222,29 @@ def bailleur_decide(doc: TdrStDocument, user, decision: str, observations: str =
 
     doc.statut = next_statut
     doc.save(update_fields=["statut", "updated_at"])
+    return doc
+
+
+@transaction.atomic
+def suspendre_document(doc: TdrStDocument, user, observations: str = "") -> TdrStDocument:
+    if doc.statut == TdrStDocument.Statut.SUSPENDU:
+        raise ValidationError({"statut": "Le document est déjà suspendu."})
+
+    if doc.statut in (TdrStDocument.Statut.BROUILLON, TdrStDocument.Statut.A_REVOIR):
+        raise ValidationError({"statut": "Ce document doit être soumis avant de pouvoir être suspendu."})
+
+    doc.statut = TdrStDocument.Statut.SUSPENDU
+    doc.save(update_fields=["statut", "updated_at"])
+
+    TdrStValidationAction.objects.create(
+        document=doc,
+        etape=TdrStValidationAction.Etape.SUSPENSION,
+        decision=TdrStValidationAction.Decision.SUSPENDU,
+        observations=observations or "",
+        acteur=user,
+        meta={"action": "SUSPEND"},
+    )
+
     return doc
 
 

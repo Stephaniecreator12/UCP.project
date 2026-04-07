@@ -8,7 +8,7 @@ from apps.ppm.views import consultances_view
 urlpatterns = [
     path("travaux/add/", travaux_view.add_travaux),
     path("travaux/update/<int:id>/", travaux_view.edit_travaux),
-    path("travaux/list/", travaux_view.list_travaux),
+    path("travaux/list/", travaux_view.list_travaux_view),
     path("travaux/delete/<int:id>/", travaux_view.delete_travaux_view),
     path("travaux/planning/", travaux_view.planning_travaux),
     path("travaux/status/", travaux_view.status_travaux_view),
@@ -24,7 +24,7 @@ urlpatterns = [
     
     path("consultances/add/", consultances_view.add_consultance),
     path("consultances/update/<int:id>/", consultances_view.edit_consultance),
-    path("consultances/list/", consultances_view.list_consultance),
+    path("consultances/list/", consultances_view.list_consultance_view),
     path("consultances/planning/", consultances_view.planning_consultance),
     path("consultances/status/", consultances_view.status_consultance_view),
     path("consultances/delete/<int:id>/", consultances_view.delete_consultance_view),

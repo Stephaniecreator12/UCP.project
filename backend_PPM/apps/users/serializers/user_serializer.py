@@ -5,6 +5,11 @@ User = get_user_model()
 
 
 class UserSerializer(serializers.ModelSerializer):
+    groups = serializers.SlugRelatedField(
+        many=True,
+        read_only=True,
+        slug_field="name",
+    )
 
     class Meta:
         model = User
@@ -14,8 +19,12 @@ class UserSerializer(serializers.ModelSerializer):
             "email",
             "first_name",
             "last_name",
-            "is_active"
+            "is_active",
+            "is_staff",
+            "groups",
         ]
+
+
 
 
 class UserCreateSerializer(UserSerializer):

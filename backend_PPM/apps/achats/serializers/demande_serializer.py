@@ -1,6 +1,12 @@
 from rest_framework import serializers
 
-from apps.achats.models import DemandeAchat, DocumentDemande, LigneBesoin
+from apps.achats.models import (
+    DemandeAchat,
+    DocumentDemande,
+    HistoriqueDemande,
+    LigneBesoin,
+    ValidationDemande,
+)
 
 
 class LigneBesoinSerializer(serializers.ModelSerializer):
@@ -26,6 +32,8 @@ class LigneBesoinSerializer(serializers.ModelSerializer):
             "lieu_execution",
             "livrables_attendus",
             "nombre_beneficiaires",
+            "quantite_recue",
+            "observation_reception",
         ]
         read_only_fields = ["id", "cout_total_estime"]
 
@@ -43,9 +51,81 @@ class DocumentDemandeSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "uploaded_at"]
 
 
+class ValidationDemandeReadSerializer(serializers.ModelSerializer):
+    validateur_username = serializers.SerializerMethodField()
+    validateur_nom = serializers.SerializerMethodField()
+    etape_label = serializers.CharField(source="get_etape_display", read_only=True)
+    decision_label = serializers.CharField(source="get_decision_display", read_only=True)
+    signature_electronique = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ValidationDemande
+        fields = [
+            "id",
+            "etape",
+            "etape_label",
+            "decision",
+            "decision_label",
+            "commentaire",
+            "donnees_etape",
+            "created_at",
+            "validateur_username",
+            "validateur_nom",
+            "signature_electronique",
+        ]
+
+    def get_validateur_username(self, obj):
+        return obj.validateur.username if obj.validateur else ""
+
+    def get_validateur_nom(self, obj):
+        if not obj.validateur:
+            return ""
+
+        full_name = obj.validateur.get_full_name().strip()
+        return full_name or obj.validateur.username
+
+    def get_signature_electronique(self, obj):
+        if not obj.validateur:
+            return "Validation électronique"
+
+        display_name = self.get_validateur_nom(obj)
+        return f"Signature applicative : {display_name}"
+
+
+class HistoriqueDemandeSerializer(serializers.ModelSerializer):
+    action_label = serializers.CharField(source="get_action_display", read_only=True)
+    user_username = serializers.SerializerMethodField()
+    user_nom = serializers.SerializerMethodField()
+
+    class Meta:
+        model = HistoriqueDemande
+        fields = [
+            "id",
+            "action",
+            "action_label",
+            "description",
+            "metadata",
+            "created_at",
+            "user_username",
+            "user_nom",
+        ]
+
+    def get_user_username(self, obj):
+        return obj.user.username if obj.user else ""
+
+    def get_user_nom(self, obj):
+        if not obj.user:
+            return ""
+
+        full_name = obj.user.get_full_name().strip()
+        return full_name or obj.user.username
+
+
 class DemandeAchatSerializer(serializers.ModelSerializer):
     lignes_besoin = LigneBesoinSerializer(many=True, required=False)
     documents = DocumentDemandeSerializer(many=True, required=False)
+    validations = ValidationDemandeReadSerializer(many=True, read_only=True)
+    historiques = HistoriqueDemandeSerializer(many=True, read_only=True)
 
     class Meta:
         model = DemandeAchat
@@ -56,6 +136,7 @@ class DemandeAchatSerializer(serializers.ModelSerializer):
             "demandeur",
             "unite_technique",
             "statut",
+            "etape_validation_actuelle",
             "categorie_besoin",
             "type_demande",
             "priorite",
@@ -65,12 +146,45 @@ class DemandeAchatSerializer(serializers.ModelSerializer):
             "service_beneficiaire",
             "ligne_budgetaire",
             "source_financement",
+            "numero_subvention",
+            "solde_disponible_ligne_budgetaire",
+            "numero_engagement_budgetaire",
+            "solde_apres_engagement",
             "cout_total_estime",
+            "type_procedure",
+            "fournisseur_retenu",
+            "numero_bon_commande",
+            "date_bon_commande",
+            "montant_commande",
+            "delai_livraison_contractuel",
+            "date_livraison_prevue",
+            "conditions_livraison",
+            "garantie",
+            "date_arrivee_prevue",
+            "date_arrivee_effective",
+            "etat_expedition",
+            "date_reception",
+            "receptionnaire",
+            "conformite_quantite",
+            "conformite_qualite",
+            "observations_reception",
+            "statut_reception",
+            "type_ecart",
+            "description_ecart",
+            "action_corrective",
+            "date_resolution",
+            "suivi_resolution",
+            "statut_final",
+            "date_cloture",
+            "niveau_satisfaction",
+            "commentaires_finaux",
             "created_at",
             "updated_at",
             "submitted_at",
             "lignes_besoin",
             "documents",
+            "validations",
+            "historiques",
         ]
         read_only_fields = [
             "id",
@@ -79,9 +193,22 @@ class DemandeAchatSerializer(serializers.ModelSerializer):
             "demandeur",
             "statut",
             "cout_total_estime",
+            "numero_subvention",
+            "solde_disponible_ligne_budgetaire",
+            "numero_engagement_budgetaire",
+            "solde_apres_engagement",
+            "numero_bon_commande",
+            "date_bon_commande",
+            "montant_commande",
+            "date_livraison_prevue",
+            "date_arrivee_prevue",
+            "date_cloture",
             "created_at",
             "updated_at",
             "submitted_at",
+            "etape_validation_actuelle",
+            "validations",
+            "historiques",
         ]
 
     def validate(self, attrs):
@@ -121,6 +248,7 @@ class DemandeAchatSerializer(serializers.ModelSerializer):
                     "date_fin": "La date de fin est obligatoire.",
                     "lieu_execution": "Le lieu d execution est obligatoire.",
                     "livrables_attendus": "Les livrables attendus sont obligatoires.",
+                    "prix_unitaire_estime": "Le cout estime est obligatoire.",
                 }
 
                 for field_name, error_message in required_fields.items():
@@ -130,3 +258,59 @@ class DemandeAchatSerializer(serializers.ModelSerializer):
                         )
 
         return attrs
+
+
+class IssueOrderSerializer(serializers.Serializer):
+    type_procedure = serializers.ChoiceField(choices=DemandeAchat.TYPE_PROCEDURE_CHOICES)
+    fournisseur_retenu = serializers.CharField()
+    montant_commande = serializers.DecimalField(max_digits=14, decimal_places=2)
+    delai_livraison_contractuel = serializers.IntegerField(min_value=1)
+    conditions_livraison = serializers.CharField(required=False, allow_blank=True)
+    garantie = serializers.CharField(required=False, allow_blank=True)
+    date_bon_commande = serializers.DateField(required=False)
+
+
+class UpdateDeliverySerializer(serializers.Serializer):
+    date_arrivee_prevue = serializers.DateField(required=False)
+    date_arrivee_effective = serializers.DateField(required=False)
+    etat_expedition = serializers.ChoiceField(choices=DemandeAchat.ETAT_EXPEDITION_CHOICES)
+
+
+class LigneReceptionSerializer(serializers.Serializer):
+    ligne_id = serializers.IntegerField()
+    quantite_recue = serializers.IntegerField(min_value=0)
+    observation_reception = serializers.CharField(required=False, allow_blank=True)
+
+
+class ReceiveDemandeSerializer(serializers.Serializer):
+    date_reception = serializers.DateField(required=False)
+    receptionnaire = serializers.CharField()
+    conformite_quantite = serializers.ChoiceField(
+        choices=DemandeAchat.CONFORMITE_QUANTITE_CHOICES
+    )
+    conformite_qualite = serializers.ChoiceField(
+        choices=DemandeAchat.CONFORMITE_QUALITE_CHOICES
+    )
+    observations_reception = serializers.CharField(required=False, allow_blank=True)
+    statut_reception = serializers.ChoiceField(choices=DemandeAchat.STATUT_RECEPTION_CHOICES)
+    type_ecart = serializers.ChoiceField(
+        choices=DemandeAchat.TYPE_ECART_CHOICES,
+        required=False,
+        allow_blank=True,
+    )
+    description_ecart = serializers.CharField(required=False, allow_blank=True)
+    action_corrective = serializers.ChoiceField(
+        choices=DemandeAchat.ACTION_CORRECTIVE_CHOICES,
+        required=False,
+        allow_blank=True,
+    )
+    date_resolution = serializers.DateField(required=False)
+    suivi_resolution = serializers.CharField(required=False, allow_blank=True)
+    lignes = LigneReceptionSerializer(many=True, required=False)
+
+
+class CloseDemandeSerializer(serializers.Serializer):
+    statut_final = serializers.ChoiceField(choices=DemandeAchat.STATUT_FINAL_CHOICES)
+    niveau_satisfaction = serializers.IntegerField(min_value=1, max_value=5)
+    commentaires_finaux = serializers.CharField(required=False, allow_blank=True)
+    date_cloture = serializers.DateField(required=False)

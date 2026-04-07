@@ -2,8 +2,21 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { createPortal } from "react-dom";
+import {
+  fetchCurrentUser,
+  getCurrentUser,
+  isAgentAchatUser,
+  isValidatorUser,
+} from "@/services/auth";
 
 type MenuLink = {
   label: string;
@@ -11,9 +24,44 @@ type MenuLink = {
   match: (pathname: string) => boolean;
 };
 
-const LINKS: MenuLink[] = [
-  { label: "PPM", href: "/formulaire", match: (pathname) => pathname === "/formulaire" },
-  { label: "Dashboard", href: "/dashboard", match: (pathname) => pathname === "/dashboard" },
+const DEFAULT_LINKS: MenuLink[] = [
+  {
+    label: "PPM",
+    href: "/formulaire",
+    match: (pathname) => pathname === "/formulaire",
+  },
+  {
+    label: "dashboard",
+    href: "/dashboard",
+    match: (pathname) => pathname === "/dashboard",
+  },
+  {
+    label: "demande d'achat",
+    href: "/demande-achat",
+    match: (pathname) => pathname === "/demande-achat" || pathname.startsWith("/demande-achat/"),
+  },
+  {
+    label: "TDR",
+    href: "/TdrSt",
+    match: (pathname) => pathname === "/TdrSt" || pathname.startsWith("/TdrSt/"),
+  },
+];
+
+const VALIDATOR_LINKS: MenuLink[] = [
+  {
+    label: "validation",
+    href: "/validation",
+    match: (pathname) =>
+      pathname === "/validation" || pathname.startsWith("/validation/"),
+  },
+];
+
+const AGENT_ACHAT_LINKS: MenuLink[] = [
+  {
+    label: "passation",
+    href: "/passation",
+    match: (pathname) => pathname === "/passation" || pathname.startsWith("/passation/"),
+  },
 ];
 
 export default function Menu({ className = "" }: { className?: string }) {
@@ -25,17 +73,19 @@ export default function Menu({ className = "" }: { className?: string }) {
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const [open, setOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
-  const [menuPos, setMenuPos] = useState<{ left: number; top: number } | null>(null);
+  const [menuPos, setMenuPos] = useState<{ left: number; top: number } | null>(
+    null,
+  );
   const [hoverTimeout, setHoverTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [userMode, setUserMode] = useState<"default" | "validator" | "agent">(() => {
+    const user = getCurrentUser();
+    if (isValidatorUser(user)) return "validator";
+    if (isAgentAchatUser(user)) return "agent";
+    return "default";
+  });
 
   const showAuthenticatedActions = pathname !== "/login";
-
-  useEffect(() => setMounted(true), []);
-
-  useEffect(() => {
-    setOpen(false);
-  }, [pathname]);
+  const canPortal = typeof document !== "undefined";
 
   const measureMenuPosition = useCallback(() => {
     const button = buttonRef.current;
@@ -51,6 +101,34 @@ export default function Menu({ className = "" }: { className?: string }) {
     if (!open) return;
     measureMenuPosition();
   }, [open, measureMenuPosition]);
+
+  useEffect(() => {
+    if (!showAuthenticatedActions) return;
+
+    const currentUser = getCurrentUser();
+    if (currentUser) {
+      if (isValidatorUser(currentUser)) {
+        setUserMode("validator");
+      } else if (isAgentAchatUser(currentUser)) {
+        setUserMode("agent");
+      } else {
+        setUserMode("default");
+      }
+      return;
+    }
+
+    void fetchCurrentUser()
+      .then((user) => {
+        if (isValidatorUser(user)) {
+          setUserMode("validator");
+        } else if (isAgentAchatUser(user)) {
+          setUserMode("agent");
+        } else {
+          setUserMode("default");
+        }
+      })
+      .catch(() => setUserMode("default"));
+  }, [showAuthenticatedActions]);
 
   useEffect(() => {
     if (!open) return;
@@ -75,12 +153,21 @@ export default function Menu({ className = "" }: { className?: string }) {
     window.addEventListener("resize", onReposition);
     window.addEventListener("scroll", onReposition, true);
     return () => {
-      document.removeEventListener("pointerdown", onPointerDown, { capture: true });
+      document.removeEventListener("pointerdown", onPointerDown, {
+        capture: true,
+      });
       document.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("resize", onReposition);
       window.removeEventListener("scroll", onReposition, true);
     };
   }, [open, measureMenuPosition]);
+
+  const links =
+    userMode === "validator"
+      ? VALIDATOR_LINKS
+      : userMode === "agent"
+        ? AGENT_ACHAT_LINKS
+        : DEFAULT_LINKS;
 
   const handleMouseEnter = () => {
     if (hoverTimeout) clearTimeout(hoverTimeout);
@@ -105,8 +192,8 @@ export default function Menu({ className = "" }: { className?: string }) {
   if (!showAuthenticatedActions) return null;
 
   return (
-    <div 
-      ref={rootRef} 
+    <div
+      ref={rootRef}
       className={`relative inline-flex ${className}`}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
@@ -122,20 +209,19 @@ export default function Menu({ className = "" }: { className?: string }) {
       >
         <span className="relative z-10 leading-none flex items-center gap-2.5 ">
           Menu
-          <svg 
+          <svg
             className={`w-3 h-3 text-slate-400 transition-transform duration-200 ${open ? "" : "rotate-180"}`}
-            viewBox="0 0 24 24" 
-            fill="none" 
-            stroke="currentColor" 
-            strokeWidth="2.5" 
-            strokeLinecap="round" 
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
             strokeLinejoin="round"
           >
             <polyline points="6 9 12 15 18 9"></polyline>
           </svg>
         </span>
 
-        {/* Decoration */}
         <span
           aria-hidden="true"
           className="pointer-events-none absolute left-0 top-[30px] h-px w-[80px] bg-slate-300/80"
@@ -150,40 +236,43 @@ export default function Menu({ className = "" }: { className?: string }) {
         />
       </button>
 
-      {open && mounted && menuPos && createPortal(
-        <div
-          id={menuId}
-          ref={menuRef}
-          role="menu"
-          aria-labelledby={buttonId}
-          onMouseEnter={handleMenuMouseEnter}
-          onMouseLeave={handleMenuMouseLeave}
-          className="fixed  w-[200px] overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg animate-in fade-in slide-in-from-top-2 duration-200"
-          style={{ left: menuPos.left, top: menuPos.top + 8 }}
-        >
-          <div className="py-1">
-            {LINKS.map((item) => {
-              const isActive = item.match(pathname);
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  role="menuitem"
-                  className={`block px-4 py-2.5 text-sm transition-colors ${
-                    isActive
-                      ? "bg-gray-100 text-gray-900 font-medium"
-                      : "text-gray-700 hover:bg-gray-200 hover:text-gray-900"
-                  }`}
-                  onClick={() => setOpen(false)}
-                >
-                  {item.label}
-                </Link>
-              );
-            })}
-          </div>
-        </div>,
-        document.body
-      )}
+      {open &&
+        canPortal &&
+        menuPos &&
+        createPortal(
+          <div
+            id={menuId}
+            ref={menuRef}
+            role="menu"
+            aria-labelledby={buttonId}
+            onMouseEnter={handleMenuMouseEnter}
+            onMouseLeave={handleMenuMouseLeave}
+            className="fixed w-[200px] overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg animate-in fade-in slide-in-from-top-2 duration-200"
+            style={{ left: menuPos.left, top: menuPos.top + 8 }}
+          >
+            <div className="py-1">
+              {links.map((item) => {
+                const isActive = item.match(pathname);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    role="menuitem"
+                    className={`block px-4 py-2.5 text-sm transition-colors ${
+                      isActive
+                        ? "bg-gray-100 text-gray-900 font-medium"
+                        : "text-gray-700 hover:bg-gray-200 hover:text-gray-900"
+                    }`}
+                    onClick={() => setOpen(false)}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

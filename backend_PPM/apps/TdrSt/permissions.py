@@ -36,7 +36,11 @@ class CanReadDocument(BasePermission):
         if role in (UserProfile.Role.VERIFICATEUR_TECHNIQUE, UserProfile.Role.APPROBATEUR_FINAL):
             return True
         if role == UserProfile.Role.BAILLEUR:
-            return obj.statut == TdrStDocument.Statut.EN_ATTENTE_ANO
+            if obj.statut == TdrStDocument.Statut.EN_ATTENTE_ANO:
+                return True
+            # Autoriser la consultation de l'historique des documents passes par l'etape ANO
+            # (cas seuil depasse / etape bailleur), meme s'ils ne sont plus EN_ATTENTE_ANO.
+            return obj.actions_validation.filter(etape="ANO").exists()
         return False
 
 

@@ -12,9 +12,12 @@ from apps.TdrSt.serializers.document_serializer import TdrStDocumentReadSerializ
 from apps.TdrSt.services.TdrStService import (
     bailleur_decide,
     final_decide,
+    list_bailleur_documents_all,
+    list_final_documents,
     list_bailleur_documents,
     list_pending_final,
     list_pending_tech,
+    list_tech_documents,
     tech_decide,
 )
 
@@ -23,6 +26,12 @@ from apps.TdrSt.services.TdrStService import (
 @permission_classes([IsAuthenticated, CanTechValidate])
 def tech_pending_view(request):
     docs = list_pending_tech()
+    return Response(TdrStDocumentReadSerializer(docs, many=True).data)
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated, CanTechValidate])
+def tech_documents_view(request):
+    docs = list_tech_documents(request.user)
     return Response(TdrStDocumentReadSerializer(docs, many=True).data)
 
 
@@ -52,6 +61,12 @@ def final_pending_view(request):
     docs = list_pending_final()
     return Response(TdrStDocumentReadSerializer(docs, many=True).data)
 
+@api_view(["GET"])
+@permission_classes([IsAuthenticated, CanFinalApprove])
+def final_documents_view(request):
+    docs = list_final_documents(request.user)
+    return Response(TdrStDocumentReadSerializer(docs, many=True).data)
+
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated, CanFinalApprove])
@@ -77,6 +92,12 @@ def final_decision_view(request, id: int):
 @permission_classes([IsAuthenticated, CanBailleurRead])
 def bailleur_documents_view(request):
     docs = list_bailleur_documents()
+    return Response(TdrStDocumentReadSerializer(docs, many=True).data)
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated, CanBailleurRead])
+def bailleur_documents_all_view(request):
+    docs = list_bailleur_documents_all(request.user)
     return Response(TdrStDocumentReadSerializer(docs, many=True).data)
 
 

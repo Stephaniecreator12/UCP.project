@@ -10,10 +10,13 @@ from apps.TdrSt.views.document_view import (
 )
 from apps.TdrSt.views.validation_view import (
     bailleur_documents_view,
+    bailleur_documents_all_view,
     bailleur_decision_view,
     final_decision_view,
+    final_documents_view,
     final_pending_view,
     tech_decision_view,
+    tech_documents_view,
     tech_pending_view,
 )
 
@@ -27,9 +30,12 @@ urlpatterns = [
 
     # Validation workflow (role-based views)
     path("validations/tech/pending/", tech_pending_view),
+    path("validations/tech/documents/", tech_documents_view),
     path("validations/tech/<int:id>/decision/", tech_decision_view),
     path("validations/final/pending/", final_pending_view),
+    path("validations/final/documents/", final_documents_view),
     path("validations/final/<int:id>/decision/", final_decision_view),
     path("bailleur/documents/", bailleur_documents_view),
+    path("bailleur/documents/all/", bailleur_documents_all_view),
     path("bailleur/<int:id>/decision/", bailleur_decision_view),
 ]

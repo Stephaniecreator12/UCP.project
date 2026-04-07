@@ -5,6 +5,7 @@ from decimal import Decimal
 from django.conf import settings
 from django.db import transaction
 from django.db import models
+from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
 from apps.TdrSt.models.TdrSt import TdrStDocument, TdrStDocumentFileVersion, TdrStValidationAction
@@ -97,6 +98,37 @@ def list_pending_tech():
         .order_by("-created_at")
     )
 
+def _list_role_documents_with_history(*, pending_qs, treated_etape: str, user=None):
+    """
+    Helper pour les roles validateurs:
+    - pending_qs: documents "en cours" pour le role
+    - treated_etape: etape a utiliser pour retrouver l'historique
+    - user (optionnel): si fourni, limite l'historique aux documents traites par cet utilisateur
+    """
+    treated = TdrStDocument.objects.filter(actions_validation__etape=treated_etape)
+    if user is not None:
+        treated = treated.filter(actions_validation__acteur=user)
+    return (
+        (pending_qs | treated)
+        .distinct()
+        .select_related("initiateur", "fichier_courant")
+        .order_by("-updated_at")
+    )
+
+
+def list_tech_documents(user):
+    """
+    Pour les verificateurs techniques:
+    - inclut les documents en attente (SOUMIS)
+    - inclut aussi les documents deja traites (historique)
+    """
+    pending = TdrStDocument.objects.filter(statut=TdrStDocument.Statut.SOUMIS)
+    return _list_role_documents_with_history(
+        pending_qs=pending,
+        treated_etape=TdrStValidationAction.Etape.VALIDATION_TECHNIQUE,
+        user=None,
+    )
+
 
 def list_pending_final():
     return (
@@ -105,12 +137,41 @@ def list_pending_final():
         .order_by("-created_at")
     )
 
+def list_final_documents(user):
+    """
+    Pour les approbateurs finaux:
+    - inclut les documents en attente (EN_VALIDATION)
+    - inclut aussi les documents deja traites (historique)
+    """
+    pending = TdrStDocument.objects.filter(statut=TdrStDocument.Statut.EN_VALIDATION)
+    return _list_role_documents_with_history(
+        pending_qs=pending,
+        treated_etape=TdrStValidationAction.Etape.APPROBATION_FINALE,
+        user=None,
+    )
+
 
 def list_bailleur_documents():
     return (
         TdrStDocument.objects.filter(statut=TdrStDocument.Statut.EN_ATTENTE_ANO)
         .select_related("initiateur", "fichier_courant")
         .order_by("-created_at")
+    )
+
+def list_bailleur_documents_all(user):
+    """
+    Pour les bailleurs:
+    - inclut les documents en attente (EN_ATTENTE_ANO)
+    - inclut l'historique des documents sur lesquels il a rendu un avis ANO
+
+    Note: ces documents correspondent au cas "seuil depasse" (ANO requis),
+    car seuls ceux-ci passent par l'etape ANO / EN_ATTENTE_ANO.
+    """
+    pending = TdrStDocument.objects.filter(statut=TdrStDocument.Statut.EN_ATTENTE_ANO)
+    return _list_role_documents_with_history(
+        pending_qs=pending,
+        treated_etape=TdrStValidationAction.Etape.ANO,
+        user=None,
     )
 
 
@@ -122,12 +183,33 @@ def submit_document(doc: TdrStDocument, user) -> TdrStDocument:
         raise ValidationError({"statut": "Seuls les brouillons/à revoir peuvent être soumis."})
     doc.statut = TdrStDocument.Statut.SOUMIS
     doc.save(update_fields=["statut", "updated_at"])
-    TdrStValidationAction.objects.create(
-        document=doc,
-        etape=TdrStValidationAction.Etape.DEPOT,
-        acteur=user,
-        meta={"action": "SUBMIT"},
+    # "Soumettre" est souvent precede d'un upload de PDF via un second appel API.
+    # Pour eviter 2 lignes "DEPOT" consecutives dans l'historique, on fusionne
+    # l'upload et la soumission quand ils arrivent quasi simultanement.
+    last_depot = (
+        TdrStValidationAction.objects.filter(document=doc, etape=TdrStValidationAction.Etape.DEPOT)
+        .order_by("-horodatage")
+        .first()
     )
+    if (
+        last_depot
+        and last_depot.acteur_id == getattr(user, "id", None)
+        and isinstance(getattr(last_depot, "meta", None), dict)
+        and last_depot.meta.get("action") == "UPLOAD_VERSION"
+        and (timezone.now() - last_depot.horodatage).total_seconds() <= 120
+    ):
+        meta = dict(last_depot.meta or {})
+        meta["action"] = "UPLOAD_AND_SUBMIT"
+        meta["submit"] = True
+        last_depot.meta = meta
+        last_depot.save(update_fields=["meta"])
+    else:
+        TdrStValidationAction.objects.create(
+            document=doc,
+            etape=TdrStValidationAction.Etape.DEPOT,
+            acteur=user,
+            meta={"action": "SUBMIT"},
+        )
     return doc
 
 

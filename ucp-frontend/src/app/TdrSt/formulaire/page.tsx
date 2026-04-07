@@ -80,6 +80,20 @@ type TdrStDocument = {
     fichier_pdf?: string;
     // Ajoutez d'autres propriétés si nécessaire
   };
+  versions_fichier?: {
+    id: number;
+    version: number;
+    fichier_pdf: string;
+    fichier_nom_original: string;
+    fichier_taille_octets?: number;
+    uploaded_at?: string;
+  }[];
+};
+
+type DocumentRow = {
+  doc: TdrStDocument;
+  versionNumber: number;
+  uploadedAt?: string;
 };
 
 type TdrStFormState = {
@@ -229,6 +243,8 @@ const formatAmountForRow = (value?: string): string => {
   }).format(num);
 };
 
+
+
 function StatusStepper({ statut }: { statut?: Statut }) {
   const { pct, tone } = getProgress(statut);
   const idx = getStepIndex(statut);
@@ -326,6 +342,36 @@ export default function TdRStPage() {
     [documents, selectedId],
   );
   const activeDoc = useMemo(() => focusedDoc ?? selected, [focusedDoc, selected]);
+  const isClosedDoc =
+    !!activeDoc && (activeDoc.statut === "VALIDE" || activeDoc.statut === "REJETE" || activeDoc.statut === "SUSPENDU");
+  const documentRows = useMemo<DocumentRow[]>(() => {
+    return documents.flatMap((doc) => {
+      const versions = doc.versions_fichier ?? [];
+      if (!versions.length) {
+        return [
+          {
+            doc,
+            versionNumber: doc.version ?? 1,
+            uploadedAt: doc.created_at,
+          },
+        ];
+      }
+      const sorted = [...versions].sort((a, b) => (b.version ?? 0) - (a.version ?? 0));
+      const rows = sorted.map((version) => ({
+        doc,
+        versionNumber: version.version ?? doc.version ?? 1,
+        uploadedAt: version.uploaded_at ?? doc.updated_at ?? doc.created_at,
+      }));
+      if (!sorted.some((version) => version.version === doc.version)) {
+        rows.unshift({
+          doc,
+          versionNumber: doc.version ?? 1,
+          uploadedAt: doc.updated_at ?? doc.created_at,
+        });
+      }
+      return rows;
+    });
+  }, [documents]);
 
   // Verrouillage UI:
   // - initiateur peut éditer seulement BROUILLON / A_REVOIR
@@ -367,10 +413,10 @@ export default function TdRStPage() {
         r === "initiateur"
           ? `${API_PREFIX}/documents/me/`
           : r === "verificateur_technique"
-            ? `${API_PREFIX}/validations/tech/pending/`
+            ? `${API_PREFIX}/validations/tech/documents/`
             : r === "approbateur_final"
-              ? `${API_PREFIX}/validations/final/pending/`
-              : `${API_PREFIX}/bailleur/documents/`;
+              ? `${API_PREFIX}/validations/final/documents/`
+              : `${API_PREFIX}/bailleur/documents/all/`;
 
       const data = await fetchJson<TdrStDocument[]>(url, { method: "GET", cache: "no-store" });
       setDocuments(data);
@@ -536,13 +582,13 @@ export default function TdRStPage() {
     }
   };
 
-  const uploadPdf = async () => {
-    if (role !== "initiateur") return;
-    if (!selected) return;
-    if (!(selected.statut === "BROUILLON" || selected.statut === "A_REVOIR")) return;
+  const uploadPdf = async (): Promise<boolean> => {
+    if (role !== "initiateur") return false;
+    if (!selected) return false;
+    if (!(selected.statut === "BROUILLON" || selected.statut === "A_REVOIR")) return false;
     if (!pdfFile) {
       setError("Sélectionne un fichier PDF.");
-      return;
+      return false;
     }
     setLoading(true);
     setError(null);
@@ -579,12 +625,27 @@ export default function TdRStPage() {
 
         setSuccess("Fichier PDF téléversé avec succès.");
         setPdfFile(null);
+        return true;
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       setError(msg);
+      return false;
     } finally {
       setLoading(false);
     }
+    return false;
+  };
+
+  const handleSubmitWithOptionalUpload = async () => {
+    // Evite les ecarts "UI vs backend" (ex: 90 affiche localement mais 89.99 cote verificateur)
+    // en persistant d'abord le formulaire avant upload/submit.
+    const saved = await saveDraft();
+    if (!saved) return;
+    if (pdfFile) {
+      const uploaded = await uploadPdf();
+      if (!uploaded) return;
+    }
+    await submitSelected();
   };
 
   const refreshList = async () => {
@@ -606,6 +667,7 @@ export default function TdRStPage() {
   const handleDecision = async (decision: string) => {
     if (!role || !selected) return;
     if (role === "initiateur") return;
+    if (isClosedDoc) return;
 
     const url =
       role === "verificateur_technique"
@@ -891,7 +953,7 @@ export default function TdRStPage() {
           <h3 className="text-lg font-semibold text-slate-900">Toutes les demandes</h3>
         </div>
         <p className="text-sm font-semibold text-slate-600">
-          {documents.length} document{documents.length > 1 ? "s" : ""}
+          {documentRows.length} document{documentRows.length > 1 ? "s" : ""}
         </p>
       </div>
 
@@ -910,35 +972,34 @@ export default function TdRStPage() {
             </tr>
           </thead>
           <tbody>
-            {documents.length ? (
-              documents.map((doc) => (
+            {documentRows.length ? (
+              documentRows.map((row) => (
                 <tr
-                  key={doc.id}
+                  key={`${row.doc.id}-${row.versionNumber}`}
                   className={`cursor-pointer border-b last:border-b-0 transition hover:bg-slate-50 ${
-                    selectedId === doc.id ? "bg-slate-50" : ""
+                    selectedId === row.doc.id ? "bg-slate-50" : ""
                   }`}
-                  onClick={() => handleDocumentRowClick(doc)}
+                  onClick={() => handleDocumentRowClick(row.doc)}
                 >
                   <td className="px-4 py-3 font-semibold text-slate-800">
-                    {doc.numero_document || `#${doc.id}`}
+                    {row.doc.numero_document || `#${row.doc.id}`}
                   </td>
-                  <td className="px-4 py-3">{doc.intitule || "—"}</td>
-                  <td className="px-4 py-3">{doc.type_document}</td>
-                  <td className="px-4 py-3 font-semibold text-slate-800">
-                    {doc.version ?? 1}
-                  </td>
-                  <td className="px-4 py-3">{doc.reference_ptba || "—"}</td>
-                  <td className="px-4 py-3">{formatAmountForRow(doc.montant_estime_usd)}</td>
+                  <td className="px-4 py-3">{row.doc.intitule || "—"}</td>
+                  <td className="px-4 py-3">{row.doc.type_document}</td>
+                  <td className="px-4 py-3 font-semibold text-slate-800">{row.versionNumber ?? 1}</td>
+                  <td className="px-4 py-3">{row.doc.reference_ptba || "—"}</td>
+                  <td className="px-4 py-3">{formatAmountForRow(row.doc.montant_estime_usd)}</td>
                   <td className="px-4 py-3">
                     <span
                       className={`inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold ${
-                        STATUS_BADGE_CLASSES[doc.statut] ?? "bg-slate-50 text-slate-700 border border-slate-200"
+                        STATUS_BADGE_CLASSES[row.doc.statut] ??
+                        "bg-slate-50 text-slate-700 border border-slate-200"
                       }`}
                     >
-                      {STATUT_LABEL[doc.statut] ?? doc.statut}
+                      {STATUT_LABEL[row.doc.statut] ?? row.doc.statut}
                     </span>
                   </td>
-                  <td className="px-4 py-3">{formatDateForRow(doc.created_at)}</td>
+                  <td className="px-4 py-3">{formatDateForRow(row.uploadedAt ?? row.doc.created_at)}</td>
                 </tr>
               ))
             ) : (
@@ -1051,9 +1112,13 @@ export default function TdRStPage() {
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-lg font-semibold text-slate-900">Processus de validation</h2>
               {activeDoc ? (
-                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                  {STATUT_LABEL[activeDoc.statut] ?? activeDoc.statut}
-                </span>
+                <button
+                  type="button"
+                  className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 transition hover:border-slate-300 hover:bg-slate-50"
+                  onClick={() => setIsModalVisible(true)}
+                >
+                  Voir formulaire
+                </button>
               ) : null}
             </div>
 
@@ -1101,18 +1166,18 @@ export default function TdRStPage() {
                             Visualiser le PDF actuel
                           </a>
                         ) : null}
-                      </div>
-                      {!activeDoc.fichier_courant?.fichier_pdf ? (
-                        <p className="mt-2 text-sm text-slate-600">Aucun PDF téléversé pour ce document.</p>
-                      ) : (
-                        <p className="mt-2 text-xs text-slate-500">
-                          Le PDF est la version officielle à relire/valider (lecture seule pour les validateurs).
-                        </p>
-                      )}
                     </div>
-                    {role === "initiateur" ? (
-                      <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                        <div className="text-sm font-bold text-slate-900">Téléverser un nouveau PDF</div>
+                    {!activeDoc.fichier_courant?.fichier_pdf ? (
+                      <p className="mt-2 text-sm text-slate-600">Aucun PDF téléversé pour ce document.</p>
+                    ) : (
+                      <p className="mt-2 text-xs text-slate-500">
+                        Le PDF est la version officielle à relire/valider (lecture seule pour les validateurs).
+                      </p>
+                    )}
+                  </div>
+                  {role === "initiateur" ? (
+                    <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                      <div className="text-sm font-bold text-slate-900">Téléverser un nouveau PDF</div>
                         <div
                           className={`rounded-xl border-2 border-dashed p-6 text-center ${
                             activeDoc.statut === "BROUILLON" || activeDoc.statut === "A_REVOIR"
@@ -1143,7 +1208,7 @@ export default function TdRStPage() {
                         </div>
                         <button
                           className="w-full rounded-xl bg-indigo-600 py-3 text-sm font-bold text-white shadow-md transition hover:bg-indigo-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none"
-                          onClick={() => { void uploadPdf(); void submitSelected(); }}
+                          onClick={() => void handleSubmitWithOptionalUpload()}
                           disabled={loading || !(activeDoc.statut === "BROUILLON" || activeDoc.statut === "A_REVOIR")}
                         >
                           {activeDoc.statut === "BROUILLON" || activeDoc.statut === "A_REVOIR"
@@ -1164,6 +1229,14 @@ export default function TdRStPage() {
                         >
                           Suspendre le workflow
                         </button>
+                        <button
+                          type="button"
+                          className="w-full rounded-xl border border-emerald-200 bg-emerald-50 py-3 text-sm font-semibold text-emerald-900 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-100 disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none"
+                          onClick={() => router.push("/TdrSt/dashboard")}
+                          disabled={loading}
+                        >
+                          Voir dashboard
+                        </button>
                       </div>
                     ) : (
                       <div className="space-y-3">
@@ -1179,6 +1252,7 @@ export default function TdRStPage() {
                               rows={3}
                               value={decisionObs}
                               onChange={(e) => setDecisionObs(e.target.value)}
+                              disabled={loading || isClosedDoc}
                               placeholder="Observations (optionnel)"
                             />
 
@@ -1187,14 +1261,14 @@ export default function TdRStPage() {
                                 <button
                                   className="rounded-full bg-emerald-600 px-4.5 py-2.5 text-sm font-semibold text-white shadow transition hover:-translate-y-[1px] hover:bg-emerald-700 disabled:opacity-50"
                                   onClick={() => void handleDecision("FAVORABLE")}
-                                  disabled={loading}
+                                  disabled={loading || isClosedDoc}
                                 >
                                   Avis favorable
                                 </button>
                                 <button
                                   className="rounded-full border border-amber-300 bg-amber-50 px-4.5 py-2.5 text-sm font-semibold text-amber-900 shadow-sm transition hover:-translate-y-[1px] hover:border-amber-400 disabled:opacity-50"
                                   onClick={() => void handleDecision("A_REVOIR")}
-                                  disabled={loading}
+                                  disabled={loading || isClosedDoc}
                                 >
                                   À revoir
                                 </button>
@@ -1206,14 +1280,14 @@ export default function TdRStPage() {
                                 <button
                                   className="rounded-full bg-emerald-600 px-4.5 py-2.5 text-sm font-semibold text-white shadow transition hover:-translate-y-[1px] hover:bg-emerald-700 disabled:opacity-50"
                                   onClick={() => void handleDecision("APPROUVE")}
-                                  disabled={loading}
+                                  disabled={loading || isClosedDoc}
                                 >
                                   Approuver
                                 </button>
                                 <button
                                   className="rounded-full border border-rose-300 bg-rose-50 px-4.5 py-2.5 text-sm font-semibold text-rose-900 shadow-sm transition hover:-translate-y-[1px] hover:border-rose-400 disabled:opacity-50"
                                   onClick={() => void handleDecision("REJETE")}
-                                  disabled={loading}
+                                  disabled={loading || isClosedDoc}
                                 >
                                   Rejeter
                                 </button>
@@ -1225,14 +1299,14 @@ export default function TdRStPage() {
                                 <button
                                   className="rounded-full bg-emerald-600 px-4.5 py-2.5 text-sm font-semibold text-white shadow transition hover:-translate-y-[1px] hover:bg-emerald-700 disabled:opacity-50"
                                   onClick={() => void handleDecision("ANO_ACCORDE")}
-                                  disabled={loading}
+                                  disabled={loading || isClosedDoc}
                                 >
                                   Octroyer ANO
                                 </button>
                                 <button
                                   className="rounded-full border border-rose-300 bg-rose-50 px-4.5 py-2.5 text-sm font-semibold text-rose-900 shadow-sm transition hover:-translate-y-[1px] hover:border-rose-400 disabled:opacity-50"
                                   onClick={() => void handleDecision("ANO_REFUSE")}
-                                  disabled={loading}
+                                  disabled={loading || isClosedDoc}
                                 >
                                   Refuser
                                 </button>

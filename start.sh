@@ -20,6 +20,12 @@ echo "1️⃣  Démarrage du serveur Django (Backend)..."
 echo "   Port: http://localhost:8000"
 echo ""
 
+# Charger les variables d'environnement si .env existe
+if [ -f "$ROOT_DIR/.env" ]; then
+    echo "⚙️ Chargement du fichier .env"
+    export $(grep -v '^#' "$ROOT_DIR/.env" | xargs)
+fi
+
 # Lancer Django en arrière-plan
 cd "$ROOT_DIR"
 source .venv/bin/activate

@@ -101,7 +101,7 @@ export default function TopHeader() {
         <div className="-mt-px">
           <div className="max-w-[1480px] mx-auto px-1 py-1 ">
             <div className="inline-flex">
-              <Menu />
+              <Menu key={pathname} />
             </div>
           </div>
         </div>

@@ -1,10 +1,5 @@
 from .settings import *  # noqa: F401,F403
 
-INSTALLED_APPS = [
-    app for app in INSTALLED_APPS if app != "rest_framework_simplejwt"
-]
-
-ROOT_URLCONF = "config.test_urls"
 
 DATABASES = {
     "default": {
@@ -17,9 +12,6 @@ PASSWORD_HASHERS = [
     "django.contrib.auth.hashers.MD5PasswordHasher",
 ]
 
-REST_FRAMEWORK = {
-    "DEFAULT_AUTHENTICATION_CLASSES": [
-        "rest_framework.authentication.SessionAuthentication",
-        "rest_framework.authentication.BasicAuthentication",
-    ]
-}
+EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
+DEFAULT_FROM_EMAIL = "tests@ucp.local"
+ACHATS_NOTIFICATION_EMAILS_ENABLED = True

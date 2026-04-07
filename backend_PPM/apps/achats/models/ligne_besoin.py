@@ -57,6 +57,8 @@ class LigneBesoin(models.Model):
     lieu_execution = models.CharField(max_length=255, blank=True)
     livrables_attendus = models.TextField(blank=True)
     nombre_beneficiaires = models.PositiveIntegerField(null=True, blank=True)
+    quantite_recue = models.PositiveIntegerField(null=True, blank=True)
+    observation_reception = models.TextField(blank=True)
 
     class Meta:
         ordering = ["ordre", "id"]

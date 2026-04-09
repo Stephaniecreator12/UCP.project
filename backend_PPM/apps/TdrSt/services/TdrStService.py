@@ -175,6 +175,28 @@ def list_bailleur_documents_all(user):
     )
 
 
+def list_auditeur_documents():
+    """
+    Pour les auditeurs (lecture seule, a posteriori) :
+    - Uniquement les documents à statut final : VALIDE, REJETE, SUSPENDU.
+    - La traçabilité complète (Section G / actions_validation) est incluse via prefetch
+      pour que l'auditeur puisse vérifier le respect des procédures.
+    - Aucune action de décision n'est possible depuis ce queryset.
+    """
+    return (
+        TdrStDocument.objects.filter(
+            statut__in=(
+                TdrStDocument.Statut.VALIDE,
+                TdrStDocument.Statut.REJETE,
+                TdrStDocument.Statut.SUSPENDU,
+            )
+        )
+        .select_related("initiateur", "fichier_courant")
+        .prefetch_related("actions_validation__acteur")  # Section G — traçabilité complète
+        .order_by("-updated_at")
+    )
+
+
 @transaction.atomic
 def submit_document(doc: TdrStDocument, user) -> TdrStDocument:
     if getattr(doc, "initiateur_id", None) != getattr(user, "id", None):

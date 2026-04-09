@@ -6,6 +6,13 @@ from apps.TdrSt.models.TdrSt import TdrStDocument
 from apps.users.models import UserProfile
 from apps.users.services.permissions import get_user_role
 
+# Statuts finaux consultables par l'Auditeur (a posteriori uniquement)
+AUDITEUR_VISIBLE_STATUTS = (
+    TdrStDocument.Statut.VALIDE,
+    TdrStDocument.Statut.REJETE,
+    TdrStDocument.Statut.SUSPENDU,
+)
+
 
 class CanCreateDocument(BasePermission):
     def has_permission(self, request, view) -> bool:
@@ -41,6 +48,9 @@ class CanReadDocument(BasePermission):
             # Autoriser la consultation de l'historique des documents passes par l'etape ANO
             # (cas seuil depasse / etape bailleur), meme s'ils ne sont plus EN_ATTENTE_ANO.
             return obj.actions_validation.filter(etape="ANO").exists()
+        if role == UserProfile.Role.AUDITEUR:
+            # L'auditeur ne voit que les documents à statut final (Validé, Rejeté, Suspendu)
+            return obj.statut in AUDITEUR_VISIBLE_STATUTS
         return False
 
 
@@ -57,3 +67,18 @@ class CanFinalApprove(BasePermission):
 class CanBailleurRead(BasePermission):
     def has_permission(self, request, view) -> bool:
         return get_user_role(request.user) == UserProfile.Role.BAILLEUR
+
+
+class CanAuditeurRead(BasePermission):
+    """
+    Permission réservée au rôle AUDITEUR.
+    - Accès en lecture seule uniquement.
+    - Visible : documents à statut final (VALIDE, REJETE, SUSPENDU) + toute la traçabilité (Section G).
+    - Aucune action de décision (approuver / rejeter / soumettre) n'est accordée.
+    """
+
+    def has_permission(self, request, view) -> bool:
+        return get_user_role(request.user) == UserProfile.Role.AUDITEUR
+
+    def has_object_permission(self, request, view, obj: TdrStDocument) -> bool:
+        return obj.statut in AUDITEUR_VISIBLE_STATUTS

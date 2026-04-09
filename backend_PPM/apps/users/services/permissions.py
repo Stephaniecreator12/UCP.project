@@ -45,3 +45,6 @@ class IsApprobateurFinal(RolePermission):
 class IsBailleur(RolePermission):
     allowed_roles = (UserProfile.Role.BAILLEUR,)
 
+class IsAuditeur(RolePermission):
+    allowed_roles = (UserProfile.Role.AUDITEUR,)
+

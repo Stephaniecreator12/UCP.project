@@ -132,7 +132,7 @@ html, body {
 
 .animate-saveMessageSlide {
   animation-name: saveMessageSlide;
-  animation-duration: 0.5s;
+  animation-duration: 2.5s;
   animation-timing-function: cubic-bezier(0.22, 0.61, 0.36, 1);
   animation-fill-mode: both;
 }

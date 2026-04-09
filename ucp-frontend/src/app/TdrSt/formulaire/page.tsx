@@ -21,7 +21,8 @@ type UserRole =
   | "initiateur"
   | "verificateur_technique"
   | "approbateur_final"
-  | "bailleur";
+  | "bailleur"
+  | "auditeur";
 
 type Procedure = "DC" | "AOI" | "AON" | "GRE_A_GRE";
 type DureeUnite = "JOURS" | "MOIS";
@@ -78,7 +79,6 @@ type TdrStDocument = {
   actions_validation?: ValidationAction[];
   fichier_courant?: {
     fichier_pdf?: string;
-    // Ajoutez d'autres propriétés si nécessaire
   };
   versions_fichier?: {
     id: number;
@@ -124,6 +124,7 @@ const ROLE_LABEL: Record<UserRole, string> = {
   verificateur_technique: "Vérificateur technique (Chef de projet / Point focal)",
   approbateur_final: "Approbateur final (Coordonnateur UCP)",
   bailleur: "Bailleur (ANO)",
+  auditeur: "Auditeur (Consultation seule)",
 };
 
 const toErrorMessage = async (res: Response): Promise<string> => {
@@ -278,7 +279,7 @@ function StatusStepper({ statut }: { statut?: Statut }) {
     },
   };
 
-  const badgeText = statut ? STATUT_LABEL[statut] : "â€”";
+  const badgeText = statut ? STATUT_LABEL[statut] : "—";
   const c = toneClasses[tone];
 
   return (
@@ -323,6 +324,29 @@ function StatusStepper({ statut }: { statut?: Statut }) {
   );
 }
 
+// ---------------------------------------------------------------------------
+// Bannière d'information spécifique au rôle Auditeur
+// ---------------------------------------------------------------------------
+function AuditeurBanner() {
+  return (
+    <div className="flex items-start gap-3 rounded-xl border border-violet-200 bg-violet-50 px-4 py-3">
+      <span className="mt-0.5 text-violet-500" aria-hidden="true">
+        {/* icône loupe */}
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+        </svg>
+      </span>
+      <div>
+        <p className="text-xs font-bold text-violet-800">Mode Audit — Lecture seule</p>
+        <p className="mt-0.5 text-xs text-violet-700">
+          Vous accédez aux documents clôturés (Validés, Rejetés, Suspendus) et à leur traçabilité complète
+          à des fins de contrôle a posteriori. Aucune action n&apos;est disponible.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export default function TdRStPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -344,6 +368,7 @@ export default function TdRStPage() {
   const activeDoc = useMemo(() => focusedDoc ?? selected, [focusedDoc, selected]);
   const isClosedDoc =
     !!activeDoc && (activeDoc.statut === "VALIDE" || activeDoc.statut === "REJETE" || activeDoc.statut === "SUSPENDU");
+
   const documentRows = useMemo<DocumentRow[]>(() => {
     return documents.flatMap((doc) => {
       const versions = doc.versions_fichier ?? [];
@@ -375,7 +400,7 @@ export default function TdRStPage() {
 
   // Verrouillage UI:
   // - initiateur peut éditer seulement BROUILLON / A_REVOIR
-  // - autres rôles: toujours lecture seule sur le formulaire
+  // - autres rôles (y compris auditeur): toujours lecture seule sur le formulaire
   const isReadOnly = useMemo(() => {
     if (role !== "initiateur") return true;
     if (!activeDoc) return false;
@@ -416,7 +441,9 @@ export default function TdRStPage() {
             ? `${API_PREFIX}/validations/tech/documents/`
             : r === "approbateur_final"
               ? `${API_PREFIX}/validations/final/documents/`
-              : `${API_PREFIX}/bailleur/documents/all/`;
+              : r === "auditeur"
+                ? `${API_PREFIX}/audit/documents/`
+                : `${API_PREFIX}/bailleur/documents/all/`;
 
       const data = await fetchJson<TdrStDocument[]>(url, { method: "GET", cache: "no-store" });
       setDocuments(data);
@@ -615,7 +642,6 @@ export default function TdRStPage() {
         const updatedDoc = data.document || (data.id ? data : null);
 
         if (updatedDoc) {
-          // On fusionne l'objet pour préserver les autres infos si besoin
           setDocuments((prev) => 
             prev.map((d) => (d.id === updatedDoc.id ? { ...d, ...updatedDoc } : d))
           );
@@ -637,8 +663,6 @@ export default function TdRStPage() {
   };
 
   const handleSubmitWithOptionalUpload = async () => {
-    // Evite les ecarts "UI vs backend" (ex: 90 affiche localement mais 89.99 cote verificateur)
-    // en persistant d'abord le formulaire avant upload/submit.
     const saved = await saveDraft();
     if (!saved) return;
     if (pdfFile) {
@@ -666,7 +690,7 @@ export default function TdRStPage() {
 
   const handleDecision = async (decision: string) => {
     if (!role || !selected) return;
-    if (role === "initiateur") return;
+    if (role === "initiateur" || role === "auditeur") return;
     if (isClosedDoc) return;
 
     const url =
@@ -708,10 +732,13 @@ export default function TdRStPage() {
     setIsModalVisible(false);
   };
 
+  // ---------------------------------------------------------------------------
+  // Panneau formulaire (lecture seule pour tous les non-initiateurs)
+  // ---------------------------------------------------------------------------
   const formPanel = (
     <div className={`rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4 ${isReadOnly ? "opacity-75" : ""}`}>
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">{activeDoc ? "Modifier le document" : "Nouveau brouillon"}</h2>
+        <h2 className="text-lg font-semibold">{activeDoc ? "Détail du document" : "Nouveau brouillon"}</h2>
         <div className="flex items-center gap-2">
           {isReadOnly && (
             <span className="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded-full border">Lecture seule</span>
@@ -752,7 +779,7 @@ export default function TdRStPage() {
         </label>
 
         <label className="block">
-          <span className="block text-sm font-medium">Catégorie d’activité *</span>
+          <span className="block text-sm font-medium">Catégorie d'activité *</span>
           <select
             disabled={isReadOnly}
             className="mt-1 w-full border rounded-md px-3 py-2 disabled:bg-slate-50"
@@ -924,16 +951,19 @@ export default function TdRStPage() {
         />
       </label>
 
-      <div className="flex justify-end pt-4">
-        <button
-          type="button"
-          className="rounded-full bg-indigo-600 px-5 py-2 text-sm font-semibold text-white shadow transition hover:bg-indigo-700 disabled:opacity-50"
-          onClick={() => handleModalClose(true)}
-          disabled={loading || isReadOnly}
-        >
-          OK
-        </button>
-      </div>
+      {/* L'auditeur voit le formulaire en lecture seule ; pas de bouton OK/Enregistrer */}
+      {role !== "auditeur" && (
+        <div className="flex justify-end pt-4">
+          <button
+            type="button"
+            className="rounded-full bg-indigo-600 px-5 py-2 text-sm font-semibold text-white shadow transition hover:bg-indigo-700 disabled:opacity-50"
+            onClick={() => handleModalClose(true)}
+            disabled={loading || isReadOnly}
+          >
+            OK
+          </button>
+        </div>
+      )}
     </div>
   );
 
@@ -950,7 +980,9 @@ export default function TdRStPage() {
           <p className="text-[11px] font-semibold uppercase tracking-[0.26em] text-slate-500">
             Documents
           </p>
-          <h3 className="text-lg font-semibold text-slate-900">Toutes les demandes</h3>
+          <h3 className="text-lg font-semibold text-slate-900">
+            {role === "auditeur" ? "Documents clôturés" : "Toutes les demandes"}
+          </h3>
         </div>
         <p className="text-sm font-semibold text-slate-600">
           {documentRows.length} document{documentRows.length > 1 ? "s" : ""}
@@ -966,7 +998,7 @@ export default function TdRStPage() {
               <th className="px-4 py-3">Type</th>
               <th className="px-4 py-3">Version</th>
               <th className="px-4 py-3">PTBA</th>
-              <th className="px-4 py-3">Montant (MGA)</th>
+              <th className="px-4 py-3">Montant (USD)</th>
               <th className="px-4 py-3">Statut</th>
               <th className="px-4 py-3">Créé le</th>
             </tr>
@@ -1063,7 +1095,11 @@ export default function TdRStPage() {
                 </p>
                 <h1 className="text-2xl font-semibold text-slate-900">Termes de Référence & Spécifications Techniques</h1>
                 <p className="text-sm text-slate-600">
-                  Gestion des documents techniques. {isReadOnly ? "Ce document est en cours de validation et ne peut plus être modifié." : "Créez votre brouillon et soumettez-le."}
+                  {role === "auditeur"
+                    ? "Consultation des documents clôturés et de leur traçabilité complète."
+                    : isReadOnly
+                      ? "Ce document est en cours de validation et ne peut plus être modifié."
+                      : "Créez votre brouillon et soumettez-le."}
                 </p>
                 {role ? (
                   <p className="pt-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
@@ -1071,7 +1107,6 @@ export default function TdRStPage() {
                   </p>
                 ) : null}
               </div>
-
             </div>
 
             <div className="mt-5">
@@ -1102,6 +1137,8 @@ export default function TdRStPage() {
         )}
 
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">
+          {/* Bannière auditeur au-dessus de la liste */}
+          {role === "auditeur" && <AuditeurBanner />}
           {documentTable}
           {formActions}
         </div>
@@ -1110,7 +1147,9 @@ export default function TdRStPage() {
 
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">
             <div className="flex items-center justify-between gap-3">
-              <h2 className="text-lg font-semibold text-slate-900">Processus de validation</h2>
+              <h2 className="text-lg font-semibold text-slate-900">
+                {role === "auditeur" ? "Traçabilité (Section G)" : "Processus de validation"}
+              </h2>
               {activeDoc ? (
                 <button
                   type="button"
@@ -1127,8 +1166,9 @@ export default function TdRStPage() {
             ) : (
               <>
                 <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+                  {/* Section G — Historique / Traçabilité */}
                   <div className="space-y-3">
-                    <div className="text-sm font-semibold text-slate-900">Historique</div>
+                    <div className="text-sm font-semibold text-slate-900">Historique des actions</div>
                     {activeDoc.actions_validation?.length ? (
                       <div className="space-y-2">
                         {activeDoc.actions_validation.map((a) => (
@@ -1150,6 +1190,8 @@ export default function TdRStPage() {
                       <p className="text-sm text-slate-500">Aucun historique.</p>
                     )}
                   </div>
+
+                  {/* Colonne droite : PDF + actions (masquées pour l'auditeur) */}
                   <div className="space-y-4">
                     <div className="rounded-xl border border-slate-200 bg-white p-4">
                       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1166,78 +1208,90 @@ export default function TdRStPage() {
                             Visualiser le PDF actuel
                           </a>
                         ) : null}
+                      </div>
+                      {!activeDoc.fichier_courant?.fichier_pdf ? (
+                        <p className="mt-2 text-sm text-slate-600">Aucun PDF téléversé pour ce document.</p>
+                      ) : (
+                        <p className="mt-2 text-xs text-slate-500">
+                          {role === "auditeur"
+                            ? "Document officiel — consultation uniquement."
+                            : "Le PDF est la version officielle à relire/valider (lecture seule pour les validateurs)."}
+                        </p>
+                      )}
                     </div>
-                    {!activeDoc.fichier_courant?.fichier_pdf ? (
-                      <p className="mt-2 text-sm text-slate-600">Aucun PDF téléversé pour ce document.</p>
-                    ) : (
-                      <p className="mt-2 text-xs text-slate-500">
-                        Le PDF est la version officielle à relire/valider (lecture seule pour les validateurs).
-                      </p>
-                    )}
-                  </div>
-                  {role === "initiateur" ? (
-                    <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                      <div className="text-sm font-bold text-slate-900">Téléverser un nouveau PDF</div>
-                        <div
-                          className={`rounded-xl border-2 border-dashed p-6 text-center ${
-                            activeDoc.statut === "BROUILLON" || activeDoc.statut === "A_REVOIR"
-                              ? "bg-emerald-50/30 border-emerald-200"
-                              : "bg-slate-50 border-slate-200"
-                          }`}
-                        >
-                          <input
-                            type="file"
-                            id="pdf-upload"
-                            className="hidden"
-                            accept="application/pdf"
-                            onChange={(e) => setPdfFile(e.target.files?.[0] ?? null)}
-                            disabled={
-                              loading || !(activeDoc.statut === "BROUILLON" || activeDoc.statut === "A_REVOIR")
-                            }
-                          />
-                          <label
-                            htmlFor="pdf-upload"
-                            className={`block cursor-pointer text-sm font-medium ${
+
+                    {/* Actions de décision — masquées pour l'auditeur */}
+                    {role === "auditeur" ? (
+                      <div className="rounded-xl border border-violet-100 bg-violet-50 p-4 text-xs text-violet-700">
+                        <p className="font-semibold">Aucune action disponible</p>
+                        <p className="mt-1">
+                          En tant qu&apos;auditeur, vous consultez ce document a posteriori.
+                          Les actions de décision sont réservées aux rôles opérationnels.
+                        </p>
+                      </div>
+                    ) : role === "initiateur" ? (
+                      <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                        <div className="text-sm font-bold text-slate-900">Téléverser un nouveau PDF</div>
+                          <div
+                            className={`rounded-xl border-2 border-dashed p-6 text-center ${
                               activeDoc.statut === "BROUILLON" || activeDoc.statut === "A_REVOIR"
-                                ? "text-emerald-700"
-                                : "text-slate-400"
+                                ? "bg-emerald-50/30 border-emerald-200"
+                                : "bg-slate-50 border-slate-200"
                             }`}
                           >
-                            {pdfFile ? `Fichier sélectionné : ${pdfFile.name}` : "Cliquez pour choisir le fichier PDF (Max 15Mo)"}
-                          </label>
+                            <input
+                              type="file"
+                              id="pdf-upload"
+                              className="hidden"
+                              accept="application/pdf"
+                              onChange={(e) => setPdfFile(e.target.files?.[0] ?? null)}
+                              disabled={
+                                loading || !(activeDoc.statut === "BROUILLON" || activeDoc.statut === "A_REVOIR")
+                              }
+                            />
+                            <label
+                              htmlFor="pdf-upload"
+                              className={`block cursor-pointer text-sm font-medium ${
+                                activeDoc.statut === "BROUILLON" || activeDoc.statut === "A_REVOIR"
+                                  ? "text-emerald-700"
+                                  : "text-slate-400"
+                              }`}
+                            >
+                              {pdfFile ? `Fichier sélectionné : ${pdfFile.name}` : "Cliquez pour choisir le fichier PDF (Max 15Mo)"}
+                            </label>
+                          </div>
+                          <button
+                            className="w-full rounded-xl bg-indigo-600 py-3 text-sm font-bold text-white shadow-md transition hover:bg-indigo-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none"
+                            onClick={() => void handleSubmitWithOptionalUpload()}
+                            disabled={loading || !(activeDoc.statut === "BROUILLON" || activeDoc.statut === "A_REVOIR")}
+                          >
+                            {activeDoc.statut === "BROUILLON" || activeDoc.statut === "A_REVOIR"
+                              ? "Soumettre pour validation"
+                              : "Déjà soumis"}
+                          </button>
+                          <button
+                            className="w-full rounded-xl border border-slate-200 bg-white py-3 text-sm font-semibold text-slate-900 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none"
+                            onClick={() => void suspendSelectedDocument()}
+                            disabled={loading || !canSuspendSelectedDoc}
+                            title={
+                              !selected
+                                ? "Sélectionne un document"
+                                : canSuspendSelectedDoc
+                                  ? "Suspendre définitivement le workflow"
+                                  : "Le document doit être soumis pour activer cette action"
+                            }
+                          >
+                            Suspendre le workflow
+                          </button>
+                          <button
+                            type="button"
+                            className="w-full rounded-xl border border-emerald-200 bg-emerald-50 py-3 text-sm font-semibold text-emerald-900 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-100 disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none"
+                            onClick={() => router.push("/TdrSt/dashboard")}
+                            disabled={loading}
+                          >
+                            Voir dashboard
+                          </button>
                         </div>
-                        <button
-                          className="w-full rounded-xl bg-indigo-600 py-3 text-sm font-bold text-white shadow-md transition hover:bg-indigo-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none"
-                          onClick={() => void handleSubmitWithOptionalUpload()}
-                          disabled={loading || !(activeDoc.statut === "BROUILLON" || activeDoc.statut === "A_REVOIR")}
-                        >
-                          {activeDoc.statut === "BROUILLON" || activeDoc.statut === "A_REVOIR"
-                            ? "Soumettre pour validation"
-                            : "Déjà soumis"}
-                        </button>
-                        <button
-                          className="w-full rounded-xl border border-slate-200 bg-white py-3 text-sm font-semibold text-slate-900 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none"
-                          onClick={() => void suspendSelectedDocument()}
-                          disabled={loading || !canSuspendSelectedDoc}
-                          title={
-                            !selected
-                              ? "Sélectionne un document"
-                              : canSuspendSelectedDoc
-                                ? "Suspendre définitivement le workflow"
-                                : "Le document doit être soumis pour activer cette action"
-                          }
-                        >
-                          Suspendre le workflow
-                        </button>
-                        <button
-                          type="button"
-                          className="w-full rounded-xl border border-emerald-200 bg-emerald-50 py-3 text-sm font-semibold text-emerald-900 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-100 disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none"
-                          onClick={() => router.push("/TdrSt/dashboard")}
-                          disabled={loading}
-                        >
-                          Voir dashboard
-                        </button>
-                      </div>
                     ) : (
                       <div className="space-y-3">
                         <div className="text-sm font-semibold text-slate-900">Décision</div>

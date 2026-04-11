@@ -367,7 +367,7 @@ def add_new_file_version(doc: TdrStDocument, uploaded_file, user) -> TdrStDocume
         fichier_taille_octets=getattr(uploaded_file, "size", None),
         uploaded_by=user,
     )
-    version_obj.empreinte_sha256 = version_obj.compute_sha256()
+    version_obj.empreinte_sha256 = version_obj.compute_sha256()  
     version_obj.save(update_fields=["empreinte_sha256"])
 
     doc.fichier_courant = version_obj

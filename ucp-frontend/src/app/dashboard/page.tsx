@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import TopHeader from "@/app/components/TopHeader";
 import { getAllProcurements, Procurement } from "@/services/api";
 import { getToken } from "@/services/auth";
-import { Cell, Pie, PieChart, ResponsiveContainer } from "recharts";
+import { DonutPieChart } from "@/app/dashboard/components/donut";
 
 type ProcurementType = "Travaux" | "Biens" | "Consultance";
 
@@ -30,7 +30,16 @@ type DonutSegment = DistributionItem & {
 
 const RADIAN = Math.PI / 180;
 
-function renderPercentLabel(props: any) {
+type PercentLabelProps = {
+  cx?: number;
+  cy?: number;
+  midAngle?: number;
+  innerRadius?: number;
+  outerRadius?: number;
+  percent?: number;
+};
+
+function renderPercentLabel(props: PercentLabelProps) {
   const { cx, cy, midAngle, innerRadius, outerRadius, percent } = props ?? {};
   if (typeof percent !== "number" || percent < 0.05) return null;
 
@@ -133,7 +142,6 @@ function mapStatusCategory(status: unknown): string | null {
 
   const isNonDemarre = key.includes("non demarre");
   const isEnCours = key.includes("en cours");
-  const isInTime = key.includes("dans les temps") || key.includes("dans le temps");
   const isLate = key.includes("retard") || key.includes("en retard");
 
   if (isNonDemarre) {
@@ -153,7 +161,7 @@ function buildStatusDistribution(items: Procurement[]) {
   const counts = new Map<string, number>();
 
   items.forEach((item) => {
-    const category = mapStatusCategory((item as any)?.status);
+    const category = mapStatusCategory(item.status);
     if (!category) return;
     counts.set(category, (counts.get(category) ?? 0) + 1);
   });
@@ -180,34 +188,6 @@ function getSegments(items: DistributionItem[], colors: Record<string, string>, 
     currentAngle += percent;
     return segment;
   });
-}
-
-function darkenColor(color: string, amount: number = 0.25) {
-  const normalized = color.trim();
-  const match = normalized.match(/^#?([0-9a-f]{3,8})$/i);
-  if (!match) return normalized;
-
-  let hex = match[1];
-  let alphaHex = "";
-  if (hex.length === 3) {
-    hex = hex.split("").map((char) => char + char).join("");
-  }
-  if (hex.length === 8) {
-    alphaHex = hex.slice(6);
-    hex = hex.slice(0, 6);
-  }
-
-  const channels = [hex.slice(0, 2), hex.slice(2, 4), hex.slice(4, 6)].map((chunk) => parseInt(chunk, 16));
-  if (channels.some((value) => Number.isNaN(value))) return normalized;
-
-  const darkened = channels.map((value) => Math.round(Math.max(0, Math.min(255, value * (1 - amount)))));
-
-  if (alphaHex) {
-    const alpha = Math.round((parseInt(alphaHex, 16) / 255) * 100) / 100;
-    return `rgba(${darkened.join(", ")}, ${alpha})`;
-  }
-
-  return `#${darkened.map((value) => value.toString(16).padStart(2, "0")).join("")}`;
 }
 
 function formatLabel(label: string) {
@@ -419,42 +399,7 @@ export default function DashboardPage() {
                   <div className="flex flex-col items-center gap-3">
                     <span className="text-[0.8rem] font-bold text-slate-500 uppercase">Méthode</span>
                     <div className="relative w-40 h-40 flex items-center justify-center">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie
-                            data={[{ name: "bg", value: 1 }]}
-                            dataKey="value"
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={45}
-                            outerRadius={70}
-                            isAnimationActive={false}
-                            stroke="none"
-                          >
-                            <Cell fill="#f1f5f9" />
-                          </Pie>
-                          <Pie
-                            data={methodSegments.map((segment) => ({ name: segment.label, value: segment.value, color: segment.color }))}
-                            dataKey="value"
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={45}
-                            outerRadius={70}
-                            paddingAngle={5}
-                            isAnimationActive
-                            animationDuration={900}
-                            animationEasing="ease-out"
-                            startAngle={90}
-                            endAngle={-270}
-                            labelLine={false}
-                            label={renderPercentLabel}
-                          >
-                            {methodSegments.map((segment) => (
-                              <Cell key={segment.label} fill={segment.color} />
-                            ))}
-                          </Pie>
-                        </PieChart>
-                      </ResponsiveContainer>
+                      <DonutPieChart segments={methodSegments} label={renderPercentLabel} />
                     </div>
                   </div>
 
@@ -462,42 +407,7 @@ export default function DashboardPage() {
                   <div className="flex flex-col items-center gap-3">
                     <span className="text-[0.8rem] font-bold text-slate-500 uppercase">Statut</span>
                     <div className="relative w-40 h-40 flex items-center justify-center">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie
-                            data={[{ name: "bg", value: 1 }]}
-                            dataKey="value"
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={45}
-                            outerRadius={70}
-                            isAnimationActive={false}
-                            stroke="none"
-                          >
-                            <Cell fill="#f1f5f9" /> 
-                          </Pie>
-                          <Pie
-                            data={statusSegments.map((segment) => ({ name: segment.label, value: segment.value, color: segment.color }))}
-                            dataKey="value"
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={45}
-                            outerRadius={70}
-                            paddingAngle={5}
-                            isAnimationActive
-                            animationDuration={900}
-                            animationEasing="ease-out"
-                            startAngle={90}
-                            endAngle={-270}
-                            labelLine={false}
-                            label={renderPercentLabel}
-                          >
-                            {statusSegments.map((segment) => (
-                              <Cell key={segment.label} fill={segment.color} />
-                            ))}
-                          </Pie>
-                        </PieChart>
-                      </ResponsiveContainer>
+                      <DonutPieChart segments={statusSegments} label={renderPercentLabel} />
                     </div>
                   </div>
                 </div>

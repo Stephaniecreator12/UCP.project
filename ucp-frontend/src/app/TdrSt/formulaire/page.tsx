@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import TopHeader from "@/app/components/TopHeader";
+import DashboardIndividual, { type AuditeurOverview } from "@/app/TdrSt/dashboard/components/dashboard-individual";
 
 import { getToken } from "@/services/auth";
 
@@ -79,6 +80,8 @@ type TdrStDocument = {
   actions_validation?: ValidationAction[];
   fichier_courant?: {
     fichier_pdf?: string;
+    empreinte_sha256?: string;
+    uploaded_by?: number;
   };
   versions_fichier?: {
     id: number;
@@ -86,6 +89,8 @@ type TdrStDocument = {
     fichier_pdf: string;
     fichier_nom_original: string;
     fichier_taille_octets?: number;
+    empreinte_sha256?: string;
+    uploaded_by?: number;
     uploaded_at?: string;
   }[];
 };
@@ -118,6 +123,8 @@ const BACKEND_BASE =
   process.env.NEXT_PUBLIC_BACKEND_URL ||
   process.env.NEXT_PUBLIC_API_URL ||
   "http://127.0.0.1:8000";
+
+const NOTIFICATION_AUTOHIDE_MS = 3000;
 
 const ROLE_LABEL: Record<UserRole, string> = {
   initiateur: "Initiateur (Cadre technique)",
@@ -355,6 +362,9 @@ export default function TdRStPage() {
   const router = useRouter();
 
   const [documents, setDocuments] = useState<TdrStDocument[]>([]);
+  const [auditeurStatutFilter, setAuditeurStatutFilter] = useState<Statut | "TOUS">("TOUS");
+  const [auditeurFundingFilter, setAuditeurFundingFilter] = useState<FundingSource | "TOUS">("TOUS");
+  const [auditeurActorFilter, setAuditeurActorFilter] = useState<string>("TOUS");
   const [selectedId, setSelectedId] = useState<number | null>(null);
   // Pour les validateurs (tech/final/bailleur) : après une décision, le document sort souvent
   // de la liste "pending". On conserve donc une copie pour continuer d'afficher l'historique.
@@ -369,8 +379,64 @@ export default function TdRStPage() {
   const isClosedDoc =
     !!activeDoc && (activeDoc.statut === "VALIDE" || activeDoc.statut === "REJETE" || activeDoc.statut === "SUSPENDU");
 
+  const auditeurActorOptions = useMemo(() => {
+    if (role !== "auditeur") return [];
+    const set = new Set<string>();
+    documents.forEach((doc) => {
+      doc.actions_validation?.forEach((a) => {
+        if (a.acteur_username) set.add(a.acteur_username);
+      });
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "fr"));
+  }, [documents, role]);
+
+  const auditeurFundingOptions = useMemo(() => {
+    if (role !== "auditeur") return [];
+    const set = new Set<FundingSource>();
+    documents.forEach((doc) => {
+      (doc.sources_financement ?? []).forEach((s) => set.add(s));
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "fr"));
+  }, [documents, role]);
+
+  const docsForAuditeur = useMemo(() => {
+    if (role !== "auditeur") return documents;
+    return documents.filter((doc) => {
+      if (auditeurStatutFilter !== "TOUS" && doc.statut !== auditeurStatutFilter) return false;
+      if (auditeurFundingFilter !== "TOUS" && !doc.sources_financement?.includes(auditeurFundingFilter)) return false;
+      if (
+        auditeurActorFilter !== "TOUS" &&
+        !(doc.actions_validation ?? []).some((a) => a.acteur_username === auditeurActorFilter)
+      ) {
+        return false;
+      }
+      return true;
+    });
+  }, [auditeurActorFilter, auditeurFundingFilter, auditeurStatutFilter, documents, role]);
+
+  useEffect(() => {
+    if (role !== "auditeur") return;
+    if (!selectedId) {
+      setSelectedId(docsForAuditeur[0]?.id ?? null);
+      return;
+    }
+    if (!docsForAuditeur.some((d) => d.id === selectedId)) {
+      setSelectedId(docsForAuditeur[0]?.id ?? null);
+    }
+  }, [docsForAuditeur, role, selectedId]);
+
   const documentRows = useMemo<DocumentRow[]>(() => {
-    return documents.flatMap((doc) => {
+    const docsForTable = role === "auditeur" ? docsForAuditeur : documents;
+
+    if (role === "auditeur") {
+      return docsForTable.map((doc) => ({
+        doc,
+        versionNumber: doc.version ?? 1,
+        uploadedAt: doc.updated_at ?? doc.created_at,
+      }));
+    }
+
+    return docsForTable.flatMap((doc) => {
       const versions = doc.versions_fichier ?? [];
       if (!versions.length) {
         return [
@@ -396,7 +462,79 @@ export default function TdRStPage() {
       }
       return rows;
     });
-  }, [documents]);
+  }, [documents, docsForAuditeur, role]);
+
+  const auditeurOverview = useMemo<AuditeurOverview | null>(() => {
+    if (role !== "auditeur") return null;
+
+    const total = documents.length;
+    const rejected = documents.filter((d) => d.statut === "REJETE").length;
+    const rejectedRate = total > 0 ? rejected / total : 0;
+    const requiresAno = documents.filter((d) => !!d.requires_ano).length;
+    const withAnoAction = documents.filter((d) => (d.actions_validation ?? []).some((a) => a.etape === "ANO")).length;
+
+    const delaysDays: number[] = [];
+    documents.forEach((doc) => {
+      const actions = doc.actions_validation ?? [];
+      const depotTimes = actions
+        .filter((a) => a.etape === "DEPOT")
+        .map((a) => Date.parse(a.horodatage))
+        .filter((t) => Number.isFinite(t));
+      const approvalTimes = actions
+        .filter((a) => a.etape === "APPROBATION_FINALE")
+        .map((a) => Date.parse(a.horodatage))
+        .filter((t) => Number.isFinite(t));
+      if (!depotTimes.length || !approvalTimes.length) return;
+      const depot = Math.min(...depotTimes);
+      const approval = Math.max(...approvalTimes);
+      const days = (approval - depot) / (1000 * 60 * 60 * 24);
+      if (Number.isFinite(days) && days >= 0) delaysDays.push(days);
+    });
+    const avgDelayDays = delaysDays.length
+      ? delaysDays.reduce((sum, v) => sum + v, 0) / delaysDays.length
+      : null;
+
+    const unitStats = new Map<string, { total: number; rejected: number }>();
+    documents.forEach((doc) => {
+      const unit = String(doc.unite_technique ?? "").trim();
+      if (!unit) return;
+      const entry = unitStats.get(unit) ?? { total: 0, rejected: 0 };
+      entry.total += 1;
+      if (doc.statut === "REJETE") entry.rejected += 1;
+      unitStats.set(unit, entry);
+    });
+    const topUnits = Array.from(unitStats.entries())
+      .map(([unite, v]) => ({ unite, total: v.total, rejected: v.rejected, rate: v.total ? v.rejected / v.total : 0 }))
+      .sort((a, b) => b.rate - a.rate || b.rejected - a.rejected || b.total - a.total)
+      .slice(0, 5);
+
+    const now = new Date();
+    const formatter = new Intl.DateTimeFormat("fr-FR", { month: "short", year: "numeric" });
+    const monthly = Array.from({ length: 6 }, (_, idx) => {
+      const d = new Date(now.getFullYear(), now.getMonth() - (5 - idx), 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const count = documents.filter((doc) => {
+        const base = doc.updated_at ?? doc.created_at;
+        const t = Date.parse(base);
+        if (!Number.isFinite(t)) return false;
+        const dt = new Date(t);
+        const k = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}`;
+        return k === key;
+      }).length;
+      return { label: formatter.format(d), count };
+    });
+
+    return {
+      total,
+      rejected,
+      rejectedRate,
+      requiresAno,
+      withAnoAction,
+      avgDelayDays,
+      monthly,
+      topUnits,
+    };
+  }, [documents, role]);
 
   // Verrouillage UI:
   // - initiateur peut éditer seulement BROUILLON / A_REVOIR
@@ -442,7 +580,7 @@ export default function TdRStPage() {
             : r === "approbateur_final"
               ? `${API_PREFIX}/validations/final/documents/`
               : r === "auditeur"
-                ? `${API_PREFIX}/audit/documents/`
+                ? `${API_PREFIX}/auditeur/documents/`
                 : `${API_PREFIX}/bailleur/documents/all/`;
 
       const data = await fetchJson<TdrStDocument[]>(url, { method: "GET", cache: "no-store" });
@@ -524,7 +662,7 @@ export default function TdRStPage() {
       setError(null);
       setSuccess(null);
       notificationTimeoutRef.current = null;
-    }, 1800);
+    }, NOTIFICATION_AUTOHIDE_MS);
     return () => {
       if (notificationTimeoutRef.current) {
         window.clearTimeout(notificationTimeoutRef.current);
@@ -779,7 +917,7 @@ export default function TdRStPage() {
         </label>
 
         <label className="block">
-          <span className="block text-sm font-medium">Catégorie d'activité *</span>
+          <span className="block text-sm font-medium">Catégorie d&apos;activité *</span>
           <select
             disabled={isReadOnly}
             className="mt-1 w-full border rounded-md px-3 py-2 disabled:bg-slate-50"
@@ -970,7 +1108,7 @@ export default function TdRStPage() {
   const handleDocumentRowClick = (doc: TdrStDocument) => {
     setFocusedDoc(null);
     setSelectedId(doc.id);
-    setIsModalVisible(true);
+    if (role !== "auditeur") setIsModalVisible(true);
   };
 
   const documentTable = (
@@ -985,9 +1123,78 @@ export default function TdRStPage() {
           </h3>
         </div>
         <p className="text-sm font-semibold text-slate-600">
-          {documentRows.length} document{documentRows.length > 1 ? "s" : ""}
+          {role === "auditeur"
+            ? `${docsForAuditeur.length} / ${documents.length}`
+            : `${documentRows.length}`}{" "}
+          document{(role === "auditeur" ? docsForAuditeur.length : documentRows.length) > 1 ? "s" : ""}
         </p>
       </div>
+
+      {role === "auditeur" ? (
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <div className="grid gap-3 md:grid-cols-4">
+            <label className="block">
+              <span className="block text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Statut</span>
+              <select
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm"
+                value={auditeurStatutFilter}
+                onChange={(e) => setAuditeurStatutFilter(e.target.value as Statut | "TOUS")}
+              >
+                <option value="TOUS">Tous</option>
+                <option value="VALIDE">Validé</option>
+                <option value="REJETE">Rejeté</option>
+                <option value="SUSPENDU">Suspendu</option>
+              </select>
+            </label>
+
+            <label className="block">
+              <span className="block text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Financement</span>
+              <select
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm"
+                value={auditeurFundingFilter}
+                onChange={(e) => setAuditeurFundingFilter(e.target.value as FundingSource | "TOUS")}
+              >
+                <option value="TOUS">Tous</option>
+                {auditeurFundingOptions.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block">
+              <span className="block text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Acteur</span>
+              <select
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm"
+                value={auditeurActorFilter}
+                onChange={(e) => setAuditeurActorFilter(e.target.value)}
+              >
+                <option value="TOUS">Tous</option>
+                {auditeurActorOptions.map((u) => (
+                  <option key={u} value={u}>
+                    {u}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <div className="flex items-end justify-end">
+              <button
+                type="button"
+                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+                onClick={() => {
+                  setAuditeurStatutFilter("TOUS");
+                  setAuditeurFundingFilter("TOUS");
+                  setAuditeurActorFilter("TOUS");
+                }}
+              >
+                Réinitialiser
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <div className="max-h-[320px] overflow-y-auto">
         <table className="w-full text-left text-sm text-slate-600">
@@ -996,9 +1203,11 @@ export default function TdRStPage() {
               <th className="px-4 py-3">Numéro</th>
               <th className="px-4 py-3">Intitulé</th>
               <th className="px-4 py-3">Type</th>
+              {role === "auditeur" ? <th className="px-4 py-3">Unité</th> : null}
               <th className="px-4 py-3">Version</th>
               <th className="px-4 py-3">PTBA</th>
               <th className="px-4 py-3">Montant (USD)</th>
+              {role === "auditeur" ? <th className="px-4 py-3">ANO</th> : null}
               <th className="px-4 py-3">Statut</th>
               <th className="px-4 py-3">Créé le</th>
             </tr>
@@ -1018,9 +1227,23 @@ export default function TdRStPage() {
                   </td>
                   <td className="px-4 py-3">{row.doc.intitule || "—"}</td>
                   <td className="px-4 py-3">{row.doc.type_document}</td>
+                  {role === "auditeur" ? (
+                    <td className="px-4 py-3">{row.doc.unite_technique || "—"}</td>
+                  ) : null}
                   <td className="px-4 py-3 font-semibold text-slate-800">{row.versionNumber ?? 1}</td>
                   <td className="px-4 py-3">{row.doc.reference_ptba || "—"}</td>
                   <td className="px-4 py-3">{formatAmountForRow(row.doc.montant_estime_usd)}</td>
+                  {role === "auditeur" ? (
+                    <td className="px-4 py-3">
+                      <span
+                        className={`inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold ${
+                          row.doc.requires_ano ? "bg-amber-50 text-amber-900 border border-amber-200" : "bg-slate-50 text-slate-700 border border-slate-200"
+                        }`}
+                      >
+                        {row.doc.requires_ano ? "Oui" : "Non"}
+                      </span>
+                    </td>
+                  ) : null}
                   <td className="px-4 py-3">
                     <span
                       className={`inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold ${
@@ -1139,6 +1362,9 @@ export default function TdRStPage() {
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">
           {/* Bannière auditeur au-dessus de la liste */}
           {role === "auditeur" && <AuditeurBanner />}
+          {role === "auditeur" && auditeurOverview ? (
+            <DashboardIndividual overview={auditeurOverview} />
+          ) : null}
           {documentTable}
           {formActions}
         </div>
@@ -1218,6 +1444,54 @@ export default function TdRStPage() {
                             : "Le PDF est la version officielle à relire/valider (lecture seule pour les validateurs)."}
                         </p>
                       )}
+
+                      {role === "auditeur" && activeDoc.fichier_courant?.fichier_pdf ? (
+                        <div className="mt-4 space-y-4 border-t border-slate-100 pt-4">
+                          <div>
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                              Empreinte SHA-256 (PDF courant)
+                            </p>
+                            <p className="mt-2 break-all rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-[11px] text-slate-700">
+                              {activeDoc.fichier_courant.empreinte_sha256 ?? "—"}
+                            </p>
+                          </div>
+
+                          <div>
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Versioning</p>
+                            {activeDoc.versions_fichier?.length ? (
+                              <div className="mt-2 space-y-2">
+                                {[...activeDoc.versions_fichier]
+                                  .sort((a, b) => (b.version ?? 0) - (a.version ?? 0))
+                                  .map((v) => (
+                                    <div key={v.id} className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+                                      <div className="flex items-center justify-between gap-2">
+                                        <p className="text-xs font-semibold text-slate-800">V{v.version ?? 1}</p>
+                                        {v.fichier_pdf ? (
+                                          <a
+                                            href={resolveBackendUrl(v.fichier_pdf) ?? "#"}
+                                            target="_blank"
+                                            className="text-xs font-bold text-emerald-600 hover:underline"
+                                            rel="noreferrer"
+                                          >
+                                            Télécharger
+                                          </a>
+                                        ) : null}
+                                      </div>
+                                      <p className="mt-1 text-xs text-slate-600" title={v.fichier_nom_original}>
+                                        {v.fichier_nom_original || "—"}
+                                      </p>
+                                      <p className="mt-1 break-all font-mono text-[11px] text-slate-600">
+                                        {v.empreinte_sha256 ?? "—"}
+                                      </p>
+                                    </div>
+                                  ))}
+                              </div>
+                            ) : (
+                              <p className="mt-2 text-sm text-slate-500">Aucune version disponible.</p>
+                            )}
+                          </div>
+                        </div>
+                      ) : null}
                     </div>
 
                     {/* Actions de décision — masquées pour l'auditeur */}
@@ -1228,6 +1502,14 @@ export default function TdRStPage() {
                           En tant qu&apos;auditeur, vous consultez ce document a posteriori.
                           Les actions de décision sont réservées aux rôles opérationnels.
                         </p>
+                        <button
+                          type="button"
+                          className="mt-3 w-full rounded-xl border border-emerald-200 bg-emerald-50 py-3 text-sm font-semibold text-emerald-900 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-100 disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none"
+                          onClick={() => router.push("/TdrSt/dashboard")}
+                          disabled={loading}
+                        >
+                          Voir dashboard
+                        </button>
                       </div>
                     ) : role === "initiateur" ? (
                       <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -1283,14 +1565,14 @@ export default function TdRStPage() {
                           >
                             Suspendre le workflow
                           </button>
-                          <button
-                            type="button"
-                            className="w-full rounded-xl border border-emerald-200 bg-emerald-50 py-3 text-sm font-semibold text-emerald-900 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-100 disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none"
-                            onClick={() => router.push("/TdrSt/dashboard")}
-                            disabled={loading}
-                          >
-                            Voir dashboard
-                          </button>
+                            <button
+                              type="button"
+                              className="w-full rounded-xl border border-emerald-200 bg-emerald-50 py-3 text-sm font-semibold text-emerald-900 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-100 disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none"
+                              onClick={() => router.push("/TdrSt/dashboard")}
+                              disabled={loading}
+                            >
+                              Voir dashboard
+                            </button>
                         </div>
                     ) : (
                       <div className="space-y-3">
@@ -1368,6 +1650,14 @@ export default function TdRStPage() {
                             ) : null}
                           </>
                         )}
+                        <button
+                          type="button"
+                          className="w-full rounded-xl border border-emerald-200 bg-emerald-50 py-3 text-sm font-semibold text-emerald-900 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-100 disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none"
+                          onClick={() => router.push("/TdrSt/dashboard")}
+                          disabled={loading}
+                        >
+                          Voir dashboard
+                        </button>
                       </div>
                     )}
                   </div>

@@ -6,7 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.TdrSt.models.TdrSt import TdrStDocument
-from apps.TdrSt.permissions import CanBailleurRead, CanFinalApprove, CanTechValidate, CanReadDocument
+from apps.TdrSt.permissions import CanBailleurRead, CanFinalApprove, CanTechValidate, CanReadDocument, CanAuditeurRead
 from apps.TdrSt.serializers.decision_serializer import AnoDecisionSerializer, FinalDecisionSerializer, TechDecisionSerializer
 from apps.TdrSt.serializers.document_serializer import TdrStDocumentReadSerializer
 from apps.TdrSt.services.TdrStService import (
@@ -19,6 +19,7 @@ from apps.TdrSt.services.TdrStService import (
     list_pending_tech,
     list_tech_documents,
     tech_decide,
+    list_auditeur_documents
 )
 
 
@@ -119,3 +120,9 @@ def bailleur_decision_view(request, id: int):
         observations=serializer.validated_data.get("observations", "") or "",
     )
     return Response(TdrStDocumentReadSerializer(doc).data)
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated, CanAuditeurRead])
+def auditeur_documents_view(request):
+    docs = list_auditeur_documents()
+    return Response(TdrStDocumentReadSerializer(docs, many=True).data)

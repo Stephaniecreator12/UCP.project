@@ -426,14 +426,7 @@ const getLatestDriverDates = (row: GridRow) => {
   return latestValues;
 };
 
-  const parseDateValue = (value: unknown): number | null => {
-    const raw = String(value ?? "").trim();
-    if (!raw) return null;
-    const timestamp = Date.parse(raw);
-    return Number.isNaN(timestamp) ? null : timestamp;
-  };
-
-  const getStatusToneClass = (value: unknown, row: GridRow): string => {
+  const getStatusToneClass = (value: unknown): string => {
     const normalized = String(value ?? "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     
     if (normalized.includes("retard")) return "bg-[#fde8e8] text-[#a63131]";
@@ -698,7 +691,7 @@ const handleCalculate = async (row: GridRow) => {
                             const cellValue = getCellValue(row, column);
                             
                             const statusDisplayValue = cellValue; 
-                            const statusToneClass = isStatusColumn ? getStatusToneClass(statusDisplayValue, row) : "";
+                            const statusToneClass = isStatusColumn ? getStatusToneClass(statusDisplayValue) : "";
                         return (
                     <td
                       key={`${row._id}-${column.key}`}

@@ -1,24 +1,22 @@
 "use client"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/TdrSt/dashboard/ui/card"
-import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip, Legend } from "recharts"
+import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts"
 
 const data = [
-  { name: "Factures", value: 420, color: "oklch(0.65 0.18 200)" },
-  { name: "Contrats", value: 285, color: "oklch(0.75 0.15 85)" },
-  { name: "Rapports", value: 198, color: "oklch(0.6 0.15 150)" },
-  { name: "Devis", value: 156, color: "oklch(0.7 0.18 35)" },
-  { name: "Autres", value: 97, color: "oklch(0.55 0.15 300)" },
+  { name: "Factures", value: 420, color: "#22c55e" },
+  { name: "Contrats", value: 285, color: "#0ea5e9" },
+  { name: "Rapports", value: 198, color: "#f59e0b" },
+  { name: "Devis", value: 156, color: "#ef4444" },
+  { name: "Autres", value: 97, color: "#8b5cf6" },
 ]
 
 export function DocumentsPieChart() {
   return (
-    <Card className="border-border/50 bg-card/50 backdrop-blur">
+    <Card>
       <CardHeader>
-        <CardTitle className="text-foreground">Documents par type</CardTitle>
-        <CardDescription className="text-muted-foreground">
-          Classification des documents
-        </CardDescription>
+        <CardTitle className="text-slate-900">Documents par type</CardTitle>
+        <CardDescription>Classification des documents</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="h-[300px]">
@@ -35,22 +33,24 @@ export function DocumentsPieChart() {
                 label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                 labelLine={false}
               >
-                {data.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
+                {data.map((entry) => (
+                  <Cell key={entry.name} fill={entry.color} />
                 ))}
               </Pie>
               <Tooltip
                 contentStyle={{
-                  backgroundColor: 'oklch(0.18 0.01 260)',
-                  border: '1px solid oklch(0.28 0.01 260)',
-                  borderRadius: '8px',
-                  color: 'oklch(0.95 0 0)',
+                  backgroundColor: "#ffffff",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: "10px",
+                  color: "#0f172a",
+                  boxShadow: "0 10px 30px -18px rgba(6,20,34,0.55)",
                 }}
+                labelStyle={{ color: "#64748b", fontWeight: 700 }}
               />
-              <Legend 
-                verticalAlign="bottom" 
+              <Legend
+                verticalAlign="bottom"
                 height={36}
-                formatter={(value) => <span className="text-foreground text-sm">{value}</span>}
+                formatter={(value) => <span className="text-sm text-slate-700">{value}</span>}
               />
             </PieChart>
           </ResponsiveContainer>

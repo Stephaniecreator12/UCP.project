@@ -18,6 +18,7 @@ from apps.TdrSt.views.validation_view import (
     tech_decision_view,
     tech_documents_view,
     tech_pending_view,
+    auditeur_documents_view
 )
 
 urlpatterns = [
@@ -37,5 +38,6 @@ urlpatterns = [
     path("validations/final/<int:id>/decision/", final_decision_view),
     path("bailleur/documents/", bailleur_documents_view),
     path("bailleur/documents/all/", bailleur_documents_all_view),
+    path("auditeur/documents/", auditeur_documents_view),
     path("bailleur/<int:id>/decision/", bailleur_decision_view),
 ]

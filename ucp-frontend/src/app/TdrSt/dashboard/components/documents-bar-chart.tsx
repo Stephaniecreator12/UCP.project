@@ -1,7 +1,7 @@
 "use client"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/TdrSt/dashboard/ui/card"
-import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts"
+import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
 
 const data = [
   { month: "Jan", documents: 186 },
@@ -9,8 +9,8 @@ const data = [
   { month: "Mar", documents: 237 },
   { month: "Avr", documents: 273 },
   { month: "Mai", documents: 209 },
-  { month: "Jun", documents: 314 },
-  { month: "Jul", documents: 256 },
+  { month: "Juin", documents: 314 },
+  { month: "Juil", documents: 256 },
   { month: "Aoû", documents: 178 },
   { month: "Sep", documents: 342 },
   { month: "Oct", documents: 291 },
@@ -20,48 +20,43 @@ const data = [
 
 export function DocumentsBarChart() {
   return (
-    <Card className="border-border/50 bg-card/50 backdrop-blur">
+    <Card>
       <CardHeader>
-        <CardTitle className="text-foreground">Documents déposés</CardTitle>
-        <CardDescription className="text-muted-foreground">
-          Nombre de documents déposés par mois (Base de données)
-        </CardDescription>
+        <CardTitle className="text-slate-900">Documents déposés</CardTitle>
+        <CardDescription>Nombre de documents déposés par mois (base de données)</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-              <XAxis 
-                dataKey="month" 
+              <XAxis
+                dataKey="month"
                 stroke="currentColor"
-                className="text-muted-foreground"
+                className="text-slate-500"
                 fontSize={12}
                 tickLine={false}
                 axisLine={false}
               />
               <YAxis
                 stroke="currentColor"
-                className="text-muted-foreground"
+                className="text-slate-500"
                 fontSize={12}
                 tickLine={false}
                 axisLine={false}
                 tickFormatter={(value) => `${value}`}
               />
               <Tooltip
-                cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+                cursor={{ fill: "rgba(15,23,42,0.04)" }}
                 contentStyle={{
-                  backgroundColor: 'oklch(0.18 0.01 260)',
-                  border: '1px solid oklch(0.28 0.01 260)',
-                  borderRadius: '8px',
-                  color: 'oklch(0.95 0 0)',
+                  backgroundColor: "#ffffff",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: "10px",
+                  color: "#0f172a",
+                  boxShadow: "0 10px 30px -18px rgba(6,20,34,0.55)",
                 }}
-                labelStyle={{ color: 'oklch(0.65 0 0)' }}
+                labelStyle={{ color: "#64748b", fontWeight: 700 }}
               />
-              <Bar 
-                dataKey="documents" 
-                fill="oklch(0.65 0.18 200)"
-                radius={[4, 4, 0, 0]}
-              />
+              <Bar dataKey="documents" fill="#22c55e" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>

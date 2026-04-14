@@ -144,6 +144,12 @@ MEDIA_ROOT = BASE_DIR / "media"
 
 CORS_ALLOWED_ORIGINS = [
 "http://localhost:3000",
+"http://127.0.0.1:3000",
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
 ]
 
 REST_FRAMEWORK = {
@@ -164,3 +170,19 @@ SIMPLE_JWT = {
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
+
+# Email configuration
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'  # ou ton serveur SMTP
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'oriahrakotomavo90@gmail.com'
+EMAIL_HOST_PASSWORD = 'God4life!'
+DEFAULT_FROM_EMAIL = 'TdR/ST <noreply@tdrst.com>'
+
+# Frontend URL pour les liens
+FRONTEND_URL = 'http://localhost:3000'  # À adapter en production
+
+# Au début du fichier ou près des autres configs email
+if DEBUG:
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'

@@ -10,6 +10,17 @@ from rest_framework.exceptions import ValidationError
 
 from apps.TdrSt.models.TdrSt import TdrStDocument, TdrStDocumentFileVersion, TdrStValidationAction
 
+# IMPORTS POUR LES EMAILS
+from apps.TdrSt.services.emailService import (
+    send_document_submitted_email,
+    send_tech_decision_email,
+    send_demande_final_approve_email,
+    send_final_decision_email,
+    send_ano_request_email,
+    send_ano_decision_email,
+    send_document_suspended_email,
+)
+
 
 def _default_seuil_passation_usd() -> Decimal:
     """
@@ -98,6 +109,7 @@ def list_pending_tech():
         .order_by("-created_at")
     )
 
+
 def _list_role_documents_with_history(*, pending_qs, treated_etape: str, user=None):
     """
     Helper pour les roles validateurs:
@@ -137,6 +149,7 @@ def list_pending_final():
         .order_by("-created_at")
     )
 
+
 def list_final_documents(user):
     """
     Pour les approbateurs finaux:
@@ -157,6 +170,7 @@ def list_bailleur_documents():
         .select_related("initiateur", "fichier_courant")
         .order_by("-created_at")
     )
+
 
 def list_bailleur_documents_all(user):
     """
@@ -203,8 +217,10 @@ def submit_document(doc: TdrStDocument, user) -> TdrStDocument:
         raise ValidationError({"detail": "Seul l'initiateur peut soumettre ce document."})
     if doc.statut not in (TdrStDocument.Statut.BROUILLON, TdrStDocument.Statut.A_REVOIR):
         raise ValidationError({"statut": "Seuls les brouillons/à revoir peuvent être soumis."})
+    
     doc.statut = TdrStDocument.Statut.SOUMIS
     doc.save(update_fields=["statut", "updated_at"])
+    
     # "Soumettre" est souvent precede d'un upload de PDF via un second appel API.
     # Pour eviter 2 lignes "DEPOT" consecutives dans l'historique, on fusionne
     # l'upload et la soumission quand ils arrivent quasi simultanement.
@@ -232,6 +248,11 @@ def submit_document(doc: TdrStDocument, user) -> TdrStDocument:
             acteur=user,
             meta={"action": "SUBMIT"},
         )
+    
+    # ENVOI EMAIL AUX VERIFICATEURS TECHNIQUES
+    print(f"[EMAIL] Envoi email aux vérificateurs techniques pour le document {doc.numero_document}")
+    send_document_submitted_email(doc)
+    
     return doc
 
 
@@ -258,6 +279,16 @@ def tech_decide(doc: TdrStDocument, user, decision: str, observations: str = "")
 
     doc.statut = next_statut
     doc.save(update_fields=["statut", "updated_at"])
+    
+    # ENVOI EMAIL À L'INITIATEUR
+    print(f"[EMAIL] Envoi email à l'initiateur pour la décision technique du document {doc.numero_document}")
+    send_tech_decision_email(doc, decision, observations)
+    
+    # SI LE DOCUMENT PASSE EN VALIDATION FINALE, ENVOI AUX APPROBATEURS
+    if next_statut == TdrStDocument.Statut.EN_VALIDATION:
+        print(f"[EMAIL] Envoi email aux approbateurs finaux pour le document {doc.numero_document}")
+        send_demande_final_approve_email(doc)
+    
     return doc
 
 
@@ -286,6 +317,15 @@ def final_decide(doc: TdrStDocument, user, decision: str, observations: str = ""
 
     doc.statut = next_statut
     doc.save(update_fields=["statut", "updated_at"])
+    
+    # ENVOI DES EMAILS SELON LE CAS
+    if decision == TdrStValidationAction.Decision.APPROUVE and requires_ano(doc):
+        print(f"[EMAIL] Envoi email aux bailleurs pour demande ANO - document {doc.numero_document}")
+        send_ano_request_email(doc)
+    else:
+        print(f"[EMAIL] Envoi email à l'initiateur pour décision finale - document {doc.numero_document}")
+        send_final_decision_email(doc, decision, observations)
+    
     return doc
 
 
@@ -298,7 +338,7 @@ def requires_ano(doc: TdrStDocument) -> bool:
     if seuil is None:
         return False
     try:
-     return doc.montant_estime_usd is not None and doc.montant_estime_usd > seuil
+        return doc.montant_estime_usd is not None and doc.montant_estime_usd > seuil
     except Exception:
         return False
 
@@ -326,6 +366,11 @@ def bailleur_decide(doc: TdrStDocument, user, decision: str, observations: str =
 
     doc.statut = next_statut
     doc.save(update_fields=["statut", "updated_at"])
+    
+    # ENVOI EMAIL À L'INITIATEUR POUR LA DECISION ANO
+    print(f"[EMAIL] Envoi email à l'initiateur pour décision ANO - document {doc.numero_document}")
+    send_ano_decision_email(doc, decision, observations)
+    
     return doc
 
 
@@ -348,6 +393,10 @@ def suspendre_document(doc: TdrStDocument, user, observations: str = "") -> TdrS
         acteur=user,
         meta={"action": "SUSPEND"},
     )
+    
+    # ENVOI EMAIL À L'INITIATEUR POUR SUSPENSION
+    print(f"[EMAIL] Envoi email à l'initiateur pour suspension - document {doc.numero_document}")
+    send_document_suspended_email(doc, observations)
 
     return doc
 

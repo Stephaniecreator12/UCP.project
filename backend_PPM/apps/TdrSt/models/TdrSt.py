@@ -9,26 +9,26 @@ from django.db import models
 
 class TdrStDocument(models.Model):
     class TypeDocument(models.TextChoices):
-        TDR = "TDR", "Termes de RÃ©fÃ©rence (TDR)"
-        ST = "ST", "SpÃ©cifications Techniques (ST)"
+        TDR = "TDR", "Termes de Référence (TDR)"
+        ST = "ST", "Spécifications Techniques (ST)"
 
     class Statut(models.TextChoices):
         BROUILLON = "BROUILLON", "Brouillon"
         SOUMIS = "SOUMIS", "Soumis"
         EN_VALIDATION = "EN_VALIDATION", "En validation"
-        A_REVOIR = "A_REVOIR", "Ã€ revoir"
+        A_REVOIR = "A_REVOIR", "à revoir"
         EN_ATTENTE_ANO = "EN_ATTENTE_ANO", "En attente ANO"
-        VALIDE = "VALIDE", "ValidÃ©"
-        REJETE = "REJETE", "RejetÃ©"
+        VALIDE = "VALIDE", "Validé"
+        REJETE = "REJETE", "Rejeté"
         SUSPENDU = "SUSPENDU", "Suspendu"
 
     class CategorieActivite(models.TextChoices):
         FORMATION = "FORMATION", "Formation"
         ATELIER = "ATELIER", "Atelier"
-        REUNION = "REUNION", "RÃ©union"
+        REUNION = "REUNION", "Réunion"
         REVUE = "REVUE", "Revue"
         SUPERVISION = "SUPERVISION", "Supervision"
-        ETUDE = "ETUDE", "Ã‰tude"
+        ETUDE = "ETUDE", "Etude"
         CONSULTANT = "CONSULTANT", "Consultant"
         CABINET = "CABINET", "Cabinet"
         BUREAU_ETUDES = "BUREAU_ETUDES", "Bureau d'Ã©tudes"
@@ -40,7 +40,7 @@ class TdrStDocument(models.Model):
         DC = "DC", "DC"
         AOI = "AOI", "AOI"
         AON = "AON", "AON"
-        GRE_A_GRE = "GRE_A_GRE", "GrÃ© Ã  grÃ©"
+        GRE_A_GRE = "GRE_A_GRE", "Gré à gré"
 
     class DureeUnite(models.TextChoices):
         JOURS = "JOURS", "Jours"
@@ -98,10 +98,10 @@ class TdrStDocument(models.Model):
 
     def clean(self):
         if self.periode_debut and self.periode_fin and self.periode_fin < self.periode_debut:
-            raise ValidationError({"periode_fin": "La date de fin doit Ãªtre postÃ©rieure ou Ã©gale Ã  la date de dÃ©but."})
+            raise ValidationError({"periode_fin": "La date de fin doit être supérieure ou égale à la date de début."})
 
         if not isinstance(self.sources_financement, list):
-            raise ValidationError({"sources_financement": "Ce champ doit Ãªtre une liste."})
+            raise ValidationError({"sources_financement": "Ce champ doit être une liste."})
 
 
 def _upload_to(instance: "TdrStDocumentFileVersion", filename: str) -> str:

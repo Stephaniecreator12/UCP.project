@@ -331,28 +331,7 @@ function StatusStepper({ statut }: { statut?: Statut }) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Bannière d'information spécifique au rôle Auditeur
-// ---------------------------------------------------------------------------
-function AuditeurBanner() {
-  return (
-    <div className="flex items-start gap-3 rounded-xl border border-violet-200 bg-violet-50 px-4 py-3">
-      <span className="mt-0.5 text-violet-500" aria-hidden="true">
-        {/* icône loupe */}
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
-        </svg>
-      </span>
-      <div>
-        <p className="text-xs font-bold text-violet-800">Mode Audit — Lecture seule</p>
-        <p className="mt-0.5 text-xs text-violet-700">
-          Vous accédez aux documents clôturés (Validés, Rejetés, Suspendus) et à leur traçabilité complète
-          à des fins de contrôle a posteriori. Aucune action n&apos;est disponible.
-        </p>
-      </div>
-    </div>
-  );
-}
+
 
 export default function TdRStPage() {
   const [loading, setLoading] = useState(false);
@@ -1361,7 +1340,6 @@ export default function TdRStPage() {
 
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">
           {/* Bannière auditeur au-dessus de la liste */}
-          {role === "auditeur" && <AuditeurBanner />}
           {role === "auditeur" && auditeurOverview ? (
             <DashboardIndividual overview={auditeurOverview} />
           ) : null}
@@ -1497,11 +1475,6 @@ export default function TdRStPage() {
                     {/* Actions de décision — masquées pour l'auditeur */}
                     {role === "auditeur" ? (
                       <div className="rounded-xl border border-violet-100 bg-violet-50 p-4 text-xs text-violet-700">
-                        <p className="font-semibold">Aucune action disponible</p>
-                        <p className="mt-1">
-                          En tant qu&apos;auditeur, vous consultez ce document a posteriori.
-                          Les actions de décision sont réservées aux rôles opérationnels.
-                        </p>
                         <button
                           type="button"
                           className="mt-3 w-full rounded-xl border border-emerald-200 bg-emerald-50 py-3 text-sm font-semibold text-emerald-900 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-100 disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none"

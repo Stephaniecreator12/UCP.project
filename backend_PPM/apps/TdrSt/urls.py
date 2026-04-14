@@ -1,5 +1,5 @@
 from django.urls import path
-
+from apps.TdrSt.views.dashboard_view import DashboardAPIView
 from apps.TdrSt.views.document_view import (
     create_document_view,
     document_detail_view,
@@ -40,4 +40,7 @@ urlpatterns = [
     path("bailleur/documents/all/", bailleur_documents_all_view),
     path("auditeur/documents/", auditeur_documents_view),
     path("bailleur/<int:id>/decision/", bailleur_decision_view),
+
+    # Dashboard
+    path("dashboard/", DashboardAPIView.as_view()),
 ]

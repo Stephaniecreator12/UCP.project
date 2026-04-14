@@ -1,17 +1,45 @@
-"use client"
+"use client";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/TdrSt/dashboard/ui/card"
-import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/TdrSt/dashboard/ui/card";
+import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 
-const data = [
-  { name: "Factures", value: 420, color: "#22c55e" },
-  { name: "Contrats", value: 285, color: "#0ea5e9" },
-  { name: "Rapports", value: 198, color: "#f59e0b" },
-  { name: "Devis", value: 156, color: "#ef4444" },
-  { name: "Autres", value: 97, color: "#8b5cf6" },
-]
+interface DocumentTypeData {
+  name: string;
+  value: number;
+  color: string;
+}
 
-export function DocumentsPieChart() {
+interface DocumentsPieChartProps {
+  data?: DocumentTypeData[];
+}
+
+const DEFAULT_COLORS = ["#22c55e", "#0ea5e9", "#f59e0b", "#ef4444", "#8b5cf6", "#ec489a", "#14b8a6"];
+
+export function DocumentsPieChart({ data: propData }: DocumentsPieChartProps) {
+  const data = propData && propData.length > 0 ? propData : [];
+  const hasData = data.length > 0 && data.some((item) => item.value > 0);
+
+  if (!hasData) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-slate-900">Documents par type</CardTitle>
+          <CardDescription>Classification des documents</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div style={{ width: "100%", height: 350, minHeight: 350 }} className="flex items-center justify-center">
+            <p className="text-slate-500 text-center">Aucune donnée disponible</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const dataWithColors = data.map((item, index) => ({
+    ...item,
+    color: item.color || DEFAULT_COLORS[index % DEFAULT_COLORS.length],
+  }));
+
   return (
     <Card>
       <CardHeader>
@@ -19,22 +47,24 @@ export function DocumentsPieChart() {
         <CardDescription>Classification des documents</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="h-[300px]">
+        <div style={{ width: "100%", height: 350, minHeight: 350 }}>
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
-                data={data}
+                data={dataWithColors}
                 cx="50%"
                 cy="50%"
                 innerRadius={60}
                 outerRadius={100}
                 paddingAngle={2}
                 dataKey="value"
-                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                label={({ name, percent }) =>
+                  (percent ?? 0) > 0.05 ? `${name} ${((percent ?? 0) * 100).toFixed(0)}%` : ""
+                }
                 labelLine={false}
               >
-                {data.map((entry) => (
-                  <Cell key={entry.name} fill={entry.color} />
+                {dataWithColors.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
               </Pie>
               <Tooltip
@@ -42,10 +72,13 @@ export function DocumentsPieChart() {
                   backgroundColor: "#ffffff",
                   border: "1px solid #e2e8f0",
                   borderRadius: "10px",
-                  color: "#0f172a",
-                  boxShadow: "0 10px 30px -18px rgba(6,20,34,0.55)",
                 }}
-                labelStyle={{ color: "#64748b", fontWeight: 700 }}
+                formatter={(value) => {
+                      if (typeof value === "number") {
+                        return [`${value} document${value > 1 ? "s" : ""}`, "Documents"];
+                      }
+                      return ["-", "Documents"];
+                    }}
               />
               <Legend
                 verticalAlign="bottom"
@@ -57,5 +90,5 @@ export function DocumentsPieChart() {
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }

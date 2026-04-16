@@ -251,8 +251,6 @@ const formatAmountForRow = (value?: string): string => {
   }).format(num);
 };
 
-
-
 function StatusStepper({ statut }: { statut?: Statut }) {
   const { pct, tone } = getProgress(statut);
   const idx = getStepIndex(statut);
@@ -331,13 +329,12 @@ function StatusStepper({ statut }: { statut?: Statut }) {
   );
 }
 
-
-
 export default function TdRStPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [role, setRole] = useState<UserRole | null>(null);
+  const [currentUsername, setCurrentUsername] = useState<string>("");
   const router = useRouter();
 
   const [documents, setDocuments] = useState<TdrStDocument[]>([]);
@@ -345,10 +342,9 @@ export default function TdRStPage() {
   const [auditeurFundingFilter, setAuditeurFundingFilter] = useState<FundingSource | "TOUS">("TOUS");
   const [auditeurActorFilter, setAuditeurActorFilter] = useState<string>("TOUS");
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  // Pour les validateurs (tech/final/bailleur) : après une décision, le document sort souvent
-  // de la liste "pending". On conserve donc une copie pour continuer d'afficher l'historique.
   const [focusedDoc, setFocusedDoc] = useState<TdrStDocument | null>(null);
   const [decisionObs, setDecisionObs] = useState("");
+  const [hasTakenDecision, setHasTakenDecision] = useState(false);
 
   const selected = useMemo(
     () => (selectedId ? documents.find((d) => d.id === selectedId) || null : null),
@@ -357,6 +353,30 @@ export default function TdRStPage() {
   const activeDoc = useMemo(() => focusedDoc ?? selected, [focusedDoc, selected]);
   const isClosedDoc =
     !!activeDoc && (activeDoc.statut === "VALIDE" || activeDoc.statut === "REJETE" || activeDoc.statut === "SUSPENDU");
+
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
+
+  // Vérifie si un PDF est présent pour l'initiateur
+  const hasPdfFile = useMemo(() => {
+    if (role !== "initiateur") return true;
+    if (!activeDoc) return false;
+    return !!(pdfFile || activeDoc.fichier_courant?.fichier_pdf);
+  }, [role, activeDoc, pdfFile]);
+
+  // Réinitialise hasTakenDecision quand le document change
+  useEffect(() => {
+    if (activeDoc && role !== "initiateur" && role !== "auditeur") {
+      const userHasDecision = activeDoc.actions_validation?.some(action => 
+        action.acteur_username === currentUsername &&
+        (action.decision === "FAVORABLE" || action.decision === "A_REVOIR" ||
+         action.decision === "APPROUVE" || action.decision === "REJETE" ||
+         action.decision === "ANO_ACCORDE" || action.decision === "ANO_REFUSE")
+      );
+      setHasTakenDecision(!!userHasDecision);
+    } else {
+      setHasTakenDecision(false);
+    }
+  }, [activeDoc, role, currentUsername]);
 
   const auditeurActorOptions = useMemo(() => {
     if (role !== "auditeur") return [];
@@ -515,9 +535,6 @@ export default function TdRStPage() {
     };
   }, [documents, role]);
 
-  // Verrouillage UI:
-  // - initiateur peut éditer seulement BROUILLON / A_REVOIR
-  // - autres rôles (y compris auditeur): toujours lecture seule sur le formulaire
   const isReadOnly = useMemo(() => {
     if (role !== "initiateur") return true;
     if (!activeDoc) return false;
@@ -532,8 +549,6 @@ export default function TdRStPage() {
   }, [role, selected]);
 
   const [form, setForm] = useState<TdrStFormState>(() => makeEmptyForm());
-
-  const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const notificationTimeoutRef = useRef<number | null>(null);
 
@@ -586,10 +601,11 @@ export default function TdRStPage() {
     }
 
     void (async () => {
-      const me = await fetchJson<{ role?: UserRole }>(`/api/users/me/`, { method: "GET" });
+      const me = await fetchJson<{ role?: UserRole; username?: string }>(`/api/users/me/`, { method: "GET" });
       const r = me.role ?? null;
       if (!r) throw new Error("Rôle utilisateur introuvable.");
       setRole(r);
+      setCurrentUsername(me.username || "");
       await refreshDocs(r);
     })().catch((e: unknown) => {
       const msg = e instanceof Error ? e.message : String(e);
@@ -597,7 +613,6 @@ export default function TdRStPage() {
     });
   }, [refreshDocs, router]);
 
-  // Synchroniser le formulaire quand on sélectionne un document existant
   useEffect(() => {
     if (activeDoc) {
       setForm({
@@ -755,7 +770,6 @@ export default function TdRStPage() {
 
         const data = await res.json();
 
-        // Vérifier si Django a renvoyé { document: {...} } OU directement le document {...}
         const updatedDoc = data.document || (data.id ? data : null);
 
         if (updatedDoc) {
@@ -776,10 +790,13 @@ export default function TdRStPage() {
     } finally {
       setLoading(false);
     }
-    return false;
   };
 
   const handleSubmitWithOptionalUpload = async () => {
+    if (!hasPdfFile) {
+      setError("Veuillez d'abord sélectionner un fichier PDF.");
+      return;
+    }
     const saved = await saveDraft();
     if (!saved) return;
     if (pdfFile) {
@@ -809,6 +826,7 @@ export default function TdRStPage() {
     if (!role || !selected) return;
     if (role === "initiateur" || role === "auditeur") return;
     if (isClosedDoc) return;
+    if (hasTakenDecision) return;
 
     const url =
       role === "verificateur_technique"
@@ -828,6 +846,7 @@ export default function TdRStPage() {
       setDecisionObs("");
       setFocusedDoc(updated);
       setSelectedId(updated.id);
+      setHasTakenDecision(true);
       setSuccess("Décision enregistrée.");
       await refreshDocs(role, { keepSelectedId: updated.id });
     } catch (e: unknown) {
@@ -849,9 +868,6 @@ export default function TdRStPage() {
     setIsModalVisible(false);
   };
 
-  // ---------------------------------------------------------------------------
-  // Panneau formulaire (lecture seule pour tous les non-initiateurs)
-  // ---------------------------------------------------------------------------
   const formPanel = (
     <div className={`rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4 ${isReadOnly ? "opacity-75" : ""}`}>
       <div className="flex items-center justify-between">
@@ -1068,7 +1084,6 @@ export default function TdRStPage() {
         />
       </label>
 
-      {/* L'auditeur voit le formulaire en lecture seule ; pas de bouton OK/Enregistrer */}
       {role !== "auditeur" && (
         <div className="flex justify-end pt-4">
           <button
@@ -1339,7 +1354,6 @@ export default function TdRStPage() {
         )}
 
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">
-          {/* Bannière auditeur au-dessus de la liste */}
           {role === "auditeur" && auditeurOverview ? (
             <DashboardIndividual overview={auditeurOverview} />
           ) : null}
@@ -1370,7 +1384,6 @@ export default function TdRStPage() {
             ) : (
               <>
                 <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
-                  {/* Section G — Historique / Traçabilité */}
                   <div className="space-y-3">
                     <div className="text-sm font-semibold text-slate-900">Historique des actions</div>
                     {activeDoc.actions_validation?.length ? (
@@ -1395,7 +1408,6 @@ export default function TdRStPage() {
                     )}
                   </div>
 
-                  {/* Colonne droite : PDF + actions (masquées pour l'auditeur) */}
                   <div className="space-y-4">
                     <div className="rounded-xl border border-slate-200 bg-white p-4">
                       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1472,7 +1484,6 @@ export default function TdRStPage() {
                       ) : null}
                     </div>
 
-                    {/* Actions de décision — masquées pour l'auditeur */}
                     {role === "auditeur" ? (
                       <div className="rounded-xl border border-violet-100 bg-violet-50 p-4 text-xs text-violet-700">
                         <button
@@ -1518,10 +1529,10 @@ export default function TdRStPage() {
                           <button
                             className="w-full rounded-xl bg-indigo-600 py-3 text-sm font-bold text-white shadow-md transition hover:bg-indigo-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none"
                             onClick={() => void handleSubmitWithOptionalUpload()}
-                            disabled={loading || !(activeDoc.statut === "BROUILLON" || activeDoc.statut === "A_REVOIR")}
+                            disabled={loading || !(activeDoc.statut === "BROUILLON" || activeDoc.statut === "A_REVOIR") || !hasPdfFile}
                           >
                             {activeDoc.statut === "BROUILLON" || activeDoc.statut === "A_REVOIR"
-                              ? "Soumettre pour validation"
+                              ? (hasPdfFile ? "Soumettre pour validation" : "Ajoutez un PDF pour soumettre")
                               : "Déjà soumis"}
                           </button>
                           <button
@@ -1561,7 +1572,7 @@ export default function TdRStPage() {
                               rows={3}
                               value={decisionObs}
                               onChange={(e) => setDecisionObs(e.target.value)}
-                              disabled={loading || isClosedDoc}
+                              disabled={loading || isClosedDoc || hasTakenDecision}
                               placeholder="Observations (optionnel)"
                             />
 
@@ -1570,14 +1581,14 @@ export default function TdRStPage() {
                                 <button
                                   className="rounded-full bg-emerald-600 px-4.5 py-2.5 text-sm font-semibold text-white shadow transition hover:-translate-y-[1px] hover:bg-emerald-700 disabled:opacity-50"
                                   onClick={() => void handleDecision("FAVORABLE")}
-                                  disabled={loading || isClosedDoc}
+                                  disabled={loading || isClosedDoc || hasTakenDecision}
                                 >
                                   Avis favorable
                                 </button>
                                 <button
                                   className="rounded-full border border-amber-300 bg-amber-50 px-4.5 py-2.5 text-sm font-semibold text-amber-900 shadow-sm transition hover:-translate-y-[1px] hover:border-amber-400 disabled:opacity-50"
                                   onClick={() => void handleDecision("A_REVOIR")}
-                                  disabled={loading || isClosedDoc}
+                                  disabled={loading || isClosedDoc || hasTakenDecision}
                                 >
                                   À revoir
                                 </button>
@@ -1589,14 +1600,14 @@ export default function TdRStPage() {
                                 <button
                                   className="rounded-full bg-emerald-600 px-4.5 py-2.5 text-sm font-semibold text-white shadow transition hover:-translate-y-[1px] hover:bg-emerald-700 disabled:opacity-50"
                                   onClick={() => void handleDecision("APPROUVE")}
-                                  disabled={loading || isClosedDoc}
+                                  disabled={loading || isClosedDoc || hasTakenDecision}
                                 >
                                   Approuver
                                 </button>
                                 <button
                                   className="rounded-full border border-rose-300 bg-rose-50 px-4.5 py-2.5 text-sm font-semibold text-rose-900 shadow-sm transition hover:-translate-y-[1px] hover:border-rose-400 disabled:opacity-50"
                                   onClick={() => void handleDecision("REJETE")}
-                                  disabled={loading || isClosedDoc}
+                                  disabled={loading || isClosedDoc || hasTakenDecision}
                                 >
                                   Rejeter
                                 </button>
@@ -1608,14 +1619,14 @@ export default function TdRStPage() {
                                 <button
                                   className="rounded-full bg-emerald-600 px-4.5 py-2.5 text-sm font-semibold text-white shadow transition hover:-translate-y-[1px] hover:bg-emerald-700 disabled:opacity-50"
                                   onClick={() => void handleDecision("ANO_ACCORDE")}
-                                  disabled={loading || isClosedDoc}
+                                  disabled={loading || isClosedDoc || hasTakenDecision}
                                 >
                                   Octroyer ANO
                                 </button>
                                 <button
                                   className="rounded-full border border-rose-300 bg-rose-50 px-4.5 py-2.5 text-sm font-semibold text-rose-900 shadow-sm transition hover:-translate-y-[1px] hover:border-rose-400 disabled:opacity-50"
                                   onClick={() => void handleDecision("ANO_REFUSE")}
-                                  disabled={loading || isClosedDoc}
+                                  disabled={loading || isClosedDoc || hasTakenDecision}
                                 >
                                   Refuser
                                 </button>

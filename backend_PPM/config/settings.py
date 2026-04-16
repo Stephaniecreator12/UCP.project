@@ -177,12 +177,8 @@ EMAIL_HOST = 'smtp.gmail.com'  # ou ton serveur SMTP
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'oriahrakotomavo90@gmail.com'
-EMAIL_HOST_PASSWORD = 'God4life!'
-DEFAULT_FROM_EMAIL = 'TdR/ST <noreply@tdrst.com>'
+EMAIL_HOST_PASSWORD = 'pmzseekagxqpnuku'
+DEFAULT_FROM_EMAIL = 'UCP-TDR/ST <oriahrakotomavo90@gmail.com>'
 
 # Frontend URL pour les liens
 FRONTEND_URL = 'http://localhost:3000'  # À adapter en production
-
-# Au début du fichier ou près des autres configs email
-if DEBUG:
-    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'

@@ -49,6 +49,7 @@ class DemandeAchat(models.Model):
     STATUT_SOUMISE = "SOUMISE"
     STATUT_A_COMPLETER = "A_COMPLETER"
     STATUT_VALIDEE = "VALIDEE"
+    STATUT_VALIDEE_BUDGETAIRE = "VALIDEE_BUDGETAIRE"
     STATUT_EN_COMMANDE = "EN_COMMANDE"
     STATUT_EN_LIVRAISON = "EN_LIVRAISON"
     STATUT_LIVREE = "LIVREE"
@@ -60,6 +61,7 @@ class DemandeAchat(models.Model):
         (STATUT_SOUMISE, "Soumise"),
         (STATUT_A_COMPLETER, "A completer"),
         (STATUT_VALIDEE, "Validee"),
+        (STATUT_VALIDEE_BUDGETAIRE, "Validee budgetairement"),
         (STATUT_EN_COMMANDE, "En commande"),
         (STATUT_EN_LIVRAISON, "En livraison"),
         (STATUT_LIVREE, "Livree"),
@@ -125,11 +127,15 @@ class DemandeAchat(models.Model):
     STATUT_RECEPTION_EN_ATTENTE = "EN_ATTENTE"
     STATUT_RECEPTION_PARTIELLE = "RECEPTION_PARTIELLE"
     STATUT_RECEPTION_COMPLETE = "RECEPTION_COMPLETE"
+    STATUT_RECEPTION_ECART_DETECTE = "ECART_DETECTE"
+    STATUT_RECEPTION_ECART_RESOLU = "ECART_RESOLU"
 
     STATUT_RECEPTION_CHOICES = [
         (STATUT_RECEPTION_EN_ATTENTE, "En attente"),
         (STATUT_RECEPTION_PARTIELLE, "Reception partielle"),
         (STATUT_RECEPTION_COMPLETE, "Reception complete"),
+        (STATUT_RECEPTION_ECART_DETECTE, "Ecart detecte"),
+        (STATUT_RECEPTION_ECART_RESOLU, "Ecart resolu"),
     ]
 
     TYPE_ECART_MANQUANT = "MANQUANT"
@@ -209,10 +215,11 @@ class DemandeAchat(models.Model):
     lien_ptba = models.CharField(max_length=255)
     service_beneficiaire = models.CharField(max_length=255)
 
-    ligne_budgetaire = models.CharField(max_length=100)
+    ligne_budgetaire = models.CharField(max_length=100, blank=True)
     source_financement = models.CharField(
         max_length=30,
         choices=SOURCE_FINANCEMENT_CHOICES,
+        blank=True,
     )
     numero_subvention = models.CharField(max_length=100, blank=True)
     solde_disponible_ligne_budgetaire = models.DecimalField(

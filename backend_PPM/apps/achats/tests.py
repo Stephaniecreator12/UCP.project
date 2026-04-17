@@ -10,9 +10,11 @@ from django.test import TestCase
 from apps.achats.models import DemandeAchat, ValidationDemande
 from apps.achats.services.demande_service import (
     close_demande,
+    complete_budget_estimation,
     issue_order,
     receive_demande,
     submit_demande,
+    update_demande,
     update_delivery,
 )
 from apps.achats.services.validation_service import traiter_validation
@@ -101,7 +103,7 @@ class AchatsNotificationTests(TestCase):
         self.assertEqual(mail.outbox[0].to, ["alice@example.com"])
         self.assertIn("Mise a jour de votre demande", mail.outbox[0].subject)
 
-    def test_final_validation_sends_email_to_demandeur_and_agent_achat(self):
+    def test_final_validation_sends_email_to_demandeur_and_finance(self):
         demandeur = self._create_user("fatou", "fatou@example.com")
         approbateur = self._create_user(
             "coordo",
@@ -109,9 +111,9 @@ class AchatsNotificationTests(TestCase):
             groups=["APPROBATEUR_NATIONAL"],
         )
         self._create_user(
-            "agentachat",
-            "achat@example.com",
-            groups=["AGENT_ACHAT"],
+            "finance",
+            "finance@example.com",
+            groups=["FINANCE"],
         )
         demande = self._create_demande(
             demandeur,
@@ -130,9 +132,46 @@ class AchatsNotificationTests(TestCase):
         self.assertEqual(len(mail.outbox), 1)
         self.assertCountEqual(
             mail.outbox[0].to,
-            ["fatou@example.com", "achat@example.com"],
+            ["fatou@example.com", "finance@example.com"],
         )
         self.assertIn("Demande validee", mail.outbox[0].subject)
+
+    def test_budget_validation_sends_email_to_demandeur_and_agent_achat(self):
+        demandeur = self._create_user("fina", "fina@example.com")
+        finance = self._create_user(
+            "raf",
+            "raf@example.com",
+            groups=["FINANCE"],
+        )
+        self._create_user(
+            "agentachat",
+            "achat@example.com",
+            groups=["AGENT_ACHAT"],
+        )
+        demande = self._create_demande(
+            demandeur,
+            statut=DemandeAchat.STATUT_VALIDEE,
+            ligne_budgetaire="",
+            source_financement="",
+            numero_subvention="",
+        )
+
+        with self.captureOnCommitCallbacks(execute=True):
+            complete_budget_estimation(
+                demande,
+                {
+                    "ligne_budgetaire": "2.1.1 Fournitures bureau",
+                    "source_financement": DemandeAchat.SOURCE_FONDS_MONDIAL,
+                },
+                finance,
+            )
+
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertCountEqual(
+            mail.outbox[0].to,
+            ["fina@example.com", "achat@example.com"],
+        )
+        self.assertIn("Budget valide", mail.outbox[0].subject)
 
     def test_issue_order_sends_email_to_demandeur(self):
         demandeur = self._create_user("noe", "noe@example.com")
@@ -143,7 +182,8 @@ class AchatsNotificationTests(TestCase):
         )
         demande = self._create_demande(
             demandeur,
-            statut=DemandeAchat.STATUT_VALIDEE,
+            statut=DemandeAchat.STATUT_VALIDEE_BUDGETAIRE,
+            numero_engagement_budgetaire="ENG/2026/0001",
         )
 
         with self.captureOnCommitCallbacks(execute=True):
@@ -170,7 +210,7 @@ class AchatsNotificationTests(TestCase):
         agent = self._create_user(
             "logistique",
             "logistique@example.com",
-            groups=["AGENT_ACHAT"],
+            groups=["AGENT_MARCHE"],
         )
         demande = self._create_demande(
             demandeur,
@@ -202,6 +242,11 @@ class AchatsNotificationTests(TestCase):
             "agentops@example.com",
             groups=["AGENT_ACHAT"],
         )
+        agent_marche = self._create_user(
+            "agentmarche",
+            "agentmarche@example.com",
+            groups=["AGENT_MARCHE"],
+        )
         demande = self._create_demande(
             demandeur,
             statut=DemandeAchat.STATUT_LIVREE,
@@ -221,7 +266,7 @@ class AchatsNotificationTests(TestCase):
                     "observations_reception": "RAS",
                     "statut_reception": DemandeAchat.STATUT_RECEPTION_COMPLETE,
                 },
-                demandeur,
+                agent_marche,
             )
 
         self.assertEqual(len(mail.outbox), 1)
@@ -259,3 +304,45 @@ class AchatsNotificationTests(TestCase):
         self.assertEqual(len(mail.outbox), 1)
         self.assertEqual(mail.outbox[0].to, ["audit@example.com"])
         self.assertIn("Test de notification UCP Achats", mail.outbox[0].subject)
+
+    def test_update_a_completer_increments_version(self):
+        demandeur = self._create_user("correction", "correction@example.com")
+        demande = self._create_demande(
+            demandeur,
+            statut=DemandeAchat.STATUT_A_COMPLETER,
+            version=1,
+        )
+
+        updated = update_demande(
+            demande,
+            {
+                "unite_technique": "Unite revisee",
+                "categorie_besoin": DemandeAchat.CATEGORIE_NOUVEAU_BESOIN,
+                "type_demande": DemandeAchat.TYPE_MATERIELS,
+                "priorite": DemandeAchat.PRIORITE_NORMAL,
+                "objet": "Fournitures bureau revisees",
+                "justification": "Besoin de fonctionnement mis a jour",
+                "lien_ptba": "PTBA-2026-01",
+                "service_beneficiaire": "Service support",
+                "ligne_budgetaire": "2.1.1 Fournitures bureau",
+                "source_financement": DemandeAchat.SOURCE_FONDS_MONDIAL,
+                "lignes_besoin": [
+                    {
+                        "designation": "Papier A4",
+                        "caracteristiques_techniques": "Ramette 80g",
+                        "quantite": 10,
+                        "unite": "ramette",
+                        "prix_unitaire_estime": Decimal("12000"),
+                        "lieu_livraison": "Depot central",
+                        "destinataire_final": "Service support",
+                    }
+                ],
+            },
+            demandeur,
+        )
+
+        updated.refresh_from_db()
+
+        self.assertEqual(updated.version, 2)
+        self.assertEqual(updated.historiques.last().metadata.get("previous_version"), 1)
+        self.assertEqual(updated.historiques.last().metadata.get("version"), 2)

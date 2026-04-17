@@ -8,7 +8,6 @@ from apps.achats.services.notification_service import notify_validation_recorded
 VALIDATION_FLOW = [
     DemandeAchat.ETAPE_HIERARCHIQUE,
     DemandeAchat.ETAPE_TECHNIQUE,
-    DemandeAchat.ETAPE_BUDGETAIRE,
     DemandeAchat.ETAPE_PROGRAMMATIQUE,
     DemandeAchat.ETAPE_APPROBATION_FINALE,
 ]
@@ -16,7 +15,6 @@ VALIDATION_FLOW = [
 GROUP_TO_STEP = {
     "VALIDATEUR_HIERARCHIQUE": DemandeAchat.ETAPE_HIERARCHIQUE,
     "VALIDATEUR_TECHNIQUE": DemandeAchat.ETAPE_TECHNIQUE,
-    "VALIDATEUR_BUDGETAIRE": DemandeAchat.ETAPE_BUDGETAIRE,
     "VALIDATEUR_PROGRAMMATIQUE": DemandeAchat.ETAPE_PROGRAMMATIQUE,
     "APPROBATEUR_NATIONAL": DemandeAchat.ETAPE_APPROBATION_FINALE,
 }
@@ -49,15 +47,30 @@ def list_demandes_a_valider(user):
     if not user_step:
         return DemandeAchat.objects.none()
 
-    return DemandeAchat.objects.filter(
-        statut=DemandeAchat.STATUT_SOUMISE,
-        etape_validation_actuelle=user_step,
-    ).prefetch_related(
-        "lignes_besoin",
-        "documents",
-        "validations__validateur",
-        "historiques__user",
-    ).order_by("-submitted_at", "-created_at")
+    from django.db.models import Prefetch
+    from django.contrib.auth.models import Group
+
+    return (
+        DemandeAchat.objects.filter(
+            statut=DemandeAchat.STATUT_SOUMISE,
+            etape_validation_actuelle=user_step,
+        )
+        .select_related("demandeur")
+        .prefetch_related(
+            "demandeur__groups",
+            "lignes_besoin",
+            "documents",
+            Prefetch(
+                "validations",
+                queryset=ValidationDemande.objects.select_related("validateur"),
+            ),
+            Prefetch(
+                "historiques",
+                queryset=HistoriqueDemande.objects.select_related("user"),
+            ),
+        )
+        .order_by("-submitted_at", "-created_at")
+    )
 
 
 @transaction.atomic
@@ -106,15 +119,6 @@ def traiter_validation(demande, user, decision, commentaire="", donnees_etape=No
         ValidationDemande.DECISION_FAVORABLE,
         ValidationDemande.DECISION_APPROUVEE,
     ]:
-        if demande.etape_validation_actuelle == DemandeAchat.ETAPE_BUDGETAIRE:
-            ligne_engagement = donnees_etape.get("ligne_engagement")
-            if ligne_engagement:
-                demande.numero_engagement_budgetaire = str(ligne_engagement)
-
-            solde_apres_engagement = donnees_etape.get("solde_apres_engagement")
-            if solde_apres_engagement not in [None, ""]:
-                demande.solde_apres_engagement = solde_apres_engagement
-
         next_step = get_next_step(demande.etape_validation_actuelle)
 
         if next_step == DemandeAchat.ETAPE_TERMINEE:
@@ -130,8 +134,6 @@ def traiter_validation(demande, user, decision, commentaire="", donnees_etape=No
         update_fields=[
             "statut",
             "etape_validation_actuelle",
-            "numero_engagement_budgetaire",
-            "solde_apres_engagement",
             "updated_at",
         ]
     )

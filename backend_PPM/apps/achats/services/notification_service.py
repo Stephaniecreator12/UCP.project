@@ -1,4 +1,5 @@
 import logging
+from html import escape
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -12,38 +13,47 @@ logger = logging.getLogger(__name__)
 User = get_user_model()
 
 AGENT_ACHAT_GROUP = "AGENT_ACHAT"
+FINANCE_GROUPS = ["FINANCE", "RAF", "VALIDATEUR_BUDGETAIRE"]
 
 STEP_TO_GROUP = {
     DemandeAchat.ETAPE_HIERARCHIQUE: "VALIDATEUR_HIERARCHIQUE",
     DemandeAchat.ETAPE_TECHNIQUE: "VALIDATEUR_TECHNIQUE",
-    DemandeAchat.ETAPE_BUDGETAIRE: "VALIDATEUR_BUDGETAIRE",
     DemandeAchat.ETAPE_PROGRAMMATIQUE: "VALIDATEUR_PROGRAMMATIQUE",
     DemandeAchat.ETAPE_APPROBATION_FINALE: "APPROBATEUR_NATIONAL",
 }
 
 STEP_LABELS = {
-    DemandeAchat.ETAPE_HIERARCHIQUE: "validation hierarchique",
-    DemandeAchat.ETAPE_TECHNIQUE: "validation technique",
-    DemandeAchat.ETAPE_BUDGETAIRE: "validation budgetaire",
-    DemandeAchat.ETAPE_PROGRAMMATIQUE: "validation programmatique",
-    DemandeAchat.ETAPE_APPROBATION_FINALE: "approbation finale",
-    DemandeAchat.ETAPE_TERMINEE: "validation terminee",
+    DemandeAchat.ETAPE_HIERARCHIQUE: "Validation hiérarchique",
+    DemandeAchat.ETAPE_TECHNIQUE: "Validation technique",
+    DemandeAchat.ETAPE_BUDGETAIRE: "Validation budgétaire",
+    DemandeAchat.ETAPE_PROGRAMMATIQUE: "Validation programmatique",
+    DemandeAchat.ETAPE_APPROBATION_FINALE: "Approbation finale",
+    DemandeAchat.ETAPE_TERMINEE: "Dossier validé",
 }
 
 DECISION_LABELS = {
-    ValidationDemande.DECISION_FAVORABLE: "favorable",
-    ValidationDemande.DECISION_DEFAVORABLE: "defavorable",
-    ValidationDemande.DECISION_A_COMPLETER: "a completer",
-    ValidationDemande.DECISION_APPROUVEE: "approuvee",
-    ValidationDemande.DECISION_REJETEE: "rejetee",
-    ValidationDemande.DECISION_A_REVOIR: "a revoir",
+    ValidationDemande.DECISION_FAVORABLE: "Favorable",
+    ValidationDemande.DECISION_DEFAVORABLE: "Défavorable",
+    ValidationDemande.DECISION_A_COMPLETER: "À compléter",
+    ValidationDemande.DECISION_APPROUVEE: "Approuvée",
+    ValidationDemande.DECISION_REJETEE: "Rejetée",
+    ValidationDemande.DECISION_A_REVOIR: "À revoir",
 }
 
 EXPEDITION_LABELS = {
-    DemandeAchat.ETAT_EXPEDITION_TRANSIT: "En transit",
-    DemandeAchat.ETAT_EXPEDITION_ARRIVE: "Arrivee",
-    DemandeAchat.ETAT_EXPEDITION_PARTIEL: "Arrivee partielle",
-    DemandeAchat.ETAT_EXPEDITION_RETARD: "Retard",
+    DemandeAchat.ETAT_EXPEDITION_TRANSIT: "En transit vers le site",
+    DemandeAchat.ETAT_EXPEDITION_ARRIVE: "Arrivée sur site",
+    DemandeAchat.ETAT_EXPEDITION_PARTIEL: "Arrivée partiellement",
+    DemandeAchat.ETAT_EXPEDITION_RETARD: "Signalée en retard",
+}
+
+EMAIL_VALUE_STYLES = {
+    "default": "vertical-align: top; color: #0f172a; font-size: 12.5px; font-weight: 600; line-height: 1.35;",
+    "accent": "vertical-align: top; color: #047857; font-size: 12.5px; font-weight: 700; line-height: 1.35;",
+    "success": "vertical-align: top; color: #047857; font-size: 12.5px; font-weight: 700; line-height: 1.35;",
+    "warning": "vertical-align: top; color: #b45309; font-size: 12.5px; font-weight: 700; line-height: 1.35;",
+    "danger": "vertical-align: top; color: #b91c1c; font-size: 12.5px; font-weight: 700; line-height: 1.35;",
+    "info": "vertical-align: top; color: #0369a1; font-size: 12.5px; font-weight: 700; line-height: 1.35;",
 }
 
 
@@ -52,7 +62,7 @@ def is_email_notifications_enabled():
 
 
 def _build_subject(subject):
-    prefix = getattr(settings, "ACHATS_EMAIL_SUBJECT_PREFIX", "")
+    prefix = getattr(settings, "ACHATS_EMAIL_SUBJECT_PREFIX", "[UCP] ")
     return f"{prefix}{subject}".strip()
 
 
@@ -63,34 +73,28 @@ def _build_frontend_url(path):
 
 def _get_user_display_name(user):
     if not user:
-        return "Utilisateur"
-
+        return "Collaborateur"
     full_name = f"{user.first_name} {user.last_name}".strip()
-    return full_name or user.username or "Utilisateur"
+    return full_name or user.username or "Collaborateur"
 
 
 def _normalize_recipients(recipients):
     unique = []
     seen = set()
-
     for recipient in recipients:
         if not recipient:
             continue
-
         email = str(recipient).strip().lower()
         if not email or email in seen:
             continue
-
         seen.add(email)
         unique.append(email)
-
     return unique
 
 
 def _emails_for_user(user):
     if not user or not getattr(user, "is_active", False):
         return []
-
     email = (getattr(user, "email", "") or "").strip()
     return [email] if email else []
 
@@ -104,7 +108,94 @@ def _emails_for_group(group_name):
     )
 
 
-def _dispatch_email(subject, body, recipients, fail_silently):
+def _emails_for_groups(group_names):
+    recipients = []
+    for group_name in group_names:
+        recipients.extend(_emails_for_group(group_name))
+    return recipients
+
+
+def _format_email_value(value, fallback="-"):
+    if value is None:
+        return fallback
+    text = str(value).strip()
+    return text or fallback
+
+
+def _humanize_identifier(value, fallback="-"):
+    text = _format_email_value(value, fallback)
+    return text if text == fallback else text.replace("_", " ").title()
+
+
+def _render_email_details(rows):
+    rendered_rows = []
+    for index, (label, value, tone) in enumerate(rows):
+        separator_style = "" if index == 0 else "border-top: 1px solid #e2e8f0;"
+        rendered_rows.append(
+            f"""
+            <tr>
+                <td style="padding: 8px 0; width: 31%; vertical-align: top; color: #64748b; font-size: 11.5px; font-weight: 600; line-height: 1.3; {separator_style}">
+                    {escape(str(label))}
+                </td>
+                <td style="padding: 8px 0; {EMAIL_VALUE_STYLES.get(tone, EMAIL_VALUE_STYLES['default'])} {separator_style}">
+                    {escape(_format_email_value(value))}
+                </td>
+            </tr>
+            """
+        )
+
+    return f"""
+    <div style="margin: 12px 0 14px; border: 1px solid #e2e8f0; border-radius: 10px; background-color: #f8fafc; padding: 0 12px;">
+        <table role="presentation" style="width: 100%; border-collapse: collapse;">
+            {''.join(rendered_rows)}
+        </table>
+    </div>
+    """
+
+
+def get_html_template(title, content_html, action_url=None, action_text="Consulter le dossier"):
+    action_html = ""
+    if action_url:
+        action_html = f"""
+        <div style="margin-top: 12px;">
+            <a href="{escape(action_url, quote=True)}" style="display: inline-block; border-radius: 7px; background-color: #0f766e; color: #ffffff; padding: 8px 14px; text-decoration: none; font-size: 12.5px; font-weight: 700;">
+                {escape(action_text)}
+            </a>
+        </div>
+        """
+
+    return f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="margin: 0; padding: 8px 6px; background-color: #f1f5f9; color: #334155; font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;">
+        <div style="max-width: 600px; margin: 0 auto; border: 1px solid #dbe3ea; border-radius: 10px; background-color: #ffffff; overflow: hidden;">
+            <div style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0; background-color: #ffffff;">
+                <div style="display: inline-block; border-radius: 999px; background-color: #ecfdf5; color: #047857; padding: 3px 7px; font-size: 9.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;">
+                    UCP Achats
+                </div>
+                <h1 style="margin: 4px 0 0; color: #0f172a; font-size: 17px; line-height: 1.15; font-weight: 700;">
+                    {escape(title)}
+                </h1>
+            </div>
+            <div style="padding: 12px 16px 10px; color: #475569; font-size: 13px; line-height: 1.45;">
+                {content_html}
+                {action_html}
+            </div>
+            <div style="border-top: 1px solid #e2e8f0; background-color: #f8fafc; padding: 8px 16px 10px; color: #64748b; font-size: 10.5px; line-height: 1.35;">
+                Ce message est généré automatiquement par le système d'information de l'UCP.
+                Merci de ne pas y répondre directement.
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+
+
+def _dispatch_email(subject, body, recipients, fail_silently, html_body=None):
     if not recipients or not is_email_notifications_enabled():
         return 0
 
@@ -115,6 +206,8 @@ def _dispatch_email(subject, body, recipients, fail_silently):
         to=recipients,
         reply_to=getattr(settings, "ACHATS_NOTIFICATION_REPLY_TO", None) or None,
     )
+    if html_body:
+        message.attach_alternative(html_body, "text/html")
 
     return message.send(fail_silently=fail_silently)
 
@@ -124,6 +217,7 @@ def send_notification_email(
     body,
     recipients,
     *,
+    html_body=None,
     schedule_after_commit=True,
     fail_silently=True,
 ):
@@ -138,6 +232,7 @@ def send_notification_email(
                 body,
                 normalized_recipients,
                 fail_silently=fail_silently,
+                html_body=html_body,
             )
         except Exception:
             logger.exception(
@@ -164,25 +259,42 @@ def notify_demande_submitted(demande):
     recipients = _emails_for_group(group_name)
     step_label = STEP_LABELS.get(demande.etape_validation_actuelle, "validation")
     demandeur_name = _get_user_display_name(demande.demandeur)
+    action_url = _build_frontend_url("/validation")
 
     body = (
-        "Bonjour,\n\n"
-        f"La demande {demande.numero_demande} a ete soumise par {demandeur_name}.\n"
+        f"Bonjour,\n\n"
+        f"La demande d'achat {demande.numero_demande} a été soumise par {demandeur_name}.\n"
         f"Objet : {demande.objet}\n"
-        f"Etape en cours : {step_label}\n\n"
-        "Vous pouvez la traiter depuis l'espace de validation :\n"
-        f"{_build_frontend_url('/validation')}\n"
+        f"Étape en cours : {step_label}\n\n"
+        f"Vous pouvez la traiter ici : {action_url}\n"
     )
 
+    html_content = f"""
+        <p style="margin: 0 0 8px;">Bonjour,</p>
+        <p style="margin: 0 0 10px;">Une nouvelle demande d'achat attend votre validation dans le système.</p>
+        {_render_email_details([
+            ("N° Demande", demande.numero_demande, "accent"),
+            ("Demandeur", demandeur_name, "default"),
+            ("Objet", demande.objet, "default"),
+            ("Action requise", step_label, "warning"),
+        ])}
+    """
+
     return send_notification_email(
-        f"Nouvelle demande a valider - {demande.numero_demande}",
+        f"Action Requise : Nouvelle demande à valider ({demande.numero_demande})",
         body,
         recipients,
+        html_body=get_html_template(
+            "Nouvelle Demande à valider",
+            html_content,
+            action_url,
+            "Accéder à l'espace Validation",
+        ),
     )
 
 
 def notify_validation_recorded(demande, validation):
-    decision_label = DECISION_LABELS.get(validation.decision, validation.decision)
+    decision_label = DECISION_LABELS.get(validation.decision, validation.decision).upper()
     step_label = STEP_LABELS.get(validation.etape, validation.etape)
     validateur_name = _get_user_display_name(validation.validateur)
 
@@ -193,145 +305,354 @@ def notify_validation_recorded(demande, validation):
         ValidationDemande.DECISION_A_REVOIR,
     ]:
         recipients = _emails_for_user(demande.demandeur)
+        action_url = _build_frontend_url("/demande-achat/dashboard")
+
         body = (
-            "Bonjour,\n\n"
-            f"Une decision {decision_label} a ete enregistree pour la demande "
-            f"{demande.numero_demande}.\n"
-            f"Objet : {demande.objet}\n"
-            f"Etape : {step_label}\n"
-            f"Validateur : {validateur_name}\n\n"
-            "Consultez votre tableau de bord pour la suite :\n"
-            f"{_build_frontend_url('/dashboard')}\n"
+            f"Bonjour,\n\n"
+            f"Une décision {decision_label} a été enregistrée pour {demande.numero_demande} "
+            f"par {validateur_name} ({step_label})."
         )
+
+        details = [
+            ("N° Demande", demande.numero_demande, "accent"),
+            ("Avis émis", decision_label, "danger"),
+            ("Étape", f"{step_label} par {validateur_name}", "default"),
+        ]
+        if validation.commentaire:
+            details.append(("Motif / Commentaire", validation.commentaire, "warning"))
+
+        html_content = f"""
+            <p style="margin: 0 0 8px;">Bonjour,</p>
+            <p style="margin: 0 0 10px;">Votre demande d'achat a reçu un avis nécessitant votre attention.</p>
+            {_render_email_details(details)}
+        """
         return send_notification_email(
-            f"Mise a jour de votre demande - {demande.numero_demande}",
+            f"Mise a jour de votre demande : {demande.numero_demande} ({decision_label})",
             body,
             recipients,
+            html_body=get_html_template(
+                "Avis défavorable / Retour demandé",
+                html_content,
+                action_url,
+                "Voir mon tableau de bord",
+            ),
         )
 
     if demande.statut == DemandeAchat.STATUT_VALIDEE:
-        recipients = _emails_for_user(demande.demandeur) + _emails_for_group(
-            AGENT_ACHAT_GROUP
-        )
+        recipients = _emails_for_user(demande.demandeur) + _emails_for_groups(FINANCE_GROUPS)
+        action_url = _build_frontend_url("/finance")
+
         body = (
-            "Bonjour,\n\n"
-            f"La demande {demande.numero_demande} a ete validee a toutes les etapes.\n"
-            f"Objet : {demande.objet}\n"
-            f"Derniere decision : {decision_label}\n"
-            f"Valide par : {validateur_name}\n\n"
-            "Le dossier est pret pour la passation :\n"
-            f"{_build_frontend_url('/passation')}\n"
+            f"Bonjour,\n\n"
+            f"La demande {demande.numero_demande} a été intégralement validée et transmise au service finance."
         )
+        html_content = f"""
+            <p style="margin: 0 0 8px;">Bonjour,</p>
+            <p style="margin: 0 0 10px;">La demande d'achat a franchi toutes les validations avec succès.</p>
+            {_render_email_details([
+                ("N° Demande", demande.numero_demande, "accent"),
+                ("Objet", demande.objet, "default"),
+                ("Statut actuel", "En attente de budget", "info"),
+            ])}
+            <p style="margin: 0;">Le service finance doit maintenant compléter l'estimation financière avant la passation.</p>
+        """
         return send_notification_email(
-            f"Demande validee - {demande.numero_demande}",
+            f"Demande validee : {demande.numero_demande}",
             body,
             recipients,
+            html_body=get_html_template(
+                "Demande validée et transmise à la Finance",
+                html_content,
+                action_url,
+                "Ouvrir l'espace Finance",
+            ),
         )
 
     next_group = STEP_TO_GROUP.get(demande.etape_validation_actuelle)
     recipients = _emails_for_group(next_group) if next_group else []
-
     next_step_label = STEP_LABELS.get(demande.etape_validation_actuelle, "validation")
+    action_url = _build_frontend_url("/validation")
 
     body = (
-        "Bonjour,\n\n"
-        f"La demande {demande.numero_demande} est prete pour votre etape de validation.\n"
-        f"Objet : {demande.objet}\n"
-        f"Etape precedente : {step_label}\n"
-        f"Decision enregistree : {decision_label}\n"
-        f"Etape a traiter : {next_step_label}\n\n"
-        "Vous pouvez la traiter ici :\n"
-        f"{_build_frontend_url('/validation')}\n"
+        f"Bonjour,\n\n"
+        f"La demande {demande.numero_demande} est arrivée à votre niveau de validation "
+        f"({next_step_label})."
     )
-
+    html_content = f"""
+        <p style="margin: 0 0 8px;">Bonjour,</p>
+        <p style="margin: 0 0 8px;">
+            L'étape de <strong>{escape(step_label)}</strong> a enregistré un avis
+            <strong> {escape(decision_label)}</strong> via {escape(validateur_name)}.
+        </p>
+        <p style="margin: 0 0 10px;">La demande est maintenant dans votre file d'attente.</p>
+        {_render_email_details([
+            ("N° Demande", demande.numero_demande, "accent"),
+            ("Dernier avis", decision_label, "success"),
+            ("Votre action", next_step_label, "warning"),
+        ])}
+    """
     return send_notification_email(
-        f"Demande a valider - {demande.numero_demande}",
+        f"À votre tour de valider : {demande.numero_demande}",
         body,
         recipients,
+        html_body=get_html_template(
+            "Validation transférée",
+            html_content,
+            action_url,
+            "Accéder à la validation",
+        ),
+    )
+
+
+def notify_budget_validated(demande):
+    recipients = _emails_for_user(demande.demandeur) + _emails_for_group(AGENT_ACHAT_GROUP)
+    action_url = _build_frontend_url("/passation")
+
+    body = (
+        f"Bonjour,\n\n"
+        f"La demande {demande.numero_demande} a été validée budgétairement et transmise à la passation."
+    )
+    html_content = f"""
+        <p style="margin: 0 0 8px;">Bonjour,</p>
+        <p style="margin: 0 0 10px;">Le service finance vient de confirmer l'estimation financière du dossier.</p>
+        {_render_email_details([
+            ("N° Demande", demande.numero_demande, "accent"),
+            ("Ligne budgétaire", demande.ligne_budgetaire or "-", "default"),
+            ("Engagement", demande.numero_engagement_budgetaire or "-", "info"),
+            ("Statut actuel", "Prêt pour passation", "success"),
+        ])}
+        <p style="margin: 0;">Le service des achats peut maintenant enregistrer le bon de commande.</p>
+    """
+    return send_notification_email(
+        f"Budget valide : {demande.numero_demande}",
+        body,
+        recipients,
+        html_body=get_html_template(
+            "Budget validé et transmis à la Passation",
+            html_content,
+            action_url,
+            "Ouvrir l'espace Passation",
+        ),
     )
 
 
 def notify_order_issued(demande):
     recipients = _emails_for_user(demande.demandeur)
-    body = (
-        "Bonjour,\n\n"
-        f"Le bon de commande de la demande {demande.numero_demande} a ete enregistre.\n"
-        f"Objet : {demande.objet}\n"
-        f"Fournisseur : {demande.fournisseur_retenu or '-'}\n"
-        f"Bon de commande : {demande.numero_bon_commande or '-'}\n\n"
-        "Vous pouvez consulter le detail depuis votre espace :\n"
-        f"{_build_frontend_url('/dashboard')}\n"
-    )
+    action_url = _build_frontend_url("/demande-achat/dashboard")
 
+    body = f"Bonjour,\n\nLe bon de commande de la demande {demande.numero_demande} a été enregistré."
+    html_content = f"""
+        <p style="margin: 0 0 8px;">Bonjour,</p>
+        <p style="margin: 0 0 10px;">Le service des achats vient d'enregistrer le bon de commande de votre demande.</p>
+        {_render_email_details([
+            ("N° Demande", demande.numero_demande, "accent"),
+            ("Fournisseur", demande.fournisseur_retenu or "Non précisé", "default"),
+            ("Bon de commande", demande.numero_bon_commande or "Généré", "info"),
+        ])}
+        <p style="margin: 0;">Le suivi passe maintenant côté Marché pour l'expédition et la réception.</p>
+    """
     return send_notification_email(
-        f"Bon de commande emis - {demande.numero_demande}",
+        f"Bon de commande emis : {demande.numero_demande}",
         body,
         recipients,
+        html_body=get_html_template(
+            "Commande engagée",
+            html_content,
+            action_url,
+            "Voir l'avancement",
+        ),
     )
 
 
 def notify_delivery_updated(demande):
     recipients = _emails_for_user(demande.demandeur)
+    action_url = _build_frontend_url("/demande-achat/dashboard")
     expedition_label = EXPEDITION_LABELS.get(
         demande.etat_expedition,
-        demande.etat_expedition or "Mise a jour",
-    )
-    target_path = (
-        f"/demande-achat/{demande.id}/reception"
-        if demande.statut == DemandeAchat.STATUT_LIVREE
-        else "/dashboard"
-    )
-    body = (
-        "Bonjour,\n\n"
-        f"Le suivi livraison de la demande {demande.numero_demande} a ete mis a jour.\n"
-        f"Objet : {demande.objet}\n"
-        f"Etat de livraison : {expedition_label}\n"
-        f"Date prevue : {demande.date_arrivee_prevue or demande.date_livraison_prevue or '-'}\n\n"
-        "Consultez le dossier ici :\n"
-        f"{_build_frontend_url(target_path)}\n"
+        demande.etat_expedition or "Mise à jour",
     )
 
+    body = (
+        f"Bonjour,\n\n"
+        f"Le suivi livraison de la demande {demande.numero_demande} a été mis à jour."
+    )
+    html_content = f"""
+        <p style="margin: 0 0 8px;">Bonjour,</p>
+        <p style="margin: 0 0 10px;">Le service Marché vient d'actualiser l'état d'acheminement de votre commande.</p>
+        {_render_email_details([
+            ("N° Demande", demande.numero_demande, "accent"),
+            ("Statut livraison", expedition_label, "info"),
+            ("Date prévue", demande.date_arrivee_prevue or demande.date_livraison_prevue or "-", "default"),
+        ])}
+    """
     return send_notification_email(
-        f"Suivi livraison mis a jour - {demande.numero_demande}",
+        f"Suivi livraison mis a jour : {demande.numero_demande}",
         body,
         recipients,
+        html_body=get_html_template(
+            "Mise à jour Livraison",
+            html_content,
+            action_url,
+            "Suivre mon colis",
+        ),
     )
 
 
 def notify_reception_recorded(demande):
     recipients = _emails_for_user(demande.demandeur) + _emails_for_group(AGENT_ACHAT_GROUP)
-    body = (
-        "Bonjour,\n\n"
-        f"La reception de la demande {demande.numero_demande} a ete enregistree.\n"
-        f"Objet : {demande.objet}\n"
-        f"Statut de reception : {demande.statut_reception or '-'}\n"
-        f"Conformite quantite : {demande.conformite_quantite or '-'}\n"
-        f"Conformite qualite : {demande.conformite_qualite or '-'}\n\n"
-        "Consultez le dossier ici :\n"
-        f"{_build_frontend_url('/dashboard')}\n"
-    )
+    action_url = _build_frontend_url("/demande-achat/dashboard")
 
+    if demande.statut_reception == DemandeAchat.STATUT_RECEPTION_ECART_DETECTE:
+        body = (
+            f"Bonjour,\n\n"
+            f"Un écart a été détecté lors de la réception de la demande {demande.numero_demande}."
+        )
+        html_content = f"""
+            <p style="margin: 0 0 8px;">Bonjour,</p>
+            <p style="margin: 0 0 10px;">
+                Le service Marché a enregistré la réception, mais un écart nécessite une action corrective.
+            </p>
+            {_render_email_details([
+                ("N° Demande", demande.numero_demande, "accent"),
+                ("Type d'écart", _humanize_identifier(demande.type_ecart), "danger"),
+                ("Action corrective", _humanize_identifier(demande.action_corrective), "default"),
+            ])}
+            <p style="margin: 0;">Le dossier reste ouvert jusqu'à résolution complète.</p>
+        """
+        return send_notification_email(
+            f"Écart détecté à la réception : {demande.numero_demande}",
+            body,
+            recipients,
+            html_body=get_html_template(
+                "Écart détecté",
+                html_content,
+                action_url,
+                "Suivre le dossier",
+            ),
+        )
+
+    body = (
+        f"Bonjour,\n\n"
+        f"La réception de la demande {demande.numero_demande} a été enregistrée avec succès."
+    )
+    html_content = f"""
+        <p style="margin: 0 0 8px;">Bonjour,</p>
+        <p style="margin: 0 0 10px;">Le service Marché vient d'enregistrer une réception conforme pour votre dossier.</p>
+        {_render_email_details([
+            ("N° Demande", demande.numero_demande, "accent"),
+            ("Statut réception", "Réception complète", "success"),
+            ("Action requise", "Clôture demandeur", "warning"),
+        ])}
+        <p style="margin: 0;">Le dossier peut maintenant être clôturé par le demandeur.</p>
+    """
     return send_notification_email(
-        f"Reception enregistree - {demande.numero_demande}",
+        f"Reception enregistree : {demande.numero_demande}",
         body,
         recipients,
+        html_body=get_html_template(
+            "Réception validée",
+            html_content,
+            action_url,
+            "Valider et clôturer",
+        ),
+    )
+
+
+def notify_reception_issue_resolved(demande):
+    recipients = _emails_for_user(demande.demandeur) + _emails_for_group(AGENT_ACHAT_GROUP)
+    action_url = _build_frontend_url("/demande-achat/dashboard")
+
+    body = f"Bonjour,\n\nL'écart détecté sur la demande {demande.numero_demande} a été résolu."
+    html_content = f"""
+        <p style="margin: 0 0 8px;">Bonjour,</p>
+        <p style="margin: 0 0 10px;">Le service Marché a confirmé la résolution de l'écart signalé lors de la réception.</p>
+        {_render_email_details([
+            ("N° Demande", demande.numero_demande, "accent"),
+            ("Type d'écart", _humanize_identifier(demande.type_ecart), "default"),
+            ("Résolution", "Écart résolu", "success"),
+        ])}
+        <p style="margin: 0;">Le dossier peut désormais être clôturé par le demandeur.</p>
+    """
+    return send_notification_email(
+        f"Écart résolu : {demande.numero_demande}",
+        body,
+        recipients,
+        html_body=get_html_template(
+            "Écart résolu",
+            html_content,
+            action_url,
+            "Clôturer le dossier",
+        ),
     )
 
 
 def notify_demande_closed(demande):
     recipients = _emails_for_user(demande.demandeur) + _emails_for_group(AGENT_ACHAT_GROUP)
-    body = (
-        "Bonjour,\n\n"
-        f"La demande {demande.numero_demande} a ete cloturee.\n"
-        f"Objet : {demande.objet}\n"
-        f"Statut final : {demande.statut_final or '-'}\n"
-        f"Niveau de satisfaction : {demande.niveau_satisfaction or '-'}\n\n"
-        "Le detail reste disponible dans l'application :\n"
-        f"{_build_frontend_url('/demande-achat/liste')}\n"
+    action_url = _build_frontend_url("/demande-achat/dashboard")
+    rating_display = (
+        f"{demande.niveau_satisfaction}/5"
+        if demande.niveau_satisfaction
+        else "Non évalué"
     )
 
+    body = f"Bonjour,\n\nLa demande {demande.numero_demande} a été clôturée avec succès."
+    html_content = f"""
+        <p style="margin: 0 0 8px;">Bonjour,</p>
+        <p style="margin: 0 0 10px;">Le parcours d'achat de votre demande est maintenant clôturé officiellement.</p>
+        {_render_email_details([
+            ("N° Demande", demande.numero_demande, "accent"),
+            ("Décision de clôture", _humanize_identifier(demande.statut_final), "success"),
+            ("Évaluation fournie", rating_display, "default"),
+        ])}
+        <p style="margin: 0;">Le dossier reste disponible pour consultation et suivi historique.</p>
+    """
     return send_notification_email(
-        f"Demande cloturee - {demande.numero_demande}",
+        f"Demande cloturee : {demande.numero_demande}",
         body,
         recipients,
+        html_body=get_html_template(
+            "Demande Achat Terminée",
+            html_content,
+            action_url,
+            "Consulter l'archive",
+        ),
+    )
+def notify_validation_delay(demande, hours_delayed):
+    group_name = STEP_TO_GROUP.get(demande.etape_validation_actuelle)
+    if not group_name:
+        return 0
+
+    recipients = _emails_for_group(group_name)
+    step_label = STEP_LABELS.get(demande.etape_validation_actuelle, "validation")
+    action_url = _build_frontend_url("/validation")
+
+    body = (
+        f"IMPORTANT - Relance de validation : La demande {demande.numero_demande} attend votre validation depuis 24 heures.\n"
+        f"Il ne reste que 24 heures pour traiter ce dossier avant qu'il ne soit marqué comme 'EN RETARD'.\n\n"
+        f"Objet : {demande.objet}\n"
+        f"Étape : {step_label}\n\n"
+        f"Lien d'accès : {action_url}\n"
+    )
+
+    html_content = f"""
+        <p style="margin: 0 0 8px; color: #b45309; font-weight: 700;">AVERTISSEMENT : Plus que 24h restantes</p>
+        <p style="margin: 0 0 10px;">La demande d'achat suivante attend votre validation depuis 24 heures. Passé un délai total de 48 heures, elle sera signalée en retard sur le tableau de bord.</p>
+        {_render_email_details([
+            ("N° Demande", demande.numero_demande, "accent"),
+            ("Objet", demande.objet, "default"),
+            ("Action requise", step_label, "warning"),
+            ("État", "Alerte (24h restantes)", "warning"),
+        ])}
+    """
+
+    return send_notification_email(
+        f"⏳ Plus que 24h : Rappel de validation ({demande.numero_demande})",
+        body,
+        recipients,
+        html_body=get_html_template(
+            "Rappel : Dossier en retard",
+            html_content,
+            action_url,
+            "Traiter le dossier maintenant",
+        ),
     )

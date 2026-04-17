@@ -15,6 +15,8 @@ import {
   fetchCurrentUser,
   getCurrentUser,
   isAgentAchatUser,
+  isAgentMarcheUser,
+  isFinanceUser,
   isValidatorUser,
 } from "@/services/auth";
 
@@ -22,6 +24,14 @@ type MenuLink = {
   label: string;
   href: string;
   match: (pathname: string) => boolean;
+};
+
+const getUserMode = (user: ReturnType<typeof getCurrentUser>) => {
+  if (isFinanceUser(user)) return "finance" as const;
+  if (isValidatorUser(user)) return "validator" as const;
+  if (isAgentAchatUser(user)) return "agent" as const;
+  if (isAgentMarcheUser(user)) return "marche" as const;
+  return "default" as const;
 };
 
 const DEFAULT_LINKS: MenuLink[] = [
@@ -36,7 +46,7 @@ const DEFAULT_LINKS: MenuLink[] = [
     match: (pathname) => pathname === "/dashboard",
   },
   {
-    label: "demande d'achat",
+    label: "état de besoins",
     href: "/demande-achat",
     match: (pathname) => pathname === "/demande-achat" || pathname.startsWith("/demande-achat/"),
   },
@@ -56,11 +66,24 @@ const VALIDATOR_LINKS: MenuLink[] = [
   },
 ];
 
+
 const AGENT_ACHAT_LINKS: MenuLink[] = [
   {
     label: "passation",
     href: "/passation",
     match: (pathname) => pathname === "/passation" || pathname.startsWith("/passation/"),
+  },
+];
+
+const MARKET_LINKS: MenuLink[] = [
+  {
+    label: "marché",
+    href: "/marche",
+    match: (pathname) =>
+      pathname === "/marche" ||
+      pathname.startsWith("/marche/") ||
+      pathname === "/logistique" ||
+      pathname.startsWith("/logistique/"),
   },
 ];
 
@@ -77,12 +100,9 @@ export default function Menu({ className = "" }: { className?: string }) {
     null,
   );
   const [hoverTimeout, setHoverTimeout] = useState<NodeJS.Timeout | null>(null);
-  const [userMode, setUserMode] = useState<"default" | "validator" | "agent">(() => {
-    const user = getCurrentUser();
-    if (isValidatorUser(user)) return "validator";
-    if (isAgentAchatUser(user)) return "agent";
-    return "default";
-  });
+  const [userMode, setUserMode] = useState<"default" | "validator" | "finance" | "agent" | "marche">(
+    () => getUserMode(getCurrentUser()),
+  );
 
   const showAuthenticatedActions = pathname !== "/login";
   const canPortal = typeof document !== "undefined";
@@ -106,27 +126,10 @@ export default function Menu({ className = "" }: { className?: string }) {
     if (!showAuthenticatedActions) return;
 
     const currentUser = getCurrentUser();
-    if (currentUser) {
-      if (isValidatorUser(currentUser)) {
-        setUserMode("validator");
-      } else if (isAgentAchatUser(currentUser)) {
-        setUserMode("agent");
-      } else {
-        setUserMode("default");
-      }
-      return;
-    }
+    if (currentUser) return;
 
     void fetchCurrentUser()
-      .then((user) => {
-        if (isValidatorUser(user)) {
-          setUserMode("validator");
-        } else if (isAgentAchatUser(user)) {
-          setUserMode("agent");
-        } else {
-          setUserMode("default");
-        }
-      })
+      .then((user) => setUserMode(getUserMode(user)))
       .catch(() => setUserMode("default"));
   }, [showAuthenticatedActions]);
 
@@ -163,11 +166,13 @@ export default function Menu({ className = "" }: { className?: string }) {
   }, [open, measureMenuPosition]);
 
   const links =
-    userMode === "validator"
+    userMode === "finance" || userMode === "validator"
       ? VALIDATOR_LINKS
       : userMode === "agent"
         ? AGENT_ACHAT_LINKS
-        : DEFAULT_LINKS;
+        : userMode === "marche"
+          ? MARKET_LINKS
+          : DEFAULT_LINKS;
 
   const handleMouseEnter = () => {
     if (hoverTimeout) clearTimeout(hoverTimeout);

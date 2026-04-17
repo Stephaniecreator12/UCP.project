@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { X, Truck, CheckCircle } from "lucide-react";
 import { DemandeAchat, UpdateDeliveryPayload, updateDeliveryDemandeAchat } from "@/services/achats";
 import { getCompactNeedLabel } from "@/app/demande-achat/components/demandeAchatShared";
+import PurchaseSelect from "@/app/demande-achat/components/PurchaseSelect";
 
 type LivraisonModalProps = {
   demande: DemandeAchat | null;
@@ -18,6 +19,13 @@ const initialFormState: UpdateDeliveryPayload = {
   date_arrivee_prevue: "",
   date_arrivee_effective: "",
 };
+
+const expeditionOptions = [
+  { value: "EN_TRANSIT", label: "En transit" },
+  { value: "ARRIVE", label: "Arrivé sur site" },
+  { value: "PARTIEL", label: "Arrivée partielle" },
+  { value: "RETARD", label: "En retard" },
+] as const;
 
 export default function LivraisonModal({
   demande,
@@ -73,18 +81,21 @@ export default function LivraisonModal({
 
   return (
     <div
-      className="fixed inset-0 z-[110] bg-slate-900/40 p-4 flex items-center justify-center animate-in fade-in duration-200"
+      className="fixed inset-0 z-[110] bg-slate-900/40 p-4 flex items-start justify-center overflow-y-auto animate-in fade-in duration-200"
       role="dialog"
       aria-modal="true"
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl animate-in zoom-in-95 duration-200">
+      <div 
+        className="my-8 flex w-full max-w-4xl flex-col rounded-xl border border-slate-200 bg-white shadow-xl animate-in zoom-in-95 duration-200"
+        style={{ zoom: 0.8 }}
+      >
         
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-5 py-3">
           <div className="flex items-center gap-3">
             <Truck className="h-5 w-5 text-indigo-600" />
-            <h2 className="text-lg font-bold text-slate-900 tracking-tight">Suivi Livraison : {demande.numero_demande}</h2>
+            <h2 className="text-lg font-bold text-slate-900 tracking-tight">Marché : Suivi expédition {demande.numero_demande}</h2>
           </div>
           <button
             type="button"
@@ -96,7 +107,7 @@ export default function LivraisonModal({
         </div>
 
         {/* Content Area */}
-        <div className="min-h-0 flex-1 overflow-y-auto bg-slate-50 p-5 space-y-4">
+        <div className="flex-1 bg-slate-50 p-5 space-y-4">
           
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 rounded-xl border border-indigo-100 bg-indigo-50/50 p-4 shadow-sm">
             <div className="min-w-0 flex-1">
@@ -118,45 +129,39 @@ export default function LivraisonModal({
           <form id="livraison-form" onSubmit={handleSubmit} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm space-y-5">
             <div>
                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">
-                Section 8.1 : Suivi des expéditions
+                Section 8.1 : Suivi expédition
               </p>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-1">
+            <div className="grid gap-4 sm:grid-cols-3">
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-slate-700">État expédition</label>
-                <select
+                <PurchaseSelect
                   value={form.etat_expedition}
-                  onChange={(e) => setForm({ ...form, etat_expedition: e.target.value as any })}
-                  className="w-full rounded-lg border border-slate-300 bg-slate-50 focus:bg-white py-2 px-3 text-sm shadow-sm transition-colors focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none"
-                >
-                  <option value="EN_TRANSIT">En transit</option>
-                  <option value="ARRIVE">Arrivé sur site</option>
-                  <option value="PARTIEL">Arrivée partielle</option>
-                  <option value="RETARD">En retard</option>
-                </select>
+                  onChange={(value) => setForm({ ...form, etat_expedition: value as UpdateDeliveryPayload["etat_expedition"] })}
+                  options={[...expeditionOptions]}
+                  className="w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm shadow-sm transition-colors outline-none focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                />
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-slate-700">Date arrivée prévue</label>
-                  <input
-                    type="date"
-                    value={form.date_arrivee_prevue || ""}
-                    onChange={(e) => setForm({ ...form, date_arrivee_prevue: e.target.value })}
-                    className="w-full rounded-lg border border-slate-300 bg-slate-50 focus:bg-white py-2 px-3 text-sm shadow-sm transition-colors focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none"
-                  />
-                </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-slate-700">Date arrivée prévue</label>
+                <input
+                  type="date"
+                  value={form.date_arrivee_prevue || ""}
+                  onChange={(e) => setForm({ ...form, date_arrivee_prevue: e.target.value })}
+                  className="w-full rounded-lg border border-slate-300 bg-slate-50 focus:bg-white py-2 px-3 text-sm shadow-sm transition-colors focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none"
+                />
+              </div>
 
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-slate-700">Date arrivée effective</label>
-                  <input
-                    type="date"
-                    value={form.date_arrivee_effective || ""}
-                    onChange={(e) => setForm({ ...form, date_arrivee_effective: e.target.value })}
-                    className="w-full rounded-lg border border-slate-300 bg-slate-50 focus:bg-white py-2 px-3 text-sm shadow-sm transition-colors focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none"
-                  />
-                </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-slate-700">Date arrivée effective</label>
+                <input
+                  type="date"
+                  value={form.date_arrivee_effective || ""}
+                  onChange={(e) => setForm({ ...form, date_arrivee_effective: e.target.value })}
+                  className="w-full rounded-lg border border-slate-300 bg-slate-50 focus:bg-white py-2 px-3 text-sm shadow-sm transition-colors focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none"
+                />
               </div>
             </div>
             
@@ -188,7 +193,7 @@ export default function LivraisonModal({
               ) : (
                 <>
                   <CheckCircle className="h-4 w-4" />
-                  Mettre à jour
+                  Enregistrer le suivi
                 </>
               )}
             </button>

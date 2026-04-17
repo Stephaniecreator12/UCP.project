@@ -1,15 +1,15 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { Plus, Trash2, X, ArrowLeft, Edit2, AlertCircle, FileText, UploadCloud, Clock, ShoppingBag, Wrench, ShieldCheck, Sparkles, ChevronRight, Briefcase, Target, Layers, FolderArchive } from "lucide-react";
 import TopHeader from "@/app/components/TopHeader";
 import PurchaseSelect from "@/app/demande-achat/components/PurchaseSelect";
-import "./zoom.css";
 
 import {
-  createDemandeAchat,
-  submitDemandeAchat,
+  getDemandeAchat,
+  updateDemandeAchat,
+  resubmitDemandeAchat,
   uploadDocumentDemandeAchat,
 } from "@/services/achats";
 import {
@@ -98,9 +98,9 @@ const documentTypesOptions = [
   { value: "BON_SORTIE_STOCK", label: "Bon de sortie stock (PDF)" },
 ] as const;
 
-const fieldClass = "w-full rounded-xl border border-slate-200 bg-white/50 backdrop-blur-sm px-4 py-3 text-[14px] text-slate-800 shadow-sm transition-all duration-300 placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 hover:border-slate-300";
-const areaClass = `${fieldClass} min-h-24 resize-y leading-relaxed`;
-const labelClass = "mb-2 block text-[13px] font-bold uppercase tracking-wider text-slate-600 ml-1";
+const fieldClass = "w-full rounded-md border border-slate-300 bg-white px-3 py-2.5 text-[13px] text-slate-800 outline-none transition-all duration-300 placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 shadow-sm hover:border-slate-400";
+const areaClass = `${fieldClass} min-h-24 resize-y`;
+const labelClass = "mb-1.5 block text-[13px] font-semibold text-slate-800";
 
 const emptyLigne = (typeDemande: string = "MATERIELS"): LigneForm => ({
   designation: "",
@@ -199,41 +199,31 @@ function LigneBesoinModal({ open, mode, isServiceRequest, ligne, error, onClose,
   };
   
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/60 px-4 py-6 backdrop-blur-md animate-in fade-in duration-300" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/40 px-4 py-6 md:px-6 md:py-10 backdrop-blur-sm animate-in fade-in duration-300" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div 
-        className="w-full max-w-4xl xl:max-w-5xl bg-white/95 rounded-[32px] shadow-[0_32px_64px_rgba(0,0,0,0.2)] animate-in zoom-in-95 slide-in-from-bottom-12 duration-500 border border-white/40 overflow-hidden"
-        style={{ zoom: 0.9 }}
+        className="w-full max-w-4xl xl:max-w-5xl bg-white rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.15)] animate-in zoom-in-95 slide-in-from-bottom-8 duration-300 border border-slate-100"
+        style={{ zoom: 0.8 }}
       >
-        <div className="relative px-8 py-6 border-b border-slate-100 bg-slate-50/50 backdrop-blur-sm">
-           <div className="absolute top-0 left-0 h-1 w-full bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-500 bg-[length:200%_100%] animate-gradient"></div>
-           <div className="flex items-center justify-between">
-              <div className="flex items-center gap-5">
-                 <div className="h-12 w-12 flex items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-lg shadow-emerald-500/30">
-                   {isServiceRequest ? <Wrench className="h-6 w-6" /> : <ShoppingBag className="h-6 w-6" />}
-                 </div>
-                 <div>
-                    <h2 className="text-lg font-black text-slate-800 tracking-tight">{mode === "edit" ? "Modifier le besoin" : "Nouveau besoin"}</h2>
-                    <p className="text-[13px] font-bold text-slate-500 uppercase tracking-widest">{isServiceRequest ? "Détails de la prestation" : "Spécifications de l'article"}</p>
-                 </div>
-              </div>
-              <button type="button" onClick={onClose} className="p-2.5 bg-white hover:bg-rose-50 hover:text-rose-600 shadow-sm border border-slate-200 rounded-2xl transition-all duration-300 hover:rotate-90">
-                <X className="h-5 w-5" />
-              </button>
-           </div>
+        <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">
+          <div className="flex items-center gap-4">
+             <div className="h-10 w-10 flex items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 shadow-inner">
+               {isServiceRequest ? <Wrench className="h-5 w-5" /> : <ShoppingBag className="h-5 w-5" />}
+             </div>
+             <div>
+                <h2 className="text-base font-bold text-slate-800 tracking-tight">{mode === "edit" ? "Modifier le besoin" : "Nouveau besoin"}</h2>
+                <p className="text-[13px] text-slate-500">{isServiceRequest ? "Détails de la prestation" : "Spécifications de l'article"}</p>
+             </div>
+          </div>
+          <button type="button" onClick={onClose} className="p-2 bg-white hover:bg-slate-200 shadow-sm border border-slate-200 rounded-xl transition-colors"><X className="h-5 w-5 text-slate-500" /></button>
         </div>
         
-        <div className="p-8">
-          {error && (
-            <div className="mb-8 bg-rose-50 text-rose-600 text-[14px] font-black p-5 rounded-2xl border border-rose-100 flex items-center gap-4 shadow-sm animate-in shake duration-500">
-              <AlertCircle className="h-6 w-6 shrink-0" />
-              {error}
-            </div>
-          )}
+        <div className="p-6 md:p-7">
+          {error && <div className="mb-6 bg-red-50 text-red-600 text-sm font-bold p-4 rounded-xl border border-red-100 flex items-center gap-3 shadow-sm animate-in shake duration-300"><AlertCircle className="h-5 w-5 shrink-0" />{error}</div>}
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
              {isServiceRequest ? (
                <>
-                 <div className="md:col-span-2">
+                 <div>
                    <label className={labelClass}>Type de service *</label>
                    <PurchaseSelect
                      id="modal_type_service"
@@ -243,66 +233,44 @@ function LigneBesoinModal({ open, mode, isServiceRequest, ligne, error, onClose,
                      className={fieldClass}
                    />
                  </div>
-                 <div className="md:col-span-2">
-                   <label className={labelClass}>Description du service *</label>
-                   <textarea id="modal_description" value={ligne.description_service} onChange={(e) => onChange("description_service", e.target.value)} className={areaClass} placeholder="Décrivez la prestation attendue avec précision..." />
-                 </div>
-                 <div><label className={labelClass}>Date de Début *</label><input id="modal_date_debut" type="date" value={ligne.date_debut} onChange={(e) => onChange("date_debut", e.target.value)} className={fieldClass} /></div>
-                 <div><label className={labelClass}>Date de Fin *</label><input id="modal_date_fin" type="date" value={ligne.date_fin} onChange={(e) => onChange("date_fin", e.target.value)} className={fieldClass} /></div>
-                 <div className="md:col-span-2">
-                   <label className={labelClass}>Lieu d&apos;exécution *</label>
-                   <input id="modal_lieu_execution" value={ligne.lieu_execution} onChange={(e) => onChange("lieu_execution", e.target.value)} className={fieldClass} placeholder="Ex: Campus A, Bloc hospitalier..." />
-                 </div>
-                 <div>
-                   <label className={labelClass}>Nb. de bénéficiaires</label>
-                   <input type="number" min="0" step="1" value={ligne.nombre_beneficiaires} onChange={(e) => onChange("nombre_beneficiaires", e.target.value)} className={fieldClass} placeholder="Ex: 10" />
-                 </div>
-                 <div>
-                   <label className={labelClass}>Coût estimé total *</label>
-                   <div className="relative">
-                     <input id="modal_prix_service" type="number" min="0" step="0.01" value={ligne.prix_unitaire_estime} onChange={(e) => onChange("prix_unitaire_estime", e.target.value)} className={`${fieldClass} pr-12 font-black text-emerald-700`} placeholder="0" />
-                     <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">Ar</span>
-                   </div>
-                 </div>
-                 <div className="md:col-span-2">
-                   <label className={labelClass}>Livrables attendus *</label>
-                   <input id="modal_livrables" value={ligne.livrables_attendus} onChange={(e) => onChange("livrables_attendus", e.target.value)} className={fieldClass} placeholder="Rapports, certificats, équipements..." />
-                 </div>
+                 <div className="md:col-span-2"><label className={labelClass}>Description du service *</label><textarea id="modal_description" value={ligne.description_service} onChange={(e) => onChange("description_service", e.target.value)} className={areaClass} placeholder="Décrivez la prestation attendue..." /></div>
+                 <div><label className={labelClass}>Période (Début) *</label><input id="modal_date_debut" type="date" value={ligne.date_debut} onChange={(e) => onChange("date_debut", e.target.value)} className={fieldClass} /></div>
+                 <div><label className={labelClass}>Période (Fin) *</label><input id="modal_date_fin" type="date" value={ligne.date_fin} onChange={(e) => onChange("date_fin", e.target.value)} className={fieldClass} /></div>
+                 <div><label className={labelClass}>Lieu d&apos;exécution *</label><input id="modal_lieu_execution" value={ligne.lieu_execution} onChange={(e) => onChange("lieu_execution", e.target.value)} className={fieldClass} placeholder="Ex: Bloc hospitalier..." /></div>
+                 <div><label className={labelClass}>Nb. de bénéficiaires</label><input type="number" min="0" step="1" value={ligne.nombre_beneficiaires} onChange={(e) => onChange("nombre_beneficiaires", e.target.value)} className={fieldClass} placeholder="Ex: 10" /></div>
+                 <div className="md:col-span-2"><label className={labelClass}>Livrables attendus *</label><input id="modal_livrables" value={ligne.livrables_attendus} onChange={(e) => onChange("livrables_attendus", e.target.value)} className={fieldClass} placeholder="Rapports, certificats..." /></div>
+                 <div className="md:col-span-2"><label className={labelClass}>Coût estimé total *</label><input id="modal_prix_service" type="number" min="0" step="0.01" value={ligne.prix_unitaire_estime} onChange={(e) => onChange("prix_unitaire_estime", e.target.value)} className={fieldClass} placeholder="0" /></div>
                </>
              ) : (
                <>
-                 <div className="md:col-span-2"><label className={labelClass}>Désignation de l&apos;article *</label><input id="modal_designation" value={ligne.designation} onChange={(e) => onChange("designation", e.target.value)} className={`${fieldClass} !text-[16px] !font-black`} placeholder="Nom du matériel..." /></div>
-                 <div><label className={labelClass}>Marque / Modèle</label><input value={ligne.marque_modele} onChange={(e) => onChange("marque_modele", e.target.value)} className={fieldClass} placeholder="Spécifier si nécessaire..." /></div>
-                 <div className="grid grid-cols-2 gap-4">
-                   <div><label className={labelClass}>Quantité *</label><input id="modal_quantite" type="number" min="1" value={ligne.quantite} onChange={(e) => onChange("quantite", Number(e.target.value))} className={`${fieldClass} font-black`} /></div>
-                   <div><label className={labelClass}>Unité *</label><input id="modal_unite" value={ligne.unite} onChange={(e) => onChange("unite", e.target.value)} className={fieldClass} placeholder="Pièce, lot..." /></div>
-                 </div>
-                 <div className="md:col-span-2">
-                   <label className={labelClass}>Prix estimé unitaire (Optionnel)</label>
-                   <div className="relative">
-                     <input type="number" value={ligne.prix_unitaire_estime} onChange={(e) => onChange("prix_unitaire_estime", e.target.value)} className={`${fieldClass} pr-12`} placeholder="0" />
-                     <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">Ar</span>
-                   </div>
-                 </div>
-                 <div className="md:col-span-2"><label className={labelClass}>Caractéristiques techniques détaillées *</label><textarea id="modal_caracteristiques" value={ligne.caracteristiques_techniques} onChange={(e) => onChange("caracteristiques_techniques", e.target.value)} className={areaClass} placeholder="Spécificités techniques, puissance, dimensions, normes..." /></div>
-                 <div><label className={labelClass}>Lieu de livraison *</label><input id="modal_lieu_livraison" value={ligne.lieu_livraison} onChange={(e) => onChange("lieu_livraison", e.target.value)} className={fieldClass} placeholder="Destination..." /></div>
-                 <div><label className={labelClass}>Destinataire final *</label><input id="modal_destinataire_final" value={ligne.destinataire_final} onChange={(e) => onChange("destinataire_final", e.target.value)} className={fieldClass} placeholder="Service ou unité..." /></div>
+                <div className="md:col-span-2"><label className={labelClass}>Désignation article *</label><input id="modal_designation" value={ligne.designation} onChange={(e) => onChange("designation", e.target.value)} className={fieldClass} placeholder="Nom du matériel..." /></div>
+                <div><label className={labelClass}>Marque / Modèle</label><input value={ligne.marque_modele} onChange={(e) => onChange("marque_modele", e.target.value)} className={fieldClass} placeholder="Si spécifié..." /></div>
+                <div><label className={labelClass}>Quantité *</label><input id="modal_quantite" type="number" min="1" value={ligne.quantite} onChange={(e) => onChange("quantite", Number(e.target.value))} className={fieldClass} /></div>
+                <div><label className={labelClass}>Unité *</label><input id="modal_unite" value={ligne.unite} onChange={(e) => onChange("unite", e.target.value)} className={fieldClass} placeholder="Pièce, lot, carton..." /></div>
+                <div><label className={labelClass}>Prix estimé unitaire (Optionnel)</label><input type="number" value={ligne.prix_unitaire_estime} onChange={(e) => onChange("prix_unitaire_estime", e.target.value)} className={fieldClass} placeholder="0" /></div>
+                <div className="md:col-span-2"><label className={labelClass}>Caractéristiques techniques *</label><textarea id="modal_caracteristiques" value={ligne.caracteristiques_techniques} onChange={(e) => onChange("caracteristiques_techniques", e.target.value)} className={areaClass} placeholder="Spécificités, puissance, dimensions..." /></div>
+                <div><label className={labelClass}>Lieu de livraison *</label><input id="modal_lieu_livraison" value={ligne.lieu_livraison} onChange={(e) => onChange("lieu_livraison", e.target.value)} className={fieldClass} placeholder="Lieu..." /></div>
+                <div><label className={labelClass}>Destinataire final *</label><input id="modal_destinataire_final" value={ligne.destinataire_final} onChange={(e) => onChange("destinataire_final", e.target.value)} className={fieldClass} placeholder="Service ou personne..." /></div>
                </>
              )}
           </div>
         </div>
         
-        <div className="px-8 py-6 border-t border-slate-100 flex justify-end gap-4 bg-slate-50/50 rounded-b-[32px]">
-          <button type="button" onClick={onClose} className="px-8 py-3 rounded-2xl border border-slate-200 text-[14px] font-black uppercase tracking-wider text-slate-600 hover:bg-white hover:border-slate-300 transition-all shadow-sm bg-white/50 active:scale-95">Annuler</button>
-          <button type="button" onClick={handleInnerSave} className="bg-emerald-600 text-white px-10 py-3 rounded-2xl text-[14px] font-black uppercase tracking-wider shadow-[0_12px_24px_rgba(5,150,105,0.3)] hover:bg-emerald-700 hover:shadow-[0_16px_32px_rgba(5,150,105,0.4)] hover:-translate-y-1 transition-all active:translate-y-0">Enregistrer</button>
+        <div className="px-6 py-5 border-t border-slate-100 flex justify-end gap-3 bg-slate-50 rounded-b-2xl">
+          <button type="button" onClick={onClose} className="px-6 py-2.5 rounded-lg border border-slate-300 text-[14px] font-bold text-slate-600 hover:bg-slate-200 transition-colors shadow-sm bg-white">Annuler</button>
+          <button type="button" onClick={handleInnerSave} className="bg-emerald-600 text-white px-8 py-2.5 rounded-lg text-[14px] font-bold shadow-[0_4px_14px_rgba(5,150,105,0.4)] hover:shadow-[0_6px_20px_rgba(5,150,105,0.6)] hover:-translate-y-0.5 transition-all">Enregistrer</button>
         </div>
       </div>
     </div>
   );
 }
 
-export default function NouvelleDemandePage() {
+export default function CorrigerDemandePage() {
   const router = useRouter();
+  const params = useParams();
+  const demandeId = Number(params?.id);
+  const [rejectReason, setRejectReason] = useState("");
+  const [loadingData, setLoadingData] = useState(true);
   
   // Section A states
   const [uniteTechnique, setUniteTechnique] = useState("");
@@ -334,7 +302,64 @@ export default function NouvelleDemandePage() {
     if (!getToken()) return router.replace("/login");
     const u = getCurrentUser(); 
     if (isValidatorUser(u) || isAgentAchatUser(u) || isFinanceUser(u)) router.replace(getLandingRouteForUser(u));
-  }, [router]);
+
+    const load = async () => {
+      if (!demandeId) return;
+      try {
+        const d = await getDemandeAchat(demandeId);
+        if (!d) return;
+
+        setUniteTechnique(d.unite_technique || "");
+        setCategorieBesoin(d.categorie_besoin || "NOUVEAU_BESOIN");
+        setTypeDemande(d.type_demande || "MATERIELS");
+        setPriorite(d.priorite || "NORMAL");
+        setObjet(d.objet || "");
+        setJustification(d.justification || "");
+        setLienPtba(d.lien_ptba || "");
+        setServiceBeneficiaire(d.service_beneficiaire || "");
+        
+        // Fix up lines
+        setLignes(d.lignes_besoin.map(l => ({
+          designation: l.designation || "",
+          marque_modele: l.marque_modele || "",
+          caracteristiques_techniques: l.caracteristiques_techniques || "",
+          quantite: Number(l.quantite || 1),
+          unite: l.unite || "Pièce",
+          prix_unitaire_estime: l.prix_unitaire_estime || "",
+          lieu_livraison: l.lieu_livraison || "",
+          destinataire_final: l.destinataire_final || "",
+          type_service: l.type_service || "FORMATION",
+          description_service: l.description_service || "",
+          date_debut: l.date_debut || "",
+          date_fin: l.date_fin || "",
+          duree_estimee: l.duree_estimee || "",
+          lieu_execution: l.lieu_execution || "",
+          livrables_attendus: l.livrables_attendus || "",
+          nombre_beneficiaires: l.nombre_beneficiaires ? String(l.nombre_beneficiaires) : "",
+        })));
+
+        // Extract reason
+        const validations = d.validations || [];
+        const lastACompleter = [...validations].reverse().find(v => v.decision === "A_COMPLETER");
+        if (lastACompleter && lastACompleter.commentaire) {
+          setRejectReason(lastACompleter.commentaire);
+        } else {
+          const history = d.historiques || [];
+          const lastHistory = [...history].reverse().find(h => h.action === "A_COMPLETER" || h.metadata?.decision === "A_COMPLETER");
+          if (lastHistory && lastHistory.description) {
+            setRejectReason(lastHistory.description);
+          } else {
+            setRejectReason("Des modifications sont requises avant re-soumission.");
+          }
+        }
+      } catch (err) {
+        setNotification({message: "Impossible de charger l'état de besoins", type: "error"});
+      } finally {
+        setLoadingData(false);
+      }
+    };
+    load();
+  }, [router, demandeId]);
 
   const handleUniteTechniqueChange = (value: string) => {
     setUniteTechnique(value);
@@ -351,20 +376,13 @@ export default function NouvelleDemandePage() {
   const getDocumentRecommendations = () => {
     const recs = [];
     if (typeDemande === "MATERIELS") {
-       recs.push({ label: "Spécifications techniques détaillées (Obligatoire pour matériels complexes)", required: true });
+       recs.push("Spécifications techniques détaillées (fortement suggéré pour Matériels complexes)");
     } else {
-       recs.push({ label: "Termes de Référence simplifiés (Obligatoire pour petits services simplifiés)", required: true });
+       recs.push("Termes de Référence simplifiés (fortement suggéré pour Petits services)");
     }
     if (categorieBesoin === "REAPPROVISIONNEMENT") {
-       recs.push({ label: "Bon de sortie stock (Obligatoire pour Réapprovisionnement)", required: true });
+       recs.push("Bon de sortie stock (nécessaire pour Réapprovisionnement)");
     }
-    
-    // Devis estimatif est généralement requis au delà de certains montants (ex: 300 000 Ar)
-    const totalEstime = lignes.reduce((acc, l) => acc + getLigneTotal(l, isServiceRequest), 0);
-    if (totalEstime > 0) {
-       recs.push({ label: "Devis estimatif (Obligatoire pour toute demande chiffrée)", required: true });
-    }
-    
     return recs;
   };
 
@@ -415,35 +433,10 @@ export default function NouvelleDemandePage() {
        setNotification({message: "Veuillez ajouter au moins une ligne de besoin.", type: 'error'});
        return scrollToElement("lignesSection");
     }
-
-    // --- VALIDATION DES DOCUMENTS OBLIGATOIRES ---
-    const uploadedTypes = documents.filter(d => d.fichier).map(d => d.type_document);
-    
-    if (typeDemande === "MATERIELS" && !uploadedTypes.includes("SPECIFICATIONS_TECHNIQUES")) {
-       setNotification({message: "Les Spécifications techniques détaillées sont obligatoires pour les matériels.", type: 'error'});
-       return scrollToElement("documentsSection");
-    }
-    
-    if (typeDemande === "PETITS_SERVICES" && !uploadedTypes.includes("TDR_SIMPLIFIE")) {
-       setNotification({message: "Les Termes de Référence (TDR) sont obligatoires pour les services.", type: 'error'});
-       return scrollToElement("documentsSection");
-    }
-    
-    if (categorieBesoin === "REAPPROVISIONNEMENT" && !uploadedTypes.includes("BON_SORTIE_STOCK")) {
-       setNotification({message: "Le Bon de sortie stock est obligatoire pour un réapprovisionnement.", type: 'error'});
-       return scrollToElement("documentsSection");
-    }
-    
-    const totalEstime = lignes.reduce((acc, l) => acc + getLigneTotal(l, isServiceRequest), 0);
-    if (totalEstime > 0 && !uploadedTypes.includes("DEVIS_ESTIMATIF")) {
-       setNotification({message: "Le Devis estimatif est obligatoire car la demande comporte un montant estimé.", type: 'error'});
-       return scrollToElement("documentsSection");
-    }
-    // ---------------------------------------------
     
     setSaving(true);
     try {
-      const res = await createDemandeAchat({
+      await updateDemandeAchat(demandeId, {
         unite_technique: uniteTechnique, 
         categorie_besoin: categorieBesoin,
         type_demande: typeDemande,
@@ -455,26 +448,24 @@ export default function NouvelleDemandePage() {
         lignes_besoin: lignes.map(buildLignePayload)
       });
       
-      if (res?.id) { 
-        // Handles Document Uploads
-        for (const doc of documents) {
-           if (doc.fichier) {
-               if (!documentTypesOptions.some((option) => option.value === doc.type_document)) {
-                  throw new Error("Le type de document selectionne est invalide.");
-               }
+      // Handles Document Uploads
+      for (const doc of documents) {
+          if (doc.fichier) {
+              if (!documentTypesOptions.some((option) => option.value === doc.type_document)) {
+                throw new Error("Le type de document selectionne est invalide.");
+              }
 
-               const fd = new FormData();
-               fd.append("fichier", doc.fichier);
-               fd.append("type_document", doc.type_document);
-               fd.append("commentaire", doc.commentaire || "");
-               await uploadDocumentDemandeAchat(res.id, fd);
-           }
-        }
-        
-        await submitDemandeAchat(res.id); 
-        setNotification({message: "État de besoins soumis avec succès !", type: 'success'}); 
-        setTimeout(() => router.push("/demande-achat/dashboard"), 2000); 
+              const fd = new FormData();
+              fd.append("fichier", doc.fichier);
+              fd.append("type_document", doc.type_document);
+              fd.append("commentaire", doc.commentaire || "");
+              await uploadDocumentDemandeAchat(demandeId, fd);
+          }
       }
+      
+      await resubmitDemandeAchat(demandeId); 
+      setNotification({message: "État de besoins modifié et renvoyé avec succès !", type: 'success'}); 
+      setTimeout(() => router.push("/demande-achat/dashboard?filter=toutes"), 2000); 
     } catch (err: unknown) { 
       const errorMessage = err instanceof Error ? err.message : "Erreur de connexion. Vérifiez les données.";
       setNotification({message: errorMessage, type: 'error'}); 
@@ -574,29 +565,29 @@ export default function NouvelleDemandePage() {
   };
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_10%_0%,#f6faf8_0%,transparent_25%),linear-gradient(180deg,#f8fafc_0%,#f1f5f9_100%)] text-slate-800 pb-24 font-sans antialiased selection:bg-emerald-200">
+    <main className="h-auto bg-slate-50/50 text-slate-800 pb-24 font-sans antialiased selection:bg-emerald-200">
       <TopHeader />
       {notification && <NotificationPopup message={notification.message} type={notification.type} onClose={() => setNotification(null)} />}
 
-      <div className="zoom-content h-full">
-        <div className="max-w-container-zoomed mx-auto px-4 md:px-6 gap-8 mt-10 pb-12 flex flex-col animate-in slide-in-from-bottom-6 duration-700">
-        
-        {/* EN-TETE HERO - MODERN, COLORFUL LOGO & RETURN BTN */}
-        <div className="bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 relative overflow-hidden group w-full">
-           <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-emerald-100 to-teal-50 opacity-50 rounded-full blur-3xl -z-10 group-hover:scale-110 transition-transform duration-700"></div>
+      <div className="zoom-content">
+        <div className="max-w-7xl-zoomed mx-auto px-4 md:px-6 gap-6 mt-8 pb-10 flex flex-col animate-in slide-in-from-bottom-4 duration-500">
+          
+          {/* EN-TETE HERO - MODERN, COLORFUL LOGO & RETURN BTN */}
+          <div className="bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 relative overflow-hidden group w-full">
+           <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-orange-100 to-red-50 opacity-50 rounded-full blur-3xl -z-10 group-hover:scale-110 transition-transform duration-700"></div>
            
            <div className="flex items-center gap-5">
               <div className="relative">
-                 <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-400 flex items-center justify-center text-white shadow-lg shadow-emerald-500/20 rotate-3 group-hover:rotate-6 transition-all duration-300">
-                    <FileText className="h-7 w-7" />
+                 <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-400 flex items-center justify-center text-white shadow-lg shadow-amber-500/20 rotate-3 group-hover:rotate-6 transition-all duration-300">
+                    <Edit2 className="h-7 w-7" />
                  </div>
-                 <Sparkles className="absolute -top-2 -right-2 h-5 w-5 text-amber-400 animate-pulse" />
+                 <AlertCircle className="absolute -top-2 -right-2 h-5 w-5 text-red-500 animate-pulse" />
               </div>
               <div>
-                 <h1 className="text-xl md:text-2xl font-black text-slate-800 tracking-tight leading-tight">ÉTAT DE BESOINS DE BIENS ET SERVICES</h1>
+                 <h1 className="text-xl md:text-2xl font-black text-slate-800 tracking-tight leading-tight">CORRECTION DE L&apos;ÉTAT DE BESOINS</h1>
                  <div className="flex items-center gap-2 mt-1.5">
-                    <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <p className="text-sm text-slate-500 font-medium tracking-wide">Formulaire officiel de remontée des besoins</p>
+                    <span className="flex h-2 w-2 rounded-full bg-orange-500 animate-pulse"></span>
+                    <p className="text-sm text-slate-500 font-medium tracking-wide">Veuillez modifier votre état de besoins en fonction des retours.</p>
                  </div>
               </div>
            </div>
@@ -604,19 +595,35 @@ export default function NouvelleDemandePage() {
            <button type="button" onClick={() => router.push("/demande-achat/dashboard")} className="flex items-center gap-2 px-5 py-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 rounded-xl font-bold text-sm transition-all hover:scale-105 active:scale-95 shadow-sm">
               <ArrowLeft className="h-4 w-4" /> Retour
            </button>
-        </div>
+         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6 w-full">
-          
-          {/* SECTION 1: INFORMATIONS ADMINISTRATIVES */}
-          <div className="group relative overflow-hidden rounded-3xl border border-white/40 bg-white/70 shadow-[0_8px_32px_rgba(0,0,0,0.05)] backdrop-blur-md transition-all duration-500 hover:shadow-[0_12px_48px_rgba(0,0,0,0.08)]">
-             <div className="absolute top-0 left-0 h-1.5 w-full bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-500 bg-[length:200%_100%] animate-gradient"></div>
-             <div className="p-8">
-                <h2 className="mb-8 flex items-center gap-4 text-base font-black uppercase tracking-tight text-slate-800">
-                   <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-100/80 text-emerald-600 shadow-sm backdrop-blur-sm transition-transform duration-300 group-hover:scale-110">
-                      <Briefcase className="h-5 w-5" />
+         {loadingData ? (
+           <div className="flex flex-col items-center justify-center py-20">
+             <div className="h-10 w-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+             <p className="font-bold text-slate-500">Chargement de l&apos;état de besoins...</p>
+           </div>
+         ) : (
+           <form onSubmit={handleSubmit} className="space-y-6 w-full">
+            
+            {/* Banner Reason */}
+            {rejectReason && (
+              <div className="bg-amber-50 border-l-[6px] border-amber-500 rounded-2xl shadow-sm border border-slate-200 overflow-hidden group hover:shadow-md transition-shadow p-6 flex items-start gap-4">
+                 <AlertCircle className="w-8 h-8 text-amber-600 shrink-0 mt-0.5" />
+                 <div>
+                    <h2 className="text-[16px] font-black text-amber-900 flex items-center gap-2 uppercase tracking-wide">⚠️ À compléter</h2>
+                    <p className="text-[14px] text-amber-800 font-semibold mt-2 whitespace-pre-wrap leading-relaxed">{rejectReason}</p>
+                 </div>
+              </div>
+            )}
+            
+            {/* SECTION 1: INFORMATIONS ADMINISTRATIVES */}
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden group hover:shadow-md transition-shadow">
+             <div className="border-t-[4px] border-emerald-500 p-6">
+                <h2 className="text-[15px] font-black text-slate-800 mb-6 flex items-center gap-2">
+                   <div className="bg-gradient-to-br from-emerald-100 to-teal-100 text-emerald-700 w-8 h-8 rounded-lg flex items-center justify-center p-1.5 shadow-sm">
+                      <Briefcase className="w-full h-full" />
                    </div>
-                   1. Informations Administratives
+                   Informations Administratives
                 </h2>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -666,14 +673,13 @@ export default function NouvelleDemandePage() {
           </div>
 
           {/* SECTION 2: IDENTIFICATION DU BESOIN */}
-          <div className="group relative overflow-hidden rounded-3xl border border-white/40 bg-white/70 shadow-[0_8px_32px_rgba(0,0,0,0.05)] backdrop-blur-md transition-all duration-500 hover:shadow-[0_12px_48px_rgba(0,0,0,0.08)]">
-             <div className="absolute top-0 left-0 h-1.5 w-full bg-gradient-to-r from-teal-500 via-emerald-400 to-teal-500 bg-[length:200%_100%] animate-gradient"></div>
-             <div className="p-8">
-                <h2 className="mb-8 flex items-center gap-4 text-base font-black uppercase tracking-tight text-slate-800">
-                   <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-teal-100/80 text-teal-600 shadow-sm backdrop-blur-sm transition-transform duration-300 group-hover:scale-110">
-                      <Target className="h-5 w-5" />
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden group hover:shadow-md transition-shadow">
+             <div className="border-t-[4px] border-emerald-500 p-6">
+                <h2 className="text-[15px] font-black text-slate-800 mb-6 flex items-center gap-2">
+                   <div className="bg-gradient-to-br from-emerald-100 to-teal-100 text-emerald-700 w-8 h-8 rounded-lg flex items-center justify-center p-1.5 shadow-sm">
+                      <Target className="w-full h-full" />
                    </div>
-                   2. Identification du besoin
+                   Identification du besoin
                 </h2>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -698,18 +704,17 @@ export default function NouvelleDemandePage() {
           </div>
 
           {/* SECTION 3: LIGNES DE BESOINS */}
-          <div id="lignesSection" className="group relative overflow-hidden rounded-3xl border border-white/40 bg-white/70 shadow-[0_8px_32px_rgba(0,0,0,0.05)] backdrop-blur-md transition-all duration-500 hover:shadow-[0_12px_48px_rgba(0,0,0,0.08)]">
-             <div className="absolute top-0 left-0 h-1.5 w-full bg-gradient-to-r from-emerald-500 via-sky-400 to-emerald-500 bg-[length:200%_100%] animate-gradient"></div>
-             <div className="p-8">
-                <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-                   <h2 className="flex items-center gap-4 text-base font-black uppercase tracking-tight text-slate-800">
-                      <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-100/80 text-emerald-600 shadow-sm backdrop-blur-sm transition-transform duration-300 group-hover:scale-110">
-                         <Layers className="h-5 w-5" />
+          <div id="lignesSection" className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden group hover:shadow-md transition-shadow">
+             <div className="border-t-[4px] border-emerald-500 p-6 relative">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
+                   <h2 className="text-[15px] font-black text-slate-800 flex items-center gap-2">
+                      <div className="bg-gradient-to-br from-emerald-100 to-teal-100 text-emerald-700 w-8 h-8 rounded-lg flex items-center justify-center p-1.5 shadow-sm">
+                         <Layers className="w-full h-full" />
                       </div>
-                      3. Besoins (État quantitatif)
+                      Besoins (État quantitatif)
                    </h2>
-                   <button type="button" onClick={openCreateLigneModal} className="group relative flex items-center gap-3 overflow-hidden rounded-2xl bg-emerald-600 px-6 py-3 text-[14px] font-black uppercase tracking-wider text-white shadow-[0_10px_20px_rgba(5,150,105,0.2)] transition-all hover:bg-emerald-700 hover:shadow-[0_15px_30px_rgba(5,150,105,0.3)] hover:-translate-y-0.5 active:translate-y-0">
-                      <Plus className="h-5 w-5" /> Ajouter un besoin
+                   <button type="button" onClick={openCreateLigneModal} className="px-5 py-2.5 border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:scale-105 rounded-xl text-sm font-bold transition-all flex items-center gap-2 shadow-sm shrink-0 uppercase tracking-wide cursor-pointer relative z-10">
+                      <Plus className="h-4 w-4" /> Ajouter un besoin
                    </button>
                 </div>
                 
@@ -748,33 +753,29 @@ export default function NouvelleDemandePage() {
           </div>
 
           {/* SECTION 4: PIECES JOINTES */}
-          <div className="group relative overflow-hidden rounded-3xl border border-white/40 bg-white/70 shadow-[0_8px_32px_rgba(0,0,0,0.05)] backdrop-blur-md transition-all duration-500 hover:shadow-[0_12px_48px_rgba(0,0,0,0.08)]">
-             <div className="absolute top-0 left-0 h-1.5 w-full bg-gradient-to-r from-emerald-500 via-amber-400 to-emerald-500 bg-[length:200%_100%] animate-gradient"></div>
-             <div className="p-8">
-                <div id="documentsSection" className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-                   <h2 className="flex items-center gap-4 text-base font-black uppercase tracking-tight text-slate-800">
-                      <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-100/80 text-amber-600 shadow-sm backdrop-blur-sm transition-transform duration-300 group-hover:scale-110">
-                         <FolderArchive className="h-5 w-5" />
-                      </div>
-                      4. Documents justificatifs
-                   </h2>
-                   <button type="button" onClick={() => setDocuments([...documents, { type_document: getDefaultDocumentType(typeDemande, categorieBesoin), commentaire: "", fichier: null }])} className="flex items-center gap-3 overflow-hidden rounded-2xl bg-white border border-slate-200 px-6 py-3 text-[14px] font-black uppercase tracking-wider text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:border-slate-300 active:scale-95">
-                      <Plus className="h-5 w-5" /> Ajouter un fichier
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden group hover:shadow-md transition-shadow">
+             <div className="border-t-[4px] border-emerald-500 p-6">
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between mb-6 gap-4">
+                   <div>
+                      <h2 className="text-[15px] font-black text-slate-800 flex items-center gap-2">
+                         <div className="bg-gradient-to-br from-emerald-100 to-teal-100 text-emerald-700 w-8 h-8 rounded-lg flex items-center justify-center p-1.5 shadow-sm">
+                            <FolderArchive className="w-full h-full" />
+                         </div>
+                         Documents justificatifs
+                      </h2>
+                      {getDocumentRecommendations().length > 0 && (
+                         <div className="mt-3 bg-amber-50 border border-amber-200 p-3 rounded-lg text-amber-800 text-xs font-semibold animate-in fade-in duration-300">
+                            <p className="flex items-center gap-1.5 mb-1"><AlertCircle className="w-4 h-4"/> Documents réglementaires conseillés :</p>
+                            <ul className="list-disc pl-6 space-y-1">
+                               {getDocumentRecommendations().map((r, i) => <li key={i}>{r}</li>)}
+                            </ul>
+                         </div>
+                      )}
+                   </div>
+                   <button type="button" onClick={() => setDocuments([...documents, { type_document: getDefaultDocumentType(typeDemande, categorieBesoin), commentaire: "", fichier: null }])} className="px-5 py-2.5 border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:scale-105 rounded-xl text-sm font-bold transition-all flex items-center gap-2 shadow-sm shrink-0 uppercase tracking-wide">
+                      <Plus className="h-4 w-4" /> Ajouter fichier
                    </button>
                 </div>
-                   {getDocumentRecommendations().length > 0 && (
-                      <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50/50 p-5 text-amber-800 text-[12px] font-bold shadow-sm backdrop-blur-sm animate-in fade-in slide-in-from-top-2 duration-500">
-                         <p className="flex items-center gap-2.5 mb-2.5 text-amber-700"><AlertCircle className="w-5 h-5"/> Documents recommandés pour cette configuration :</p>
-                         <ul className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 list-none">
-                            {getDocumentRecommendations().map((r, i) => (
-                               <li key={i} className="flex items-center gap-2">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
-                                  <span>{r.label} {r.required && <span className="text-rose-500 font-extrabold ml-1">*</span>}</span>
-                                </li>
-                            ))}
-                         </ul>
-                      </div>
-                   )}
                 
                 {documents.length > 0 && (
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -811,16 +812,17 @@ export default function NouvelleDemandePage() {
              </div>
           </div>
 
-          {/* SUBMIT BUTTON SECTION */}
+           {/* SUBMIT BUTTON SECTION */}
           <div className="flex items-center justify-end pt-5 pb-12 w-full">
-             <button type="submit" disabled={saving} className="w-full md:w-auto lg:w-1/3 bg-gradient-to-r from-emerald-600 to-teal-500 text-white px-12 py-4 rounded-xl text-[16px] font-black uppercase tracking-wider shadow-[0_10px_30px_rgba(5,150,105,0.4)] hover:shadow-[0_15px_40px_rgba(5,150,105,0.5)] hover:-translate-y-1 transition-all disabled:opacity-70 disabled:pointer-events-none disabled:-translate-y-0 disabled:shadow-none flex items-center justify-center gap-3">
+             <button type="submit" disabled={saving} className="w-full md:w-auto lg:w-1/3 bg-gradient-to-r from-amber-500 to-orange-500 text-white px-12 py-4 rounded-xl text-[16px] font-black uppercase tracking-wider shadow-[0_10px_30px_rgba(245,158,11,0.4)] hover:shadow-[0_15px_40px_rgba(245,158,11,0.5)] hover:-translate-y-1 transition-all disabled:opacity-70 disabled:pointer-events-none disabled:-translate-y-0 disabled:shadow-none flex items-center justify-center gap-3">
                 {saving && <div className="h-5 w-5 border-3 border-white/30 border-t-white rounded-full animate-spin"></div>}
-                {saving ? "SOUMISSION EN COURS..." : "SOUMETTRE L'ÉTAT DE BESOINS"}
+                {saving ? "RETOUR EN COURS..." : "RENVOYER L'ÉTAT DE BESOINS"}
                 {!saving && <ChevronRight className="h-5 w-5" />}
              </button>
           </div>
 
         </form>
+         )}
       </div>
     </div>
       <LigneBesoinModal

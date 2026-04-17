@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { X, CheckCircle, Package } from "lucide-react";
 import { DemandeAchat, IssueOrderPayload, issueOrderDemandeAchat } from "@/services/achats";
 import { formatMoney, getCompactNeedLabel } from "@/app/demande-achat/components/demandeAchatShared";
+import PurchaseSelect from "@/app/demande-achat/components/PurchaseSelect";
 
 type PassationModalProps = {
   demande: DemandeAchat | null;
@@ -23,6 +24,12 @@ const initialFormState: IssueOrderPayload = {
   conditions_livraison: "",
   garantie: "",
 };
+
+const procedureOptions = [
+  { value: "DEMANDE_COTATION", label: "Demande de cotation" },
+  { value: "BON_COMMANDE_DIRECT", label: "Bon de commande direct" },
+  { value: "SELECTION_APRES_COTATION", label: "Sélection après cotation" },
+] as const;
 
 export default function PassationModal({
   demande,
@@ -81,18 +88,21 @@ export default function PassationModal({
 
   return (
     <div
-      className="fixed inset-0 z-[110] bg-slate-900/40 p-4 flex items-center justify-center animate-in fade-in duration-200"
+      className="fixed inset-0 z-[110] bg-slate-900/40 p-4 flex items-start justify-center overflow-y-auto animate-in fade-in duration-200"
       role="dialog"
       aria-modal="true"
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl animate-in zoom-in-95 duration-200">
+      <div 
+        className="my-8 flex w-full max-w-5xl flex-col rounded-xl border border-slate-200 bg-white shadow-xl animate-in zoom-in-95 duration-200"
+        style={{ zoom: 0.8 }}
+      >
         
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-5 py-3">
           <div className="flex items-center gap-3">
             <Package className="h-5 w-5 text-sky-600" />
-            <h2 className="text-lg font-bold text-slate-900 tracking-tight">Passation : {demande.numero_demande}</h2>
+            <h2 className="text-lg font-bold text-slate-900 tracking-tight">Passation : Commande {demande.numero_demande}</h2>
           </div>
           <button
             type="button"
@@ -104,7 +114,7 @@ export default function PassationModal({
         </div>
 
         {/* Content Area */}
-        <div className="min-h-0 flex-1 overflow-y-auto bg-slate-50 p-5 space-y-4">
+        <div className="flex-1 bg-slate-50 p-5 space-y-4">
           
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 rounded-xl border border-sky-100 bg-sky-50/50 p-4 shadow-sm">
             <div className="min-w-0 flex-1">
@@ -130,18 +140,15 @@ export default function PassationModal({
               </p>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-slate-700">Type de procédure</label>
-                <select
+                <PurchaseSelect
                   value={form.type_procedure}
-                  onChange={(e) => setForm({ ...form, type_procedure: e.target.value as any })}
-                  className="w-full rounded-lg border border-slate-300 bg-slate-50 focus:bg-white py-2 px-3 text-sm shadow-sm transition-colors focus:border-sky-500 focus:ring-2 focus:ring-sky-100 outline-none"
-                >
-                  <option value="DEMANDE_COTATION">Demande de cotation</option>
-                  <option value="BON_COMMANDE_DIRECT">Bon de commande direct</option>
-                  <option value="SELECTION_APRES_COTATION">Sélection après cotation</option>
-                </select>
+                  onChange={(value) => setForm({ ...form, type_procedure: value as IssueOrderPayload["type_procedure"] })}
+                  options={[...procedureOptions]}
+                  className="w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm shadow-sm transition-colors outline-none focus:bg-white focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+                />
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-slate-700">Fournisseur retenu</label>
@@ -246,7 +253,7 @@ export default function PassationModal({
               ) : (
                 <>
                   <CheckCircle className="h-4 w-4" />
-                  Valider la commande
+                  Créer le bon de commande
                 </>
               )}
             </button>

@@ -1,20 +1,19 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState, useRef } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { Search, X, ChevronDown, Package, Truck, ChevronLeft, ChevronRight as ChevronRightIcon } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Search, X, ChevronDown, Package, ClipboardList, ChevronLeft, ChevronRight as ChevronRightIcon } from "lucide-react";
 
 import TopHeader from "@/app/components/TopHeader";
 import DemandeDetailModal from "@/app/demande-achat/components/DemandeDetailModal";
 import PassationModal from "@/app/demande-achat/components/PassationModal";
-import LivraisonModal from "@/app/demande-achat/components/LivraisonModal";
+import { DashboardFilterBar, useDashboardFilters } from "@/app/demande-achat/components/DashboardFilterBar";
 import {
+  type DemandePrimaryAction,
   formatDate,
   formatMoney,
   getCompactNeedLabel,
   getDemandePrimaryAction,
-  sortDemandesByRecent,
   statusClasses,
   statusLabels,
   stepLabels,
@@ -25,10 +24,11 @@ import {
   getToken,
   getAgentAchatRoleLabel,
   isAgentAchatUser,
+  type UserProfile,
 } from "@/services/auth";
 import { DemandeAchat, listDemandesPassation } from "@/services/achats";
 
-type SectionKey = "passation" | "livraison";
+type SectionKey = "passation" | "ordered";
 type DetailViewMode = "detail" | "timeline";
 
 type SectionData = {
@@ -45,27 +45,73 @@ type SectionData = {
   emptyText: string;
 };
 
+type RouterLike = {
+  push: (href: string) => void;
+};
+
+type SearchResultsListProps = {
+  items: DemandeAchat[];
+  query: string;
+  currentUser: UserProfile | null;
+  router: RouterLike;
+  onOpenDetail: (id: number) => void;
+  onOpenTimeline: (id: number) => void;
+  onOpenPassation: (id: number) => void;
+};
+
+type AccordionSectionProps = {
+  section: SectionData;
+  isActive: boolean;
+  onToggle: () => void;
+  currentUser: UserProfile | null;
+  router: RouterLike;
+  onOpenDetail: (id: number) => void;
+  onOpenTimeline: (id: number) => void;
+  onOpenPassation: (id: number) => void;
+  activeRingClass: string;
+  hoverBorderClass: string;
+};
+
+type PaginationControlsProps = {
+  page: number;
+  totalPages: number;
+  setPage: React.Dispatch<React.SetStateAction<number>>;
+};
+
+type CompactDemandeRowProps = {
+  demande: DemandeAchat;
+  sectionKey?: SectionKey;
+  onOpenDetail: () => void;
+  onOpenTimeline: () => void;
+  onOpenPassation: () => void;
+  action: DemandePrimaryAction | null;
+  router: RouterLike;
+};
+
 const PAGE_SIZE = 5;
 
-const isPassationCandidate = (demande: DemandeAchat) => demande.statut === "VALIDEE";
+const isPassationCandidate = (demande: DemandeAchat) =>
+  demande.statut === "VALIDEE_BUDGETAIRE";
 
-const isDeliveryCandidate = (demande: DemandeAchat) =>
-  demande.statut === "EN_COMMANDE" || demande.statut === "EN_LIVRAISON";
+const isOrderedCandidate = (demande: DemandeAchat) =>
+  demande.statut === "EN_COMMANDE" ||
+  demande.statut === "EN_LIVRAISON" ||
+  demande.statut === "LIVREE";
 
 const getAgentSectionNote = (demande: DemandeAchat) => {
-  if (demande.statut === "VALIDEE") {
-    return "Validation terminée, commande à créer";
+  if (demande.statut === "VALIDEE_BUDGETAIRE") {
+    return "Budget validé, bon de commande à créer";
   }
 
-  if (demande.date_arrivee_prevue) {
-    return `Arrivée prévue le ${formatDate(demande.date_arrivee_prevue)}`;
+  if (demande.date_bon_commande) {
+    return `Commande créée le ${formatDate(demande.date_bon_commande)}`;
   }
 
-  if (demande.date_livraison_prevue) {
-    return `Livraison prévue le ${formatDate(demande.date_livraison_prevue)}`;
+  if (demande.numero_bon_commande) {
+    return `BC ${demande.numero_bon_commande}`;
   }
 
-  return "Suivi expédition en cours";
+  return "Dossier transmis au Marché";
 };
 
 const filterDemandesByQuery = (items: DemandeAchat[], query: string) => {
@@ -89,7 +135,6 @@ const filterDemandesByQuery = (items: DemandeAchat[], query: string) => {
 
 export default function PassationDashboardPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [currentUser] = useState(() => getCurrentUser());
   const agentRoleLabel = getAgentAchatRoleLabel(currentUser);
   const [demandes, setDemandes] = useState<DemandeAchat[]>([]);
@@ -100,13 +145,12 @@ export default function PassationDashboardPage() {
   const [selectedDemandeId, setSelectedDemandeId] = useState<number | null>(null);
   const [detailViewMode, setDetailViewMode] = useState<DetailViewMode>("detail");
   const [passationModalDemandeId, setPassationModalDemandeId] = useState<number | null>(null);
-  const [livraisonModalDemandeId, setLivraisonModalDemandeId] = useState<number | null>(null);
 
   const reloadDemandes = async () => {
     try {
       const data = await listDemandesPassation();
       setDemandes(data);
-    } catch (err) {}
+    } catch {}
   };
 
   useEffect(() => {
@@ -134,14 +178,15 @@ export default function PassationDashboardPage() {
     void load();
   }, [currentUser, router]);
 
-  const orderedDemandes = useMemo(() => sortDemandesByRecent(demandes), [demandes]);
-  const passationDemandes = useMemo(() => orderedDemandes.filter(isPassationCandidate), [orderedDemandes]);
-  const livraisonDemandes = useMemo(() => orderedDemandes.filter(isDeliveryCandidate), [orderedDemandes]);
+  const { filteredDemandes, filterProps } = useDashboardFilters(demandes, { typeField: "categorie_besoin" });
+
+  const passationDemandes = useMemo(() => filteredDemandes.filter(isPassationCandidate), [filteredDemandes]);
+  const orderedSectionDemandes = useMemo(() => filteredDemandes.filter(isOrderedCandidate), [filteredDemandes]);
 
   const sections = useMemo<Record<SectionKey, SectionData>>(() => ({
     passation: {
       key: "passation",
-      title: "File Passation",
+      title: "À commander",
       icon: Package,
       gradientFrom: "from-sky-500",
       gradientTo: "to-blue-600",
@@ -150,120 +195,170 @@ export default function PassationDashboardPage() {
       borderClass: "border-sky-200",
       items: passationDemandes,
       total: passationDemandes.length,
-      emptyText: "Aucune demande validée à transformer en commande.",
+      emptyText: "Aucun dossier validé budgétairement à transformer en commande.",
     },
-    livraison: {
-      key: "livraison",
-      title: "Suivi Livraison",
-      icon: Truck,
-      gradientFrom: "from-indigo-500",
-      gradientTo: "to-violet-600",
-      textColor: "text-indigo-700",
-      bgLight: "bg-indigo-50 text-indigo-700",
-      borderClass: "border-indigo-200",
-      items: livraisonDemandes,
-      total: livraisonDemandes.length,
-      emptyText: "Aucune commande en cours de livraison.",
+    ordered: {
+      key: "ordered",
+      title: "Commandées / transmises au Marché",
+      icon: ClipboardList,
+      gradientFrom: "from-slate-600",
+      gradientTo: "to-slate-800",
+      textColor: "text-slate-700",
+      bgLight: "bg-slate-100 text-slate-700",
+      borderClass: "border-slate-200",
+      items: orderedSectionDemandes,
+      total: orderedSectionDemandes.length,
+      emptyText: "Aucune commande déjà transmise au Marché.",
     },
-  }), [passationDemandes, livraisonDemandes]);
+  }), [orderedSectionDemandes, passationDemandes]);
 
   const isSearching = query.trim().length > 0;
-  const searchResults = useMemo(() => isSearching ? filterDemandesByQuery(orderedDemandes, query) : [], [isSearching, orderedDemandes, query]);
+  const searchResults = useMemo(() => isSearching ? filterDemandesByQuery(filteredDemandes, query) : [], [isSearching, filteredDemandes, query]);
 
   const selectedDemande = useMemo(() => demandes.find((item) => item.id === selectedDemandeId) ?? null, [demandes, selectedDemandeId]);
 
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-800 font-sans selection:bg-sky-100 selection:text-sky-900 pb-12">
+    <main className="min-h-screen bg-[radial-gradient(circle_at_10%_0%,#f6faf8_0%,transparent_25%),linear-gradient(180deg,#f8fafc_0%,#f1f5f9_100%)] text-slate-800 font-sans antialiased selection:bg-sky-100 selection:text-sky-900 pb-12">
       <TopHeader />
 
-      <div className="mx-auto max-w-5xl px-4 py-8">
-        <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <h1 className="text-xl font-bold tracking-tight text-slate-900">Espace Agent Achat</h1>
-            <div className="hidden h-6 w-[1px] bg-slate-300 md:block"></div>
-            <p className="text-sm font-medium text-slate-500 hidden sm:block">{agentRoleLabel || "Agent achat"}</p>
-          </div>
+      <div className="zoom-content h-full">
+        <div className="max-w-7xl-zoomed mx-auto px-6 py-10 animate-in slide-in-from-bottom-8 duration-700">
+          <div className="mb-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="flex items-center gap-5">
+              <div className="h-14 w-14 flex items-center justify-center rounded-2xl bg-sky-600 text-white shadow-xl shadow-sky-500/20">
+                <Package className="h-7 w-7" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-black tracking-tight text-slate-900 leading-tight">Espace Passation</h1>
+                <p className="text-[13px] font-bold text-sky-600 uppercase tracking-widest mt-0.5">{agentRoleLabel || "Agent achat"}</p>
+              </div>
+            </div>
 
-          <div className="flex items-center gap-3 w-full md:w-auto">
-            <div className="relative flex-1 sm:w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Rechercher un dossier..."
-                className="w-full bg-white border border-slate-300/80 rounded-xl py-2 pl-9 pr-8 text-sm outline-none shadow-sm transition-all focus:border-sky-500 focus:ring-4 focus:ring-sky-100"
-              />
-              {query && (
-                <button onClick={() => setQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              )}
+            <div className="flex items-center gap-4 w-full md:w-auto">
+              <div className="group relative flex-1 sm:w-80">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 transition-colors group-focus-within:text-sky-500" />
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Rechercher un dossier par numéro, objet..."
+                  className="w-full bg-white/70 border border-white/40 backdrop-blur-md rounded-2xl py-3 pl-11 pr-10 text-[14px] outline-none shadow-[0_4px_12px_rgba(0,0,0,0.03)] transition-all focus:bg-white focus:border-sky-500 focus:ring-4 focus:ring-sky-500/10 placeholder:text-slate-400"
+                />
+                {query && (
+                  <button onClick={() => setQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-rose-500 transition-colors">
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
 
         {loading ? (
-          <div className="flex justify-center py-12">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-sky-600" />
+          <div className="space-y-4 animate-pulse">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="h-32 rounded-2xl border border-white/40 bg-white/60 shadow-sm flex flex-col justify-between p-4 gap-4">
+                <div className="flex-1 space-y-3">
+                  <div className="flex gap-2">
+                    <div className="h-4 w-20 bg-slate-200 rounded"></div>
+                    <div className="h-4 w-16 bg-slate-100 rounded"></div>
+                  </div>
+                  <div className="h-5 w-3/4 bg-slate-200 rounded"></div>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <div className="h-8 w-20 bg-slate-100 rounded-lg"></div>
+                  <div className="h-8 w-32 bg-slate-200 rounded-lg"></div>
+                </div>
+              </div>
+            ))}
           </div>
         ) : error ? (
           <div className="rounded-xl border-l-4 border-rose-500 bg-white p-5 text-sm font-medium text-rose-800 shadow-sm">
             {error}
           </div>
-        ) : orderedDemandes.length === 0 && !isSearching ? (
-          <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center shadow-sm">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-sky-50 mb-4">
-              <Package className="h-8 w-8 text-sky-500" />
-            </div>
-            <h2 className="text-lg font-bold text-slate-900 mb-2">Aucun dossier</h2>
-            <p className="text-sm text-slate-500">
-              Votre file de traitement est actuellement vide.
-            </p>
-          </div>
-        ) : isSearching ? (
-          <div className="animate-in slide-in-from-top-2 fade-in duration-300">
-            <SearchResultsList 
-              items={searchResults} 
-              query={query}
-              currentUser={currentUser}
-              router={router}
-              onOpenDetail={(id: number) => { setSelectedDemandeId(id); setDetailViewMode("detail"); }}
-              onOpenTimeline={(id: number) => { setSelectedDemandeId(id); setDetailViewMode("timeline"); }}
-              onOpenPassation={(id: number) => setPassationModalDemandeId(id)}
-              onOpenLivraison={(id: number) => setLivraisonModalDemandeId(id)}
-            />
-          </div>
         ) : (
-          <div className="space-y-4">
-            <AccordionSection 
-              section={sections.passation} 
-              isActive={activeSection === "passation"} 
-              onToggle={() => setActiveSection(activeSection === "passation" ? null : "passation")} 
-              currentUser={currentUser} 
-              router={router} 
-              onOpenDetail={(id: number) => { setSelectedDemandeId(id); setDetailViewMode("detail"); }} 
-              onOpenTimeline={(id: number) => { setSelectedDemandeId(id); setDetailViewMode("timeline"); }} 
-              onOpenPassation={(id: number) => setPassationModalDemandeId(id)}
-              onOpenLivraison={(id: number) => setLivraisonModalDemandeId(id)}
-              activeRingClass="ring-sky-50 border-sky-300"
-              hoverBorderClass="hover:border-sky-200"
-            />
-            <AccordionSection 
-              section={sections.livraison} 
-              isActive={activeSection === "livraison"} 
-              onToggle={() => setActiveSection(activeSection === "livraison" ? null : "livraison")} 
-              currentUser={currentUser} 
-              router={router} 
-              onOpenDetail={(id: number) => { setSelectedDemandeId(id); setDetailViewMode("detail"); }} 
-              onOpenTimeline={(id: number) => { setSelectedDemandeId(id); setDetailViewMode("timeline"); }} 
-              onOpenPassation={(id: number) => setPassationModalDemandeId(id)}
-              onOpenLivraison={(id: number) => setLivraisonModalDemandeId(id)}
-              activeRingClass="ring-indigo-50 border-indigo-300"
-              hoverBorderClass="hover:border-indigo-200"
-            />
+          <div className="mb-8 space-y-6">
+            <DashboardFilterBar filterProps={filterProps} />
+
+            {filteredDemandes.length === 0 && !isSearching ? (
+              <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center shadow-sm">
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-sky-50 mb-4">
+                  <Package className="h-8 w-8 text-sky-500" />
+                </div>
+                <h2 className="text-lg font-bold text-slate-900 mb-2">Aucun dossier</h2>
+                <p className="text-sm text-slate-500">
+                  {demandes.length > 0 ? "Aucun dossier ne correspond à vos filtres." : "Votre file de traitement est actuellement vide."}
+                </p>
+                {(filterProps.selectedFinancements.length > 0 || filterProps.selectedTypes.length > 0) && (
+                  <button 
+                    onClick={() => { filterProps.setSelectedFinancements([]); filterProps.setSelectedTypes([]); }}
+                    className="mt-4 text-sm font-bold text-sky-600 hover:underline"
+                  >
+                    Effacer les filtres
+                  </button>
+                )}
+              </div>
+            ) : isSearching ? (
+              <div className="animate-in slide-in-from-top-2 fade-in duration-300">
+                <SearchResultsList
+                  items={searchResults}
+                  query={query}
+                  currentUser={currentUser}
+                  router={router}
+                  onOpenDetail={(id: number) => {
+                    setSelectedDemandeId(id);
+                    setDetailViewMode("detail");
+                  }}
+                  onOpenTimeline={(id: number) => {
+                    setSelectedDemandeId(id);
+                    setDetailViewMode("timeline");
+                  }}
+                  onOpenPassation={(id: number) => setPassationModalDemandeId(id)}
+                />
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <AccordionSection
+                  section={sections.passation}
+                  isActive={activeSection === "passation"}
+                  onToggle={() => setActiveSection(activeSection === "passation" ? null : "passation")}
+                  currentUser={currentUser}
+                  router={router}
+                  onOpenDetail={(id: number) => {
+                    setSelectedDemandeId(id);
+                    setDetailViewMode("detail");
+                  }}
+                  onOpenTimeline={(id: number) => {
+                    setSelectedDemandeId(id);
+                    setDetailViewMode("timeline");
+                  }}
+                  onOpenPassation={(id: number) => setPassationModalDemandeId(id)}
+                  activeRingClass="ring-sky-50 border-sky-300"
+                  hoverBorderClass="hover:border-sky-200"
+                />
+                <AccordionSection
+                  section={sections.ordered}
+                  isActive={activeSection === "ordered"}
+                  onToggle={() => setActiveSection(activeSection === "ordered" ? null : "ordered")}
+                  currentUser={currentUser}
+                  router={router}
+                  onOpenDetail={(id: number) => {
+                    setSelectedDemandeId(id);
+                    setDetailViewMode("detail");
+                  }}
+                  onOpenTimeline={(id: number) => {
+                    setSelectedDemandeId(id);
+                    setDetailViewMode("timeline");
+                  }}
+                  onOpenPassation={(id: number) => setPassationModalDemandeId(id)}
+                  activeRingClass="ring-slate-100 border-slate-300"
+                  hoverBorderClass="hover:border-slate-300"
+                />
+              </div>
+            )}
           </div>
         )}
       </div>
+    </div>
 
       <DemandeDetailModal
         demande={selectedDemande}
@@ -285,25 +380,13 @@ export default function PassationDashboardPage() {
           reloadDemandes();
         }}
       />
-
-      <LivraisonModal
-        demande={demandes.find((item) => item.id === livraisonModalDemandeId) ?? null}
-        open={!!livraisonModalDemandeId}
-        onClose={() => setLivraisonModalDemandeId(null)}
-        onOpenDetail={() => {
-          setSelectedDemandeId(livraisonModalDemandeId);
-          setDetailViewMode("detail");
-        }}
-        onSuccess={() => {
-          setLivraisonModalDemandeId(null);
-          reloadDemandes();
-        }}
-      />
     </main>
   );
 }
 
-function SearchResultsList({ items, query, currentUser, router, onOpenDetail, onOpenTimeline, onOpenPassation, onOpenLivraison }: any) {
+
+
+function SearchResultsList({ items, query, currentUser, router, onOpenDetail, onOpenTimeline, onOpenPassation }: SearchResultsListProps) {
   const [page, setPage] = useState(1);
   const totalPages = Math.ceil(items.length / PAGE_SIZE) || 1;
   const paginatedItems = items.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -313,7 +396,7 @@ function SearchResultsList({ items, query, currentUser, router, onOpenDetail, on
       <div className="bg-slate-50 border-b border-slate-200 px-5 py-4">
         <h2 className="text-lg font-bold text-slate-800">Résultats de recherche</h2>
         <p className="text-sm text-slate-500">
-          {items.length} correspondant à "{query}"
+          {items.length} correspondant à « {query} »
         </p>
       </div>
       
@@ -328,7 +411,6 @@ function SearchResultsList({ items, query, currentUser, router, onOpenDetail, on
               onOpenDetail={() => onOpenDetail(demande.id)}
               onOpenTimeline={() => onOpenTimeline(demande.id)}
               onOpenPassation={() => onOpenPassation(demande.id)}
-              onOpenLivraison={() => onOpenLivraison(demande.id)}
               action={getDemandePrimaryAction(demande, currentUser)}
               router={router}
             />
@@ -343,7 +425,7 @@ function SearchResultsList({ items, query, currentUser, router, onOpenDetail, on
   );
 }
 
-function AccordionSection({ section, isActive, onToggle, currentUser, router, onOpenDetail, onOpenTimeline, onOpenPassation, onOpenLivraison, activeRingClass, hoverBorderClass }: any) {
+function AccordionSection({ section, isActive, onToggle, currentUser, router, onOpenDetail, onOpenTimeline, onOpenPassation, activeRingClass, hoverBorderClass }: AccordionSectionProps) {
   const Icon = section.icon;
   const hasItems = section.total > 0;
   const sectionRef = useRef<HTMLDivElement>(null);
@@ -361,17 +443,17 @@ function AccordionSection({ section, isActive, onToggle, currentUser, router, on
   }, [isActive]);
 
   return (
-    <div ref={sectionRef} className={`overflow-hidden rounded-2xl border transition-all ${isActive ? `${activeRingClass} shadow-md ring-4` : `border-slate-200 bg-white shadow-sm ${hoverBorderClass}`}`}>
+    <div ref={sectionRef} className={`overflow-hidden rounded-[28px] border transition-all duration-500 ${isActive ? `border-white/60 bg-white/80 shadow-[0_32px_64px_rgba(15,23,42,0.12)] backdrop-blur-xl ring-1 ring-white/50` : `border-white/40 bg-white/60 backdrop-blur-md shadow-[0_8px_32px_rgba(0,0,0,0.04)] hover:shadow-[0_12px_48px_rgba(0,0,0,0.06)] hover:-translate-y-0.5`}`}>
       <button
         onClick={onToggle}
         disabled={!hasItems}
-        className={`w-full flex items-center justify-between px-5 py-4 transition-colors ${!hasItems ? 'bg-slate-50/50 cursor-not-allowed opacity-60' : isActive ? 'bg-slate-50 border-b border-slate-200' : 'bg-white hover:bg-slate-50'}`}
+        className={`w-full flex items-center justify-between px-8 py-6 transition-colors ${!hasItems ? 'cursor-not-allowed opacity-60' : isActive ? 'bg-slate-50/30' : 'hover:bg-white/40'}`}
       >
         <div className="flex items-center gap-4">
           <div className={`p-2 rounded-xl shadow-inner bg-gradient-to-br ${section.gradientFrom} ${section.gradientTo} text-white`}>
             <Icon className="h-5 w-5" strokeWidth={2} />
           </div>
-          <span className="text-[1.05rem] font-bold text-slate-900">{section.title}</span>
+          <span className="text-base font-bold text-slate-900">{section.title}</span>
           
           <span className={`ml-2 px-3 py-1 rounded-full text-xs font-bold shadow-sm ${hasItems ? `bg-white text-slate-800 border border-slate-200` : 'bg-slate-100 text-slate-400'}`}>
             {section.total}
@@ -392,7 +474,7 @@ function AccordionSection({ section, isActive, onToggle, currentUser, router, on
 
       {isActive && hasItems && (
         <div className="bg-slate-50/50 p-4 space-y-3">
-          {paginatedItems.map((demande: any) => (
+          {paginatedItems.map((demande) => (
             <CompactDemandeRow
               key={demande.id}
               demande={demande}
@@ -400,7 +482,6 @@ function AccordionSection({ section, isActive, onToggle, currentUser, router, on
               onOpenDetail={() => onOpenDetail(demande.id)}
               onOpenTimeline={() => onOpenTimeline(demande.id)}
               onOpenPassation={() => onOpenPassation(demande.id)}
-              onOpenLivraison={() => onOpenLivraison(demande.id)}
               action={getDemandePrimaryAction(demande, currentUser)}
               router={router}
             />
@@ -415,7 +496,7 @@ function AccordionSection({ section, isActive, onToggle, currentUser, router, on
   );
 }
 
-function PaginationControls({ page, totalPages, setPage }: any) {
+function PaginationControls({ page, totalPages, setPage }: PaginationControlsProps) {
   return (
     <div className="flex items-center justify-between pt-2 px-2">
       <p className="text-xs font-medium text-slate-500">
@@ -423,14 +504,14 @@ function PaginationControls({ page, totalPages, setPage }: any) {
       </p>
       <div className="flex items-center gap-1">
         <button
-          onClick={() => setPage((p: number) => Math.max(1, p - 1))}
+          onClick={() => setPage((p) => Math.max(1, p - 1))}
           disabled={page === 1}
           className="p-1 rounded-md border border-slate-200 bg-white text-slate-500 hover:text-slate-800 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
         <button
-          onClick={() => setPage((p: number) => Math.min(totalPages, p + 1))}
+          onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
           disabled={page === totalPages}
           className="p-1 rounded-md border border-slate-200 bg-white text-slate-500 hover:text-slate-800 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
@@ -441,7 +522,10 @@ function PaginationControls({ page, totalPages, setPage }: any) {
   );
 }
 
-function CompactDemandeRow({ demande, sectionKey, onOpenDetail, onOpenTimeline, onOpenPassation, onOpenLivraison, action, router }: any) {
+function CompactDemandeRow({ demande, sectionKey, onOpenDetail, onOpenTimeline, onOpenPassation, action, router }: CompactDemandeRowProps) {
+  void sectionKey;
+  void onOpenTimeline;
+
   return (
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm hover:border-sky-300 hover:shadow-md transition-all">
       <div className="flex-1 min-w-0">
@@ -452,7 +536,7 @@ function CompactDemandeRow({ demande, sectionKey, onOpenDetail, onOpenTimeline, 
           </span>
         </div>
         
-        <p className="text-[0.95rem] font-bold text-slate-800 truncate mb-1.5" title={demande.objet}>
+        <p className="text-[13.5px] font-bold text-slate-800 truncate mb-1.5" title={demande.objet}>
           {demande.objet}
         </p>
         
@@ -478,8 +562,6 @@ function CompactDemandeRow({ demande, sectionKey, onOpenDetail, onOpenTimeline, 
             onClick={() => {
               if (action.href.endsWith("/passation")) {
                 onOpenPassation();
-              } else if (action.href.endsWith("/livraison")) {
-                onOpenLivraison();
               } else {
                 router.push(action.href);
               }

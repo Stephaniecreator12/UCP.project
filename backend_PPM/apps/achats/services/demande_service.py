@@ -2,6 +2,7 @@ from datetime import timedelta
 from decimal import Decimal
 
 from django.db import IntegrityError, transaction
+from django.db.models import Q
 from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
@@ -9,16 +10,48 @@ from apps.achats.models import DemandeAchat, DocumentDemande, LigneBesoin
 from apps.achats.models.historique_demande import HistoriqueDemande
 from apps.achats.services.history_service import create_history_entry
 from apps.achats.services.notification_service import (
+    notify_budget_validated,
     notify_demande_closed,
     notify_demande_submitted,
     notify_delivery_updated,
     notify_order_issued,
+    notify_reception_issue_resolved,
     notify_reception_recorded,
 )
 
 NUMERO_PREFIX = "UCP/DA"
 BON_COMMANDE_PREFIX = "UCP/BC"
+ENGAGEMENT_PREFIX = "ENG"
 AGENT_ACHAT_GROUP = "AGENT_ACHAT"
+LOGISTIQUE_GROUP = "LOGISTIQUE"
+AGENT_MARCHE_GROUP = "AGENT_MARCHE"
+MARCHES_GROUP = "MARCHES"
+FINANCE_GROUPS = ["FINANCE", "RAF", "VALIDATEUR_BUDGETAIRE"]
+MARCHE_GROUPS = [AGENT_MARCHE_GROUP, MARCHES_GROUP, LOGISTIQUE_GROUP]
+
+BUDGET_MOCK_BY_LINE = {
+    "2.1.1 Fournitures bureau": {
+        DemandeAchat.SOURCE_FONDS_MONDIAL: Decimal("3200000.00"),
+        DemandeAchat.SOURCE_BANQUE_MONDIALE: Decimal("2800000.00"),
+        DemandeAchat.SOURCE_GAVI: Decimal("1800000.00"),
+    },
+    "2.2.1 Materiel informatique": {
+        DemandeAchat.SOURCE_FONDS_MONDIAL: Decimal("9500000.00"),
+        DemandeAchat.SOURCE_BANQUE_MONDIALE: Decimal("12000000.00"),
+        DemandeAchat.SOURCE_GAVI: Decimal("4500000.00"),
+    },
+    "3.1.1 Services": {
+        DemandeAchat.SOURCE_FONDS_MONDIAL: Decimal("6400000.00"),
+        DemandeAchat.SOURCE_BANQUE_MONDIALE: Decimal("7100000.00"),
+        DemandeAchat.SOURCE_GAVI: Decimal("3900000.00"),
+    },
+}
+
+DEFAULT_BUDGET_BALANCE_BY_SOURCE = {
+    DemandeAchat.SOURCE_FONDS_MONDIAL: Decimal("3000000.00"),
+    DemandeAchat.SOURCE_BANQUE_MONDIALE: Decimal("4500000.00"),
+    DemandeAchat.SOURCE_GAVI: Decimal("2200000.00"),
+}
 
 SUBVENTION_BY_SOURCE = {
     DemandeAchat.SOURCE_FONDS_MONDIAL: "FM",
@@ -28,13 +61,38 @@ SUBVENTION_BY_SOURCE = {
 
 
 def list_mes_demandes(user):
+    qs = DemandeAchat.objects.all()
+    if is_agent_marche(user):
+        # Marche needs to see everything that is ordered, shipped or received.
+        qs = qs.filter(
+            Q(demandeur=user) | 
+            Q(statut__in=[
+                DemandeAchat.STATUT_EN_COMMANDE, 
+                DemandeAchat.STATUT_EN_LIVRAISON, 
+                DemandeAchat.STATUT_LIVREE, 
+                DemandeAchat.STATUT_CLOTUREE
+            ])
+        )
+    else:
+        qs = qs.filter(demandeur=user)
+
+    from django.db.models import Prefetch
+    from apps.achats.models import ValidationDemande, HistoriqueDemande
+
     return (
-        DemandeAchat.objects.filter(demandeur=user)
+        qs.select_related("demandeur")
         .prefetch_related(
+            "demandeur__groups",
             "lignes_besoin",
             "documents",
-            "validations__validateur",
-            "historiques__user",
+            Prefetch(
+                "validations",
+                queryset=ValidationDemande.objects.select_related("validateur"),
+            ),
+            Prefetch(
+                "historiques",
+                queryset=HistoriqueDemande.objects.select_related("user"),
+            ),
         )
         .order_by("-created_at")
     )
@@ -43,6 +101,16 @@ def list_mes_demandes(user):
 def is_agent_achat(user):
     return user.groups.filter(name=AGENT_ACHAT_GROUP).exists()
 
+def is_agent_marche(user):
+    return user.groups.filter(name__in=MARCHE_GROUPS).exists()
+
+def is_logistique(user):
+    return is_agent_marche(user)
+
+
+def is_finance(user):
+    return user.groups.filter(name__in=FINANCE_GROUPS).exists()
+
 
 def list_demandes_a_commander(user):
     if not is_agent_achat(user):
@@ -50,19 +118,66 @@ def list_demandes_a_commander(user):
             {"detail": "Accès réservé à l'agent achat."}
         )
 
+    from django.db.models import Prefetch
+    from apps.achats.models import ValidationDemande, HistoriqueDemande
+
     return (
         DemandeAchat.objects.filter(
             statut__in=[
-                DemandeAchat.STATUT_VALIDEE,
+                DemandeAchat.STATUT_VALIDEE_BUDGETAIRE,
                 DemandeAchat.STATUT_EN_COMMANDE,
                 DemandeAchat.STATUT_EN_LIVRAISON,
             ]
         )
+        .select_related("demandeur")
         .prefetch_related(
+            "demandeur__groups",
             "lignes_besoin",
             "documents",
-            "validations__validateur",
-            "historiques__user",
+            Prefetch(
+                "validations",
+                queryset=ValidationDemande.objects.select_related("validateur"),
+            ),
+            Prefetch(
+                "historiques",
+                queryset=HistoriqueDemande.objects.select_related("user"),
+            ),
+        )
+        .order_by("-updated_at", "-created_at")
+    )
+
+
+def list_demandes_budgetaires(user):
+    if not is_finance(user):
+        raise PermissionDenied({"detail": "Accès réservé au service finance."})
+
+    from django.db.models import Prefetch
+    from apps.achats.models import ValidationDemande, HistoriqueDemande
+
+    return (
+        DemandeAchat.objects.filter(
+            statut__in=[
+                DemandeAchat.STATUT_VALIDEE,
+                DemandeAchat.STATUT_VALIDEE_BUDGETAIRE,
+                DemandeAchat.STATUT_EN_COMMANDE,
+                DemandeAchat.STATUT_EN_LIVRAISON,
+                DemandeAchat.STATUT_LIVREE,
+                DemandeAchat.STATUT_CLOTUREE,
+            ]
+        )
+        .select_related("demandeur")
+        .prefetch_related(
+            "demandeur__groups",
+            "lignes_besoin",
+            "documents",
+            Prefetch(
+                "validations",
+                queryset=ValidationDemande.objects.select_related("validateur"),
+            ),
+            Prefetch(
+                "historiques",
+                queryset=HistoriqueDemande.objects.select_related("user"),
+            ),
         )
         .order_by("-updated_at", "-created_at")
     )
@@ -111,9 +226,41 @@ def _build_numero_bon_commande():
 
 
 def _build_numero_subvention(source_financement):
+    if not source_financement:
+        return ""
     code = SUBVENTION_BY_SOURCE.get(source_financement, "UCP")
     year = timezone.now().year
     return f"SUBV/{code}/{year}"
+
+
+def _build_numero_engagement_budgetaire():
+    year = timezone.now().year
+    prefix = f"{ENGAGEMENT_PREFIX}/{year}/"
+
+    last_engagement = (
+        DemandeAchat.objects.select_for_update()
+        .filter(numero_engagement_budgetaire__startswith=prefix)
+        .order_by("-id")
+        .first()
+    )
+
+    sequence = 1
+    if last_engagement and last_engagement.numero_engagement_budgetaire:
+        try:
+            sequence = int(last_engagement.numero_engagement_budgetaire.split("/")[-1]) + 1
+        except (ValueError, IndexError):
+            sequence = last_engagement.id + 1
+
+    return f"{prefix}{sequence:04d}"
+
+
+def _get_mock_budget_balance(ligne_budgetaire, source_financement):
+    line_budget = BUDGET_MOCK_BY_LINE.get((ligne_budgetaire or "").strip(), {})
+    if source_financement in line_budget:
+        return line_budget[source_financement]
+    return DEFAULT_BUDGET_BALANCE_BY_SOURCE.get(
+        source_financement, Decimal("2500000.00")
+    )
 
 
 def _create_lignes_besoin(demande, lignes_besoin):
@@ -143,7 +290,10 @@ def _create_documents(demande, documents):
 
 
 def add_document_to_demande(demande, data, user):
-    _assert_demande_owner(demande, user)
+    if demande.demandeur_id != user.id and not is_agent_marche(user):
+        raise ValidationError(
+            {"detail": "Seul le demandeur ou le service marche peut ajouter un document."}
+        )
 
     return DocumentDemande.objects.create(demande=demande, **data)
 
@@ -186,6 +336,54 @@ def create_demande(validated_data, user):
     raise ValidationError(
         {"numero_demande": "Impossible de generer un numero de demande unique."}
     )
+
+@transaction.atomic
+def update_demande(demande, validated_data, user):
+    _assert_demande_owner(demande, user)
+
+    if demande.statut not in [DemandeAchat.STATUT_BROUILLON, DemandeAchat.STATUT_A_COMPLETER]:
+        raise ValidationError({"detail": "Seule une demande en brouillon ou a completer peut etre modifiee."})
+
+    previous_version = demande.version
+    should_increment_version = demande.statut == DemandeAchat.STATUT_A_COMPLETER
+    lignes_besoin = validated_data.pop("lignes_besoin", None)
+    documents = validated_data.pop("documents", [])
+
+    for field, value in validated_data.items():
+        setattr(demande, field, value)
+
+    if "source_financement" in validated_data:
+        demande.numero_subvention = _build_numero_subvention(validated_data["source_financement"])
+
+    if should_increment_version:
+        demande.version = previous_version + 1
+
+    demande.save()
+
+    if lignes_besoin is not None and isinstance(lignes_besoin, list):
+        demande.lignes_besoin.all().delete()
+        _create_lignes_besoin(demande, lignes_besoin)
+
+    if documents:
+        _create_documents(demande, documents)
+
+    create_history_entry(
+        demande=demande,
+        action=HistoriqueDemande.ACTION_DEMANDE_CREEE,
+        user=user,
+        description=(
+            f"La demande a été mise à jour (version {demande.version})."
+            if should_increment_version
+            else "La demande a été mise à jour."
+        ),
+        metadata={
+            "statut": demande.statut,
+            "previous_version": previous_version,
+            "version": demande.version,
+        },
+    )
+    return demande
+
 
 def submit_demande(demande, user):
     if demande.demandeur_id != user.id:
@@ -241,15 +439,91 @@ def _assert_demande_owner(demande, user):
 
 
 @transaction.atomic
+def complete_budget_estimation(demande, data, user):
+    if not is_finance(user):
+        raise PermissionDenied(
+            {"detail": "Seul le service finance peut compléter l'estimation budgétaire."}
+        )
+
+    if demande.statut not in [
+        DemandeAchat.STATUT_VALIDEE,
+        DemandeAchat.STATUT_VALIDEE_BUDGETAIRE,
+    ]:
+        raise ValidationError(
+            {
+                "detail": "Le budget ne peut être complété qu'après validation finale et avant la passation."
+            }
+        )
+
+    ligne_budgetaire = (data.get("ligne_budgetaire") or "").strip()
+    source_financement = data["source_financement"]
+    if not ligne_budgetaire:
+        raise ValidationError({"ligne_budgetaire": "La ligne budgétaire est obligatoire."})
+
+    solde_disponible = _get_mock_budget_balance(ligne_budgetaire, source_financement)
+    cout_estime = Decimal(demande.cout_total_estime or Decimal("0.00"))
+    solde_apres_engagement = solde_disponible - cout_estime
+
+    if solde_apres_engagement < Decimal("0.00"):
+        raise ValidationError(
+            {
+                "solde_disponible_ligne_budgetaire": "Le solde disponible est insuffisant pour engager cette demande."
+            }
+        )
+
+    demande.ligne_budgetaire = ligne_budgetaire
+    demande.source_financement = source_financement
+    demande.numero_subvention = _build_numero_subvention(source_financement)
+    demande.solde_disponible_ligne_budgetaire = solde_disponible
+    demande.solde_apres_engagement = solde_apres_engagement
+    if not demande.numero_engagement_budgetaire:
+        demande.numero_engagement_budgetaire = _build_numero_engagement_budgetaire()
+    demande.statut = DemandeAchat.STATUT_VALIDEE_BUDGETAIRE
+    demande.save(
+        update_fields=[
+            "ligne_budgetaire",
+            "source_financement",
+            "numero_subvention",
+            "solde_disponible_ligne_budgetaire",
+            "solde_apres_engagement",
+            "numero_engagement_budgetaire",
+            "statut",
+            "updated_at",
+        ]
+    )
+
+    create_history_entry(
+        demande=demande,
+        action=HistoriqueDemande.ACTION_BUDGET_VALIDE,
+        user=user,
+        description="L'estimation financière a été complétée par la finance.",
+        metadata={
+            "statut": demande.statut,
+            "ligne_budgetaire": demande.ligne_budgetaire,
+            "source_financement": demande.source_financement,
+            "solde_disponible_ligne_budgetaire": str(
+                demande.solde_disponible_ligne_budgetaire or ""
+            ),
+            "numero_engagement_budgetaire": demande.numero_engagement_budgetaire,
+            "solde_apres_engagement": str(demande.solde_apres_engagement or ""),
+        },
+    )
+    notify_budget_validated(demande)
+    return demande
+
+
+@transaction.atomic
 def issue_order(demande, data, user):
     if not is_agent_achat(user):
         raise PermissionDenied(
             {"detail": "Seul l'agent achat peut enregistrer la passation et la commande."}
         )
 
-    if demande.statut != DemandeAchat.STATUT_VALIDEE:
+    if demande.statut != DemandeAchat.STATUT_VALIDEE_BUDGETAIRE:
         raise ValidationError(
-            {"detail": "Le bon de commande ne peut etre emis qu'apres validation finale."}
+            {
+                "detail": "Le bon de commande ne peut etre emis qu'apres validation budgetaire."
+            }
         )
 
     date_bon_commande = data.get("date_bon_commande") or timezone.localdate()
@@ -301,9 +575,9 @@ def issue_order(demande, data, user):
 
 
 def update_delivery(demande, data, user):
-    if not is_agent_achat(user):
+    if not is_agent_marche(user):
         raise PermissionDenied(
-            {"detail": "Seul l'agent achat peut mettre à jour le suivi de livraison."}
+            {"detail": "Seul l'agent marche peut mettre a jour le suivi d'expedition."}
         )
 
     if demande.statut not in [
@@ -358,11 +632,15 @@ def update_delivery(demande, data, user):
 
 @transaction.atomic
 def receive_demande(demande, data, user):
-    _assert_demande_owner(demande, user)
+    if not is_agent_marche(user):
+        raise ValidationError(
+            {"detail": "Seul le service marche peut enregistrer la reception et les ecarts."}
+        )
 
     if demande.statut not in [
         DemandeAchat.STATUT_LIVREE,
         DemandeAchat.STATUT_EN_LIVRAISON,
+        DemandeAchat.STATUT_EN_COMMANDE,
     ]:
         raise ValidationError(
             {"detail": "La reception n'est pas disponible pour cette demande."}
@@ -386,17 +664,35 @@ def receive_demande(demande, data, user):
     demande.conformite_quantite = data["conformite_quantite"]
     demande.conformite_qualite = data["conformite_qualite"]
     demande.observations_reception = data.get("observations_reception", "")
-    demande.statut_reception = data["statut_reception"]
-    demande.type_ecart = data.get("type_ecart", "")
-    demande.description_ecart = data.get("description_ecart", "")
-    demande.action_corrective = data.get("action_corrective", "")
-    demande.date_resolution = data.get("date_resolution")
-    demande.suivi_resolution = data.get("suivi_resolution", "")
+    issue_detected = (
+        demande.conformite_quantite != DemandeAchat.CONFORMITE_CONFORME
+        or demande.conformite_qualite != DemandeAchat.CONFORMITE_CONFORME
+    )
 
-    if demande.statut_reception == DemandeAchat.STATUT_RECEPTION_PARTIELLE:
-        demande.statut = DemandeAchat.STATUT_EN_LIVRAISON
+    if not issue_detected:
+        for ligne in demande.lignes_besoin.all():
+            expected_quantity = ligne.quantite or 0
+            received_quantity = ligne.quantite_recue or 0
+            if expected_quantity != received_quantity:
+                issue_detected = True
+                break
+
+    if issue_detected:
+        demande.statut_reception = DemandeAchat.STATUT_RECEPTION_ECART_DETECTE
+        demande.type_ecart = data.get("type_ecart", "")
+        demande.description_ecart = data.get("description_ecart", "")
+        demande.action_corrective = data.get("action_corrective", "")
+        demande.date_resolution = None
+        demande.suivi_resolution = ""
     else:
-        demande.statut = DemandeAchat.STATUT_LIVREE
+        demande.statut_reception = DemandeAchat.STATUT_RECEPTION_COMPLETE
+        demande.type_ecart = ""
+        demande.description_ecart = ""
+        demande.action_corrective = ""
+        demande.date_resolution = None
+        demande.suivi_resolution = ""
+
+    demande.statut = DemandeAchat.STATUT_LIVREE
 
     demande.save(
         update_fields=[
@@ -432,15 +728,58 @@ def receive_demande(demande, data, user):
     return demande
 
 
+@transaction.atomic
+def resolve_reception_issue(demande, data, user):
+    if not is_agent_marche(user):
+        raise ValidationError(
+            {"detail": "Seul le service marche peut enregistrer la resolution d'un ecart."}
+        )
+
+    if demande.statut_reception != DemandeAchat.STATUT_RECEPTION_ECART_DETECTE:
+        raise ValidationError(
+            {"detail": "Aucun ecart en attente de resolution pour cette demande."}
+        )
+
+    demande.date_resolution = data.get("date_resolution") or timezone.localdate()
+    demande.suivi_resolution = data["suivi_resolution"]
+    demande.statut_reception = DemandeAchat.STATUT_RECEPTION_ECART_RESOLU
+    demande.statut = DemandeAchat.STATUT_LIVREE
+    demande.save(
+        update_fields=[
+            "date_resolution",
+            "suivi_resolution",
+            "statut_reception",
+            "statut",
+            "updated_at",
+        ]
+    )
+
+    create_history_entry(
+        demande=demande,
+        action=HistoriqueDemande.ACTION_ECART_RESOLU,
+        user=user,
+        description="L'ecart de reception a ete resolu.",
+        metadata={
+            "type_ecart": demande.type_ecart,
+            "action_corrective": demande.action_corrective,
+            "date_resolution": str(demande.date_resolution or ""),
+            "statut_reception": demande.statut_reception,
+        },
+    )
+    notify_reception_issue_resolved(demande)
+    return demande
+
+
 def close_demande(demande, data, user):
     _assert_demande_owner(demande, user)
 
     if demande.statut_reception not in [
         DemandeAchat.STATUT_RECEPTION_COMPLETE,
+        DemandeAchat.STATUT_RECEPTION_ECART_RESOLU,
         DemandeAchat.STATUT_RECEPTION_PARTIELLE,
     ]:
         raise ValidationError(
-            {"detail": "La cloture n'est possible qu'apres reception complete ou partielle."}
+            {"detail": "La cloture n'est possible qu'apres reception complete ou apres resolution d'un ecart."}
         )
 
     demande.statut_final = data["statut_final"]

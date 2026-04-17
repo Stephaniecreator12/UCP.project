@@ -8,12 +8,16 @@ class DocumentDemande(models.Model):
     TYPE_TDR = "TDR_SIMPLIFIE"
     TYPE_DEVIS = "DEVIS_ESTIMATIF"
     TYPE_BON_SORTIE = "BON_SORTIE_STOCK"
+    TYPE_BON_LIVRAISON = "BON_LIVRAISON"
+    TYPE_PV_RECEPTION = "PV_RECEPTION"
 
     TYPE_DOCUMENT_CHOICES = [
         (TYPE_SPECIFICATIONS, "Specifications techniques detaillees"),
         (TYPE_TDR, "Termes de Reference simplifies"),
         (TYPE_DEVIS, "Devis estimatif"),
         (TYPE_BON_SORTIE, "Bon de sortie stock"),
+        (TYPE_BON_LIVRAISON, "Bon de livraison"),
+        (TYPE_PV_RECEPTION, "Proces-verbal de reception"),
     ]
 
     demande = models.ForeignKey(

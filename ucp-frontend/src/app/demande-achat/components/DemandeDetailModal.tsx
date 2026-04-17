@@ -47,7 +47,7 @@ export default function DemandeDetailModal({
 
   return (
     <div
-      className="fixed inset-0 z-[120] bg-slate-900/40 p-4 flex items-center justify-center animate-in fade-in duration-200"
+      className="fixed inset-0 z-[120] flex items-center justify-center overflow-y-auto bg-slate-950/65 p-2 backdrop-blur-sm sm:p-4 lg:p-5 xl:p-6 animate-in fade-in duration-200"
       role="dialog"
       aria-modal="true"
       aria-labelledby="demande-detail-modal-title"
@@ -57,16 +57,19 @@ export default function DemandeDetailModal({
         }
       }}
     >
-      <div className="flex max-h-[95vh] w-full max-w-5xl flex-col overflow-hidden rounded border border-slate-200 bg-white shadow-xl animate-in zoom-in-95 duration-200">
+      <div 
+        className="flex min-h-[84vh] w-full max-w-[108rem] max-h-[calc(100vh-1rem)] flex-col overflow-hidden rounded-[26px] border border-slate-200 bg-white shadow-2xl ring-1 ring-black/5 animate-in zoom-in-95 duration-200 lg:min-h-[90vh] xl:max-w-[112rem]"
+        style={{ zoom: 0.8 }}
+      >
         
         {/* Header - Professional compact style */}
-        <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-5 py-3">
+        <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-6 py-4 lg:px-7">
           <div className="flex items-center gap-3">
-            <h2 id="demande-detail-modal-title" className="text-lg font-bold text-slate-900 font-mono tracking-tight">
+            <h2 id="demande-detail-modal-title" className="text-xl font-bold text-slate-900 font-mono tracking-tight">
               {demande.numero_demande}
             </h2>
             <div className="h-4 w-px bg-slate-300"></div>
-            <p className="text-sm font-medium text-slate-600 truncate max-w-md" title={demande.objet}>
+            <p className="max-w-xl truncate text-sm font-medium text-slate-600 xl:max-w-3xl" title={demande.objet}>
               {demande.objet}
             </p>
           </div>
@@ -74,7 +77,7 @@ export default function DemandeDetailModal({
           <button
             type="button"
             onClick={onClose}
-            className="flex h-7 w-7 items-center justify-center rounded bg-slate-200/50 text-slate-500 hover:bg-slate-200 hover:text-slate-800 transition-colors"
+            className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-200/60 text-slate-500 transition-colors hover:bg-slate-200 hover:text-slate-800"
             aria-label="Fermer"
           >
             <X className="h-4 w-4" />
@@ -82,7 +85,7 @@ export default function DemandeDetailModal({
         </div>
 
         {/* Content Area */}
-        <div className="min-h-0 flex-1 overflow-y-auto bg-white p-5">
+        <div className="flex-1 min-h-0 overflow-y-auto bg-white px-5 py-4 lg:px-7 lg:py-5">
           <DemandeDetailPanel
             demande={demande}
             actionSlot={actionSlot}
@@ -92,7 +95,7 @@ export default function DemandeDetailModal({
 
         {/* Footer Area */}
         {footerSlot ? (
-          <div className="border-t border-slate-200 bg-slate-50 px-5 py-3">
+          <div className="border-t border-slate-200 bg-slate-50 px-6 py-4 lg:px-7">
             {footerSlot}
           </div>
         ) : null}

@@ -1,0 +1,5 @@
+/* Zoom à 90% pour les pages d'achat uniquement - appliqué sur le main */
+.demande-achat-page main {
+  zoom: 0.9;
+  transform-origin: top left;
+}

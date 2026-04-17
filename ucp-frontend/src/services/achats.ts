@@ -5,6 +5,7 @@ export type StatutDemande =
   | "SOUMISE"
   | "A_COMPLETER"
   | "VALIDEE"
+  | "VALIDEE_BUDGETAIRE"
   | "EN_COMMANDE"
   | "EN_LIVRAISON"
   | "LIVREE"
@@ -89,6 +90,8 @@ export interface DemandeAchat {
   numero_demande: string;
   version: number;
   demandeur: number;
+  demandeur_nom?: string;
+  demandeur_group?: string;
   unite_technique: string;
   statut: StatutDemande;
   etape_validation_actuelle: EtapeValidation;
@@ -151,12 +154,19 @@ export interface CreateDemandePayload {
   justification: string;
   lien_ptba: string;
   service_beneficiaire: string;
-  ligne_budgetaire: string;
-  source_financement: string;
+  ligne_budgetaire?: string;
+  source_financement?: string;
+  numero_subvention?: string;
+  solde_disponible_ligne_budgetaire?: string;
   lignes_besoin: LigneBesoin[];
   documents?: DocumentDemande[];
 }
 
+export type UpdateDemandePayload = Partial<CreateDemandePayload>;
+export interface BudgetEstimationPayload {
+  ligne_budgetaire: string;
+  source_financement: "FONDS_MONDIAL" | "BANQUE_MONDIALE" | "GAVI";
+}
 export interface IssueOrderPayload {
   type_procedure: "DEMANDE_COTATION" | "BON_COMMANDE_DIRECT" | "SELECTION_APRES_COTATION";
   fournisseur_retenu: string;
@@ -185,13 +195,15 @@ export interface ReceiveDemandePayload {
   conformite_quantite: "CONFORME" | "NON_CONFORME" | "PARTIELLE";
   conformite_qualite: "CONFORME" | "NON_CONFORME" | "DEFECTUEUX";
   observations_reception?: string;
-  statut_reception: "EN_ATTENTE" | "RECEPTION_PARTIELLE" | "RECEPTION_COMPLETE";
   type_ecart?: "MANQUANT" | "DEFECTUEUX" | "NON_CONFORME" | "HORS_SPECIFICATIONS";
   description_ecart?: string;
-  action_corrective?: "REMPLACEMENT" | "REPARATION" | "AVOIR" | "REJET";
-  date_resolution?: string;
-  suivi_resolution?: string;
+  action_corrective?: "REMPLACEMENT" | "AVOIR" | "REJET" | "REPARATION";
   lignes?: ReceptionLignePayload[];
+}
+
+export interface ResolveReceptionIssuePayload {
+  date_resolution?: string;
+  suivi_resolution: string;
 }
 
 export interface CloseDemandePayload {
@@ -207,6 +219,161 @@ const handleUnauthorized = (): never => {
     window.location.href = "/login";
   }
   throw new Error("Session expirée. Reconnecte-toi.");
+};
+
+const errorFieldLabels: Record<string, string> = {
+  action_corrective: "Action corrective",
+  categorie_besoin: "Categorie de besoin",
+  conformite_qualite: "Conformite qualite",
+  conformite_quantite: "Conformite quantite",
+  date_arrivee_effective: "Date d'arrivee effective",
+  date_arrivee_prevue: "Date d'arrivee prevue",
+  date_bon_commande: "Date du bon de commande",
+  date_cloture: "Date de cloture",
+  date_debut: "Date de debut",
+  date_fin: "Date de fin",
+  date_livraison_prevue: "Date de livraison prevue",
+  date_reception: "Date de reception",
+  date_resolution: "Date de resolution",
+  delai_livraison_contractuel: "Delai de livraison",
+  description_ecart: "Description de l'ecart",
+  description_service: "Description du service",
+  destinataire_final: "Destinataire final",
+  etat_expedition: "Etat d'expedition",
+  justification: "Justification",
+  lien_ptba: "Reference PTBA",
+  ligne_budgetaire: "Ligne budgetaire",
+  lignes: "Lignes",
+  lignes_besoin: "Lignes de besoin",
+  lieu_execution: "Lieu d'execution",
+  lieu_livraison: "Lieu de livraison",
+  livrables_attendus: "Livrables attendus",
+  montant_commande: "Montant commande",
+  nombre_beneficiaires: "Nombre de beneficiaires",
+  numero_bon_commande: "Numero du bon de commande",
+  numero_engagement_budgetaire: "Numero d'engagement budgetaire",
+  numero_subvention: "Numero de subvention",
+  objet: "Objet",
+  observations_reception: "Observations de reception",
+  prix_unitaire_estime: "Cout estime",
+  priorite: "Priorite",
+  quantite: "Quantite",
+  quantite_recue: "Quantite recue",
+  receptionnaire: "Receptionnaire",
+  service_beneficiaire: "Service beneficiaire",
+  solde_apres_engagement: "Solde apres engagement",
+  solde_disponible_ligne_budgetaire: "Solde disponible",
+  source_financement: "Source de financement",
+  statut_final: "Statut final",
+  statut_reception: "Statut de reception",
+  type_demande: "Type de demande",
+  type_ecart: "Type d'ecart",
+  type_procedure: "Type de procedure",
+  type_service: "Type de service",
+  unite: "Unite",
+  unite_technique: "Unite technique",
+};
+
+const translateApiMessage = (message: string) => {
+  const trimmed = message.trim();
+
+  if (!trimmed) {
+    return "Une erreur est survenue.";
+  }
+
+  if (/^".+" is not a valid choice\.$/.test(trimmed)) {
+    return "Selectionnez une valeur valide.";
+  }
+
+  if (
+    trimmed ===
+    "Date has wrong format. Use one of these formats instead: YYYY-MM-DD."
+  ) {
+    return "Utilisez le format AAAA-MM-JJ.";
+  }
+
+  if (trimmed === "A valid integer is required.") {
+    return "Saisissez un nombre entier valide.";
+  }
+
+  if (trimmed === "A valid number is required.") {
+    return "Saisissez un nombre valide.";
+  }
+
+  if (trimmed === "This field is required.") {
+    return "Ce champ est obligatoire.";
+  }
+
+  if (trimmed === "This field may not be blank.") {
+    return "Ce champ ne peut pas etre vide.";
+  }
+
+  return trimmed;
+};
+
+const humanizeErrorField = (field: string) =>
+  errorFieldLabels[field] ?? field.replace(/_/g, " ");
+
+const collectApiErrorMessages = (
+  value: unknown,
+  path: string[] = [],
+): string[] => {
+  if (typeof value === "string") {
+    const message = translateApiMessage(value);
+    return path.length > 0 ? [`${path.join(" - ")}: ${message}`] : [message];
+  }
+
+  if (Array.isArray(value)) {
+    if (value.every((item) => typeof item === "string")) {
+      const label = path.join(" - ");
+      return value.flatMap((item) => {
+        const message = translateApiMessage(String(item));
+        return label ? [`${label}: ${message}`] : [message];
+      });
+    }
+
+    return value.flatMap((item, index) => {
+      const nextPath =
+        path[path.length - 1] === errorFieldLabels.lignes_besoin
+          ? [...path.slice(0, -1), `Ligne ${index + 1}`]
+          : [...path, `Element ${index + 1}`];
+
+      return collectApiErrorMessages(item, nextPath);
+    });
+  }
+
+  if (value && typeof value === "object") {
+    return Object.entries(value as Record<string, unknown>).flatMap(
+      ([field, nestedValue]) => {
+        if ((field === "detail" || field === "error") && typeof nestedValue === "string") {
+          return collectApiErrorMessages(nestedValue, path);
+        }
+
+        const nextPath =
+          field === "lignes_besoin" && typeof nestedValue === "string"
+            ? path
+            : [...path, humanizeErrorField(field)];
+
+        return collectApiErrorMessages(nestedValue, nextPath);
+      },
+    );
+  }
+
+  return [];
+};
+
+const formatApiError = (data: unknown) => {
+  const messages = Array.from(new Set(collectApiErrorMessages(data)));
+
+  if (messages.length > 0) {
+    return messages.join("\n");
+  }
+
+  if (typeof data === "string" && data.trim()) {
+    return translateApiMessage(data);
+  }
+
+  return "Erreur API";
 };
 
 const apiFetch = async <T>(
@@ -247,17 +414,53 @@ const apiFetch = async <T>(
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    const detail =
-      typeof data === "object" && data !== null
-        ? ((data as { detail?: unknown; error?: unknown }).detail ??
-          (data as { detail?: unknown; error?: unknown }).error ??
-          JSON.stringify(data))
-        : "Erreur API";
+    const detail = formatApiError(data);
 
     throw new Error(String(detail));
   }
 
   return data as T;
+};
+
+const apiFetchBlob = async (
+  path: string,
+  init: RequestInit = {},
+): Promise<Blob> => {
+  const token = getToken();
+  const headers = new Headers(init.headers);
+
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  let response: Response;
+
+  try {
+    response = await fetch(path, {
+      ...init,
+      headers,
+      cache: "no-store",
+    });
+  } catch {
+    throw new Error(
+      "Impossible de joindre le serveur. Vérifie que le backend et le frontend sont bien lancés.",
+    );
+  }
+
+  if (response.status === 401 || response.status === 403) {
+    handleUnauthorized();
+  }
+
+  if (!response.ok) {
+    const errorPayload = await response
+      .clone()
+      .json()
+      .catch(async () => await response.text().catch(() => ""));
+
+    throw new Error(String(formatApiError(errorPayload)));
+  }
+
+  return await response.blob();
 };
 
 export const listMesDemandesAchat = () =>
@@ -272,11 +475,35 @@ export const createDemandeAchat = (payload: CreateDemandePayload) =>
     body: JSON.stringify(payload),
   });
 
+export const updateDemandeAchat = (id: number, payload: UpdateDemandePayload) =>
+  apiFetch<DemandeAchat>(`/api/achats/demandes/${id}/`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+
+export const resubmitDemandeAchat = (id: number) =>
+  // Can reuse submit, or if backend expects something else, we use /submit/
+  apiFetch<DemandeAchat>(`/api/achats/demandes/${id}/submit/`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+
 export const uploadDocumentDemandeAchat = (id: number, payload: FormData) =>
   apiFetch<DocumentDemande>(`/api/achats/demandes/${id}/documents/`, {
     method: "POST",
     body: payload,
   });
+
+export const fetchDemandeDocumentBlob = (id: number) =>
+  apiFetchBlob(`/api/achats/documents/${id}/file/`, {
+    method: "GET",
+  });
+
+export const getDemandeAchatById = (id: number) =>
+  apiFetch<DemandeAchat>(`/api/achats/demandes/${id}/`, {
+    method: "GET",
+  });
+
 
 export const submitDemandeAchat = (id: number) =>
   apiFetch<DemandeAchat>(`/api/achats/demandes/${id}/submit/`, {
@@ -294,6 +521,11 @@ export const listDemandesPassation = () =>
     method: "GET",
   });
 
+export const listDemandesFinance = () =>
+  apiFetch<DemandeAchat[]>("/api/achats/finance/pending/", {
+    method: "GET",
+  });
+
 export const validateDemandeAchat = (
   id: number,
   payload: {
@@ -303,6 +535,12 @@ export const validateDemandeAchat = (
   },
 ) =>
   apiFetch<DemandeAchat>(`/api/achats/demandes/${id}/validate/`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
+export const budgetDemandeAchat = (id: number, payload: BudgetEstimationPayload) =>
+  apiFetch<DemandeAchat>(`/api/achats/demandes/${id}/budget/`, {
     method: "POST",
     body: JSON.stringify(payload),
   });
@@ -324,6 +562,15 @@ export const updateDeliveryDemandeAchat = (
 
 export const receiveDemandeAchat = (id: number, payload: ReceiveDemandePayload) =>
   apiFetch<DemandeAchat>(`/api/achats/demandes/${id}/receive/`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
+export const resolveReceptionIssueDemandeAchat = (
+  id: number,
+  payload: ResolveReceptionIssuePayload,
+) =>
+  apiFetch<DemandeAchat>(`/api/achats/demandes/${id}/resolve-issue/`, {
     method: "POST",
     body: JSON.stringify(payload),
   });

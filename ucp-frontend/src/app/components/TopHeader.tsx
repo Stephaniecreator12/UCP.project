@@ -45,62 +45,58 @@ export default function TopHeader() {
   return (
     <div className="sticky top-0 z-40">
       <header
-      ref={headerRef}
-      onMouseMove={handleHeaderMove}
-      onMouseLeave={resetHeaderGlow}
-      style={{ "--mx": "50%", "--my": "50%" } as React.CSSProperties}
-      className="h-[2cm] overflow-hidden border-b border-slate-200/60 bg-white/90 backdrop-blur-md relative
-                 before:content-[''] before:absolute before:inset-0 
-                 before:bg-[radial-gradient(420px_circle_at_var(--mx)_var(--my),rgba(34,197,94,0.16),transparent_60%)] 
-                 before:pointer-events-none"
+        ref={headerRef}
+        className="relative h-[2cm] overflow-hidden border-b border-slate-200 bg-white shadow-sm"
       >
-      {/* Ligne de couleur en haut */}
-      <div className="h-[3px] bg-gradient-to-r from-[#22c55e] via-[#1fcf78] to-[#22c55e]" aria-hidden="true" />
-      
-      {/* Orbes décoratives */}
-      <div className="absolute -top-[52px] -left-[34px] w-[130px] h-[130px] rounded-full blur-[28px] pointer-events-none opacity-45 bg-[#22c55e]/35" aria-hidden="true" />
-      <div className="absolute -top-[68px] -right-[42px] w-[150px] h-[150px] rounded-full blur-[28px] pointer-events-none opacity-45 bg-[#7ed7ff]/30" aria-hidden="true" />
+        {/* Ligne de couleur en haut */}
+        <div
+          className="h-[3px] bg-emerald-500"
+          aria-hidden="true"
+        />
 
-      <div className="relative z-10 max-w-[1480px] mx-auto h-[calc(2cm-3px)] px-4 py-0 grid grid-cols-1 md:grid-cols-[auto_1fr_auto] items-center gap-4">
-        
-        {/* Logo & Brand */}
-        <Link href={showAuthenticatedActions ? "/formulaire" : "/login"} className="inline-flex items-center gap-3 no-underline text-inherit">
-          <Image
-            src="/ucp-sante-logo-color.png"
-            alt="Logo UCP"
-            width={48}
-            height={48}
-            className="rounded-xl border border-slate-200 bg-white object-contain"
-            priority
-          />
-          <div className="grid gap-0.5">
-            <strong className="text-[0.96rem] font-bold uppercase tracking-[0.04em] text-slate-800">
-              unité de coordination des projets
-            </strong>
-            <span className="text-[0.74rem] text-slate-500 tracking-[0.03em]">e-Procurement</span>
+        <div className="relative z-10 mx-auto flex h-[calc(2cm-3px)] max-w-[1480px] items-center justify-between gap-3 px-4 sm:px-6">
+          {/* Logo & Brand */}
+          <Link
+            href={showAuthenticatedActions ? "/formulaire" : "/login"}
+            className="inline-flex min-w-0 items-center gap-3 no-underline text-inherit"
+          >
+            <Image
+              src="/ucp-sante-logo-color.png"
+              alt="Logo UCP"
+              width={48}
+              height={48}
+              className="rounded-xl border border-slate-200 bg-white object-contain"
+              priority
+            />
+            <div className="grid min-w-0 gap-0.5">
+              <strong className="truncate text-[0.78rem] font-bold uppercase tracking-[0.04em] text-slate-800 sm:text-[0.96rem]">
+                unité de coordination des projets
+              </strong>
+              <span className="hidden text-[0.74rem] tracking-[0.03em] text-slate-500 sm:block">
+                e-Procurement
+              </span>
+            </div>
+          </Link>
+
+          {/* Actions - Déconnexion */}
+          <div className="shrink-0">
+            {showAuthenticatedActions && (
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="rounded-full border border-slate-300 bg-white px-[0.95rem] py-[0.46rem] text-[0.8rem] font-bold text-[#2f3d4c] shadow-[0_10px_20px_-16px_rgba(6,20,34,0.65)] transition-all hover:bg-slate-50"
+              >
+                Déconnexion
+              </button>
+            )}
           </div>
-        </Link>
-
-        {/* Actions - Déconnexion */}
-        <div className="justify-self-end">
-          {showAuthenticatedActions && (
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="px-[0.95rem] py-[0.46rem] rounded-full border border-slate-300 bg-white text-[#2f3d4c] text-[0.8rem] font-bold transition-all hover:bg-slate-50 shadow-[0_10px_20px_-16px_rgba(6,20,34,0.65)]"
-            >
-              Déconnexion
-            </button>
-          )}
         </div>
-      </div>
-
-    </header>
+      </header>
 
       {showAuthenticatedActions && (
         <div className="-mt-px">
-          <div className="max-w-[1480px] mx-auto px-1 py-1 ">
-            <div className="inline-flex">
+          <div className="mx-auto max-w-[1480px] px-4 py-1 sm:px-6">
+            <div className="inline-flex max-w-full">
               <Menu key={pathname} />
             </div>
           </div>

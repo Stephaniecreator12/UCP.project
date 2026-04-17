@@ -126,6 +126,8 @@ class DemandeAchatSerializer(serializers.ModelSerializer):
     documents = DocumentDemandeSerializer(many=True, required=False)
     validations = ValidationDemandeReadSerializer(many=True, read_only=True)
     historiques = HistoriqueDemandeSerializer(many=True, read_only=True)
+    demandeur_nom = serializers.SerializerMethodField()
+    demandeur_group = serializers.SerializerMethodField()
 
     class Meta:
         model = DemandeAchat
@@ -134,6 +136,8 @@ class DemandeAchatSerializer(serializers.ModelSerializer):
             "numero_demande",
             "version",
             "demandeur",
+            "demandeur_nom",
+            "demandeur_group",
             "unite_technique",
             "statut",
             "etape_validation_actuelle",
@@ -191,7 +195,11 @@ class DemandeAchatSerializer(serializers.ModelSerializer):
             "numero_demande",
             "version",
             "demandeur",
+            "demandeur_nom",
+            "demandeur_group",
             "statut",
+            "ligne_budgetaire",
+            "source_financement",
             "cout_total_estime",
             "numero_subvention",
             "solde_disponible_ligne_budgetaire",
@@ -210,6 +218,19 @@ class DemandeAchatSerializer(serializers.ModelSerializer):
             "validations",
             "historiques",
         ]
+
+    def get_demandeur_nom(self, obj):
+        if not obj.demandeur:
+            return ""
+        full_name = obj.demandeur.get_full_name().strip()
+        return full_name or obj.demandeur.username
+
+    def get_demandeur_group(self, obj):
+        if not obj.demandeur:
+            return ""
+        groups = list(obj.demandeur.groups.all())
+        group = groups[0] if groups else None
+        return group.name if group else "Utilisateur"
 
     def validate(self, attrs):
         type_demande = attrs.get("type_demande")
@@ -260,6 +281,65 @@ class DemandeAchatSerializer(serializers.ModelSerializer):
         return attrs
 
 
+class DemandeAchatListSerializer(serializers.ModelSerializer):
+    demandeur_nom = serializers.SerializerMethodField()
+    demandeur_group = serializers.SerializerMethodField()
+    lignes_count = serializers.SerializerMethodField()
+    first_designation = serializers.SerializerMethodField()
+
+    class Meta:
+        model = DemandeAchat
+        fields = [
+            "id",
+            "numero_demande",
+            "demandeur_nom",
+            "demandeur_group",
+            "unite_technique",
+            "statut",
+            "etape_validation_actuelle",
+            "categorie_besoin",
+            "type_demande",
+            "priorite",
+            "objet",
+            "cout_total_estime",
+            "created_at",
+            "updated_at",
+            "submitted_at",
+            "lignes_count",
+            "first_designation",
+        ]
+
+    def get_lignes_count(self, obj):
+        return len(obj.lignes_besoin.all())
+
+    def get_first_designation(self, obj):
+        lignes = obj.lignes_besoin.all()
+        first_line = lignes[0] if lignes else None
+        if not first_line:
+            return ""
+        return first_line.designation or first_line.description_service
+
+    def get_demandeur_nom(self, obj):
+        if not obj.demandeur:
+            return ""
+        full_name = obj.demandeur.get_full_name().strip()
+        return full_name or obj.demandeur.username
+
+    def get_demandeur_group(self, obj):
+        if not obj.demandeur:
+            return ""
+        groups = list(obj.demandeur.groups.all())
+        group = groups[0] if groups else None
+        return group.name if group else "Utilisateur"
+
+
+class BudgetEstimationSerializer(serializers.Serializer):
+    ligne_budgetaire = serializers.CharField()
+    source_financement = serializers.ChoiceField(
+        choices=DemandeAchat.SOURCE_FINANCEMENT_CHOICES
+    )
+
+
 class IssueOrderSerializer(serializers.Serializer):
     type_procedure = serializers.ChoiceField(choices=DemandeAchat.TYPE_PROCEDURE_CHOICES)
     fournisseur_retenu = serializers.CharField()
@@ -292,7 +372,6 @@ class ReceiveDemandeSerializer(serializers.Serializer):
         choices=DemandeAchat.CONFORMITE_QUALITE_CHOICES
     )
     observations_reception = serializers.CharField(required=False, allow_blank=True)
-    statut_reception = serializers.ChoiceField(choices=DemandeAchat.STATUT_RECEPTION_CHOICES)
     type_ecart = serializers.ChoiceField(
         choices=DemandeAchat.TYPE_ECART_CHOICES,
         required=False,
@@ -307,6 +386,32 @@ class ReceiveDemandeSerializer(serializers.Serializer):
     date_resolution = serializers.DateField(required=False)
     suivi_resolution = serializers.CharField(required=False, allow_blank=True)
     lignes = LigneReceptionSerializer(many=True, required=False)
+
+    def validate(self, attrs):
+        quantite_ok = attrs.get("conformite_quantite") == DemandeAchat.CONFORMITE_CONFORME
+        qualite_ok = attrs.get("conformite_qualite") == DemandeAchat.CONFORMITE_CONFORME
+        issue_detected = not (quantite_ok and qualite_ok)
+
+        if issue_detected:
+            missing_fields = [
+                field_name
+                for field_name in ["type_ecart", "description_ecart", "action_corrective"]
+                if not attrs.get(field_name)
+            ]
+            if missing_fields:
+                raise serializers.ValidationError(
+                    {
+                        "detail": "Un écart a été détecté. Complète le formulaire d'écart.",
+                        "missing_fields": missing_fields,
+                    }
+                )
+
+        return attrs
+
+
+class ResolveReceptionIssueSerializer(serializers.Serializer):
+    date_resolution = serializers.DateField(required=False)
+    suivi_resolution = serializers.CharField()
 
 
 class CloseDemandeSerializer(serializers.Serializer):

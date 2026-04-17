@@ -6,7 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.achats.models import DemandeAchat
-from apps.achats.serializers.demande_serializer import DemandeAchatSerializer
+from apps.achats.serializers.demande_serializer import DemandeAchatSerializer, DemandeAchatListSerializer
 from apps.achats.serializers.validation_serializer import ValidationDecisionSerializer
 from apps.achats.services import (
     get_user_validation_step,
@@ -25,7 +25,15 @@ def pending_validations_view(request):
         )
 
     demandes = list_demandes_a_valider(request.user)
-    serializer = DemandeAchatSerializer(demandes, many=True)
+    serializer = DemandeAchatListSerializer(demandes, many=True)
+    return Response(serializer.data)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def demande_detail_view(request, demande_id):
+    demande = get_object_or_404(DemandeAchat, id=demande_id)
+    serializer = DemandeAchatSerializer(demande)
     return Response(serializer.data)
 
 

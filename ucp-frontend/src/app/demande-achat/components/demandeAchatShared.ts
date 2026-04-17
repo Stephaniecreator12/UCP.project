@@ -6,7 +6,10 @@ import {
 import {
   UserProfile,
   isAgentAchatUser,
+  isAgentMarcheUser,
+  isFinanceUser,
   isValidatorUser,
+  isLogistiqueUser,
 } from "@/services/auth";
 
 export const statusLabels: Record<string, string> = {
@@ -14,6 +17,7 @@ export const statusLabels: Record<string, string> = {
   SOUMISE: "Soumise",
   A_COMPLETER: "À compléter",
   VALIDEE: "Validée",
+  VALIDEE_BUDGETAIRE: "Validée budgétairement",
   EN_COMMANDE: "En commande",
   EN_LIVRAISON: "En livraison",
   LIVREE: "Livrée",
@@ -26,6 +30,7 @@ export const statusClasses: Record<string, string> = {
   SOUMISE: "bg-amber-100 text-amber-800",
   A_COMPLETER: "bg-orange-100 text-orange-800",
   VALIDEE: "bg-emerald-100 text-emerald-800",
+  VALIDEE_BUDGETAIRE: "bg-violet-100 text-violet-800",
   EN_COMMANDE: "bg-sky-100 text-sky-800",
   EN_LIVRAISON: "bg-indigo-100 text-indigo-800",
   LIVREE: "bg-cyan-100 text-cyan-800",
@@ -48,9 +53,28 @@ export const typeLabels: Record<string, string> = {
   SERVICES_RECURRENTS: "Services récurrents",
 };
 
+export const financementLabels: Record<string, string> = {
+  NON_DEFINI: "Non défini",
+  BANQUE_MONDIALE: "Banque mondiale",
+  FONDS_MONDIAL: "Fonds mondial",
+  GAVI: "Gavi",
+  FONDS_PROPRES: "Budget interne",
+  AUTRES: "Autres partenaires",
+};
+
+export const financementColors: Record<string, string> = {
+  NON_DEFINI: "bg-amber-400",
+  BANQUE_MONDIALE: "bg-blue-500",
+  FONDS_MONDIAL: "bg-emerald-500",
+  GAVI: "bg-sky-400",
+  FONDS_PROPRES: "bg-indigo-500",
+  AUTRES: "bg-slate-400",
+};
+
 export const procedureLabels: Record<string, string> = {
   DEMANDE_COTATION: "Demande de cotation",
   BON_COMMANDE_DIRECT: "Bon de commande direct",
+  SELECTION_APRES_COTATION: "Sélection après cotation",
 };
 
 export const expeditionLabels: Record<string, string> = {
@@ -64,6 +88,8 @@ export const receptionStatusLabels: Record<string, string> = {
   EN_ATTENTE: "En attente",
   RECEPTION_PARTIELLE: "Réception partielle",
   RECEPTION_COMPLETE: "Réception complète",
+  ECART_DETECTE: "Écart détecté",
+  ECART_RESOLU: "Écart résolu",
 };
 
 export const finalStatusLabels: Record<string, string> = {
@@ -78,7 +104,6 @@ export const timelineValidationSteps: Array<{
 }> = [
   { key: "HIERARCHIQUE", label: "Validation hiérarchique" },
   { key: "TECHNIQUE", label: "Validation technique" },
-  { key: "BUDGETAIRE", label: "Validation budgétaire" },
   { key: "PROGRAMMATIQUE", label: "Validation programmatique" },
   { key: "APPROBATION_FINALE", label: "Approbation finale" },
 ];
@@ -110,6 +135,7 @@ export type DemandePrimaryAction = {
 const finalReceptionStatuses = [
   "RECEPTION_COMPLETE",
   "RECEPTION_PARTIELLE",
+  "ECART_RESOLU",
 ] as const;
 
 export const formatDate = (value: string | null | undefined) => {
@@ -160,10 +186,17 @@ export const hasRecordedReception = (demande: DemandeAchat) =>
     (demande.statut_reception ?? "") as (typeof finalReceptionStatuses)[number],
   );
 
+export const needsIssueResolutionAction = (demande: DemandeAchat) =>
+  demande.statut !== "CLOTUREE" &&
+  demande.statut_reception === "ECART_DETECTE";
+
 export const needsReceptionAction = (demande: DemandeAchat) =>
   demande.statut !== "CLOTUREE" &&
+  !needsIssueResolutionAction(demande) &&
   !hasRecordedReception(demande) &&
   (demande.statut === "LIVREE" ||
+    demande.statut === "EN_COMMANDE" ||
+    demande.statut === "EN_LIVRAISON" ||
     demande.etat_expedition === "ARRIVE" ||
     demande.etat_expedition === "PARTIEL");
 
@@ -173,10 +206,13 @@ export const needsClosureAction = (demande: DemandeAchat) =>
 export const isAttentionRequired = (demande: DemandeAchat) =>
   demande.statut === "A_COMPLETER" ||
   needsReceptionAction(demande) ||
+  needsIssueResolutionAction(demande) ||
   needsClosureAction(demande);
 
 export const isAwaitingProgress = (demande: DemandeAchat) =>
-  demande.statut === "SOUMISE" || demande.statut === "VALIDEE";
+  demande.statut === "SOUMISE" ||
+  demande.statut === "VALIDEE" ||
+  demande.statut === "VALIDEE_BUDGETAIRE";
 
 export const isProcurementInProgress = (demande: DemandeAchat) =>
   ["EN_COMMANDE", "EN_LIVRAISON"].includes(demande.statut) &&
@@ -195,16 +231,21 @@ export const matchesDashboardFilter = (
   return true;
 };
 
-export const getCompactNeedLabel = (demande: DemandeAchat) => {
-  const firstLine = demande.lignes_besoin[0];
+export const getCompactNeedLabel = (demande: any) => {
+  // If we have optimized fields from DemandeAchatListSerializer
+  if (demande.first_designation !== undefined) {
+    const first = demande.first_designation || demande.objet;
+    const count = demande.lignes_count || 0;
+    if (count > 1) return `${first} (+${count - 1})`;
+    return first;
+  }
+
+  const firstLine = demande.lignes_besoin?.[0];
   if (!firstLine) return demande.objet;
 
-  return (
-    firstLine.designation ||
-    firstLine.description_service ||
-    firstLine.type_service ||
-    demande.objet
-  );
+  const first = firstLine.designation || firstLine.description_service || firstLine.type_service || demande.objet;
+  if (demande.lignes_besoin.length > 1) return `${first} (+${demande.lignes_besoin.length - 1})`;
+  return first;
 };
 
 export const getCurrentValidationLabel = (demande: DemandeAchat) => {
@@ -212,6 +253,28 @@ export const getCurrentValidationLabel = (demande: DemandeAchat) => {
     (step) => step.key === demande.etape_validation_actuelle,
   );
   return current?.label.toLowerCase() ?? "validation";
+};
+
+export const getValidationDeadlineState = (demande: DemandeAchat) => {
+  if (!["SOUMISE", "A_COMPLETER"].includes(demande.statut)) return null;
+  
+  const referenceDate = new Date(demande.updated_at || demande.submitted_at || demande.created_at).getTime();
+  const deadline = referenceDate + 48 * 60 * 60 * 1000;
+  const now = Date.now();
+  
+  const diffMs = Math.abs(deadline - now);
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  
+  if (now > deadline) {
+    return { status: "RETARD", hours: diffHours };
+  }
+  
+  // Si moins de 24h restantes (mi-parcours de 48h)
+  if (diffHours <= 24) {
+    return { status: "ATTENTE_CRITIQUE", hours: diffHours };
+  }
+  
+  return { status: "ATTENTE", hours: diffHours };
 };
 
 const getValidationForStep = (
@@ -225,6 +288,7 @@ export const buildLifecycleTimeline = (demande: DemandeAchat): TimelineItem[] =>
   );
   const validationComplete = [
     "VALIDEE",
+    "VALIDEE_BUDGETAIRE",
     "EN_COMMANDE",
     "EN_LIVRAISON",
     "LIVREE",
@@ -262,28 +326,47 @@ export const buildLifecycleTimeline = (demande: DemandeAchat): TimelineItem[] =>
         demande.statut,
       ),
   );
+  const budgetHistory = [...(demande.historiques ?? [])]
+    .reverse()
+    .find((item) => item.action === "BUDGET_VALIDE");
+  const hasBudget = Boolean(
+    demande.numero_engagement_budgetaire ||
+      ["VALIDEE_BUDGETAIRE", "EN_COMMANDE", "EN_LIVRAISON", "LIVREE", "CLOTUREE"].includes(
+        demande.statut,
+      ),
+  );
+  const isBudgetCurrent = demande.statut === "VALIDEE";
   const isDeliveryCurrent = ["EN_COMMANDE", "EN_LIVRAISON"].includes(
     demande.statut,
   );
   const hasDelivery = ["LIVREE", "CLOTUREE"].includes(demande.statut);
   const hasReception = Boolean(
-    demande.date_reception || hasRecordedReception(demande),
+    demande.date_reception ||
+      hasRecordedReception(demande) ||
+      demande.statut_reception === "ECART_DETECTE",
   );
   const isReceptionCurrent = needsReceptionAction(demande);
+  const hasIssue = Boolean(
+    demande.type_ecart ||
+      demande.statut_reception === "ECART_DETECTE" ||
+      demande.statut_reception === "ECART_RESOLU",
+  );
+  const hasIssueResolution = demande.statut_reception === "ECART_RESOLU";
+  const isIssueCurrent = needsIssueResolutionAction(demande);
   const hasClosure = demande.statut === "CLOTUREE" || Boolean(demande.date_cloture);
   const isClosureCurrent = needsClosureAction(demande);
 
   return [
     {
       id: "created",
-      label: "Demande créée",
+      label: "État créé",
       date: demande.created_at,
       state: "done",
       description: demande.numero_demande,
     },
     {
       id: "submitted",
-      label: "Demande soumise",
+      label: "État soumis",
       date: demande.submitted_at,
       state: demande.submitted_at
         ? "done"
@@ -293,15 +376,29 @@ export const buildLifecycleTimeline = (demande: DemandeAchat): TimelineItem[] =>
     },
     ...validationItems,
     {
+      id: "budget",
+      label: "Estimation financière",
+      date: budgetHistory?.created_at ?? null,
+      state: hasBudget ? "done" : isBudgetCurrent ? "current" : "pending",
+      description:
+        demande.numero_engagement_budgetaire ||
+        (isBudgetCurrent ? "À compléter par la finance" : undefined),
+    },
+    {
       id: "order",
       label: "Bon de commande émis",
       date: demande.date_bon_commande,
-      state: hasOrder ? "done" : demande.statut === "VALIDEE" ? "current" : "pending",
+      state:
+        hasOrder
+          ? "done"
+          : demande.statut === "VALIDEE_BUDGETAIRE"
+            ? "current"
+            : "pending",
       description: demande.numero_bon_commande || undefined,
     },
     {
       id: "delivery",
-      label: "Livraison",
+      label: "Suivi expédition (Marché)",
       date: demande.date_arrivee_effective ?? demande.date_arrivee_prevue,
       state: hasDelivery ? "done" : isDeliveryCurrent ? "current" : "pending",
       description:
@@ -310,15 +407,25 @@ export const buildLifecycleTimeline = (demande: DemandeAchat): TimelineItem[] =>
     },
     {
       id: "reception",
-      label: "Réception",
+      label: "Réception / écarts (Marché)",
       date: demande.date_reception,
       state: hasReception ? "done" : isReceptionCurrent ? "current" : "pending",
       description:
         receptionStatusLabels[demande.statut_reception ?? ""] || undefined,
     },
     {
+      id: "issue-resolution",
+      label: "Résolution écart",
+      date: demande.date_resolution,
+      state: hasIssueResolution ? "done" : isIssueCurrent ? "current" : hasIssue ? "pending" : "pending",
+      description:
+        hasIssue
+          ? demande.suivi_resolution || toDisplayLabel(demande.type_ecart)
+          : undefined,
+    },
+    {
       id: "closure",
-      label: "Clôture",
+      label: "Clôture finale",
       date: demande.date_cloture,
       state: hasClosure ? "done" : isClosureCurrent ? "current" : "pending",
       description: finalStatusLabels[demande.statut_final ?? ""] || undefined,
@@ -330,6 +437,18 @@ export const getDemandePrimaryAction = (
   demande: DemandeAchat,
   user: UserProfile | null,
 ): DemandePrimaryAction | null => {
+  if (isFinanceUser(user)) {
+    if (demande.statut === "VALIDEE") {
+      return {
+        href: `/demande-achat/${demande.id}/finance`,
+        label: "Compléter budget",
+        tone: "amber",
+      };
+    }
+
+    return null;
+  }
+
   if (isValidatorUser(user)) {
     return {
       href: `/demande-achat/${demande.id}/validation`,
@@ -339,7 +458,7 @@ export const getDemandePrimaryAction = (
   }
 
   if (isAgentAchatUser(user)) {
-    if (demande.statut === "VALIDEE") {
+    if (demande.statut === "VALIDEE_BUDGETAIRE") {
       return {
         href: `/demande-achat/${demande.id}/passation`,
         label: "Passation",
@@ -347,10 +466,30 @@ export const getDemandePrimaryAction = (
       };
     }
 
+    return null;
+  }
+
+  if (isAgentMarcheUser(user) || isLogistiqueUser(user)) {
+    if (needsIssueResolutionAction(demande)) {
+      return {
+        href: `/demande-achat/${demande.id}/resolve-issue`,
+        label: "Résoudre écart",
+        tone: "amber",
+      };
+    }
+
+    if (needsReceptionAction(demande)) {
+      return {
+        href: `/demande-achat/${demande.id}/reception`,
+        label: "Faire réception",
+        tone: "emerald",
+      };
+    }
+
     if (["EN_COMMANDE", "EN_LIVRAISON"].includes(demande.statut)) {
       return {
         href: `/demande-achat/${demande.id}/livraison`,
-        label: "Livraison",
+        label: "Suivi expédition",
         tone: "sky",
       };
     }
@@ -358,6 +497,7 @@ export const getDemandePrimaryAction = (
     return null;
   }
 
+  // Normal user (Demandeur) sees closure
   if (needsClosureAction(demande)) {
     return {
       href: `/demande-achat/${demande.id}/cloture`,
@@ -366,16 +506,12 @@ export const getDemandePrimaryAction = (
     };
   }
 
-  if (needsReceptionAction(demande)) {
-    return {
-      href: `/demande-achat/${demande.id}/reception`,
-      label: "Réceptionner",
-      tone: "emerald",
-    };
-  }
-
   if (demande.statut === "A_COMPLETER") {
-    return null;
+    return {
+      href: `/demande-achat/corriger/${demande.id}`,
+      label: "Modifier",
+      tone: "amber",
+    };
   }
 
   return null;

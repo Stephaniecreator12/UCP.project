@@ -7,6 +7,7 @@ import {
   DemandeAchat,
   closeDemandeAchat,
 } from "@/services/achats";
+import PurchaseSelect from "@/app/demande-achat/components/PurchaseSelect";
 
 type ClosureModalProps = {
   demande: DemandeAchat | null;
@@ -39,6 +40,12 @@ const receptionStatusLabels: Record<string, string> = {
   RECEPTION_PARTIELLE: "Réception partielle",
   RECEPTION_COMPLETE: "Réception complète",
 };
+
+const closureStatusOptions = [
+  { value: "CLOTURE", label: "Clôturé" },
+  { value: "PARTIELLEMENT_EXECUTE", label: "Partiellement exécuté" },
+  { value: "ANNULE", label: "Annulé" },
+] as const;
 
 const buildClosureForm = (demande: DemandeAchat | null): ClosureFormState => ({
   statut_final:
@@ -127,7 +134,7 @@ export default function ClosureModal({
 
   return (
     <div
-      className="fixed inset-0 z-[110] grid place-items-center bg-slate-950/30 p-4 backdrop-blur-[3px]"
+      className="fixed inset-0 z-[110] flex items-start justify-center overflow-y-auto bg-slate-950/30 p-4 backdrop-blur-[3px]"
       role="dialog"
       aria-modal="true"
       aria-labelledby="closure-modal-title"
@@ -137,7 +144,10 @@ export default function ClosureModal({
         }
       }}
     >
-      <div className="w-[min(860px,100%)] rounded-[24px] border border-slate-200 bg-white shadow-[0_28px_70px_-36px_rgba(15,23,42,0.45)]">
+      <div 
+        className="my-8 w-[min(1000px,100%)] rounded-[24px] border border-slate-200 bg-white shadow-[0_28px_70px_-36px_rgba(15,23,42,0.45)]"
+        style={{ zoom: 0.8 }}
+      >
         <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
@@ -198,23 +208,18 @@ export default function ClosureModal({
 
             <div className="grid gap-4 md:grid-cols-2">
               <Field label="Statut final">
-                <select
+                <PurchaseSelect
                   value={form.statut_final}
-                  onChange={(e) =>
+                  onChange={(value) =>
                     setForm((prev) => ({
                       ...prev,
-                      statut_final: e.target.value as ClosureFormState["statut_final"],
+                      statut_final: value as ClosureFormState["statut_final"],
                     }))
                   }
+                  options={[...closureStatusOptions]}
                   className="field"
                   disabled={!canClose}
-                >
-                  <option value="CLOTURE">Clôturé</option>
-                  <option value="PARTIELLEMENT_EXECUTE">
-                    Partiellement exécuté
-                  </option>
-                  <option value="ANNULE">Annulé</option>
-                </select>
+                />
               </Field>
 
               <Field label="Date clôture">

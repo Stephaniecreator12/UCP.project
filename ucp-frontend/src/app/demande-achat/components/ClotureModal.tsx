@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { X, Lock, CheckCircle, Star } from "lucide-react";
 import { DemandeAchat, CloseDemandePayload, closeDemandeAchat } from "@/services/achats";
 import { getCompactNeedLabel } from "@/app/demande-achat/components/demandeAchatShared";
+import PurchaseSelect from "@/app/demande-achat/components/PurchaseSelect";
 
 type ClotureModalProps = {
   demande: DemandeAchat | null;
@@ -12,6 +13,12 @@ type ClotureModalProps = {
   onOpenDetail: () => void;
   onSuccess: () => void;
 };
+
+const statutFinalOptions = [
+  { value: "CLOTURE", label: "Clôturé avec succès" },
+  { value: "PARTIELLEMENT_EXECUTE", label: "Partiellement exécuté" },
+  { value: "ANNULE", label: "Annulé" },
+] as const;
 
 export default function ClotureModal({
   demande,
@@ -77,30 +84,33 @@ export default function ClotureModal({
 
   return (
     <div
-      className="fixed inset-0 z-[110] bg-slate-900/40 p-4 flex items-center justify-center animate-in fade-in duration-200"
+      className="fixed inset-0 z-[110] flex items-center justify-center overflow-y-auto bg-slate-950/65 p-3 backdrop-blur-sm sm:p-6 animate-in fade-in duration-200"
       role="dialog"
       aria-modal="true"
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl animate-in zoom-in-95 duration-200">
+      <div 
+        className="my-6 flex w-full max-w-[80rem] max-h-[calc(120vh-3rem)] min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl ring-1 ring-black/5 animate-in zoom-in-95 duration-200"
+        style={{ zoom: 0.8 }}
+      >
         
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-5 py-3">
+        <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-6 py-4">
           <div className="flex items-center gap-3">
             <Lock className="h-5 w-5 text-slate-700" />
-            <h2 className="text-lg font-bold text-slate-900 tracking-tight">Clôture : {demande.numero_demande}</h2>
+            <h2 className="text-xl font-bold text-slate-900 tracking-tight">Clôture finale : {demande.numero_demande}</h2>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="flex h-7 w-7 items-center justify-center rounded bg-slate-200/50 text-slate-500 hover:bg-slate-200 hover:text-slate-800 transition-colors"
+            className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-200/60 text-slate-500 transition-colors hover:bg-slate-200 hover:text-slate-800"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
         {/* Content Area */}
-        <div className="min-h-0 flex-1 overflow-y-auto bg-slate-50 p-5 space-y-4">
+        <div className="flex-1 min-h-0 overflow-y-auto bg-slate-50 p-6 space-y-5">
           
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 rounded-xl border border-slate-300 bg-white p-4 shadow-sm">
             <div className="min-w-0 flex-1">
@@ -122,7 +132,7 @@ export default function ClotureModal({
           <form id="cloture-form" onSubmit={handleSubmit} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm space-y-5">
             <div>
                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">
-                Section 10 : Clôture définitive
+                Section 9 : Clôture finale
               </p>
             </div>
 
@@ -140,15 +150,12 @@ export default function ClotureModal({
 
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-slate-700">Statut de la clôture</label>
-                <select
+                <PurchaseSelect
                   value={statutFinal}
-                  onChange={(e) => setStatutFinal(e.target.value as any)}
-                  className="w-full rounded-lg border border-slate-300 bg-slate-50 focus:bg-white py-2 px-3 text-sm shadow-sm transition-colors focus:border-slate-500 focus:ring-2 focus:ring-slate-100 outline-none"
-                >
-                  <option value="CLOTURE">Clôturé avec succès</option>
-                  <option value="PARTIELLEMENT_EXECUTE">Partiellement exécuté</option>
-                  <option value="ANNULE">Annulé</option>
-                </select>
+                  onChange={(value) => setStatutFinal(value as CloseDemandePayload["statut_final"])}
+                  options={[...statutFinalOptions]}
+                  className="w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm shadow-sm transition-colors outline-none focus:bg-white focus:border-slate-500 focus:ring-2 focus:ring-slate-100"
+                />
               </div>
             </div>
 
@@ -192,7 +199,7 @@ export default function ClotureModal({
         </div>
 
         {/* Footer */}
-        <div className="border-t border-slate-200 bg-white px-5 py-4 flex items-center justify-between">
+        <div className="border-t border-slate-200 bg-white px-6 py-4 flex items-center justify-between">
             <button
               onClick={onClose}
               disabled={saving}

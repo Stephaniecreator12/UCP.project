@@ -77,7 +77,7 @@ button {
   }
 }
 
-@media (min-width: 768px) {
+@media (min-width: 1024px) and (pointer: fine) {
   .purchase-form-shell {
     display: flex;
     justify-content: center;
@@ -85,7 +85,7 @@ button {
 
   .purchase-form-zoom {
     width: 100%;
-    zoom: 0.8;
+    zoom: 0.9;
   }
 }
 
@@ -125,15 +125,15 @@ button {
   }
 }
 
-@media (min-width: 768px) {
+@media (min-width: 1024px) and (pointer: fine) {
   .achat-dashboard-shell {
     display: flex;
     justify-content: center;
   }
 
   .achat-dashboard-zoom {
-    width: 125%;
-    zoom: 0.8;
+    width: 133.3334%;
+    zoom: 0.75;
   }
 }
 
@@ -153,7 +153,7 @@ button {
   width: 100%;
 }
 
-@media (min-width: 768px) {
+@media (min-width: 1024px) and (pointer: fine) {
   .zoom-content {
     zoom: 0.9;
   }
@@ -178,12 +178,6 @@ button {
 
 .max-w-7xl-zoomed {
   max-width: 89rem; /* 1280px (7xl) / 0.9 = 1422px */
-  margin-left: auto;
-  margin-right: auto;
-}
-
-.max-w-container-zoomed {
-  max-width: 89rem;
   margin-left: auto;
   margin-right: auto;
 }
@@ -316,13 +310,4 @@ button {
   border-color: #dbe3e8;
   box-shadow: none;
   transform: none;
-}
-@keyframes gradient {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-
-.animate-gradient {
-  animation: gradient 3s ease infinite;
 }

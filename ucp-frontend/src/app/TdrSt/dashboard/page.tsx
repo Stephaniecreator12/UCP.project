@@ -29,6 +29,8 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const asTrend = (value: number) => ({ value, isPositive: value >= 0 });
+
   useEffect(() => {
     fetchDashboardData();
   }, []);
@@ -67,7 +69,7 @@ export default function DashboardPage() {
       setLoading(true);
       setError(null);
 
-      let token = getAccessToken();
+      const token = getAccessToken();
 
       if (!token) {
         throw new Error("Aucun token d'authentification trouvé. Veuillez vous connecter.");
@@ -158,13 +160,21 @@ export default function DashboardPage() {
 
   if (!stats) return null;
 
+  const currentMonthTrend = stats.kpis.currentMonth.trend;
+  const avgDelayTrend = -stats.kpis.avgDelay.trend;
+  const validatedTrend = stats.kpis.validated.trend;
+  const pendingTrend = -stats.kpis.pending.trend;
+
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50 page-enter">
       <TopHeader />
 
       <main className="w-full px-4 py-6 md:px-9 md:py-8">
         <div className="w-full space-y-6" style={{ maxInlineSize: "calc(100% - 2cm)", marginInline: "auto" }}>
-          <header className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <header
+            className="rounded-2xl border border-slate-200 bg-white shadow-sm page-enter-up"
+            style={{ animationDelay: "0.08s" }}
+          >
             <div className="rounded-2xl border-t-4 border-t-emerald-600 px-5 py-4 md:px-6 md:py-5">
               <div className="flex flex-wrap items-start justify-between gap-6">
                 <div className="flex items-start gap-4">
@@ -198,7 +208,10 @@ export default function DashboardPage() {
             </div>
           </header>
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div
+            className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm page-enter-up"
+            style={{ animationDelay: "0.14s" }}
+          >
             <div className="grid gap-4 sm:grid-cols-3">
               <div className="text-center">
                 <p className="text-2xl font-bold text-slate-900">{stats.totalDocumentsYear}</p>
@@ -215,12 +228,12 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 page-enter-up" style={{ animationDelay: "0.2s" }}>
             <KPICard
               title="Documents ce mois"
               value={stats.kpis.currentMonth.value}
               icon={<FileText className="h-4 w-4 text-emerald-700" />}
-              trend={{ value: stats.kpis.currentMonth.trend, isPositive: true }}
+              trend={asTrend(currentMonthTrend)}
             />
             <KPICard
               title="Délai moyen validation"
@@ -231,23 +244,23 @@ export default function DashboardPage() {
                 warning: stats.kpis.avgDelay.warningThreshold,
                 danger: stats.kpis.avgDelay.dangerThreshold,
               }}
-              trend={{ value: stats.kpis.avgDelay.trend, isPositive: true }}
+              trend={asTrend(avgDelayTrend)}
             />
             <KPICard
               title="Documents validés"
               value={stats.kpis.validated.value}
               icon={<CheckCircle className="h-4 w-4 text-emerald-700" />}
-              trend={{ value: stats.kpis.validated.trend, isPositive: true }}
+              trend={asTrend(validatedTrend)}
             />
             <KPICard
               title="En attente"
               value={stats.kpis.pending.value}
               icon={<AlertTriangle className="h-4 w-4 text-amber-700" />}
-              trend={{ value: stats.kpis.pending.trend, isPositive: false }}
+              trend={asTrend(pendingTrend)}
             />
           </div>
 
-          <div className="grid gap-6 lg:grid-cols-2">
+          <div className="grid gap-6 lg:grid-cols-2 page-enter-up" style={{ animationDelay: "0.28s" }}>
             <div className="lg:col-span-2">
               <DocumentsBarChart data={stats.monthlyDocuments} />
             </div>

@@ -219,6 +219,7 @@ const getProgress = (
   if (statut === "EN_ATTENTE_ANO") return { pct: 88, tone: "amber" };
   if (statut === "VALIDE") return { pct: 100, tone: "emerald" };
   if (statut === "REJETE") return { pct: 100, tone: "rose" };
+  if (statut === "SUSPENDU") return { pct: 100, tone: "slate" };
   return { pct: 100, tone: "orange" };
 };
 
@@ -310,7 +311,9 @@ function StatusStepper({ statut }: { statut?: Statut }) {
         </div>
 
         <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-slate-100">
-          <div className={`h-full ${c.bar}`} style={{ width: `${pct}%` }} />
+          <div className="h-full" style={{ width: `${pct}%` }}>
+            <div key={`${statut ?? "none"}:${pct}`} className={`h-full ${c.bar} progress-grow`} />
+          </div>
         </div>
 
         <div className="mt-3 grid grid-cols-4 gap-2 text-[11px] font-semibold text-slate-500">
@@ -341,6 +344,7 @@ export default function TdRStPage() {
   const [auditeurStatutFilter, setAuditeurStatutFilter] = useState<Statut | "TOUS">("TOUS");
   const [auditeurFundingFilter, setAuditeurFundingFilter] = useState<FundingSource | "TOUS">("TOUS");
   const [auditeurActorFilter, setAuditeurActorFilter] = useState<string>("TOUS");
+  const [auditeurSearch, setAuditeurSearch] = useState<string>("");
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [focusedDoc, setFocusedDoc] = useState<TdrStDocument | null>(null);
   const [decisionObs, setDecisionObs] = useState("");
@@ -355,6 +359,19 @@ export default function TdRStPage() {
     !!activeDoc && (activeDoc.statut === "VALIDE" || activeDoc.statut === "REJETE" || activeDoc.statut === "SUSPENDU");
 
   const [pdfFile, setPdfFile] = useState<File | null>(null);
+
+  const latestPdfVersionNumber = activeDoc
+    ? Math.max(
+        activeDoc.version || 1,
+        ...(activeDoc.versions_fichier ?? []).map((v) => v.version ?? 1),
+      )
+    : 1;
+
+  const formatPdfVersionLabel = (version: number | null | undefined) => {
+    const safeVersion = version ?? 1;
+    if (safeVersion >= latestPdfVersionNumber) return "Version finale";
+    return `Version ${latestPdfVersionNumber - safeVersion}`;
+  };
 
   // Vérifie si un PDF est présent pour l'initiateur
   const hasPdfFile = useMemo(() => {
@@ -400,6 +417,16 @@ export default function TdRStPage() {
 
   const docsForAuditeur = useMemo(() => {
     if (role !== "auditeur") return documents;
+
+    const normalizeSearchValue = (value: unknown) =>
+      String(value ?? "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase();
+
+    const query = normalizeSearchValue(auditeurSearch).trim();
+    const hasQuery = query.length > 0;
+
     return documents.filter((doc) => {
       if (auditeurStatutFilter !== "TOUS" && doc.statut !== auditeurStatutFilter) return false;
       if (auditeurFundingFilter !== "TOUS" && !doc.sources_financement?.includes(auditeurFundingFilter)) return false;
@@ -409,9 +436,31 @@ export default function TdRStPage() {
       ) {
         return false;
       }
-      return true;
+
+      if (!hasQuery) return true;
+
+      const acteurUsernames = (doc.actions_validation ?? [])
+        .map((a) => a.acteur_username)
+        .filter(Boolean)
+        .join(" ");
+
+      const haystack = normalizeSearchValue(
+        [
+          doc.numero_document,
+          doc.intitule,
+          doc.type_document,
+          doc.statut,
+          doc.unite_technique,
+          doc.reference_ptba,
+          doc.numero_subvention,
+          doc.ligne_budgetaire,
+          acteurUsernames,
+        ].join(" "),
+      );
+
+      return haystack.includes(query);
     });
-  }, [auditeurActorFilter, auditeurFundingFilter, auditeurStatutFilter, documents, role]);
+  }, [auditeurActorFilter, auditeurFundingFilter, auditeurSearch, auditeurStatutFilter, documents, role]);
 
   useEffect(() => {
     if (role !== "auditeur") return;
@@ -871,10 +920,12 @@ export default function TdRStPage() {
   const formPanel = (
     <div className={`rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4 ${isReadOnly ? "opacity-75" : ""}`}>
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">{activeDoc ? "Détail du document" : "Nouveau brouillon"}</h2>
+        <h2 className="text-lg font-semibold text-slate-900">{activeDoc ? "Détail du document" : "Nouveau brouillon"}</h2>
         <div className="flex items-center gap-2">
           {isReadOnly && (
-            <span className="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded-full border">Lecture seule</span>
+            <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-700">
+              Lecture seule
+            </span>
           )}
           <button
             type="button"
@@ -892,7 +943,7 @@ export default function TdRStPage() {
           <span className="block text-sm font-medium">Unité technique *</span>
           <input
             disabled={isReadOnly}
-            className="mt-1 w-full border rounded-md px-3 py-2 disabled:bg-slate-50 disabled:text-slate-500"
+            className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm transition focus:border-emerald-300 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500"
             value={form.unite_technique}
             onChange={(e) => setForm((p) => ({ ...p, unite_technique: e.target.value }))}
           />
@@ -902,7 +953,7 @@ export default function TdRStPage() {
           <span className="block text-sm font-medium">Type de document *</span>
           <select
             disabled={isReadOnly}
-            className="mt-1 w-full border rounded-md px-3 py-2 disabled:bg-slate-50"
+            className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm transition focus:border-emerald-300 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500"
             value={form.type_document}
             onChange={(e) => setForm((p) => ({ ...p, type_document: e.target.value as DocumentType }))}
           >
@@ -915,7 +966,7 @@ export default function TdRStPage() {
           <span className="block text-sm font-medium">Catégorie d&apos;activité *</span>
           <select
             disabled={isReadOnly}
-            className="mt-1 w-full border rounded-md px-3 py-2 disabled:bg-slate-50"
+            className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm transition focus:border-emerald-300 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500"
             value={form.categorie_activite}
             onChange={(e) => setForm((p) => ({ ...p, categorie_activite: e.target.value as CategorieActivite }))}
           >
@@ -944,7 +995,7 @@ export default function TdRStPage() {
           <span className="block text-sm font-medium">Procédure envisagée *</span>
           <select
             disabled={isReadOnly}
-            className="mt-1 w-full border rounded-md px-3 py-2 disabled:bg-slate-50"
+            className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm transition focus:border-emerald-300 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500"
             value={form.procedure_envisagee}
             onChange={(e) => setForm((p) => ({ ...p, procedure_envisagee: e.target.value as Procedure }))}
           >
@@ -960,7 +1011,7 @@ export default function TdRStPage() {
         <span className="block text-sm font-medium">Intitulé *</span>
         <input
           disabled={isReadOnly}
-          className="mt-1 w-full border rounded-md px-3 py-2 disabled:bg-slate-50"
+          className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm transition focus:border-emerald-300 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500"
           value={form.intitule}
           onChange={(e) => setForm((p) => ({ ...p, intitule: e.target.value }))}
         />
@@ -971,7 +1022,7 @@ export default function TdRStPage() {
           <span className="block text-sm font-medium">Référence PTBA *</span>
           <input
             disabled={isReadOnly}
-            className="mt-1 w-full border rounded-md px-3 py-2 disabled:bg-slate-50"
+            className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm transition focus:border-emerald-300 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500"
             value={form.reference_ptba}
             onChange={(e) => setForm((p) => ({ ...p, reference_ptba: e.target.value }))}
           />
@@ -980,7 +1031,7 @@ export default function TdRStPage() {
           <span className="block text-sm font-medium">Ligne budgétaire *</span>
           <input
             disabled={isReadOnly}
-            className="mt-1 w-full border rounded-md px-3 py-2 disabled:bg-slate-50"
+            className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm transition focus:border-emerald-300 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500"
             value={form.ligne_budgetaire}
             onChange={(e) => setForm((p) => ({ ...p, ligne_budgetaire: e.target.value }))}
           />
@@ -993,7 +1044,7 @@ export default function TdRStPage() {
           <input
             type="date"
             disabled={isReadOnly}
-            className="mt-1 w-full border rounded-md px-3 py-2 disabled:bg-slate-50"
+            className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm transition focus:border-emerald-300 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500"
             value={form.periode_debut}
             onChange={(e) => setForm((p) => ({ ...p, periode_debut: e.target.value }))}
           />
@@ -1003,7 +1054,7 @@ export default function TdRStPage() {
           <input
             type="date"
             disabled={isReadOnly}
-            className="mt-1 w-full border rounded-md px-3 py-2 disabled:bg-slate-50"
+            className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm transition focus:border-emerald-300 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500"
             value={form.periode_fin}
             onChange={(e) => setForm((p) => ({ ...p, periode_fin: e.target.value }))}
           />
@@ -1017,7 +1068,7 @@ export default function TdRStPage() {
             type="number"
             min={1}
             disabled={isReadOnly}
-            className="mt-1 w-full border rounded-md px-3 py-2 disabled:bg-slate-50"
+            className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm transition focus:border-emerald-300 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500"
             value={form.duree_estimee_valeur}
             onChange={(e) => setForm((p) => ({ ...p, duree_estimee_valeur: Number(e.target.value) }))}
           />
@@ -1026,7 +1077,7 @@ export default function TdRStPage() {
           <span className="block text-sm font-medium">Unité *</span>
           <select
             disabled={isReadOnly}
-            className="mt-1 w-full border rounded-md px-3 py-2 disabled:bg-slate-50"
+            className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm transition focus:border-emerald-300 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500"
             value={form.duree_estimee_unite}
             onChange={(e) => setForm((p) => ({ ...p, duree_estimee_unite: e.target.value as DureeUnite }))}
           >
@@ -1043,7 +1094,7 @@ export default function TdRStPage() {
           min={0}
           step="0.01"
           disabled={isReadOnly}
-          className={`mt-1 w-full border rounded-md px-3 py-2 disabled:bg-slate-50 ${Number(form.montant_estime_usd) > 50000 ? "border-orange-400 ring-2 ring-orange-100" : ""}`}
+          className={`mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm transition focus:border-emerald-300 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500 ${Number(form.montant_estime_usd) > 50000 ? "border-orange-400 ring-4 ring-orange-100/60 focus:border-orange-300 focus:ring-orange-200/60" : ""}`}
           value={form.montant_estime_usd}
           onChange={(e) => setForm((p) => ({ ...p, montant_estime_usd: e.target.value }))}
         />
@@ -1065,6 +1116,7 @@ export default function TdRStPage() {
               <input
                 type="checkbox"
                 disabled={isReadOnly}
+                className="h-4 w-4 accent-emerald-600"
                 checked={form.sources_financement.includes(s)}
                 onChange={() => toggleFunding(s)}
               />
@@ -1078,7 +1130,7 @@ export default function TdRStPage() {
         <span className="block text-sm font-medium">Numéro de subvention (si bailleur)</span>
         <input
           disabled={isReadOnly}
-          className="mt-1 w-full border rounded-md px-3 py-2 disabled:bg-slate-50"
+          className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm transition focus:border-emerald-300 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500"
           value={form.numero_subvention}
           onChange={(e) => setForm((p) => ({ ...p, numero_subvention: e.target.value }))}
         />
@@ -1088,7 +1140,7 @@ export default function TdRStPage() {
         <div className="flex justify-end pt-4">
           <button
             type="button"
-            className="rounded-full bg-indigo-600 px-5 py-2 text-sm font-semibold text-white shadow transition hover:bg-indigo-700 disabled:opacity-50"
+            className="rounded-full bg-emerald-600 px-5 py-2 text-sm font-semibold text-white shadow transition hover:bg-emerald-700 disabled:opacity-50"
             onClick={() => handleModalClose(true)}
             disabled={loading || isReadOnly}
           >
@@ -1123,6 +1175,31 @@ export default function TdRStPage() {
           document{(role === "auditeur" ? docsForAuditeur.length : documentRows.length) > 1 ? "s" : ""}
         </p>
       </div>
+
+      {role === "auditeur" ? (
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <label className="block">
+            <span className="block text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Recherche</span>
+            <div className="mt-1 flex flex-col gap-2 md:flex-row md:items-center">
+              <input
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm"
+                value={auditeurSearch}
+                onChange={(e) => setAuditeurSearch(e.target.value)}
+                placeholder="Numéro, intitulé, PTBA, unité, acteur…"
+              />
+              {auditeurSearch.trim() ? (
+                <button
+                  type="button"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 md:w-auto"
+                  onClick={() => setAuditeurSearch("")}
+                >
+                  Effacer
+                </button>
+              ) : null}
+            </div>
+          </label>
+        </div>
+      ) : null}
 
       {role === "auditeur" ? (
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
@@ -1181,6 +1258,7 @@ export default function TdRStPage() {
                   setAuditeurStatutFilter("TOUS");
                   setAuditeurFundingFilter("TOUS");
                   setAuditeurActorFilter("TOUS");
+                  setAuditeurSearch("");
                 }}
               >
                 Réinitialiser
@@ -1296,14 +1374,14 @@ export default function TdRStPage() {
   );
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50 page-enter">
       <TopHeader />
       <main className="w-full px-4 py-6 md:px-9 md:py-8">
         <div
           className="space-y-6 w-full"
           style={{ maxInlineSize: "calc(100% - 2cm)", marginInline: "auto" }}
         >
-        <header className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <header className="rounded-2xl border border-slate-200 bg-white shadow-sm page-enter-up" style={{ animationDelay: "0.08s" }}>
           <div className="rounded-2xl border-t-4 border-t-emerald-600 px-5 py-4 md:px-6 md:py-5">
             <div className="flex flex-wrap items-start justify-between gap-6">
               <div className="space-y-1">
@@ -1336,7 +1414,7 @@ export default function TdRStPage() {
           <div className="fixed right-6 bottom-[20px] z-[100] space-y-2">
             {error && (
               <div
-                className="min-w-[220px] max-w-[340px] rounded-[10px] border px-[0.8rem] py-[0.65rem] font-semibold shadow-lg text-[#8d2525] bg-[#fde9e9] border-[#f6c8c8] transition-opacity duration-200 animate-saveMessageSlide"
+                className="min-w-[220px] max-w-[340px] rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-3 font-semibold text-rose-800 shadow-lg transition-opacity duration-200 animate-saveMessageSlide"
                 style={{ animationDuration: "0.5s" }}
               >
                 Erreur : {error}
@@ -1344,7 +1422,7 @@ export default function TdRStPage() {
             )}
             {success && (
               <div
-                className="min-w-[220px] max-w-[340px] rounded-[10px] border px-[0.8rem] py-[0.65rem] font-semibold shadow-lg text-[#0c6f3d] bg-[#e6f8ef] border-[#bce9cd] transition-opacity duration-200 animate-saveMessageSlide"
+                className="min-w-[220px] max-w-[340px] rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-3 font-semibold text-emerald-800 shadow-lg transition-opacity duration-200 animate-saveMessageSlide"
                 style={{ animationDuration: "0.5s" }}
               >
                 Succès : {success}
@@ -1353,7 +1431,10 @@ export default function TdRStPage() {
           </div>
         )}
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">
+        <div
+          className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-6 page-enter-up"
+          style={{ animationDelay: "0.14s" }}
+        >
           {role === "auditeur" && auditeurOverview ? (
             <DashboardIndividual overview={auditeurOverview} />
           ) : null}
@@ -1361,7 +1442,7 @@ export default function TdRStPage() {
           {formActions}
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-6 page-enter-up" style={{ animationDelay: "0.2s" }}>
 
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">
             <div className="flex items-center justify-between gap-3">
@@ -1412,7 +1493,7 @@ export default function TdRStPage() {
                     <div className="rounded-xl border border-slate-200 bg-white p-4">
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="text-sm font-bold text-slate-900">
-                          Document PDF (Version {activeDoc.version || 1})
+                          Document PDF ({formatPdfVersionLabel(activeDoc.version)})
                         </div>
                         {activeDoc.fichier_courant?.fichier_pdf ? (
                           <a
@@ -1455,7 +1536,9 @@ export default function TdRStPage() {
                                   .map((v) => (
                                     <div key={v.id} className="rounded-xl border border-slate-200 bg-white px-3 py-2">
                                       <div className="flex items-center justify-between gap-2">
-                                        <p className="text-xs font-semibold text-slate-800">V{v.version ?? 1}</p>
+                                        <p className="text-xs font-semibold text-slate-800">
+                                          {formatPdfVersionLabel(v.version)}
+                                        </p>
                                         {v.fichier_pdf ? (
                                           <a
                                             href={resolveBackendUrl(v.fichier_pdf) ?? "#"}
@@ -1527,7 +1610,7 @@ export default function TdRStPage() {
                             </label>
                           </div>
                           <button
-                            className="w-full rounded-xl bg-indigo-600 py-3 text-sm font-bold text-white shadow-md transition hover:bg-indigo-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none"
+                            className="w-full rounded-xl bg-emerald-600 py-3 text-sm font-bold text-white shadow-md transition hover:bg-emerald-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none"
                             onClick={() => void handleSubmitWithOptionalUpload()}
                             disabled={loading || !(activeDoc.statut === "BROUILLON" || activeDoc.statut === "A_REVOIR") || !hasPdfFile}
                           >

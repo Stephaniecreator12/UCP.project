@@ -130,6 +130,20 @@ html, body {
   animation: dashIntroSlide 0.55s ease-out both;
 }
 
+.progress-grow {
+  transform-origin: left;
+  animation: progressGrow 0.7s ease-out both;
+}
+
+@keyframes progressGrow {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
 .animate-saveMessageSlide {
   animation-name: saveMessageSlide;
   animation-duration: 2.5s;

@@ -39,6 +39,8 @@ type MenuPosition = {
 
 const DEFAULT_MENU_MAX_HEIGHT = 280;
 const DEFAULT_HORIZONTAL_MARGIN = 12;
+const DEFAULT_VERTICAL_MARGIN = 12;
+const DEFAULT_MENU_OFFSET = 6;
 
 export default function PurchaseSelect({
   value,
@@ -85,21 +87,22 @@ export default function PurchaseSelect({
     const rect = buttonRef.current.getBoundingClientRect();
     const viewportHeight = window.innerHeight;
     const viewportWidth = window.innerWidth;
-    const availableBelow = viewportHeight - rect.bottom - 12;
-    const availableAbove = rect.top - 12;
-    const shouldOpenAbove =
-      availableBelow < Math.min(DEFAULT_MENU_MAX_HEIGHT, 180) &&
-      availableAbove > availableBelow;
+    const availableBelow =
+      viewportHeight - rect.bottom - DEFAULT_VERTICAL_MARGIN - DEFAULT_MENU_OFFSET;
+    const availableAbove =
+      rect.top - DEFAULT_VERTICAL_MARGIN - DEFAULT_MENU_OFFSET;
+    const shouldOpenAbove = availableBelow <= 0 && availableAbove > 0;
+    const availableSpace = shouldOpenAbove ? availableAbove : availableBelow;
     const maxHeight = Math.max(
-      140,
-      Math.min(
-        DEFAULT_MENU_MAX_HEIGHT,
-        shouldOpenAbove ? availableAbove : availableBelow,
-      ),
+      0,
+      Math.min(DEFAULT_MENU_MAX_HEIGHT, availableSpace),
     );
     const top = shouldOpenAbove
-      ? Math.max(12, rect.top - maxHeight - 6)
-      : rect.bottom + 6;
+      ? Math.max(
+          DEFAULT_VERTICAL_MARGIN,
+          rect.top - maxHeight - DEFAULT_MENU_OFFSET,
+        )
+      : rect.bottom + DEFAULT_MENU_OFFSET;
     const width = rect.width;
     const left = Math.min(
       Math.max(DEFAULT_HORIZONTAL_MARGIN, rect.left),
@@ -226,7 +229,7 @@ export default function PurchaseSelect({
               left: menuPosition.left,
               width: menuPosition.width,
               maxHeight: menuPosition.maxHeight,
-              zoom: 0.8,
+              zoom: 0.9,
             }}
           >
             {options.map((option, index) => {
@@ -239,6 +242,7 @@ export default function PurchaseSelect({
                   type="button"
                   role="option"
                   aria-selected={isSelected}
+                  title={option.label}
                   data-option-index={index}
                   disabled={option.disabled}
                   onMouseEnter={() => setHighlightedIndex(index)}
@@ -272,6 +276,7 @@ export default function PurchaseSelect({
         ref={buttonRef}
         id={buttonId}
         type="button"
+        title={selectedOption?.label ?? placeholder}
         aria-label={ariaLabel}
         aria-haspopup="listbox"
         aria-expanded={open}

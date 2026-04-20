@@ -13,7 +13,6 @@ from apps.achats.serializers.demande_serializer import (
     BudgetEstimationSerializer,
     CloseDemandeSerializer,
     DemandeAchatSerializer,
-    DemandeAchatListSerializer,
     DocumentDemandeSerializer,
     IssueOrderSerializer,
     ReceiveDemandeSerializer,
@@ -46,7 +45,7 @@ from apps.achats.services import (
 def demande_list_create_view(request):
     if request.method == "GET":
         demandes = list_mes_demandes(request.user)
-        serializer = DemandeAchatListSerializer(demandes, many=True)
+        serializer = DemandeAchatSerializer(demandes, many=True)
         return Response(serializer.data)
 
     serializer = DemandeAchatSerializer(data=request.data)
@@ -102,7 +101,7 @@ def demande_detail_view(request, demande_id):
 @permission_classes([IsAuthenticated])
 def passation_pending_view(request):
     demandes = list_demandes_a_commander(request.user)
-    serializer = DemandeAchatListSerializer(demandes, many=True)
+    serializer = DemandeAchatSerializer(demandes, many=True)
     return Response(serializer.data)
 
 
@@ -110,7 +109,7 @@ def passation_pending_view(request):
 @permission_classes([IsAuthenticated])
 def finance_pending_view(request):
     demandes = list_demandes_budgetaires(request.user)
-    serializer = DemandeAchatListSerializer(demandes, many=True)
+    serializer = DemandeAchatSerializer(demandes, many=True)
     return Response(serializer.data)
 
 

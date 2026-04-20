@@ -29,6 +29,7 @@ class DemandeAchatAdmin(admin.ModelAdmin):
         "service_beneficiaire",
         "numero_bon_commande",
         "fournisseur_retenu",
+        "email_fournisseur",
     )
 
 

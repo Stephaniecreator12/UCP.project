@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
@@ -6,6 +6,8 @@ from django.contrib.auth.models import Group
 from django.core import mail
 from django.core.management import call_command
 from django.test import TestCase
+from django.utils import timezone
+from rest_framework.exceptions import ValidationError
 
 from apps.achats.models import DemandeAchat, ValidationDemande
 from apps.achats.services.demande_service import (
@@ -56,7 +58,7 @@ class AchatsNotificationTests(TestCase):
             "lien_ptba": "PTBA-2026-01",
             "service_beneficiaire": "Service support",
             "ligne_budgetaire": "2.1.1 Fournitures bureau",
-            "source_financement": DemandeAchat.SOURCE_FONDS_MONDIAL,
+            "source_financement": DemandeAchat.SOURCE_SRPS_CS7_FM,
             "numero_subvention": "SUBV/FM/2026",
         }
         defaults.update(overrides)
@@ -103,22 +105,79 @@ class AchatsNotificationTests(TestCase):
         self.assertEqual(mail.outbox[0].to, ["alice@example.com"])
         self.assertIn("Mise a jour de votre demande", mail.outbox[0].subject)
 
-    def test_final_validation_sends_email_to_demandeur_and_finance(self):
+    def test_budget_validation_persists_budget_fields_and_moves_to_programmatique(self):
+        demandeur = self._create_user("budget", "budget@example.com")
+        finance = self._create_user(
+            "raf",
+            "raf@example.com",
+            groups=["FINANCE"],
+        )
+        self._create_user(
+            "programme",
+            "programme@example.com",
+            groups=["VALIDATEUR_PROGRAMMATIQUE"],
+        )
+        demande = self._create_demande(
+            demandeur,
+            statut=DemandeAchat.STATUT_SOUMISE,
+            etape_validation_actuelle=DemandeAchat.ETAPE_BUDGETAIRE,
+            ligne_budgetaire="",
+            source_financement="",
+            numero_subvention="",
+            numero_engagement_budgetaire="",
+            solde_disponible_ligne_budgetaire=None,
+            solde_apres_engagement=None,
+        )
+
+        with self.captureOnCommitCallbacks(execute=True):
+            traiter_validation(
+                demande,
+                finance,
+                ValidationDemande.DECISION_FAVORABLE,
+                commentaire="Budget disponible",
+                donnees_etape={
+                    "disponibilite_budgetaire": "DISPONIBLE",
+                    "conformite_financiere": "CONFORME_MANUEL",
+                    "respect_seuils": "SEUIL_RESPECTE",
+                    "ligne_budgetaire": "2.1.1 Fournitures bureau",
+                    "source_financement": DemandeAchat.SOURCE_SRPS_CS7_FM,
+                    "numero_subvention": "MDG-S-MOH-4041",
+                    "solde_disponible_ligne_budgetaire": "3200000",
+                },
+            )
+
+        demande.refresh_from_db()
+
+        self.assertEqual(demande.statut, DemandeAchat.STATUT_SOUMISE)
+        self.assertEqual(demande.etape_validation_actuelle, DemandeAchat.ETAPE_PROGRAMMATIQUE)
+        self.assertEqual(demande.ligne_budgetaire, "2.1.1 Fournitures bureau")
+        self.assertEqual(demande.source_financement, DemandeAchat.SOURCE_SRPS_CS7_FM)
+        self.assertEqual(demande.numero_subvention, "MDG-S-MOH-4041")
+        self.assertEqual(str(demande.solde_disponible_ligne_budgetaire), "3200000.00")
+        self.assertEqual(str(demande.solde_apres_engagement), "3200000.00")
+        self.assertTrue(demande.numero_engagement_budgetaire)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["programme@example.com"])
+        self.assertIn("A votre tour de valider", mail.outbox[0].subject)
+
+    def test_final_validation_sends_email_to_demandeur_and_agent_achat(self):
         demandeur = self._create_user("fatou", "fatou@example.com")
         approbateur = self._create_user(
             "coordo",
             "coordo@example.com",
             groups=["APPROBATEUR_NATIONAL"],
         )
-        self._create_user(
-            "finance",
-            "finance@example.com",
-            groups=["FINANCE"],
-        )
+        self._create_user("agentachat", "achat@example.com", groups=["AGENT_ACHAT"])
         demande = self._create_demande(
             demandeur,
             statut=DemandeAchat.STATUT_SOUMISE,
             etape_validation_actuelle=DemandeAchat.ETAPE_APPROBATION_FINALE,
+            ligne_budgetaire="2.1.1 Fournitures bureau",
+            source_financement=DemandeAchat.SOURCE_SRPS_CS7_FM,
+            numero_subvention="MDG-S-MOH-4041",
+            numero_engagement_budgetaire="ENG/2026/0001",
+            solde_disponible_ligne_budgetaire=Decimal("3200000.00"),
+            solde_apres_engagement=Decimal("2800000.00"),
         )
 
         with self.captureOnCommitCallbacks(execute=True):
@@ -129,51 +188,43 @@ class AchatsNotificationTests(TestCase):
                 commentaire="Accord final",
             )
 
+        demande.refresh_from_db()
+
         self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(demande.statut, DemandeAchat.STATUT_VALIDEE_BUDGETAIRE)
         self.assertCountEqual(
             mail.outbox[0].to,
-            ["fatou@example.com", "finance@example.com"],
+            ["fatou@example.com", "achat@example.com"],
         )
-        self.assertIn("Demande validee", mail.outbox[0].subject)
+        self.assertIn("passation", mail.outbox[0].subject.lower())
 
-    def test_budget_validation_sends_email_to_demandeur_and_agent_achat(self):
-        demandeur = self._create_user("fina", "fina@example.com")
+    def test_complete_budget_estimation_is_disabled_after_validation_flow_change(self):
+        demandeur = self._create_user("noro", "noro@example.com")
         finance = self._create_user(
-            "raf",
-            "raf@example.com",
+            "financelegacy",
+            "financelegacy@example.com",
             groups=["FINANCE"],
-        )
-        self._create_user(
-            "agentachat",
-            "achat@example.com",
-            groups=["AGENT_ACHAT"],
         )
         demande = self._create_demande(
             demandeur,
             statut=DemandeAchat.STATUT_VALIDEE,
-            ligne_budgetaire="",
-            source_financement="",
-            numero_subvention="",
+            etape_validation_actuelle=DemandeAchat.ETAPE_TERMINEE,
         )
 
-        with self.captureOnCommitCallbacks(execute=True):
+        with self.assertRaisesMessage(
+            ValidationError,
+            "La validation budgetaire ne se fait plus apres les 5 validations.",
+        ):
             complete_budget_estimation(
                 demande,
                 {
                     "ligne_budgetaire": "2.1.1 Fournitures bureau",
-                    "source_financement": DemandeAchat.SOURCE_FONDS_MONDIAL,
+                    "source_financement": DemandeAchat.SOURCE_SRPS_CS7_FM,
                 },
                 finance,
             )
 
-        self.assertEqual(len(mail.outbox), 1)
-        self.assertCountEqual(
-            mail.outbox[0].to,
-            ["fina@example.com", "achat@example.com"],
-        )
-        self.assertIn("Budget valide", mail.outbox[0].subject)
-
-    def test_issue_order_sends_email_to_demandeur(self):
+    def test_issue_order_sends_email_to_demandeur_and_supplier(self):
         demandeur = self._create_user("noe", "noe@example.com")
         agent = self._create_user(
             "agent",
@@ -192,6 +243,7 @@ class AchatsNotificationTests(TestCase):
                 {
                     "type_procedure": DemandeAchat.PROCEDURE_BON_DIRECT,
                     "fournisseur_retenu": "Office Plus",
+                    "email_fournisseur": "contact@officeplus.test",
                     "montant_commande": Decimal("280000"),
                     "delai_livraison_contractuel": 5,
                     "conditions_livraison": "Site central",
@@ -201,9 +253,14 @@ class AchatsNotificationTests(TestCase):
                 agent,
             )
 
-        self.assertEqual(len(mail.outbox), 1)
+        demande.refresh_from_db()
+
+        self.assertEqual(demande.email_fournisseur, "contact@officeplus.test")
+        self.assertEqual(len(mail.outbox), 2)
         self.assertEqual(mail.outbox[0].to, ["noe@example.com"])
         self.assertIn("Bon de commande emis", mail.outbox[0].subject)
+        self.assertEqual(mail.outbox[1].to, ["contact@officeplus.test"])
+        self.assertIn("Bon de commande UCP", mail.outbox[1].subject)
 
     def test_delivery_update_sends_email_to_demandeur(self):
         demandeur = self._create_user("sam", "sam@example.com")
@@ -305,6 +362,28 @@ class AchatsNotificationTests(TestCase):
         self.assertEqual(mail.outbox[0].to, ["audit@example.com"])
         self.assertIn("Test de notification UCP Achats", mail.outbox[0].subject)
 
+    def test_check_delayed_demandes_sends_24h_reminder(self):
+        demandeur = self._create_user("lateuser", "lateuser@example.com")
+        self._create_user(
+            "chefretard",
+            "chefretard@example.com",
+            groups=["VALIDATEUR_HIERARCHIQUE"],
+        )
+        demande = self._create_demande(
+            demandeur,
+            statut=DemandeAchat.STATUT_SOUMISE,
+            etape_validation_actuelle=DemandeAchat.ETAPE_HIERARCHIQUE,
+        )
+        DemandeAchat.objects.filter(pk=demande.pk).update(
+            updated_at=timezone.now() - timedelta(hours=25),
+        )
+
+        call_command("check_delayed_demandes")
+
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["chefretard@example.com"])
+        self.assertIn("24h", mail.outbox[0].subject)
+
     def test_update_a_completer_increments_version(self):
         demandeur = self._create_user("correction", "correction@example.com")
         demande = self._create_demande(
@@ -325,7 +404,7 @@ class AchatsNotificationTests(TestCase):
                 "lien_ptba": "PTBA-2026-01",
                 "service_beneficiaire": "Service support",
                 "ligne_budgetaire": "2.1.1 Fournitures bureau",
-                "source_financement": DemandeAchat.SOURCE_FONDS_MONDIAL,
+                "source_financement": DemandeAchat.SOURCE_SRPS_CS7_FM,
                 "lignes_besoin": [
                     {
                         "designation": "Papier A4",

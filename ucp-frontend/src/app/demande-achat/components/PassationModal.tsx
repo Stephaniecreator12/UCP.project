@@ -6,6 +6,11 @@ import { DemandeAchat, IssueOrderPayload, issueOrderDemandeAchat } from "@/servi
 import { formatMoney, getCompactNeedLabel } from "@/app/demande-achat/components/demandeAchatShared";
 import PurchaseSelect from "@/app/demande-achat/components/PurchaseSelect";
 
+type PassationFormState = Omit<IssueOrderPayload, "type_procedure" | "delai_livraison_contractuel"> & {
+  type_procedure: IssueOrderPayload["type_procedure"] | "";
+  delai_livraison_contractuel: number | "";
+};
+
 type PassationModalProps = {
   demande: DemandeAchat | null;
   open: boolean;
@@ -14,13 +19,14 @@ type PassationModalProps = {
   onSuccess: () => void;
 };
 
-const initialFormState: IssueOrderPayload = {
-  type_procedure: "BON_COMMANDE_DIRECT",
+const initialFormState: PassationFormState = {
+  type_procedure: "",
   fournisseur_retenu: "",
+  email_fournisseur: "",
   numero_bon_commande: "",
   date_bon_commande: "",
   montant_commande: "",
-  delai_livraison_contractuel: 0,
+  delai_livraison_contractuel: "",
   conditions_livraison: "",
   garantie: "",
 };
@@ -38,12 +44,14 @@ export default function PassationModal({
   onOpenDetail,
   onSuccess,
 }: PassationModalProps) {
-  const [form, setForm] = useState<IssueOrderPayload>(initialFormState);
+  const [form, setForm] = useState<PassationFormState>(initialFormState);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const fieldLabelClass = "text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500";
 
   useEffect(() => {
     if (open && demande) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setForm({
         ...initialFormState,
         montant_commande: demande.cout_total_estime,
@@ -67,7 +75,18 @@ export default function PassationModal({
     e.preventDefault();
     if (!demande) return;
 
-    if (!form.fournisseur_retenu.trim() || !form.numero_bon_commande?.trim() || !form.date_bon_commande) {
+    if (!form.type_procedure) {
+      setError("Veuillez sélectionner le type de procédure.");
+      return;
+    }
+
+    if (
+      !form.fournisseur_retenu.trim() ||
+      !form.email_fournisseur.trim() ||
+      !form.numero_bon_commande?.trim() ||
+      !form.date_bon_commande ||
+      form.delai_livraison_contractuel === ""
+    ) {
       setError("Veuillez remplir les informations obligatoires concernant le bon de commande.");
       return;
     }
@@ -77,6 +96,7 @@ export default function PassationModal({
     try {
       await issueOrderDemandeAchat(demande.id, {
         ...form,
+        type_procedure: form.type_procedure,
         delai_livraison_contractuel: Number(form.delai_livraison_contractuel),
       });
       onSuccess();
@@ -88,145 +108,156 @@ export default function PassationModal({
 
   return (
     <div
-      className="fixed inset-0 z-[110] bg-slate-900/40 p-4 flex items-start justify-center overflow-y-auto animate-in fade-in duration-200"
+      className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm animate-in fade-in duration-200"
       role="dialog"
       aria-modal="true"
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div 
-        className="my-8 flex w-full max-w-5xl flex-col rounded-xl border border-slate-200 bg-white shadow-xl animate-in zoom-in-95 duration-200"
-        style={{ zoom: 0.8 }}
+        className="flex w-full max-w-4xl flex-col rounded-[28px] border border-slate-200 bg-white shadow-[0_24px_60px_rgba(15,23,42,0.16)] animate-in zoom-in-95 duration-200"
       >
         
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-5 py-3">
+        <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50/90 px-5 py-4">
           <div className="flex items-center gap-3">
             <Package className="h-5 w-5 text-sky-600" />
-            <h2 className="text-lg font-bold text-slate-900 tracking-tight">Passation : Commande {demande.numero_demande}</h2>
+            <h2 className="text-base font-bold text-slate-900 tracking-tight">Passation : Commande {demande.numero_demande}</h2>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="flex h-7 w-7 items-center justify-center rounded bg-slate-200/50 text-slate-500 hover:bg-slate-200 hover:text-slate-800 transition-colors"
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-200/50 text-slate-500 hover:bg-slate-200 hover:text-slate-800 transition-colors"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
         {/* Content Area */}
-        <div className="flex-1 bg-slate-50 p-5 space-y-4">
+        <div className="flex-1 space-y-3 bg-slate-50 p-4">
           
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 rounded-xl border border-sky-100 bg-sky-50/50 p-4 shadow-sm">
+          <div className="flex flex-col items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm sm:flex-row">
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-sky-900 truncate" title={demande.objet}>{demande.objet}</p>
-              <div className="mt-1 flex flex-wrap gap-3 text-xs text-sky-700">
-                <span>{getCompactNeedLabel(demande)}</span>
-                <span className="border-l border-sky-200 pl-3 font-semibold">{formatMoney(demande.cout_total_estime)}</span>
+              <p className="truncate text-[14px] font-bold text-slate-900" title={demande.objet}>{demande.objet}</p>
+              <div className="mt-1 flex flex-wrap gap-2 text-[11px] font-medium text-slate-600">
+                <span className="rounded-md border border-slate-100 bg-slate-50 px-1.5 py-0.5">{getCompactNeedLabel(demande)}</span>
+                <span className="rounded-md border border-sky-100 bg-sky-50 px-1.5 py-0.5 font-bold text-sky-700">{formatMoney(demande.cout_total_estime)}</span>
               </div>
             </div>
             <button
               type="button"
               onClick={onOpenDetail}
-              className="shrink-0 rounded-lg bg-white border border-sky-200 px-3 py-1.5 text-xs font-bold text-sky-700 hover:bg-sky-50 hover:border-sky-300 transition-colors shadow-sm"
+              className="inline-flex shrink-0 items-center rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-bold text-slate-700 transition-colors hover:bg-slate-50"
             >
               Voir détail
             </button>
           </div>
 
-          <form id="passation-form" onSubmit={handleSubmit} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm space-y-5">
+          <form id="passation-form" onSubmit={handleSubmit} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <div>
-               <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">
+               <p className="mb-2 border-b border-slate-100 pb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
                 Section 7 : Passation et Commande
               </p>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-slate-700">Type de procédure</label>
+                <label className={fieldLabelClass}>Type de procédure</label>
                 <PurchaseSelect
                   value={form.type_procedure}
                   onChange={(value) => setForm({ ...form, type_procedure: value as IssueOrderPayload["type_procedure"] })}
                   options={[...procedureOptions]}
-                  className="w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm shadow-sm transition-colors outline-none focus:bg-white focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+                  className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm shadow-sm transition-colors outline-none focus:border-sky-500 focus:bg-white focus:ring-2 focus:ring-sky-100"
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-slate-700">Fournisseur retenu</label>
+                <label className={fieldLabelClass}>Fournisseur retenu</label>
                 <input
                   required
                   value={form.fournisseur_retenu}
                   onChange={(e) => setForm({ ...form, fournisseur_retenu: e.target.value })}
-                  className="w-full rounded-lg border border-slate-300 bg-slate-50 focus:bg-white py-2 px-3 text-sm shadow-sm transition-colors focus:border-sky-500 focus:ring-2 focus:ring-sky-100 outline-none"
+                  className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm shadow-sm transition-colors outline-none focus:border-sky-500 focus:bg-white focus:ring-2 focus:ring-sky-100"
                   placeholder="Nom du fournisseur"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className={fieldLabelClass}>Email fournisseur</label>
+                <input
+                  type="email"
+                  required
+                  value={form.email_fournisseur}
+                  onChange={(e) => setForm({ ...form, email_fournisseur: e.target.value })}
+                  className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm shadow-sm transition-colors outline-none focus:border-sky-500 focus:bg-white focus:ring-2 focus:ring-sky-100"
+                  placeholder="contact@fournisseur.com"
                 />
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-slate-700">N° bon de commande</label>
+                <label className={fieldLabelClass}>N° bon de commande</label>
                 <input
                   required
                   value={form.numero_bon_commande || ""}
                   onChange={(e) => setForm({ ...form, numero_bon_commande: e.target.value })}
-                  className="w-full rounded-lg border border-slate-300 bg-slate-50 focus:bg-white py-2 px-3 text-sm shadow-sm transition-colors focus:border-sky-500 focus:ring-2 focus:ring-sky-100 outline-none font-mono"
+                  className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm font-mono shadow-sm transition-colors outline-none focus:border-sky-500 focus:bg-white focus:ring-2 focus:ring-sky-100"
                   placeholder="UCP/BC/YYYY/XXXXX"
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-slate-700">Date bon de commande</label>
+                <label className={fieldLabelClass}>Date bon de commande</label>
                 <input
                   type="date"
                   required
                   value={form.date_bon_commande || ""}
                   onChange={(e) => setForm({ ...form, date_bon_commande: e.target.value })}
-                  className="w-full rounded-lg border border-slate-300 bg-slate-50 focus:bg-white py-2 px-3 text-sm shadow-sm transition-colors focus:border-sky-500 focus:ring-2 focus:ring-sky-100 outline-none"
+                  className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm shadow-sm transition-colors outline-none focus:border-sky-500 focus:bg-white focus:ring-2 focus:ring-sky-100"
                 />
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-slate-700">Montant commandé</label>
+                <label className={fieldLabelClass}>Montant commandé</label>
                 <input
                   type="number"
                   required
                   value={form.montant_commande}
                   onChange={(e) => setForm({ ...form, montant_commande: e.target.value })}
-                  className="w-full rounded-lg border border-slate-300 bg-slate-50 focus:bg-white py-2 px-3 text-sm shadow-sm transition-colors focus:border-sky-500 focus:ring-2 focus:ring-sky-100 outline-none"
+                  className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm shadow-sm transition-colors outline-none focus:border-sky-500 focus:bg-white focus:ring-2 focus:ring-sky-100"
                   placeholder="Montant total TTC"
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-slate-700">Délai livraison contractuel (Jours)</label>
+                <label className={fieldLabelClass}>Délai livraison contractuel (Jours)</label>
                 <input
                   type="number"
                   min="0"
                   required
                   value={form.delai_livraison_contractuel}
-                  onChange={(e) => setForm({ ...form, delai_livraison_contractuel: Number(e.target.value) })}
-                  className="w-full rounded-lg border border-slate-300 bg-slate-50 focus:bg-white py-2 px-3 text-sm shadow-sm transition-colors focus:border-sky-500 focus:ring-2 focus:ring-sky-100 outline-none"
+                  onChange={(e) => setForm({ ...form, delai_livraison_contractuel: e.target.value === "" ? "" : Number(e.target.value) })}
+                  className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm shadow-sm transition-colors outline-none focus:border-sky-500 focus:bg-white focus:ring-2 focus:ring-sky-100"
+                  placeholder="Nombre de jours"
                 />
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-slate-700">Conditions de livraison</label>
+                <label className={fieldLabelClass}>Conditions de livraison</label>
                 <input
                   value={form.conditions_livraison || ""}
                   onChange={(e) => setForm({ ...form, conditions_livraison: e.target.value })}
-                  className="w-full rounded-lg border border-slate-300 bg-slate-50 focus:bg-white py-2 px-3 text-sm shadow-sm transition-colors focus:border-sky-500 focus:ring-2 focus:ring-sky-100 outline-none"
+                  className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm shadow-sm transition-colors outline-none focus:border-sky-500 focus:bg-white focus:ring-2 focus:ring-sky-100"
                   placeholder="Livraison sur site / Retrait"
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-slate-700">Garantie</label>
+                <label className={fieldLabelClass}>Garantie</label>
                 <input
                   value={form.garantie || ""}
                   onChange={(e) => setForm({ ...form, garantie: e.target.value })}
-                  className="w-full rounded-lg border border-slate-300 bg-slate-50 focus:bg-white py-2 px-3 text-sm shadow-sm transition-colors focus:border-sky-500 focus:ring-2 focus:ring-sky-100 outline-none"
+                  className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm shadow-sm transition-colors outline-none focus:border-sky-500 focus:bg-white focus:ring-2 focus:ring-sky-100"
                   placeholder="Durée et conditions"
                 />
               </div>
             </div>
             
             {error && (
-              <p className="text-xs font-medium text-rose-600 bg-rose-50 p-3 rounded-lg border border-rose-100">
+              <p className="text-xs font-medium text-rose-600 bg-rose-50 p-3 rounded-xl border border-rose-100">
                 {error}
               </p>
             )}
@@ -238,7 +269,7 @@ export default function PassationModal({
             <button
               onClick={onClose}
               disabled={saving}
-              className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
+              className="rounded-xl px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
             >
               Annuler
             </button>
@@ -246,7 +277,7 @@ export default function PassationModal({
               type="submit"
               form="passation-form"
               disabled={saving}
-              className="inline-flex items-center gap-2 rounded-lg bg-sky-600 px-6 py-2 text-sm font-bold text-white hover:bg-sky-700 shadow-md transition-colors disabled:opacity-60"
+              className="inline-flex items-center gap-2 rounded-xl bg-sky-600 px-6 py-2 text-sm font-bold text-white hover:bg-sky-700 shadow-md transition-colors disabled:opacity-60"
             >
               {saving ? (
                 <>Enregistrement...</>

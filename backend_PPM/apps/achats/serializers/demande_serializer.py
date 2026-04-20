@@ -157,6 +157,7 @@ class DemandeAchatSerializer(serializers.ModelSerializer):
             "cout_total_estime",
             "type_procedure",
             "fournisseur_retenu",
+            "email_fournisseur",
             "numero_bon_commande",
             "date_bon_commande",
             "montant_commande",
@@ -343,6 +344,7 @@ class BudgetEstimationSerializer(serializers.Serializer):
 class IssueOrderSerializer(serializers.Serializer):
     type_procedure = serializers.ChoiceField(choices=DemandeAchat.TYPE_PROCEDURE_CHOICES)
     fournisseur_retenu = serializers.CharField()
+    email_fournisseur = serializers.EmailField()
     montant_commande = serializers.DecimalField(max_digits=14, decimal_places=2)
     delai_livraison_contractuel = serializers.IntegerField(min_value=1)
     conditions_livraison = serializers.CharField(required=False, allow_blank=True)

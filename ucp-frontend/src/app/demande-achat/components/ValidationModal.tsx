@@ -1,20 +1,20 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { X, ExternalLink, Activity } from "lucide-react";
+import { Activity, ExternalLink, X } from "lucide-react";
+import PurchaseSelect from "@/app/demande-achat/components/PurchaseSelect";
+import {
+  formatMoney,
+  getCompactNeedLabel,
+  typeLabels,
+} from "@/app/demande-achat/components/demandeAchatShared";
 import {
   DecisionValidation,
   DemandeAchat,
   EtapeValidation,
   validateDemandeAchat,
 } from "@/services/achats";
-import {
-  formatMoney,
-  getCompactNeedLabel,
-  typeLabels,
-} from "@/app/demande-achat/components/demandeAchatShared";
 import { getCurrentUser, getValidatorStep } from "@/services/auth";
-import PurchaseSelect from "@/app/demande-achat/components/PurchaseSelect";
 
 type ValidationModalProps = {
   demande: DemandeAchat | null;
@@ -32,11 +32,12 @@ type ValidationFormState = {
   disponibilite_budgetaire: string;
   conformite_financiere: string;
   respect_seuils: string;
-  ligne_engagement: string;
+  numero_engagement_budgetaire: string;
   solde_apres_engagement: string;
-  // Fused Finance fields
   ligne_budgetaire: string;
   source_financement: string;
+  numero_subvention: string;
+  solde_disponible_ligne_budgetaire: string;
 };
 
 type DecisionOption = {
@@ -47,23 +48,23 @@ type DecisionOption = {
 
 const toneClasses = {
   emerald: {
-    base: "border-emerald-200 text-emerald-800",
-    active: "border-emerald-500 bg-emerald-50 text-emerald-900",
+    base: "border-slate-200 text-slate-600 bg-white",
+    active: "border-emerald-300 bg-emerald-50 text-emerald-800",
   },
   amber: {
-    base: "border-amber-200 text-amber-800",
-    active: "border-amber-500 bg-amber-50 text-amber-900",
+    base: "border-slate-200 text-slate-600 bg-white",
+    active: "border-amber-300 bg-amber-50 text-amber-800",
   },
   rose: {
-    base: "border-rose-200 text-rose-800",
-    active: "border-rose-500 bg-rose-50 text-rose-900",
+    base: "border-slate-200 text-slate-600 bg-white",
+    active: "border-rose-300 bg-rose-50 text-rose-800",
   },
 } as const;
 
 const techniqueConformiteOptions = [
   { value: "CONFORME_STANDARDS", label: "Conforme standards" },
   { value: "NON_CONFORME", label: "Non conforme" },
-  { value: "A_PRECISER", label: "À préciser" },
+  { value: "A_PRECISER", label: "A preciser" },
 ] as const;
 
 const verificationStockOptions = [
@@ -79,63 +80,166 @@ const disponibiliteBudgetaireOptions = [
 ] as const;
 
 const conformiteFinanciereOptions = [
-  { value: "CONFORME_MANUEL", label: "Conforme au manuel" },
+  { value: "CONFORME_MANUEL", label: "Conforme manuel procedures" },
   { value: "NON_CONFORME", label: "Non conforme" },
 ] as const;
 
-const budgetLineOptions = [
-  { value: "2.1.1 Fournitures bureau", label: "2.1.1 Fournitures bureau" },
-  { value: "2.2.1 Materiel informatique", label: "2.2.1 Matériel informatique" },
-  { value: "3.1.1 Services", label: "3.1.1 Services" },
+const respectSeuilsOptions = [
+  { value: "SEUIL_RESPECTE", label: "Seuil respecte" },
+  { value: "PROCEDURE_ADAPTEE", label: "Procedure adaptee" },
 ] as const;
 
 const fundingSourceOptions = [
-  { value: "FONDS_MONDIAL", label: "Fonds mondial" },
-  { value: "BANQUE_MONDIALE", label: "Banque mondiale" },
-  { value: "GAVI", label: "Alliance Gavi" },
+  { value: "FM", label: "Fonds mondial" },
+  { value: "GAVI", label: "Alliance GAVI" },
+  { value: "BM", label: "Banque mondiale" },
 ] as const;
 
+const financeCatalog = [
+  {
+    value: "SRPS_CS7_FM",
+    family: "FM",
+    sourceLabel: "SRPS / CS7 / Fonds Mondial",
+    budgetLabel: "SRPS",
+    subvention: "MDG-S-MOH-4041",
+  },
+  {
+    value: "RSS3_GAVI",
+    family: "GAVI",
+    sourceLabel: "RSS3 - MDG-HSS-3",
+    budgetLabel: "RSS3",
+    subvention: "MDG-HSS-3",
+  },
+  {
+    value: "FAE_GAVI",
+    family: "GAVI",
+    sourceLabel: "FAE - MDG-FAE",
+    budgetLabel: "FAE",
+    subvention: "MDG-FAE",
+  },
+  {
+    value: "CDS_GAVI",
+    family: "GAVI",
+    sourceLabel: "CDS - MDG-COVID19-CDS",
+    budgetLabel: "CDS",
+    subvention: "MDG-COVID19-CDS",
+  },
+  {
+    value: "VAR_GAVI",
+    family: "GAVI",
+    sourceLabel: "VAR - MDG-VAR Camp",
+    budgetLabel: "VAR",
+    subvention: "MDG-VAR Camp",
+  },
+  {
+    value: "PARN2_BM",
+    family: "BM",
+    sourceLabel: "PARN2 - P175110",
+    budgetLabel: "PARN2",
+    subvention: "P175110",
+  },
+  {
+    value: "PPSB_BM",
+    family: "BM",
+    sourceLabel: "PPSB - P174903",
+    budgetLabel: "PPSB",
+    subvention: "P174903",
+  },
+] as const;
+
+const DEFAULT_FINANCE = financeCatalog[0];
+
+const parseAmount = (value: string) => {
+  const normalized = value.replace(/\s/g, "").replace(",", ".");
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const formatAmountInput = (value: number) =>
+  value.toLocaleString("fr-FR", { maximumFractionDigits: 0 });
+
+const buildEngagementNumber = (demande: DemandeAchat | null) =>
+  `ENG-${new Date().getFullYear()}-${String(demande?.id ?? 1).padStart(4, "0")}`;
+
+const getCatalogByValue = (value: string) =>
+  financeCatalog.find((item) => item.value === value) ?? DEFAULT_FINANCE;
+
+const findCatalog = (value: string) =>
+  financeCatalog.find((item) => item.value === value || item.family === value) ?? null;
+
+const getCatalogForFundingSource = (family: string) =>
+  financeCatalog.filter((item) => item.family === family);
+
 const createInitialForm = (step: EtapeValidation | null): ValidationFormState => {
-  switch (step) {
-    case "PROGRAMMATIQUE":
-    case "APPROBATION_FINALE":
-      return { decision: "APPROUVEE", commentaire: "", conformite_technique: "", verification_stock: "", disponibilite_budgetaire: "", conformite_financiere: "", respect_seuils: "", ligne_engagement: "", solde_apres_engagement: "" };
-    case "TECHNIQUE":
-      return { decision: "FAVORABLE", commentaire: "", conformite_technique: "CONFORME_STANDARDS", verification_stock: "STOCK_DISPONIBLE", disponibilite_budgetaire: "", conformite_financiere: "", respect_seuils: "", ligne_engagement: "", solde_apres_engagement: "", ligne_budgetaire: "", source_financement: "FONDS_MONDIAL" };
-    case "BUDGETAIRE":
-      return { decision: "FAVORABLE", commentaire: "", conformite_technique: "", verification_stock: "", disponibilite_budgetaire: "DISPONIBLE", conformite_financiere: "CONFORME_MANUEL", respect_seuils: "SEUIL_RESPECTE", ligne_engagement: "", solde_apres_engagement: "", ligne_budgetaire: budgetLineOptions[0].value, source_financement: "FONDS_MONDIAL" };
-    default:
-      return { decision: "FAVORABLE", commentaire: "", conformite_technique: "", verification_stock: "", disponibilite_budgetaire: "", conformite_financiere: "", respect_seuils: "", ligne_engagement: "", solde_apres_engagement: "" };
-  }
+  const base: ValidationFormState = {
+    decision: step === "PROGRAMMATIQUE" || step === "APPROBATION_FINALE" ? "APPROUVEE" : "FAVORABLE",
+    commentaire: "",
+    conformite_technique: "",
+    verification_stock: "",
+    disponibilite_budgetaire: "",
+    conformite_financiere: "",
+    respect_seuils: "",
+    numero_engagement_budgetaire: "",
+    solde_apres_engagement: "",
+    ligne_budgetaire: "",
+    source_financement: "",
+    numero_subvention: "",
+    solde_disponible_ligne_budgetaire: "",
+  };
+
+  return base;
 };
 
 const getDecisionOptions = (step: EtapeValidation | null): DecisionOption[] => {
   if (step === "PROGRAMMATIQUE" || step === "APPROBATION_FINALE") {
     return [
-      { value: "APPROUVEE", label: "Approuvé", tone: "emerald" },
-      { value: "A_REVOIR", label: "À revoir", tone: "amber" },
-      { value: "REJETEE", label: "Rejeté", tone: "rose" },
+      { value: "APPROUVEE", label: "Approuve", tone: "emerald" },
+      { value: "A_REVOIR", label: "A revoir", tone: "amber" },
+      { value: "REJETEE", label: "Rejete", tone: "rose" },
     ];
   }
+
   return [
     { value: "FAVORABLE", label: "Favorable", tone: "emerald" },
-    { value: "A_COMPLETER", label: "À compléter", tone: "amber" },
-    { value: "DEFAVORABLE", label: "Défavorable", tone: "rose" },
+    { value: "A_COMPLETER", label: "A completer", tone: "amber" },
+    { value: "DEFAVORABLE", label: "Defavorable", tone: "rose" },
   ];
 };
 
-const buildValidationPayload = (step: EtapeValidation | null, form: ValidationFormState) => {
+const buildValidationPayload = (
+  step: EtapeValidation | null,
+  form: ValidationFormState,
+) => {
   const base = { decision: form.decision, commentaire: form.commentaire };
-  if (step === "TECHNIQUE") return { ...base, donnees_etape: { conformite_technique: form.conformite_technique, verification_stock: form.verification_stock } };
-  if (step === "BUDGETAIRE") return { ...base, donnees_etape: { 
-    disponibilite_budgetaire: form.disponibilite_budgetaire, 
-    conformite_financiere: form.conformite_financiere, 
-    respect_seuils: form.respect_seuils, 
-    ligne_engagement: form.ligne_engagement, 
-    solde_apres_engagement: form.solde_apres_engagement,
-    ligne_budgetaire: form.ligne_budgetaire,
-    source_financement: form.source_financement
-  } };
+
+  if (step === "TECHNIQUE") {
+    return {
+      ...base,
+      donnees_etape: {
+        conformite_technique: form.conformite_technique,
+        verification_stock: form.verification_stock,
+      },
+    };
+  }
+
+  if (step === "BUDGETAIRE") {
+    const selectedBudgetLine = getCatalogByValue(form.ligne_budgetaire);
+    return {
+      ...base,
+      donnees_etape: {
+        disponibilite_budgetaire: form.disponibilite_budgetaire,
+        conformite_financiere: form.conformite_financiere,
+        respect_seuils: form.respect_seuils,
+        ligne_budgetaire: form.ligne_budgetaire,
+        source_financement: selectedBudgetLine.value,
+        numero_subvention: form.numero_subvention,
+        numero_engagement_budgetaire: form.numero_engagement_budgetaire,
+        solde_disponible_ligne_budgetaire: form.solde_disponible_ligne_budgetaire,
+        solde_apres_engagement: form.solde_apres_engagement,
+      },
+    };
+  }
+
   return { ...base, donnees_etape: {} };
 };
 
@@ -148,61 +252,161 @@ export default function ValidationModal({
 }: ValidationModalProps) {
   const [currentUser] = useState(() => getCurrentUser());
   const validatorStep = getValidatorStep(currentUser) as EtapeValidation | null;
-
   const [form, setForm] = useState<ValidationFormState>(() => createInitialForm(validatorStep));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const selectedStep = (demande?.etape_validation_actuelle ?? validatorStep) as EtapeValidation | null;
   const decisionOptions = useMemo(() => getDecisionOptions(selectedStep), [selectedStep]);
-
-  useEffect(() => {
-    if (open) {
-      setForm(createInitialForm(selectedStep));
-      setError(null);
-    }
-  }, [open, selectedStep]);
+  const budgetLineCatalog = useMemo(
+    () => getCatalogForFundingSource(form.source_financement),
+    [form.source_financement],
+  );
+  const estimatedCost = useMemo(() => Number(demande?.cout_total_estime ?? 0), [demande?.cout_total_estime]);
+  const availableBalance = useMemo(() => parseAmount(form.solde_disponible_ligne_budgetaire), [form.solde_disponible_ligne_budgetaire]);
+  const remainingBalance = useMemo(() => availableBalance - estimatedCost, [availableBalance, estimatedCost]);
 
   useEffect(() => {
     if (!open) return;
+
+    const initial = createInitialForm(selectedStep);
+    const currentCatalog = findCatalog(
+      (demande?.source_financement as string) || (demande?.ligne_budgetaire as string) || "",
+    );
+
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setForm({
+      ...initial,
+      source_financement: currentCatalog?.family || "",
+      ligne_budgetaire: currentCatalog?.value || "",
+      numero_subvention: demande?.numero_subvention || currentCatalog?.subvention || "",
+      solde_disponible_ligne_budgetaire: demande?.solde_disponible_ligne_budgetaire
+        ? String(demande.solde_disponible_ligne_budgetaire)
+        : "",
+      solde_apres_engagement: demande?.solde_apres_engagement
+        ? String(demande.solde_apres_engagement)
+        : "",
+      numero_engagement_budgetaire:
+        demande?.numero_engagement_budgetaire || "",
+    });
+    setError(null);
+    setSaving(false);
+  }, [open, selectedStep, demande]);
+
+  useEffect(() => {
+    if (!open) return;
+
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    const handleKeyDown = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+
     window.addEventListener("keydown", handleKeyDown);
-    return () => { document.body.style.overflow = previousOverflow; window.removeEventListener("keydown", handleKeyDown); };
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
   }, [onClose, open]);
+
+  useEffect(() => {
+    if (!open || selectedStep !== "BUDGETAIRE") return;
+
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setForm((prev) => {
+      const selectedBudgetLine = prev.ligne_budgetaire
+        ? getCatalogByValue(prev.ligne_budgetaire)
+        : null;
+      const forcedAvailability =
+        remainingBalance < 0
+          ? "NON_DISPONIBLE"
+          : prev.disponibilite_budgetaire === "NON_DISPONIBLE"
+            ? "DISPONIBLE"
+            : prev.disponibilite_budgetaire;
+      const forcedDecision =
+        remainingBalance < 0 || forcedAvailability === "NON_DISPONIBLE"
+          ? "DEFAVORABLE"
+          : prev.decision === "DEFAVORABLE"
+            ? "FAVORABLE"
+            : prev.decision;
+
+      return {
+        ...prev,
+        disponibilite_budgetaire: forcedAvailability,
+        decision: forcedDecision,
+        numero_subvention: selectedBudgetLine?.subvention ?? prev.numero_subvention,
+        solde_apres_engagement: String(remainingBalance),
+        numero_engagement_budgetaire:
+          forcedDecision === "FAVORABLE"
+            ? prev.numero_engagement_budgetaire ||
+              demande?.numero_engagement_budgetaire ||
+              buildEngagementNumber(demande)
+            : prev.numero_engagement_budgetaire,
+      };
+    });
+  }, [open, selectedStep, remainingBalance, demande]);
 
   if (!open || !demande) return null;
 
   const handleSubmit = async () => {
-    if (!demande || !selectedStep) return;
+    if (!selectedStep) return;
 
-    if ((selectedStep === "PROGRAMMATIQUE" || selectedStep === "APPROBATION_FINALE") && (form.decision === "REJETEE" || form.decision === "A_REVOIR") && !form.commentaire.trim()) {
-      setError("Les observations sont obligatoires pour un refus."); return;
-    }
-    if (form.decision === "DEFAVORABLE" && !form.commentaire.trim()) {
-      setError("Les observations sont obligatoires pour un avis défavorable."); return;
-    }
-    if (form.decision === "A_COMPLETER" && !form.commentaire.trim()) {
-      setError("Vous devez préciser quelles corrections sont attendues."); return;
-    }
-
-    // --- RÈGLES DE GESTION AUTOMATIQUES (EXIGENCES UCP) ---
-    // 1. Règle Stock : Si stock disponible, on ne devrait pas valider un achat
-    if (selectedStep === "TECHNIQUE" && form.verification_stock === "STOCK_DISPONIBLE" && form.decision === "FAVORABLE") {
-      setError("RÈGLE DE GESTION : Le stock étant disponible, l'acquisition est théoriquement bloquée. Veuillez revoir votre décision ou justifier l'exception.");
+    if (
+      (selectedStep === "PROGRAMMATIQUE" || selectedStep === "APPROBATION_FINALE") &&
+      (form.decision === "REJETEE" || form.decision === "A_REVOIR") &&
+      !form.commentaire.trim()
+    ) {
+      setError("Les observations sont obligatoires pour un refus.");
       return;
     }
 
-    // 2. Règle Budget : Si Solde < besoin (négatif), blocage validation favorable
-    if (selectedStep === "BUDGETAIRE" && form.decision === "FAVORABLE") {
-      const solde = Number(form.solde_apres_engagement.replace(/[^0-9.-]+/g, ""));
-      if (!isNaN(solde) && solde < 0) {
-        setError("RÈGLE DE GESTION : Solde insuffisant (négatif après engagement). La validation favorable est bloquée.");
+    if (form.decision === "A_COMPLETER" && !form.commentaire.trim()) {
+      setError("Vous devez preciser quelles corrections sont attendues.");
+      return;
+    }
+
+    if (selectedStep === "TECHNIQUE" && form.verification_stock === "STOCK_DISPONIBLE" && form.decision === "FAVORABLE" && !form.commentaire.trim()) {
+      setError("Ajoutez une justification si le stock est deja disponible.");
+      return;
+    }
+
+    if (selectedStep === "TECHNIQUE" && (!form.conformite_technique || !form.verification_stock)) {
+      setError("Renseignez toutes les listes techniques avant de valider.");
+      return;
+    }
+
+    if (selectedStep === "BUDGETAIRE") {
+      if (!form.source_financement || !form.ligne_budgetaire) {
+        setError("Selectionnez la source de financement et la ligne budgetaire.");
         return;
       }
+      if (!form.disponibilite_budgetaire || !form.conformite_financiere || !form.respect_seuils) {
+        setError("Renseignez toutes les listes budgetaires avant de valider.");
+        return;
+      }
+      if (!form.solde_disponible_ligne_budgetaire.trim()) {
+        setError("Le solde disponible avant marche est obligatoire.");
+        return;
+      }
+      if (remainingBalance < 0 && form.decision !== "DEFAVORABLE") {
+        setError("Un solde negatif impose un avis defavorable.");
+        return;
+      }
+      if (form.disponibilite_budgetaire === "NON_DISPONIBLE" && form.decision !== "DEFAVORABLE") {
+        setError("La non disponibilite impose un avis defavorable.");
+        return;
+      }
+      if (form.decision === "DEFAVORABLE" && !form.commentaire.trim()) {
+        setError("Les observations sont obligatoires pour un avis defavorable.");
+        return;
+      }
+    } else if (
+      (form.decision === "DEFAVORABLE" || form.decision === "REJETEE" || form.decision === "A_REVOIR") &&
+      !form.commentaire.trim()
+    ) {
+      setError("Les observations sont obligatoires pour cette decision.");
+      return;
     }
-    // -----------------------------------------------------
 
     setSaving(true);
     setError(null);
@@ -217,79 +421,90 @@ export default function ValidationModal({
 
   return (
     <div
-      className="fixed inset-0 z-[110] bg-slate-900/40 p-4 flex items-start justify-center overflow-y-auto animate-in fade-in duration-200"
+      className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/40 p-4 animate-in fade-in duration-200"
       role="dialog"
       aria-modal="true"
-      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
     >
-      <div 
-        className="my-8 flex w-full max-w-5xl flex-col rounded-xl border border-slate-200 bg-white shadow-xl animate-in zoom-in-95 duration-200"
-        style={{ zoom: 0.8 }}
+      <div
+        className="my-4 flex w-full max-w-5xl flex-col rounded-[24px] border border-slate-200 bg-white shadow-[0_20px_48px_rgba(15,23,42,0.12)] animate-in zoom-in-95 duration-200"
+        style={{ zoom: 0.82 }}
       >
-        
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-5 py-3">
+        <div className="flex items-center justify-between border-b border-slate-200 bg-white px-5 py-3">
           <div className="flex items-center gap-3">
-            <Activity className="h-5 w-5 text-emerald-600" />
-            <h2 className="text-lg font-bold text-slate-900 tracking-tight">Validation : {demande.numero_demande}</h2>
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+              <Activity className="h-4 w-4" />
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                Validation Budgetaire
+              </p>
+              <h2 className="text-base font-bold tracking-tight text-slate-900">
+                {demande.numero_demande}
+              </h2>
+            </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="flex h-7 w-7 items-center justify-center rounded bg-slate-200/50 text-slate-500 hover:bg-slate-200 hover:text-slate-800 transition-colors"
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-200/50 text-slate-500 transition-colors hover:bg-slate-200 hover:text-slate-800"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
-        {/* Content Area */}
-        <div className="flex-1 bg-slate-50 p-5 space-y-4">
-          
-          <div className="flex flex-col sm:flex-row items-start justify-between gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="flex-1 space-y-4 bg-slate-50 p-4">
+          <div className="flex flex-col items-center justify-between gap-3 rounded-[18px] border border-slate-200 bg-white p-4 shadow-sm sm:flex-row">
             <div className="min-w-0">
-              <p className="text-xs font-bold text-slate-500 uppercase">Infos dossier</p>
-              <p className="mt-1 text-sm font-semibold text-slate-900 truncate" title={demande.objet}>{demande.objet}</p>
-              <div className="mt-1 flex flex-wrap gap-3 text-xs text-slate-600">
-                <span>{getCompactNeedLabel(demande)}</span>
-                <span className="border-l border-slate-200 pl-3">{typeLabels[demande.type_demande] ?? demande.type_demande}</span>
-                <span className="border-l border-slate-200 pl-3 font-semibold text-slate-800">{formatMoney(demande.cout_total_estime)} Ar</span>
+              <p className="truncate text-[14px] font-bold text-slate-900" title={demande.objet}>
+                {demande.objet}
+              </p>
+              <div className="mt-1 flex flex-wrap gap-2 text-[11px] font-medium text-slate-600">
+                <span className="rounded-md border border-slate-100 bg-slate-50 px-1.5 py-0.5">
+                  {getCompactNeedLabel(demande)}
+                </span>
+                <span className="rounded-md border border-slate-100 bg-slate-50 px-1.5 py-0.5">
+                  {typeLabels[demande.type_demande] ?? demande.type_demande}
+                </span>
+                <span className="rounded-md border border-emerald-100 bg-emerald-50 px-1.5 py-0.5 font-bold text-emerald-700">
+                  {formatMoney(demande.cout_total_estime)}
+                </span>
               </div>
             </div>
             <button
               type="button"
               onClick={onOpenDetail}
-              className="shrink-0 inline-flex items-center gap-2 rounded-lg bg-sky-50 px-3 py-2 text-xs font-bold text-sky-700 hover:bg-sky-100 transition-colors"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-[14px] border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-50"
             >
-              Voir détail <ExternalLink className="h-3 w-3" />
+              Detail <ExternalLink className="h-3 w-3" />
             </button>
           </div>
 
-          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
-              Justification du besoin
-            </p>
-            <p className="whitespace-pre-wrap text-[0.85rem] leading-relaxed text-slate-700">
-              {demande.justification}
-            </p>
-          </div>
-
-          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm space-y-4">
+          <div className="space-y-4 rounded-[18px] border border-slate-200 bg-white p-4 shadow-sm">
             <div>
-               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
-                Avis & Décision
+              <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+                Decision
               </p>
-              <div className="grid gap-2 grid-cols-3">
+              <div className="grid grid-cols-3 gap-2">
                 {decisionOptions.map((option) => {
                   const isActive = form.decision === option.value;
-                  const optionTone = toneClasses[option.tone];
+                  const tone = toneClasses[option.tone];
+                  const isLocked =
+                    selectedStep === "BUDGETAIRE" &&
+                    (remainingBalance < 0 || form.disponibilite_budgetaire === "NON_DISPONIBLE") &&
+                    option.value !== "DEFAVORABLE";
+
                   return (
                     <button
                       key={option.value}
                       type="button"
+                      disabled={isLocked}
                       onClick={() => setForm((prev) => ({ ...prev, decision: option.value }))}
-                      className={`rounded-lg border px-3 py-2 text-center transition shadow-sm ${isActive ? optionTone.active : optionTone.base}`}
+                      className={`rounded-[14px] border px-3 py-2 text-center transition ${isActive ? tone.active : tone.base} disabled:cursor-not-allowed disabled:opacity-50`}
                     >
-                      <p className="text-xs font-bold">{option.label}</p>
+                      <p className="text-[11px] font-bold">{option.label}</p>
                     </button>
                   );
                 })}
@@ -299,145 +514,205 @@ export default function ValidationModal({
             {selectedStep === "TECHNIQUE" && (
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="flex flex-col gap-1">
-                  <span className="text-xs font-semibold text-slate-700">Conformité technique</span>
+                  <span className="text-xs font-semibold text-slate-700">Conformite technique</span>
                   <PurchaseSelect
                     value={form.conformite_technique}
-                    onChange={(value) => setForm({ ...form, conformite_technique: value })}
+                    onChange={(value) => setForm((prev) => ({ ...prev, conformite_technique: value }))}
                     options={[...techniqueConformiteOptions]}
                     className="w-full rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm shadow-sm"
                   />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <span className="text-xs font-semibold text-slate-700">Vérification stock</span>
+                  <span className="text-xs font-semibold text-slate-700">Verification stock</span>
                   <PurchaseSelect
                     value={form.verification_stock}
-                    onChange={(value) => setForm({ ...form, verification_stock: value })}
+                    onChange={(value) => setForm((prev) => ({ ...prev, verification_stock: value }))}
                     options={[...verificationStockOptions]}
-                    className={`w-full rounded-md border text-sm shadow-sm px-3 py-1.5 ${form.verification_stock === "STOCK_DISPONIBLE" ? 'border-amber-500 bg-amber-50' : 'border-slate-300 bg-white'}`}
+                    className={`w-full rounded-md border px-3 py-1.5 text-sm shadow-sm ${form.verification_stock === "STOCK_DISPONIBLE" ? "border-amber-500 bg-amber-50" : "border-slate-300 bg-white"}`}
                   />
-                  {form.verification_stock === "STOCK_DISPONIBLE" && (
-                    <p className="text-[10px] font-bold text-amber-600 animate-pulse mt-1">⚠️ Acquisition bloquée si stock dispo</p>
-                  )}
                 </div>
               </div>
             )}
 
             {selectedStep === "BUDGETAIRE" && (
-              <div className="space-y-5 animate-in slide-in-from-top-2 duration-300">
-                <div className="border-t border-slate-100 pt-3">
-                  <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-emerald-600">
-                    5. SECTION 4 : ESTIMATION FINANCIÈRE ET BUDGET
-                  </p>
-                </div>
-                
-                <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-semibold text-slate-700">Source de financement</label>
-                    <PurchaseSelect
-                      value={form.source_financement}
-                      onChange={(value) => setForm({ ...form, source_financement: value })}
-                      options={[...fundingSourceOptions]}
-                      className="w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm shadow-sm outline-none transition-all focus:border-emerald-500 focus:bg-white"
-                    />
+              <div className="space-y-4 animate-in slide-in-from-top-2 duration-300">
+                <div className="rounded-[16px] border border-slate-200 bg-slate-50/70 p-4">
+                  <div className="mb-3 flex items-center gap-2">
+                    <div className="h-2 w-2 rounded-full bg-emerald-500" />
+                    <p className="text-sm font-semibold text-slate-900">Choix budgetaire</p>
                   </div>
-                  
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-semibold text-slate-700">Ligne budgétaire</label>
-                    <PurchaseSelect
-                      value={form.ligne_budgetaire}
-                      onChange={(value) => setForm({ ...form, ligne_budgetaire: value })}
-                      options={[...budgetLineOptions]}
-                      className="w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm shadow-sm outline-none transition-all focus:border-emerald-500 focus:bg-white"
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-semibold text-slate-700">Ligne d&apos;engagement</label>
-                    <input
-                      value={form.ligne_engagement}
-                      onChange={(e) => setForm((prev) => ({ ...prev, ligne_engagement: e.target.value }))}
-                      className="w-full rounded-lg border border-slate-300 bg-slate-50 py-2 px-3 text-sm shadow-sm outline-none focus:border-emerald-500 focus:bg-white"
-                      placeholder="Ex: ENG-014"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid gap-4 sm:grid-cols-3">
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-semibold text-slate-700">Disponibilité budgétaire</label>
-                    <PurchaseSelect
-                      value={form.disponibilite_budgetaire}
-                      onChange={(value) => setForm({ ...form, disponibilite_budgetaire: value })}
-                      options={[...disponibiliteBudgetaireOptions]}
-                      className="w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm shadow-sm"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-semibold text-slate-700">Conformité financière</label>
-                    <PurchaseSelect
-                      value={form.conformite_financiere}
-                      onChange={(value) => setForm({ ...form, conformite_financiere: value })}
-                      options={[...conformiteFinanciereOptions]}
-                      className="w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm shadow-sm"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-semibold text-slate-700">Solde après engagement</label>
-                    <input
-                      value={form.solde_apres_engagement}
-                      onChange={(e) => setForm((prev) => ({ ...prev, solde_apres_engagement: e.target.value }))}
-                      className={`w-full rounded-lg border py-2 px-3 text-sm shadow-sm outline-none transition-all ${Number(form.solde_apres_engagement) < 0 ? 'border-red-500 bg-red-50 text-red-700 font-bold' : 'border-slate-300 bg-slate-50 focus:border-emerald-500 focus:bg-white'}`}
-                      placeholder="Montant (Ar)"
-                    />
+                  <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-semibold text-slate-700">Source de financement</label>
+                      <PurchaseSelect
+                        value={form.source_financement}
+                        onChange={(value) => {
+                          setForm((prev) => ({
+                            ...prev,
+                            source_financement: value,
+                            ligne_budgetaire: "",
+                            numero_subvention: "",
+                          }));
+                        }}
+                        options={[...fundingSourceOptions]}
+                        className="w-full rounded-[14px] border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-semibold text-slate-700">Ligne budgetaire</label>
+                      <PurchaseSelect
+                        value={form.ligne_budgetaire}
+                        onChange={(value) => {
+                          const next = getCatalogByValue(value);
+                          setForm((prev) => ({
+                            ...prev,
+                            ligne_budgetaire: next.value,
+                            numero_subvention: next.subvention,
+                          }));
+                        }}
+                        options={budgetLineCatalog.map((item) => ({ value: item.value, label: item.budgetLabel }))}
+                        className="w-full rounded-[14px] border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-semibold text-slate-700">Numero subvention</label>
+                      <input
+                        readOnly
+                        value={form.numero_subvention}
+                        className="w-full rounded-[14px] border border-slate-200 bg-slate-100 px-3 py-2 text-sm font-medium text-slate-500"
+                      />
+                    </div>
                   </div>
                 </div>
 
-                {Number(form.solde_apres_engagement) < 0 && (
-                  <div className="flex items-center gap-2 rounded-lg bg-red-50 p-2.5 border border-red-100 animate-pulse">
-                    <span className="flex h-2 w-2 rounded-full bg-red-600"></span>
-                    <p className="text-[11px] font-black text-red-700 uppercase tracking-tight">⚠️ Budget insuffisant : Validation bloquée</p>
+                <div className="rounded-[16px] border border-slate-200 bg-white p-4">
+                  <div className="mb-3 flex items-center gap-2">
+                    <div className="h-2 w-2 rounded-full bg-sky-500" />
+                    <p className="text-sm font-semibold text-slate-900">Analyse budgetaire</p>
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-semibold text-slate-700">Cout estime</label>
+                      <input
+                        readOnly
+                        value={formatMoney(demande.cout_total_estime)}
+                        className="w-full rounded-[14px] border border-slate-200 bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-600"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-semibold text-slate-700">Solde disponible avant marche</label>
+                      <input
+                        value={form.solde_disponible_ligne_budgetaire}
+                        onChange={(e) => setForm((prev) => ({ ...prev, solde_disponible_ligne_budgetaire: e.target.value }))}
+                        placeholder="Ex: 5 000 000"
+                        className="w-full rounded-[14px] border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm outline-none transition focus:border-emerald-500"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-semibold text-slate-700">Solde apres engagement</label>
+                      <input
+                        readOnly
+                        value={formatAmountInput(remainingBalance)}
+                        className={`w-full rounded-[14px] border px-3 py-2 text-sm font-bold ${remainingBalance < 0 ? "border-rose-300 bg-rose-50 text-rose-700" : "border-emerald-200 bg-emerald-50 text-emerald-700"}`}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-semibold text-slate-700">Disponibilite budgetaire</label>
+                      <PurchaseSelect
+                        value={form.disponibilite_budgetaire}
+                        onChange={(value) => setForm((prev) => ({ ...prev, disponibilite_budgetaire: value }))}
+                        options={[...disponibiliteBudgetaireOptions]}
+                        className="w-full rounded-[14px] border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-[16px] border border-slate-200 bg-white p-4">
+                  <div className="mb-3 flex items-center gap-2">
+                    <div className="h-2 w-2 rounded-full bg-violet-500" />
+                    <p className="text-sm font-semibold text-slate-900">Controles et decision</p>
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-semibold text-slate-700">Conformite financiere</label>
+                      <PurchaseSelect
+                        value={form.conformite_financiere}
+                        onChange={(value) => setForm((prev) => ({ ...prev, conformite_financiere: value }))}
+                        options={[...conformiteFinanciereOptions]}
+                        className="w-full rounded-[14px] border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-semibold text-slate-700">Respect des seuils</label>
+                      <PurchaseSelect
+                        value={form.respect_seuils}
+                        onChange={(value) => setForm((prev) => ({ ...prev, respect_seuils: value }))}
+                        options={[...respectSeuilsOptions]}
+                        className="w-full rounded-[14px] border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-semibold text-slate-700">Avis financier</label>
+                      <input
+                        readOnly
+                        value={decisionOptions.find((item) => item.value === form.decision)?.label ?? form.decision}
+                        className={`w-full rounded-[14px] border px-3 py-2 text-sm font-bold ${form.decision === "DEFAVORABLE" ? "border-rose-300 bg-rose-50 text-rose-700" : "border-emerald-200 bg-emerald-50 text-emerald-700"}`}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-semibold text-slate-700">Numero engagement</label>
+                      <input
+                        readOnly
+                        value={form.decision === "FAVORABLE" ? form.numero_engagement_budgetaire : "Genere si avis favorable"}
+                        className="w-full rounded-[14px] border border-slate-200 bg-slate-100 px-3 py-2 text-sm font-medium text-slate-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {remainingBalance < 0 && (
+                  <div className="rounded-[14px] border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-medium text-amber-800">
+                    Depassement budgetaire detecte. Un avis defavorable est requis.
                   </div>
                 )}
               </div>
             )}
 
             <div className="flex flex-col gap-1">
-              <span className="text-xs font-semibold text-slate-700">Observations</span>
+              <span className="text-[11px] font-bold text-slate-600">Observations</span>
               <textarea
                 value={form.commentaire}
                 onChange={(e) => setForm((prev) => ({ ...prev, commentaire: e.target.value }))}
-                placeholder="Ajoutez vos remarques ici..."
-                className="w-full rounded-md border border-slate-300 bg-white py-2 px-3 text-sm shadow-sm min-h-[60px] resize-y"
+                placeholder="Renseignez vos observations ici..."
+                className="min-h-[56px] w-full resize-none rounded-[14px] border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm"
               />
             </div>
-            
+
             {error && (
-              <p className="text-xs font-semibold text-rose-600 bg-rose-50 p-2 rounded border border-rose-100">
+              <p className="rounded-[14px] border border-rose-100 bg-rose-50 p-2.5 text-xs font-semibold text-rose-600">
                 {error}
               </p>
             )}
-            
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="border-t border-slate-200 bg-white px-5 py-3 flex items-center justify-between">
-            <button
-              onClick={onClose}
-              disabled={saving}
-              className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
-            >
-              Annuler
-            </button>
-            <button
-              onClick={handleSubmit}
-              disabled={saving}
-              className="rounded-lg bg-emerald-600 px-6 py-2 text-sm font-bold text-white hover:bg-emerald-700 shadow-md transition-colors disabled:opacity-60"
-            >
-              {saving ? "Sauvegarde..." : "Valider la décision"}
-            </button>
+        <div className="flex items-center justify-between border-t border-slate-200 bg-white px-5 py-3">
+          <button
+            onClick={onClose}
+            disabled={saving}
+            className="rounded-[14px] px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100"
+          >
+            Annuler
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={saving}
+            className="rounded-[14px] bg-emerald-600 px-5 py-2 text-sm font-bold text-white shadow-md transition-colors hover:bg-emerald-700 disabled:opacity-60"
+          >
+            {saving ? "..." : "Valider la decision"}
+          </button>
         </div>
-
       </div>
     </div>
   );

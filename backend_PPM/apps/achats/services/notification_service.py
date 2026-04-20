@@ -115,6 +115,14 @@ def _emails_for_groups(group_names):
     return recipients
 
 
+def _emails_for_validation_step(step):
+    if step == DemandeAchat.ETAPE_BUDGETAIRE:
+        return _emails_for_groups(FINANCE_GROUPS)
+
+    group_name = STEP_TO_GROUP.get(step)
+    return _emails_for_group(group_name) if group_name else []
+
+
 def _format_email_value(value, fallback="-"):
     if value is None:
         return fallback
@@ -338,38 +346,10 @@ def notify_validation_recorded(demande, validation):
             ),
         )
 
-    if demande.statut == DemandeAchat.STATUT_VALIDEE:
-        recipients = _emails_for_user(demande.demandeur) + _emails_for_groups(FINANCE_GROUPS)
-        action_url = _build_frontend_url("/finance")
+    if demande.statut == DemandeAchat.STATUT_VALIDEE_BUDGETAIRE:
+        return notify_budget_validated(demande)
 
-        body = (
-            f"Bonjour,\n\n"
-            f"La demande {demande.numero_demande} a été intégralement validée et transmise au service finance."
-        )
-        html_content = f"""
-            <p style="margin: 0 0 8px;">Bonjour,</p>
-            <p style="margin: 0 0 10px;">La demande d'achat a franchi toutes les validations avec succès.</p>
-            {_render_email_details([
-                ("N° Demande", demande.numero_demande, "accent"),
-                ("Objet", demande.objet, "default"),
-                ("Statut actuel", "En attente de budget", "info"),
-            ])}
-            <p style="margin: 0;">Le service finance doit maintenant compléter l'estimation financière avant la passation.</p>
-        """
-        return send_notification_email(
-            f"Demande validee : {demande.numero_demande}",
-            body,
-            recipients,
-            html_body=get_html_template(
-                "Demande validée et transmise à la Finance",
-                html_content,
-                action_url,
-                "Ouvrir l'espace Finance",
-            ),
-        )
-
-    next_group = STEP_TO_GROUP.get(demande.etape_validation_actuelle)
-    recipients = _emails_for_group(next_group) if next_group else []
+    recipients = _emails_for_validation_step(demande.etape_validation_actuelle)
     next_step_label = STEP_LABELS.get(demande.etape_validation_actuelle, "validation")
     action_url = _build_frontend_url("/validation")
 
@@ -410,11 +390,11 @@ def notify_budget_validated(demande):
 
     body = (
         f"Bonjour,\n\n"
-        f"La demande {demande.numero_demande} a été validée budgétairement et transmise à la passation."
+        f"La demande {demande.numero_demande} a terminé le circuit des 5 validations et est transmise à la passation."
     )
     html_content = f"""
         <p style="margin: 0 0 8px;">Bonjour,</p>
-        <p style="margin: 0 0 10px;">Le service finance vient de confirmer l'estimation financière du dossier.</p>
+        <p style="margin: 0 0 10px;">Le dossier a terminé le circuit complet de validation, y compris le budget et l'engagement.</p>
         {_render_email_details([
             ("N° Demande", demande.numero_demande, "accent"),
             ("Ligne budgétaire", demande.ligne_budgetaire or "-", "default"),
@@ -424,11 +404,11 @@ def notify_budget_validated(demande):
         <p style="margin: 0;">Le service des achats peut maintenant enregistrer le bon de commande.</p>
     """
     return send_notification_email(
-        f"Budget valide : {demande.numero_demande}",
+        f"Dossier transmis a la passation : {demande.numero_demande}",
         body,
         recipients,
         html_body=get_html_template(
-            "Budget validé et transmis à la Passation",
+            "Dossier validé et transmis à la Passation",
             html_content,
             action_url,
             "Ouvrir l'espace Passation",
@@ -437,6 +417,13 @@ def notify_budget_validated(demande):
 
 
 def notify_order_issued(demande):
+    sent = 0
+    sent += notify_order_issued_to_requester(demande)
+    sent += notify_order_issued_to_supplier(demande)
+    return sent
+
+
+def notify_order_issued_to_requester(demande):
     recipients = _emails_for_user(demande.demandeur)
     action_url = _build_frontend_url("/demande-achat/dashboard")
 
@@ -460,6 +447,48 @@ def notify_order_issued(demande):
             html_content,
             action_url,
             "Voir l'avancement",
+        ),
+    )
+
+
+def notify_order_issued_to_supplier(demande):
+    supplier_email = (getattr(demande, "email_fournisseur", "") or "").strip()
+    if not supplier_email:
+        return 0
+
+    recipients = [supplier_email]
+    body = (
+        f"Bonjour,\n\n"
+        f"L'UCP vous informe que le bon de commande {demande.numero_bon_commande or '-'} "
+        f"lié à la demande {demande.numero_demande} a été enregistré."
+    )
+    html_content = f"""
+        <p style="margin: 0 0 8px;">Bonjour,</p>
+        <p style="margin: 0 0 10px;">
+            L'UCP confirme l'enregistrement du bon de commande relatif à la demande
+            <strong>{escape(demande.numero_demande)}</strong>.
+        </p>
+        {_render_email_details([
+            ("N° Demande", demande.numero_demande, "accent"),
+            ("Fournisseur", demande.fournisseur_retenu or "Non précisé", "default"),
+            ("Email fournisseur", supplier_email, "info"),
+            ("Bon de commande", demande.numero_bon_commande or "Généré", "info"),
+            ("Date bon", demande.date_bon_commande, "default"),
+            ("Montant", demande.montant_commande, "success"),
+            ("Conditions livraison", demande.conditions_livraison or "-", "default"),
+            ("Garantie", demande.garantie or "-", "default"),
+        ])}
+        <p style="margin: 0;">
+            Merci de prendre en compte cette commande et de suivre les modalités convenues avec l'UCP.
+        </p>
+    """
+    return send_notification_email(
+        f"Bon de commande UCP : {demande.numero_bon_commande or demande.numero_demande}",
+        body,
+        recipients,
+        html_body=get_html_template(
+            "Bon de commande enregistré",
+            html_content,
         ),
     )
 
@@ -649,6 +678,7 @@ def notify_validation_delay(demande, hours_delayed):
         f"⏳ Plus que 24h : Rappel de validation ({demande.numero_demande})",
         body,
         recipients,
+        schedule_after_commit=False,
         html_body=get_html_template(
             "Rappel : Dossier en retard",
             html_content,

@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { Plus, Trash2, X, ArrowLeft, Edit2, AlertCircle, FileText, UploadCloud, Clock, ShoppingBag, Wrench, ShieldCheck, Sparkles, ChevronRight, Briefcase, Target, Layers, FolderArchive } from "lucide-react";
 import TopHeader from "@/app/components/TopHeader";
 import PurchaseSelect from "@/app/demande-achat/components/PurchaseSelect";
-import "./zoom.css";
 
 import {
   createDemandeAchat,
@@ -99,8 +98,10 @@ const documentTypesOptions = [
 ] as const;
 
 const fieldClass = "w-full rounded-xl border border-slate-200 bg-white/50 backdrop-blur-sm px-4 py-3 text-[14px] text-slate-800 shadow-sm transition-all duration-300 placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 hover:border-slate-300";
-const areaClass = `${fieldClass} min-h-24 resize-y leading-relaxed`;
 const labelClass = "mb-2 block text-[13px] font-bold uppercase tracking-wider text-slate-600 ml-1";
+const modalFieldClass = "w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-sm transition-all duration-200 placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10";
+const modalAreaClass = `${modalFieldClass} min-h-[92px] resize-none leading-5`;
+const modalLabelClass = "mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500";
 
 const emptyLigne = (typeDemande: string = "MATERIELS"): LigneForm => ({
   designation: "",
@@ -111,7 +112,7 @@ const emptyLigne = (typeDemande: string = "MATERIELS"): LigneForm => ({
   prix_unitaire_estime: "",
   lieu_livraison: "",
   destinataire_final: "",
-  type_service: "FORMATION",
+  type_service: "",
   description_service: "",
   date_debut: "",
   date_fin: "",
@@ -144,19 +145,6 @@ const normalizeInteger = (value: string) => {
 
   const parsed = Number(trimmed);
   return Number.isInteger(parsed) && parsed >= 0 ? parsed : undefined;
-};
-
-const getDefaultDocumentType = (
-  typeDemande: string,
-  categorieBesoin: string,
-) => {
-  if (categorieBesoin === "REAPPROVISIONNEMENT") {
-    return "BON_SORTIE_STOCK";
-  }
-
-  return typeDemande === "MATERIELS"
-    ? "SPECIFICATIONS_TECHNIQUES"
-    : "TDR_SIMPLIFIE";
 };
 
 function NotificationPopup({ message, type, onClose }: { message: string, type: 'error' | 'success', onClose: () => void }) {
@@ -199,102 +187,100 @@ function LigneBesoinModal({ open, mode, isServiceRequest, ligne, error, onClose,
   };
   
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/60 px-4 py-6 backdrop-blur-md animate-in fade-in duration-300" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-4 backdrop-blur-sm animate-in fade-in duration-300" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div 
-        className="w-full max-w-4xl xl:max-w-5xl bg-white/95 rounded-[32px] shadow-[0_32px_64px_rgba(0,0,0,0.2)] animate-in zoom-in-95 slide-in-from-bottom-12 duration-500 border border-white/40 overflow-hidden"
-        style={{ zoom: 0.9 }}
+        className="w-full max-w-4xl overflow-hidden rounded-[28px] border border-white/40 bg-white shadow-[0_24px_60px_rgba(15,23,42,0.18)] animate-in zoom-in-95 slide-in-from-bottom-8 duration-300"
       >
-        <div className="relative px-8 py-6 border-b border-slate-100 bg-slate-50/50 backdrop-blur-sm">
-           <div className="absolute top-0 left-0 h-1 w-full bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-500 bg-[length:200%_100%] animate-gradient"></div>
-           <div className="flex items-center justify-between">
-              <div className="flex items-center gap-5">
-                 <div className="h-12 w-12 flex items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-lg shadow-emerald-500/30">
-                   {isServiceRequest ? <Wrench className="h-6 w-6" /> : <ShoppingBag className="h-6 w-6" />}
+        <div className="relative border-b border-slate-100 bg-slate-50/80 px-5 py-4">
+           <div className="absolute left-0 top-0 h-1 w-full bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-500"></div>
+           <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3.5">
+                 <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-lg shadow-emerald-500/20">
+                   {isServiceRequest ? <Wrench className="h-5 w-5" /> : <ShoppingBag className="h-5 w-5" />}
                  </div>
                  <div>
-                    <h2 className="text-lg font-black text-slate-800 tracking-tight">{mode === "edit" ? "Modifier le besoin" : "Nouveau besoin"}</h2>
-                    <p className="text-[13px] font-bold text-slate-500 uppercase tracking-widest">{isServiceRequest ? "Détails de la prestation" : "Spécifications de l'article"}</p>
+                    <h2 className="text-lg font-black tracking-tight text-slate-800">{mode === "edit" ? "Modifier le besoin" : "Ajouter un besoin"}</h2>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{isServiceRequest ? "Prestation compacte" : "Ligne article compacte"}</p>
                  </div>
               </div>
-              <button type="button" onClick={onClose} className="p-2.5 bg-white hover:bg-rose-50 hover:text-rose-600 shadow-sm border border-slate-200 rounded-2xl transition-all duration-300 hover:rotate-90">
-                <X className="h-5 w-5" />
+              <button type="button" onClick={onClose} className="rounded-2xl border border-slate-200 bg-white p-2.5 text-slate-500 shadow-sm transition-all duration-200 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600">
+                <X className="h-4 w-4" />
               </button>
            </div>
         </div>
         
-        <div className="p-8">
+        <div className="p-5 sm:p-6">
           {error && (
-            <div className="mb-8 bg-rose-50 text-rose-600 text-[14px] font-black p-5 rounded-2xl border border-rose-100 flex items-center gap-4 shadow-sm animate-in shake duration-500">
-              <AlertCircle className="h-6 w-6 shrink-0" />
+            <div className="mb-5 flex items-center gap-3 rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-600 shadow-sm animate-in shake duration-500">
+              <AlertCircle className="h-5 w-5 shrink-0" />
               {error}
             </div>
           )}
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
              {isServiceRequest ? (
                <>
-                 <div className="md:col-span-2">
-                   <label className={labelClass}>Type de service *</label>
+                 <div>
+                   <label className={modalLabelClass}>Type de service *</label>
                    <PurchaseSelect
                      id="modal_type_service"
                      value={ligne.type_service}
                      onChange={(value) => onChange("type_service", value)}
                      options={[...typeServiceOptions]}
-                     className={fieldClass}
+                     placeholder="Sélectionner..."
+                     className={modalFieldClass}
                    />
                  </div>
-                 <div className="md:col-span-2">
-                   <label className={labelClass}>Description du service *</label>
-                   <textarea id="modal_description" value={ligne.description_service} onChange={(e) => onChange("description_service", e.target.value)} className={areaClass} placeholder="Décrivez la prestation attendue avec précision..." />
+                 <div className="md:col-span-2 xl:col-span-3">
+                   <label className={modalLabelClass}>Description du service *</label>
+                   <textarea id="modal_description" value={ligne.description_service} onChange={(e) => onChange("description_service", e.target.value)} className={modalAreaClass} placeholder="Décrivez la prestation attendue avec précision..." />
                  </div>
-                 <div><label className={labelClass}>Date de Début *</label><input id="modal_date_debut" type="date" value={ligne.date_debut} onChange={(e) => onChange("date_debut", e.target.value)} className={fieldClass} /></div>
-                 <div><label className={labelClass}>Date de Fin *</label><input id="modal_date_fin" type="date" value={ligne.date_fin} onChange={(e) => onChange("date_fin", e.target.value)} className={fieldClass} /></div>
-                 <div className="md:col-span-2">
-                   <label className={labelClass}>Lieu d&apos;exécution *</label>
-                   <input id="modal_lieu_execution" value={ligne.lieu_execution} onChange={(e) => onChange("lieu_execution", e.target.value)} className={fieldClass} placeholder="Ex: Campus A, Bloc hospitalier..." />
+                 <div><label className={modalLabelClass}>Date de début *</label><input id="modal_date_debut" type="date" value={ligne.date_debut} onChange={(e) => onChange("date_debut", e.target.value)} className={modalFieldClass} /></div>
+                 <div><label className={modalLabelClass}>Date de fin *</label><input id="modal_date_fin" type="date" value={ligne.date_fin} onChange={(e) => onChange("date_fin", e.target.value)} className={modalFieldClass} /></div>
+                 <div>
+                   <label className={modalLabelClass}>Nb. bénéficiaires</label>
+                   <input type="number" min="0" step="1" value={ligne.nombre_beneficiaires} onChange={(e) => onChange("nombre_beneficiaires", e.target.value)} className={modalFieldClass} placeholder="Ex: 10" />
                  </div>
                  <div>
-                   <label className={labelClass}>Nb. de bénéficiaires</label>
-                   <input type="number" min="0" step="1" value={ligne.nombre_beneficiaires} onChange={(e) => onChange("nombre_beneficiaires", e.target.value)} className={fieldClass} placeholder="Ex: 10" />
-                 </div>
-                 <div>
-                   <label className={labelClass}>Coût estimé total *</label>
+                   <label className={modalLabelClass}>Coût estimé total *</label>
                    <div className="relative">
-                     <input id="modal_prix_service" type="number" min="0" step="0.01" value={ligne.prix_unitaire_estime} onChange={(e) => onChange("prix_unitaire_estime", e.target.value)} className={`${fieldClass} pr-12 font-black text-emerald-700`} placeholder="0" />
-                     <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">Ar</span>
+                     <input id="modal_prix_service" type="number" min="0" step="0.01" value={ligne.prix_unitaire_estime} onChange={(e) => onChange("prix_unitaire_estime", e.target.value)} className={`${modalFieldClass} pr-11 font-semibold text-emerald-700`} placeholder="0" />
+                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-slate-400">Ar</span>
                    </div>
                  </div>
                  <div className="md:col-span-2">
-                   <label className={labelClass}>Livrables attendus *</label>
-                   <input id="modal_livrables" value={ligne.livrables_attendus} onChange={(e) => onChange("livrables_attendus", e.target.value)} className={fieldClass} placeholder="Rapports, certificats, équipements..." />
+                   <label className={modalLabelClass}>Lieu d&apos;exécution *</label>
+                   <input id="modal_lieu_execution" value={ligne.lieu_execution} onChange={(e) => onChange("lieu_execution", e.target.value)} className={modalFieldClass} placeholder="Ex: Campus A, Bloc hospitalier..." />
+                 </div>
+                 <div className="md:col-span-2 xl:col-span-3">
+                   <label className={modalLabelClass}>Livrables attendus *</label>
+                   <input id="modal_livrables" value={ligne.livrables_attendus} onChange={(e) => onChange("livrables_attendus", e.target.value)} className={modalFieldClass} placeholder="Rapports, certificats, équipements..." />
                  </div>
                </>
              ) : (
                <>
-                 <div className="md:col-span-2"><label className={labelClass}>Désignation de l&apos;article *</label><input id="modal_designation" value={ligne.designation} onChange={(e) => onChange("designation", e.target.value)} className={`${fieldClass} !text-[16px] !font-black`} placeholder="Nom du matériel..." /></div>
-                 <div><label className={labelClass}>Marque / Modèle</label><input value={ligne.marque_modele} onChange={(e) => onChange("marque_modele", e.target.value)} className={fieldClass} placeholder="Spécifier si nécessaire..." /></div>
-                 <div className="grid grid-cols-2 gap-4">
-                   <div><label className={labelClass}>Quantité *</label><input id="modal_quantite" type="number" min="1" value={ligne.quantite} onChange={(e) => onChange("quantite", Number(e.target.value))} className={`${fieldClass} font-black`} /></div>
-                   <div><label className={labelClass}>Unité *</label><input id="modal_unite" value={ligne.unite} onChange={(e) => onChange("unite", e.target.value)} className={fieldClass} placeholder="Pièce, lot..." /></div>
-                 </div>
-                 <div className="md:col-span-2">
-                   <label className={labelClass}>Prix estimé unitaire (Optionnel)</label>
+                 <div className="md:col-span-2 xl:col-span-3"><label className={modalLabelClass}>Désignation de l&apos;article *</label><input id="modal_designation" value={ligne.designation} onChange={(e) => onChange("designation", e.target.value)} className={`${modalFieldClass} font-semibold`} placeholder="Nom du matériel..." /></div>
+                 <div><label className={modalLabelClass}>Marque / Modèle</label><input value={ligne.marque_modele} onChange={(e) => onChange("marque_modele", e.target.value)} className={modalFieldClass} placeholder="Spécifier si nécessaire..." /></div>
+                 <div><label className={modalLabelClass}>Quantité *</label><input id="modal_quantite" type="number" min="1" value={ligne.quantite} onChange={(e) => onChange("quantite", Number(e.target.value))} className={`${modalFieldClass} font-semibold`} /></div>
+                 <div><label className={modalLabelClass}>Unité *</label><input id="modal_unite" value={ligne.unite} onChange={(e) => onChange("unite", e.target.value)} className={modalFieldClass} placeholder="Pièce, lot..." /></div>
+                 <div className="md:col-span-2 xl:col-span-1">
+                   <label className={modalLabelClass}>Prix estimé unitaire</label>
                    <div className="relative">
-                     <input type="number" value={ligne.prix_unitaire_estime} onChange={(e) => onChange("prix_unitaire_estime", e.target.value)} className={`${fieldClass} pr-12`} placeholder="0" />
-                     <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">Ar</span>
+                     <input type="number" value={ligne.prix_unitaire_estime} onChange={(e) => onChange("prix_unitaire_estime", e.target.value)} className={`${modalFieldClass} pr-11`} placeholder="0" />
+                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-slate-400">Ar</span>
                    </div>
                  </div>
-                 <div className="md:col-span-2"><label className={labelClass}>Caractéristiques techniques détaillées *</label><textarea id="modal_caracteristiques" value={ligne.caracteristiques_techniques} onChange={(e) => onChange("caracteristiques_techniques", e.target.value)} className={areaClass} placeholder="Spécificités techniques, puissance, dimensions, normes..." /></div>
-                 <div><label className={labelClass}>Lieu de livraison *</label><input id="modal_lieu_livraison" value={ligne.lieu_livraison} onChange={(e) => onChange("lieu_livraison", e.target.value)} className={fieldClass} placeholder="Destination..." /></div>
-                 <div><label className={labelClass}>Destinataire final *</label><input id="modal_destinataire_final" value={ligne.destinataire_final} onChange={(e) => onChange("destinataire_final", e.target.value)} className={fieldClass} placeholder="Service ou unité..." /></div>
+                 <div className="md:col-span-2 xl:col-span-3"><label className={modalLabelClass}>Caractéristiques techniques détaillées *</label><textarea id="modal_caracteristiques" value={ligne.caracteristiques_techniques} onChange={(e) => onChange("caracteristiques_techniques", e.target.value)} className={modalAreaClass} placeholder="Spécificités techniques, puissance, dimensions, normes..." /></div>
+                 <div><label className={modalLabelClass}>Lieu de livraison *</label><input id="modal_lieu_livraison" value={ligne.lieu_livraison} onChange={(e) => onChange("lieu_livraison", e.target.value)} className={modalFieldClass} placeholder="Destination..." /></div>
+                 <div className="md:col-span-2"><label className={modalLabelClass}>Destinataire final *</label><input id="modal_destinataire_final" value={ligne.destinataire_final} onChange={(e) => onChange("destinataire_final", e.target.value)} className={modalFieldClass} placeholder="Service ou unité..." /></div>
                </>
              )}
           </div>
         </div>
         
-        <div className="px-8 py-6 border-t border-slate-100 flex justify-end gap-4 bg-slate-50/50 rounded-b-[32px]">
-          <button type="button" onClick={onClose} className="px-8 py-3 rounded-2xl border border-slate-200 text-[14px] font-black uppercase tracking-wider text-slate-600 hover:bg-white hover:border-slate-300 transition-all shadow-sm bg-white/50 active:scale-95">Annuler</button>
-          <button type="button" onClick={handleInnerSave} className="bg-emerald-600 text-white px-10 py-3 rounded-2xl text-[14px] font-black uppercase tracking-wider shadow-[0_12px_24px_rgba(5,150,105,0.3)] hover:bg-emerald-700 hover:shadow-[0_16px_32px_rgba(5,150,105,0.4)] hover:-translate-y-1 transition-all active:translate-y-0">Enregistrer</button>
+        <div className="flex justify-end gap-3 border-t border-slate-100 bg-slate-50/70 px-5 py-4">
+          <button type="button" onClick={onClose} className="rounded-2xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-600 shadow-sm transition-all hover:border-slate-300 hover:bg-slate-100 active:scale-95">Annuler</button>
+          <button type="button" onClick={handleInnerSave} className="rounded-2xl bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(5,150,105,0.24)] transition-all hover:bg-emerald-700 hover:-translate-y-0.5 active:translate-y-0">Enregistrer</button>
         </div>
       </div>
     </div>
@@ -306,9 +292,9 @@ export default function NouvelleDemandePage() {
   
   // Section A states
   const [uniteTechnique, setUniteTechnique] = useState("");
-  const [categorieBesoin, setCategorieBesoin] = useState("NOUVEAU_BESOIN");
-  const [typeDemande, setTypeDemande] = useState("MATERIELS");
-  const [priorite, setPriorite] = useState("NORMAL");
+  const [categorieBesoin, setCategorieBesoin] = useState("");
+  const [typeDemande, setTypeDemande] = useState("");
+  const [priorite, setPriorite] = useState("");
   const [objet, setObjet] = useState("");
   const [justification, setJustification] = useState("");
   const [lienPtba, setLienPtba] = useState("");
@@ -328,7 +314,7 @@ export default function NouvelleDemandePage() {
   const [saving, setSaving] = useState(false);
   const [notification, setNotification] = useState<{message: string, type: 'error' | 'success'} | null>(null);
 
-  const isServiceRequest = typeDemande !== "MATERIELS";
+  const isServiceRequest = typeDemande === "PETITS_SERVICES";
   
   useEffect(() => {
     if (!getToken()) return router.replace("/login");
@@ -349,10 +335,10 @@ export default function NouvelleDemandePage() {
   };
 
   const getDocumentRecommendations = () => {
-    const recs = [];
+    const recs: { label: string; required: boolean }[] = [];
     if (typeDemande === "MATERIELS") {
        recs.push({ label: "Spécifications techniques détaillées (Obligatoire pour matériels complexes)", required: true });
-    } else {
+    } else if (typeDemande === "PETITS_SERVICES") {
        recs.push({ label: "Termes de Référence simplifiés (Obligatoire pour petits services simplifiés)", required: true });
     }
     if (categorieBesoin === "REAPPROVISIONNEMENT") {
@@ -395,6 +381,18 @@ export default function NouvelleDemandePage() {
        setNotification({message: "L'Unité technique est obligatoire.", type: 'error'});
        return scrollToElement("uniteTechnique");
     }
+    if (!typeDemande) {
+       setNotification({message: "Le type de besoin est obligatoire.", type: 'error'});
+       return scrollToElement("typeDemande");
+    }
+    if (!categorieBesoin) {
+       setNotification({message: "La catégorie de besoin est obligatoire.", type: 'error'});
+       return scrollToElement("categorieBesoin");
+    }
+    if (!priorite) {
+       setNotification({message: "La priorité est obligatoire.", type: 'error'});
+       return scrollToElement("priorite");
+    }
     if (!serviceBeneficiaire.trim()) {
        setNotification({message: "Le service bénéficiaire final est obligatoire.", type: 'error'});
        return scrollToElement("serviceBeneficiaire");
@@ -414,6 +412,12 @@ export default function NouvelleDemandePage() {
     if (lignes.length === 0) {
        setNotification({message: "Veuillez ajouter au moins une ligne de besoin.", type: 'error'});
        return scrollToElement("lignesSection");
+    }
+
+    const hasIncompleteDocumentType = documents.some((doc) => doc.fichier && !doc.type_document);
+    if (hasIncompleteDocumentType) {
+       setNotification({message: "Choisissez un type pour chaque document ajouté.", type: 'error'});
+       return scrollToElement("documentsSection");
     }
 
     // --- VALIDATION DES DOCUMENTS OBLIGATOIRES ---
@@ -493,6 +497,10 @@ export default function NouvelleDemandePage() {
   };
 
   const openCreateLigneModal = () => {
+    if (!typeDemande) {
+      setNotification({message: "Sélectionnez d'abord le type de besoin.", type: 'error'});
+      return scrollToElement("typeDemande");
+    }
     setEditingLigneIndex(null);
     setLigneDraft(emptyLigne(typeDemande));
     setLigneModalError(null);
@@ -514,6 +522,10 @@ export default function NouvelleDemandePage() {
   const handleSaveLigne = () => {
     const isService = typeDemande !== "MATERIELS";
     if (isService) {
+      if (!ligneDraft.type_service.trim()) {
+         setLigneModalError("Le type de service est obligatoire.");
+         return focusModalInput("modal_type_service");
+      }
       if (!ligneDraft.description_service.trim()) {
          setLigneModalError("La description du service est obligatoire.");
          return focusModalInput("modal_description");
@@ -638,6 +650,7 @@ export default function NouvelleDemandePage() {
                        value={typeDemande}
                        onChange={(value) => { setTypeDemande(value); setLignes([]); }}
                        options={[...typeDemandeOptions]}
+                       placeholder="Sélectionner..."
                        className={fieldClass}
                      />
                    </div>
@@ -648,6 +661,7 @@ export default function NouvelleDemandePage() {
                        value={categorieBesoin}
                        onChange={setCategorieBesoin}
                        options={[...categorieBesoinOptions]}
+                       placeholder="Sélectionner..."
                        className={fieldClass}
                      />
                    </div>
@@ -658,6 +672,7 @@ export default function NouvelleDemandePage() {
                        value={priorite}
                        onChange={setPriorite}
                        options={[...prioriteOptions]}
+                       placeholder="Sélectionner..."
                        className={fieldClass}
                      />
                    </div>
@@ -758,7 +773,7 @@ export default function NouvelleDemandePage() {
                       </div>
                       4. Documents justificatifs
                    </h2>
-                   <button type="button" onClick={() => setDocuments([...documents, { type_document: getDefaultDocumentType(typeDemande, categorieBesoin), commentaire: "", fichier: null }])} className="flex items-center gap-3 overflow-hidden rounded-2xl bg-white border border-slate-200 px-6 py-3 text-[14px] font-black uppercase tracking-wider text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:border-slate-300 active:scale-95">
+                   <button type="button" onClick={() => setDocuments([...documents, { type_document: "", commentaire: "", fichier: null }])} className="flex items-center gap-3 overflow-hidden rounded-2xl bg-white border border-slate-200 px-6 py-3 text-[14px] font-black uppercase tracking-wider text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:border-slate-300 active:scale-95">
                       <Plus className="h-5 w-5" /> Ajouter un fichier
                    </button>
                 </div>
@@ -798,6 +813,7 @@ export default function NouvelleDemandePage() {
                                value={d.type_document}
                                onChange={(value) => setDocuments(p => p.map((item, idx) => idx === i ? {...item, type_document: value} : item))}
                                options={[...documentTypesOptions]}
+                               placeholder="Sélectionner..."
                                className={fieldClass}
                              />
                          </div>

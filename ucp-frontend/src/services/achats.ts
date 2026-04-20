@@ -111,6 +111,7 @@ export interface DemandeAchat {
   cout_total_estime: string;
   type_procedure?: string;
   fournisseur_retenu?: string;
+  email_fournisseur?: string;
   numero_bon_commande?: string;
   date_bon_commande?: string | null;
   montant_commande?: string | null;
@@ -165,11 +166,13 @@ export interface CreateDemandePayload {
 export type UpdateDemandePayload = Partial<CreateDemandePayload>;
 export interface BudgetEstimationPayload {
   ligne_budgetaire: string;
-  source_financement: "FONDS_MONDIAL" | "BANQUE_MONDIALE" | "GAVI";
+  source_financement: "SRPS_CS7_FM" | "RSS3_GAVI" | "FAE_GAVI" | "CDS_GAVI" | "VAR_GAVI" | "PARN2_BM" | "PPSB_BM";
 }
 export interface IssueOrderPayload {
   type_procedure: "DEMANDE_COTATION" | "BON_COMMANDE_DIRECT" | "SELECTION_APRES_COTATION";
   fournisseur_retenu: string;
+  email_fournisseur: string;
+  numero_bon_commande?: string;
   montant_commande: string;
   delai_livraison_contractuel: number;
   conditions_livraison?: string;
@@ -239,6 +242,7 @@ const errorFieldLabels: Record<string, string> = {
   description_ecart: "Description de l'ecart",
   description_service: "Description du service",
   destinataire_final: "Destinataire final",
+  email_fournisseur: "Email fournisseur",
   etat_expedition: "Etat d'expedition",
   justification: "Justification",
   lien_ptba: "Reference PTBA",

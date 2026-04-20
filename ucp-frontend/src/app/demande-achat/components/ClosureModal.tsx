@@ -17,7 +17,7 @@ type ClosureModalProps = {
 };
 
 type ClosureFormState = {
-  statut_final: "CLOTURE" | "PARTIELLEMENT_EXECUTE" | "ANNULE";
+  statut_final: "CLOTURE" | "PARTIELLEMENT_EXECUTE" | "ANNULE" | "";
   niveau_satisfaction: number;
   commentaires_finaux: string;
   date_cloture: string;
@@ -49,10 +49,7 @@ const closureStatusOptions = [
 
 const buildClosureForm = (demande: DemandeAchat | null): ClosureFormState => ({
   statut_final:
-    (demande?.statut_final as ClosureFormState["statut_final"]) ??
-    (demande?.statut_reception === "RECEPTION_PARTIELLE"
-      ? "PARTIELLEMENT_EXECUTE"
-      : "CLOTURE"),
+    (demande?.statut_final as ClosureFormState["statut_final"]) ?? "",
   niveau_satisfaction: demande?.niveau_satisfaction ?? 4,
   commentaires_finaux: demande?.commentaires_finaux ?? "",
   date_cloture: demande?.date_cloture ?? "",
@@ -114,6 +111,10 @@ export default function ClosureModal({
 
   const handleSubmit = async () => {
     if (!canClose) return;
+    if (!form.statut_final) {
+      setError("Sélectionnez le statut final avant de clôturer.");
+      return;
+    }
 
     setSaving(true);
     setError(null);
@@ -134,7 +135,7 @@ export default function ClosureModal({
 
   return (
     <div
-      className="fixed inset-0 z-[110] flex items-start justify-center overflow-y-auto bg-slate-950/30 p-4 backdrop-blur-[3px]"
+      className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-950/30 p-4 backdrop-blur-[3px]"
       role="dialog"
       aria-modal="true"
       aria-labelledby="closure-modal-title"
@@ -145,17 +146,16 @@ export default function ClosureModal({
       }}
     >
       <div 
-        className="my-8 w-[min(1000px,100%)] rounded-[24px] border border-slate-200 bg-white shadow-[0_28px_70px_-36px_rgba(15,23,42,0.45)]"
-        style={{ zoom: 0.8 }}
+        className="w-[min(920px,100%)] rounded-[28px] border border-slate-200 bg-white shadow-[0_24px_60px_rgba(15,23,42,0.16)]"
       >
-        <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4">
+        <div className="flex items-start justify-between gap-4 border-b border-slate-100 bg-slate-50/80 px-5 py-4">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">
               Section 10
             </p>
             <h2
               id="closure-modal-title"
-              className="mt-1 text-2xl font-bold tracking-tight text-slate-900"
+              className="mt-1 text-xl font-bold tracking-tight text-slate-900"
             >
               Clôture du dossier
             </h2>
@@ -175,8 +175,8 @@ export default function ClosureModal({
           </button>
         </div>
 
-        <div className="grid gap-5 px-5 py-5 xl:grid-cols-[minmax(0,1fr)_18rem]">
-          <section className="space-y-5">
+        <div className="grid gap-4 px-5 py-4 xl:grid-cols-[minmax(0,1fr)_17rem]">
+          <section className="space-y-4">
             {error && (
               <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
                 {error}
@@ -206,7 +206,7 @@ export default function ClosureModal({
               />
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-3 md:grid-cols-2">
               <Field label="Statut final">
                 <PurchaseSelect
                   value={form.statut_final}
@@ -217,6 +217,7 @@ export default function ClosureModal({
                     }))
                   }
                   options={[...closureStatusOptions]}
+                  placeholder="Sélectionner..."
                   className="field"
                   disabled={!canClose}
                 />
@@ -282,9 +283,9 @@ export default function ClosureModal({
             </Field>
           </section>
 
-          <aside className="space-y-4">
+          <aside className="space-y-3">
             <section className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">
                 Règle métier
               </p>
               <div className="mt-3 space-y-2.5">
@@ -296,7 +297,7 @@ export default function ClosureModal({
             </section>
 
             <section className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">
                 Résolution
               </p>
               <div className="mt-3 space-y-3">
@@ -317,7 +318,7 @@ export default function ClosureModal({
           </aside>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-5 py-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 bg-white px-5 py-4">
           <p className="text-sm text-slate-600">
             {canClose
               ? "Cette validation met fin au cycle demandeur."

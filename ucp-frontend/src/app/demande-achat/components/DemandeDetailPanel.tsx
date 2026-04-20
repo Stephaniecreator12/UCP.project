@@ -137,6 +137,9 @@ export default function DemandeDetailPanel({
   actionSlot,
   defaultShowTimeline = false,
 }: DemandeDetailPanelProps) {
+  const lignesBesoin = Array.isArray(demande.lignes_besoin) ? demande.lignes_besoin : [];
+  const validations = Array.isArray(demande.validations) ? demande.validations : [];
+  const documents = Array.isArray(demande.documents) ? demande.documents : [];
   const [showTimeline, setShowTimeline] = useState(defaultShowTimeline);
   const [openingDocumentId, setOpeningDocumentId] = useState<number | null>(null);
   const [documentError, setDocumentError] = useState<string | null>(null);
@@ -145,6 +148,7 @@ export default function DemandeDetailPanel({
   const hasPassationData = Boolean(
     demande.type_procedure ||
       demande.fournisseur_retenu ||
+      demande.email_fournisseur ||
       demande.numero_bon_commande ||
       demande.montant_commande ||
       demande.date_bon_commande ||
@@ -360,14 +364,14 @@ export default function DemandeDetailPanel({
             </div>
           </Section>
 
-          <Section title={`Besoins détaillés (${demande.lignes_besoin.length})`}>
-            {demande.lignes_besoin.length === 0 ? (
+          <Section title={`Besoins détaillés (${lignesBesoin.length})`}>
+            {lignesBesoin.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
                 Aucun besoin détaillé enregistré.
               </div>
             ) : (
               <div className="flex flex-col gap-4">
-                {demande.lignes_besoin.map((ligne, index) => (
+                {lignesBesoin.map((ligne, index) => (
                   <NeedLineCard key={ligne.id ?? index} ligne={ligne} index={index} />
                 ))}
               </div>
@@ -382,12 +386,12 @@ export default function DemandeDetailPanel({
             </div>
           </Section>
 
-          {demande.validations.length > 0 && (
+          {validations.length > 0 && (
             <Section title="Validation & Décisions">
               <div className="overflow-hidden rounded-xl border border-slate-200">
                 <table className="w-full text-left text-sm">
                   <tbody className="divide-y divide-slate-100">
-                    {demande.validations.map((val, idx) => (
+                    {validations.map((val, idx) => (
                       <tr key={idx} className="bg-white">
                         <td className="w-[148px] border-r border-slate-100 bg-slate-50 px-3 py-2 font-semibold text-slate-700">
                           {val.etape_label}
@@ -464,7 +468,7 @@ export default function DemandeDetailPanel({
             </div>
           </Section>
 
-          {demande.documents.length > 0 && (
+          {documents.length > 0 && (
             <Section title="Documents Joints">
               <div className="flex flex-col gap-1.5">
                 {documentError ? (
@@ -472,7 +476,7 @@ export default function DemandeDetailPanel({
                     {documentError}
                   </div>
                 ) : null}
-                {demande.documents.map((doc, i) => (
+                {documents.map((doc, i) => (
                   <button
                     key={doc.id ?? i}
                     type="button"
@@ -529,6 +533,7 @@ export default function DemandeDetailPanel({
                   }
                 />
                 <DataPairRow label="Fournisseur" value={demande.fournisseur_retenu} />
+                <DataPairRow label="Email fournisseur" value={demande.email_fournisseur} />
                 <DataPairRow
                   label="N° Commande"
                   value={demande.numero_bon_commande}

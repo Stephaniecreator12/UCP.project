@@ -35,14 +35,22 @@ class DemandeAchat(models.Model):
         (PRIORITE_NORMAL, "Normal"),
     ]
 
-    SOURCE_FONDS_MONDIAL = "FONDS_MONDIAL"
-    SOURCE_BANQUE_MONDIALE = "BANQUE_MONDIALE"
-    SOURCE_GAVI = "GAVI"
+    SOURCE_SRPS_CS7_FM = "SRPS_CS7_FM"
+    SOURCE_RSS3_GAVI = "RSS3_GAVI"
+    SOURCE_FAE_GAVI = "FAE_GAVI"
+    SOURCE_CDS_GAVI = "CDS_GAVI"
+    SOURCE_VAR_GAVI = "VAR_GAVI"
+    SOURCE_PARN2_BM = "PARN2_BM"
+    SOURCE_PPSB_BM = "PPSB_BM"
 
     SOURCE_FINANCEMENT_CHOICES = [
-        (SOURCE_FONDS_MONDIAL, "Fonds mondial"),
-        (SOURCE_BANQUE_MONDIALE, "Banque mondiale"),
-        (SOURCE_GAVI, "Alliance Gavi"),
+        (SOURCE_SRPS_CS7_FM, "SRPS / CS7 / Fonds Mondial"),
+        (SOURCE_RSS3_GAVI, "RSS3 / Alliance GAVI"),
+        (SOURCE_FAE_GAVI, "FAE / Alliance GAVI"),
+        (SOURCE_CDS_GAVI, "CDS / Alliance GAVI"),
+        (SOURCE_VAR_GAVI, "VAR / Alliance GAVI"),
+        (SOURCE_PARN2_BM, "PARN2 / Banque Mondiale"),
+        (SOURCE_PPSB_BM, "PPSB / Banque Mondiale"),
     ]
 
     STATUT_BROUILLON = "BROUILLON"
@@ -247,6 +255,7 @@ class DemandeAchat(models.Model):
         blank=True,
     )
     fournisseur_retenu = models.CharField(max_length=255, blank=True)
+    email_fournisseur = models.EmailField(blank=True)
     numero_bon_commande = models.CharField(max_length=30, blank=True)
     date_bon_commande = models.DateField(null=True, blank=True)
     montant_commande = models.DecimalField(

@@ -210,35 +210,22 @@ export default function Menu({ className = "" }: { className?: string }) {
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={menuId}
-        className="group relative inline-flex h-[36px] items-center justify-start bg-transparent px-2 text-[0.8rem] font-bold uppercase tracking-[0.22em] text-slate-400 transition-colors hover:text-slate-500 font-['Gadugi'] "
+        className="group relative inline-flex h-[32px] items-center justify-start bg-transparent px-0 text-[11px] font-black uppercase tracking-widest text-[var(--muted)] transition-all hover:text-[var(--text)]"
       >
-        <span className="relative z-10 leading-none flex items-center gap-2.5 ">
+        <span className="relative z-10 leading-none flex items-center gap-2">
           Menu
           <svg
-            className={`w-3 h-3 text-slate-400 transition-transform duration-200 ${open ? "" : "rotate-180"}`}
+            className={`w-3 h-3 text-[var(--muted)] transition-transform duration-300 ${open ? "" : "rotate-180"}`}
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
-            strokeWidth="2.5"
+            strokeWidth="3"
             strokeLinecap="round"
             strokeLinejoin="round"
           >
             <polyline points="6 9 12 15 18 9"></polyline>
           </svg>
         </span>
-
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute left-0 top-[30px] h-px w-[80px] bg-slate-300/80"
-        />
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute left-[105px] top-[2px] h-px w-[35px] origin-left rotate-[130deg] bg-slate-300/80"
-        />
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute left-0 top-[1px] h-px w-[105px] bg-slate-300/80"
-        />
       </button>
 
       {open &&
@@ -263,10 +250,10 @@ export default function Menu({ className = "" }: { className?: string }) {
                     key={item.href}
                     href={item.href}
                     role="menuitem"
-                    className={`block px-4 py-2.5 text-sm transition-colors ${
+                    className={`block px-5 py-2.5 text-[11px] font-black uppercase tracking-widest transition-all ${
                       isActive
-                        ? "bg-gray-100 text-gray-900 font-medium"
-                        : "text-gray-700 hover:bg-gray-200 hover:text-gray-900"
+                        ? "bg-[var(--panel)] text-[var(--text)]"
+                        : "text-[var(--muted)] hover:bg-[var(--panel)] hover:text-[var(--text)]"
                     }`}
                     onClick={() => setOpen(false)}
                   >

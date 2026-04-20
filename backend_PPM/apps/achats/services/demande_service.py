@@ -467,13 +467,15 @@ def issue_order(demande, data, user):
             }
         )
 
+    fournisseur_instance = data["fournisseur"]
     date_bon_commande = data.get("date_bon_commande") or timezone.localdate()
     delai = data["delai_livraison_contractuel"]
     date_livraison_prevue = date_bon_commande + timedelta(days=delai)
 
     demande.type_procedure = data["type_procedure"]
-    demande.fournisseur_retenu = data["fournisseur_retenu"]
-    demande.email_fournisseur = data["email_fournisseur"]
+    demande.fournisseur = fournisseur_instance
+    demande.fournisseur_retenu = fournisseur_instance.nom
+    demande.email_fournisseur = fournisseur_instance.email
     if not demande.numero_bon_commande:
         demande.numero_bon_commande = _build_numero_bon_commande()
     demande.date_bon_commande = date_bon_commande
@@ -487,6 +489,7 @@ def issue_order(demande, data, user):
     demande.save(
         update_fields=[
             "type_procedure",
+            "fournisseur",
             "fournisseur_retenu",
             "email_fournisseur",
             "numero_bon_commande",

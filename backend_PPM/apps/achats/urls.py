@@ -1,5 +1,7 @@
-from django.urls import path
+from django.urls import path, include
+from rest_framework.routers import SimpleRouter
 
+from apps.achats.views.fournisseur_view import FournisseurViewSet
 from apps.achats.views.demande_view import (
     demande_close_view,
     demande_budget_view,
@@ -20,7 +22,11 @@ from apps.achats.views.validation_view import (
     pending_validations_view,
 )
 
+router = SimpleRouter()
+router.register(r"fournisseurs", FournisseurViewSet, basename="fournisseur")
+
 urlpatterns = [
+    path("", include(router.urls)),
     path("demandes/", demande_list_create_view, name="demande-list-create"),
     path("finance/pending/", finance_pending_view, name="finance-pending"),
     path("passation/pending/", passation_pending_view, name="passation-pending"),

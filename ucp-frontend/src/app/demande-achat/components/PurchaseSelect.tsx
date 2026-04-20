@@ -229,7 +229,6 @@ export default function PurchaseSelect({
               left: menuPosition.left,
               width: menuPosition.width,
               maxHeight: menuPosition.maxHeight,
-              zoom: 0.9,
             }}
           >
             {options.map((option, index) => {

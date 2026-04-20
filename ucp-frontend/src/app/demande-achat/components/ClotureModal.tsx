@@ -95,7 +95,7 @@ export default function ClotureModal({
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div 
-        className="flex w-full max-w-xl flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_24px_60px_rgba(15,23,42,0.16)] ring-1 ring-black/5 animate-in zoom-in-95 duration-200"
+        className="flex w-full max-w-xl flex-col overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-[0_24px_60px_rgba(15,23,42,0.16)] ring-1 ring-black/5 animate-in zoom-in-95 duration-200"
       >
         
         {/* Header */}

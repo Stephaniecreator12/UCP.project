@@ -32,6 +32,7 @@ def send_document_submitted_email(document: TdrStDocument) -> None:
         "unite": document.unite_technique,
         "initiateur": document.initiateur.get_full_name() or document.initiateur.username,
         "url": f"{settings.FRONTEND_URL}/TdrSt/verification/{document.id}",
+        "logo_url": f"{settings.FRONTEND_URL}/ucp-sante-logo-color.png",
     }
     
     html_message = render_to_string("emails/document_submitted.html", context)
@@ -65,6 +66,7 @@ def send_tech_decision_email(document: TdrStDocument, decision: str, observation
         "intitule": document.intitule,
         "observations": observations,
         "url": f"{settings.FRONTEND_URL}/TdrSt/formulaire?id={document.id}",
+        "logo_url": f"{settings.FRONTEND_URL}/ucp-sante-logo-color.png",
     }
     
     html_message = render_to_string(template, context)
@@ -102,6 +104,7 @@ def send_demande_final_approve_email(document: TdrStDocument) -> None:
         "unite": document.unite_technique,
         "initiateur": document.initiateur.get_full_name() or document.initiateur.username,
         "url": f"{settings.FRONTEND_URL}/TdrSt/approbation/{document.id}",
+        "logo_url": f"{settings.FRONTEND_URL}/ucp-sante-logo-color.png",
     }
     
     html_message = render_to_string("emails/demande_final_approve.html", context)
@@ -135,6 +138,7 @@ def send_final_decision_email(document: TdrStDocument, decision: str, observatio
         "intitule": document.intitule,
         "observations": observations,
         "url": f"{settings.FRONTEND_URL}/TdrSt/formulaire?id={document.id}",
+        "logo_url": f"{settings.FRONTEND_URL}/ucp-sante-logo-color.png",
     }
     
     html_message = render_to_string(template, context)
@@ -174,6 +178,7 @@ def send_ano_request_email(document: TdrStDocument) -> None:
         "unite": document.unite_technique,
         "initiateur": document.initiateur.get_full_name() or document.initiateur.username,
         "url": f"{settings.FRONTEND_URL}/TdrSt/ano/{document.id}",
+        "logo_url": f"{settings.FRONTEND_URL}/ucp-sante-logo-color.png",
     }
     
     html_message = render_to_string("emails/ano_request.html", context)
@@ -207,6 +212,7 @@ def send_ano_decision_email(document: TdrStDocument, decision: str, observations
         "intitule": document.intitule,
         "observations": observations,
         "url": f"{settings.FRONTEND_URL}/TdrSt/formulaire?id={document.id}",
+        "logo_url": f"{settings.FRONTEND_URL}/ucp-sante-logo-color.png",
     }
     
     html_message = render_to_string(template, context)
@@ -234,6 +240,7 @@ def send_document_suspended_email(document: TdrStDocument, observations: str) ->
         "intitule": document.intitule,
         "observations": observations,
         "url": f"{settings.FRONTEND_URL}/TdrSt/formulaire?id={document.id}",
+        "logo_url": f"{settings.FRONTEND_URL}/ucp-sante-logo-color.png",
     }
     
     html_message = render_to_string("emails/document_suspended.html", context)

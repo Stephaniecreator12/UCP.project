@@ -31,15 +31,16 @@ export default function ClotureModal({
   const [error, setError] = useState<string | null>(null);
 
   const [dateCloture, setDateCloture] = useState("");
-  const [statutFinal, setStatutFinal] = useState<CloseDemandePayload["statut_final"]>("CLOTURE");
+  const [statutFinal, setStatutFinal] = useState<CloseDemandePayload["statut_final"] | "">("");
   const [niveauSatisfaction, setNiveauSatisfaction] = useState<number>(0);
   const [commentairesFinaux, setCommentairesFinaux] = useState("");
 
   useEffect(() => {
     if (open && demande) {
       const today = new Date().toISOString().split("T")[0];
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setDateCloture(demande.date_cloture || today);
-      setStatutFinal((demande.statut_final as any) || "CLOTURE");
+      setStatutFinal((demande.statut_final as CloseDemandePayload["statut_final"]) || "");
       setNiveauSatisfaction(demande.niveau_satisfaction || 0);
       setCommentairesFinaux(demande.commentaires_finaux || "");
       setError(null);
@@ -65,6 +66,10 @@ export default function ClotureModal({
       setError("Veuillez donner une note de satisfaction.");
       return;
     }
+    if (!statutFinal) {
+      setError("Veuillez sélectionner le statut de clôture.");
+      return;
+    }
 
     setSaving(true);
     setError(null);
@@ -84,83 +89,83 @@ export default function ClotureModal({
 
   return (
     <div
-      className="fixed inset-0 z-[110] flex items-center justify-center overflow-y-auto bg-slate-950/65 p-3 backdrop-blur-sm sm:p-6 animate-in fade-in duration-200"
+      className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-950/65 p-3 backdrop-blur-sm sm:p-6 animate-in fade-in duration-200"
       role="dialog"
       aria-modal="true"
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div 
-        className="my-6 flex w-full max-w-[80rem] max-h-[calc(120vh-3rem)] min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl ring-1 ring-black/5 animate-in zoom-in-95 duration-200"
-        style={{ zoom: 0.8 }}
+        className="flex w-full max-w-xl flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_24px_60px_rgba(15,23,42,0.16)] ring-1 ring-black/5 animate-in zoom-in-95 duration-200"
       >
         
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-6 py-4">
-          <div className="flex items-center gap-3">
-            <Lock className="h-5 w-5 text-slate-700" />
-            <h2 className="text-xl font-bold text-slate-900 tracking-tight">Clôture finale : {demande.numero_demande}</h2>
+        <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50/90 px-5 py-4">
+          <div className="flex items-center gap-2">
+            <Lock className="h-4 w-4 text-slate-700" />
+            <h2 className="text-base font-bold tracking-tight text-slate-900">Clôture finale : {demande.numero_demande}</h2>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-200/60 text-slate-500 transition-colors hover:bg-slate-200 hover:text-slate-800"
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-200/50 text-slate-500 hover:bg-slate-200 hover:text-slate-800 transition-colors"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
         {/* Content Area */}
-        <div className="flex-1 min-h-0 overflow-y-auto bg-slate-50 p-6 space-y-5">
+        <div className="flex-1 min-h-0 space-y-4 bg-slate-50 p-4">
           
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 rounded-xl border border-slate-300 bg-white p-4 shadow-sm">
+          <div className="flex flex-col items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm sm:flex-row">
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-slate-900 truncate" title={demande.objet}>{demande.objet}</p>
-              <div className="mt-1 flex flex-wrap gap-3 text-xs text-slate-600">
-                <span>{getCompactNeedLabel(demande)}</span>
-                <span className="border-l border-slate-200 pl-3">Commande: {demande.numero_bon_commande || "-"}</span>
+              <p className="text-sm font-bold text-slate-900 truncate" title={demande.objet}>{demande.objet}</p>
+              <div className="mt-0.5 flex flex-wrap gap-2 text-[11px] text-slate-600 font-medium">
+                <span className="bg-slate-50 px-1.5 py-0.5 rounded-xl border border-slate-100">{getCompactNeedLabel(demande)}</span>
+                <span className="bg-slate-50 px-1.5 py-0.5 rounded-xl border border-slate-100 italic">Commande: {demande.numero_bon_commande || "-"}</span>
               </div>
             </div>
             <button
               type="button"
               onClick={onOpenDetail}
-              className="shrink-0 rounded-lg bg-slate-100 border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-200 transition-colors shadow-sm"
+              className="shrink-0 rounded-xl bg-slate-50 border border-slate-200 px-2.5 py-1 text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors shadow-sm"
             >
-              Voir détail
+              Détail
             </button>
           </div>
 
-          <form id="cloture-form" onSubmit={handleSubmit} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm space-y-5">
+          <form id="cloture-form" onSubmit={handleSubmit} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <div>
-               <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">
+               <p className="mb-3 border-b border-slate-100 pb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
                 Section 9 : Clôture finale
               </p>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-2">
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-slate-700">Date de clôture</label>
+                <label className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Date de clôture</label>
                 <input
                   type="date"
                   required
                   value={dateCloture}
                   onChange={(e) => setDateCloture(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 bg-slate-50 focus:bg-white py-2 px-3 text-sm shadow-sm transition-colors focus:border-slate-500 focus:ring-2 focus:ring-slate-100 outline-none"
+                  className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm shadow-sm transition-colors outline-none focus:border-slate-500 focus:bg-white focus:ring-2 focus:ring-slate-100"
                 />
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-slate-700">Statut de la clôture</label>
+                <label className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Statut de la clôture</label>
                 <PurchaseSelect
                   value={statutFinal}
                   onChange={(value) => setStatutFinal(value as CloseDemandePayload["statut_final"])}
                   options={[...statutFinalOptions]}
-                  className="w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm shadow-sm transition-colors outline-none focus:bg-white focus:border-slate-500 focus:ring-2 focus:ring-slate-100"
+                  placeholder="Sélectionner..."
+                  className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm shadow-sm transition-colors outline-none focus:border-slate-500 focus:bg-white focus:ring-2 focus:ring-slate-100"
                 />
               </div>
             </div>
 
             <div className="flex flex-col gap-1.5 pt-2">
-              <label className="text-xs font-semibold text-slate-700 mb-1">Niveau de satisfaction globale</label>
+              <label className="mb-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Niveau de satisfaction globale</label>
               <div className="flex items-center gap-2">
                 {[1, 2, 3, 4, 5].map((star) => (
                   <button
@@ -181,17 +186,17 @@ export default function ClotureModal({
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold text-slate-700">Commentaires et retour d'expérience</label>
+              <label className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Commentaires et retour d&apos;expérience</label>
               <textarea
                 value={commentairesFinaux}
                 onChange={(e) => setCommentairesFinaux(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 bg-slate-50 focus:bg-white py-2 px-3 text-sm shadow-sm transition-colors focus:border-slate-500 focus:ring-2 focus:ring-slate-100 outline-none min-h-[80px]"
-                placeholder="Renseignez le retour d'expérience, les points positifs et les difficultés rencontrées..."
+                className="min-h-[88px] w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm shadow-sm transition-colors outline-none focus:border-slate-500 focus:bg-white focus:ring-2 focus:ring-slate-100"
+                placeholder="Renseignez le retour d&apos;expérience, les points positifs et les difficultés rencontrées..."
               />
             </div>
             
             {error && (
-              <p className="text-xs font-medium text-rose-600 bg-rose-50 p-3 rounded-lg border border-rose-100">
+              <p className="text-xs font-medium text-rose-600 bg-rose-50 p-3 rounded-xl border border-rose-100">
                 {error}
               </p>
             )}
@@ -203,7 +208,7 @@ export default function ClotureModal({
             <button
               onClick={onClose}
               disabled={saving}
-              className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
+              className="rounded-xl px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
             >
               Annuler
             </button>
@@ -211,7 +216,7 @@ export default function ClotureModal({
               type="submit"
               form="cloture-form"
               disabled={saving}
-              className="inline-flex items-center gap-2 rounded-lg bg-slate-800 px-6 py-2 text-sm font-bold text-white hover:bg-slate-900 shadow-md transition-colors disabled:opacity-60"
+              className="inline-flex items-center gap-2 rounded-xl bg-slate-800 px-6 py-2 text-sm font-bold text-white hover:bg-slate-900 shadow-md transition-colors disabled:opacity-60"
             >
               {saving ? (
                 <>Archivage...</>

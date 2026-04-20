@@ -25,8 +25,11 @@ type ReceptionModalProps = {
   demande: DemandeAchat | null;
   open: boolean;
   onClose: () => void;
-  onOpenDetail: () => void;
   onSuccess: () => void;
+};
+
+type ReceptionFormLigne = Omit<ReceptionLignePayload, "quantite_recue"> & {
+  quantite_recue: number | "";
 };
 
 const getTodayDate = () => new Date().toISOString().split("T")[0];
@@ -36,15 +39,16 @@ const getDefaultReceptionnaire = (
   currentUser: ReturnType<typeof getCurrentUser>,
 ) => {
   if (demande?.receptionnaire) return demande.receptionnaire;
-  if (!currentUser) return "";
-  return `${currentUser.first_name} ${currentUser.last_name}`.trim();
+  if (!currentUser) return "Service logistique";
+  return `${currentUser.first_name} ${currentUser.last_name}`.trim() || "Service logistique";
 };
 
-const buildInitialLignes = (demande: DemandeAchat | null): ReceptionLignePayload[] => {
+const buildInitialLignes = (demande: DemandeAchat | null): ReceptionFormLigne[] => {
   if (!demande) return [];
-  return demande.lignes_besoin.map((ligne) => ({
+  const lignesBesoin = Array.isArray(demande.lignes_besoin) ? demande.lignes_besoin : [];
+  return lignesBesoin.map((ligne) => ({
     ligne_id: ligne.id!,
-    quantite_recue: ligne.quantite_recue ?? ("" as any),
+    quantite_recue: ligne.quantite_recue ?? "",
     observation_reception: ligne.observation_reception || "",
   }));
 };
@@ -72,15 +76,20 @@ export default function ReceptionModal({
   demande,
   open,
   onClose,
-  onOpenDetail,
   onSuccess,
 }: ReceptionModalProps) {
   const [currentUser] = useState(() => getCurrentUser());
+  const lignesBesoin = useMemo(
+    () => (Array.isArray(demande?.lignes_besoin) ? demande.lignes_besoin : []),
+    [demande],
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [dateReception, setDateReception] = useState(() => demande?.date_reception || "");
-  const [receptionnaire, setReceptionnaire] = useState(() => demande?.receptionnaire || "");
+  const [receptionnaire, setReceptionnaire] = useState(() =>
+    getDefaultReceptionnaire(demande, currentUser),
+  );
 
   const [conformiteQuantite, setConformiteQuantite] = useState<ReceiveDemandePayload["conformite_quantite"] | "">(() => (demande?.conformite_quantite as ReceiveDemandePayload["conformite_quantite"]) || "");
   const [conformiteQualite, setConformiteQualite] = useState<
@@ -90,32 +99,32 @@ export default function ReceptionModal({
   const [fileBL, setFileBL] = useState<File | null>(null);
   const [filePV, setFilePV] = useState<File | null>(null);
 
-  const [typeEcart, setTypeEcart] = useState<ReceiveDemandePayload["type_ecart"]>(
-    () => (demande?.type_ecart as ReceiveDemandePayload["type_ecart"]) || "MANQUANT",
+  const [typeEcart, setTypeEcart] = useState<ReceiveDemandePayload["type_ecart"] | "">(
+    () => (demande?.type_ecart as ReceiveDemandePayload["type_ecart"]) || "",
   );
   const [descriptionEcart, setDescriptionEcart] = useState(() => demande?.description_ecart || "");
   const [actionCorrective, setActionCorrective] = useState<
-    ReceiveDemandePayload["action_corrective"]
+    ReceiveDemandePayload["action_corrective"] | ""
   >(
     () =>
-      (demande?.action_corrective as ReceiveDemandePayload["action_corrective"]) || "REMPLACEMENT",
+      (demande?.action_corrective as ReceiveDemandePayload["action_corrective"]) || "",
   );
   const [dateResolution, setDateResolution] = useState(() => demande?.date_resolution || "");
   const [suiviResolution, setSuiviResolution] = useState(() => demande?.suivi_resolution || "");
   const [observationsReception, setObservationsReception] = useState(() => demande?.observations_reception || "");
 
-  const [lignes, setLignes] = useState<ReceptionLignePayload[]>(() => buildInitialLignes(demande));
+  const [lignes, setLignes] = useState<ReceptionFormLigne[]>(() => buildInitialLignes(demande));
 
   // Compute quantity diff automatically
   const isQuantiteDiff = useMemo(() => {
     if (!demande) return false;
     // Don't trigger diff if no quantities are entered yet
-    if (lignes.every(l => l.quantite_recue === "" as any)) return false;
+    if (lignes.every((ligne) => ligne.quantite_recue === "")) return false;
     return lignes.some((ligneState) => {
-      const dbLigne = demande.lignes_besoin.find(l => l.id === ligneState.ligne_id);
+      const dbLigne = lignesBesoin.find((ligne) => ligne.id === ligneState.ligne_id);
       return dbLigne && ligneState.quantite_recue !== "" && ligneState.quantite_recue !== (dbLigne.quantite || 0);
     });
-  }, [lignes, demande]);
+  }, [lignes, lignesBesoin, demande]);
 
   const isProblemDetected = useMemo(() => {
     return (conformiteQuantite !== "" && conformiteQuantite !== "CONFORME") || 
@@ -142,26 +151,38 @@ export default function ReceptionModal({
     };
   }, [onClose, open]);
 
-  // Reset lines state when demande changes
   useEffect(() => {
-    if (open) {
-      setLignes(buildInitialLignes(demande));
-    }
-  }, [demande, open]);
+    if (!open) return;
 
-  // Reset files when closing
-  useEffect(() => {
-    if (!open) {
-      setFileBL(null);
-      setFilePV(null);
-    }
-  }, [open]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setDateReception(demande?.date_reception || "");
+    setReceptionnaire(getDefaultReceptionnaire(demande, currentUser));
+    setConformiteQuantite(
+      (demande?.conformite_quantite as ReceiveDemandePayload["conformite_quantite"]) || "",
+    );
+    setConformiteQualite(
+      (demande?.conformite_qualite as ReceiveDemandePayload["conformite_qualite"]) || "",
+    );
+    setTypeEcart((demande?.type_ecart as ReceiveDemandePayload["type_ecart"]) || "");
+    setDescriptionEcart(demande?.description_ecart || "");
+    setActionCorrective(
+      (demande?.action_corrective as ReceiveDemandePayload["action_corrective"]) || "",
+    );
+    setDateResolution(demande?.date_resolution || "");
+    setSuiviResolution(demande?.suivi_resolution || "");
+    setObservationsReception(demande?.observations_reception || "");
+    setLignes(buildInitialLignes(demande));
+    setFileBL(null);
+    setFilePV(null);
+    setError(null);
+    setSaving(false);
+  }, [currentUser, demande, open]);
 
   if (!open || !demande) return null;
 
   const handleLigneChange = (
     ligneId: number,
-    field: keyof ReceptionLignePayload,
+    field: keyof ReceptionFormLigne,
     value: number | string,
   ) => {
     setLignes((previous) =>
@@ -171,10 +192,29 @@ export default function ReceptionModal({
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (conformiteQualite === "" || conformiteQuantite === "" || !dateReception || !receptionnaire) return;
+    if (!dateReception || conformiteQualite === "" || conformiteQuantite === "") return;
+
+    if (isProblemDetected && (!typeEcart || !actionCorrective || !descriptionEcart.trim())) {
+      setError("Renseignez le type d'écart, l'action corrective et le détail du problème.");
+      return;
+    }
 
     setSaving(true);
     setError(null);
+
+    const payloadLignes: ReceptionLignePayload[] = lignes
+      .filter(
+        (
+          ligne,
+        ): ligne is ReceptionFormLigne & {
+          quantite_recue: number;
+        } => ligne.quantite_recue !== "",
+      )
+      .map((ligne) => ({
+        ligne_id: ligne.ligne_id,
+        quantite_recue: ligne.quantite_recue,
+        observation_reception: ligne.observation_reception,
+      }));
 
     const payload: ReceiveDemandePayload & { date_resolution?: string, suivi_resolution?: string } = {
       date_reception: dateReception,
@@ -182,13 +222,13 @@ export default function ReceptionModal({
       conformite_quantite: conformiteQuantite as ReceiveDemandePayload["conformite_quantite"],
       conformite_qualite: conformiteQualite as ReceiveDemandePayload["conformite_qualite"],
       observations_reception: observationsReception,
-      lignes,
+      lignes: payloadLignes,
     };
 
     if (isProblemDetected) {
-      payload.type_ecart = typeEcart;
-      payload.description_ecart = descriptionEcart;
-      payload.action_corrective = actionCorrective;
+      payload.type_ecart = typeEcart as ReceiveDemandePayload["type_ecart"];
+      payload.description_ecart = descriptionEcart.trim();
+      payload.action_corrective = actionCorrective as ReceiveDemandePayload["action_corrective"];
       if (dateResolution) payload.date_resolution = dateResolution;
       if (suiviResolution) payload.suivi_resolution = suiviResolution;
     }
@@ -207,7 +247,7 @@ export default function ReceptionModal({
         await uploadDocumentDemandeAchat(demande.id, formDataPV);
       }
 
-      await receiveDemandeAchat(demande.id, payload as any);
+      await receiveDemandeAchat(demande.id, payload);
       onSuccess();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur lors de l'enregistrement");
@@ -225,13 +265,13 @@ export default function ReceptionModal({
       }}
     >
       <div 
-        className="w-full max-w-5xl w-[95vw] rounded-2xl bg-white shadow-2xl flex flex-col max-h-[95vh]"
+        className="w-full max-w-4xl w-[95vw] rounded-[30px] bg-white shadow-2xl flex flex-col max-h-[95vh]"
         style={{ zoom: 0.8 }}
       >
         {/* HEADER */}
         <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600">
               <ClipboardCheck className="h-5 w-5" />
             </div>
             <div>
@@ -256,7 +296,7 @@ export default function ReceptionModal({
         <form onSubmit={handleSubmit} className="flex flex-col p-4 md:p-5 gap-4 overflow-hidden">
           
           {/* BLOC 1 - EXPÉDITION (compact) */}
-          <div className="flex flex-wrap items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[13px] shrink-0">
+          <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-[13px] shrink-0">
             <div className="flex items-center font-bold text-slate-700">
               <Package className="mr-2 h-4 w-4 text-slate-500" />
               Livraison
@@ -285,24 +325,19 @@ export default function ReceptionModal({
             <div className="h-4 w-px bg-slate-300 hidden md:block"></div>
             <div className="text-slate-600 flex items-center gap-2">
               <span className="font-bold">Date réelle:</span>
-              <input type="date" required value={dateReception} onChange={(e) => setDateReception(e.target.value)} className="w-[120px] rounded border border-slate-200 bg-white px-2 py-1 text-xs text-slate-900 outline-none focus:border-emerald-500" />
-            </div>
-            <div className="h-4 w-px bg-slate-300 hidden md:block"></div>
-            <div className="text-slate-600 flex items-center gap-2 flex-1">
-              <span className="font-bold">Reçu par:</span>
-              <input type="text" required value={receptionnaire} onChange={(e) => setReceptionnaire(e.target.value)} placeholder="Nom..." className="min-w-[120px] flex-1 rounded border border-slate-200 bg-white px-2 py-1 text-xs text-slate-900 outline-none focus:border-emerald-500" />
+              <input type="date" required value={dateReception} onChange={(e) => setDateReception(e.target.value)} className="w-[120px] rounded-xl border border-slate-200 bg-white px-2 py-1 text-xs text-slate-900 outline-none focus:border-emerald-500" />
             </div>
           </div>
 
           {/* BLOC 2 - ARTICLES (Tableau scrollable) */}
-          <div className="flex flex-col rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden flex-1 min-h-0">
+          <div className="flex flex-col rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden flex-1 min-h-0">
             {/* Haut de Bloc 2: Infos Base (Ultra compact sur 1 ligne) */}
             <div className="flex flex-wrap items-center gap-4 border-b border-slate-100 px-4 py-2 bg-slate-50/50 rounded-t-xl">
               <div className="flex items-center gap-2 flex-1">
                 <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 whitespace-nowrap">
                   Observations
                 </label>
-                <input value={observationsReception} onChange={(e) => setObservationsReception(e.target.value)} placeholder="Constats finaux..." className="w-full rounded border border-slate-200 bg-white px-2 py-1 text-xs text-slate-800 outline-none focus:border-emerald-500" />
+                <input value={observationsReception} onChange={(e) => setObservationsReception(e.target.value)} placeholder="Constats finaux..." className="w-full rounded-xl border border-slate-200 bg-white px-2 py-1 text-xs text-slate-800 outline-none focus:border-emerald-500" />
               </div>
             </div>
 
@@ -318,7 +353,7 @@ export default function ReceptionModal({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {demande.lignes_besoin.map((ligne) => {
+                  {lignesBesoin.map((ligne) => {
                     const ligneState = lignes.find((i) => i.ligne_id === ligne.id);
                     if (!ligneState) return null;
                     const isDiff = ligneState.quantite_recue !== (ligne.quantite || 0);
@@ -332,7 +367,7 @@ export default function ReceptionModal({
                           <p className="text-xs text-slate-500">{ligne.unite || "unité"}</p>
                         </td>
                         <td className="px-4 py-2 text-center">
-                          <span className="rounded bg-slate-100 px-2 py-1 font-semibold text-slate-700">
+                          <span className="rounded-xl bg-slate-100 px-2 py-1 font-semibold text-slate-700">
                             {ligne.quantite || 0}
                           </span>
                         </td>
@@ -344,7 +379,7 @@ export default function ReceptionModal({
                               placeholder="0"
                               value={ligneState.quantite_recue === "" ? "" : ligneState.quantite_recue}
                               onChange={(e) => handleLigneChange(ligne.id!, "quantite_recue", e.target.value === "" ? "" : Number(e.target.value))}
-                              className={`w-full rounded border-2 bg-slate-50 focus:bg-white px-2 py-1 text-center text-[13px] font-bold outline-none transition-all placeholder:font-normal placeholder:text-slate-400 focus:ring-2 ${
+                              className={`w-full rounded-xl border-2 bg-slate-50 focus:bg-white px-2 py-1 text-center text-[13px] font-bold outline-none transition-all placeholder:font-normal placeholder:text-slate-400 focus:ring-2 ${
                                 ligneState.quantite_recue === "" ? "border-amber-400 focus:border-amber-500 focus:ring-amber-100" : 
                                 isDiff ? "border-amber-300 text-amber-700 focus:border-amber-500 focus:ring-amber-100" : "border-emerald-300 text-emerald-800 focus:border-emerald-500 focus:ring-emerald-100"
                               }`}
@@ -359,6 +394,13 @@ export default function ReceptionModal({
                       </tr>
                     );
                   })}
+                  {lignesBesoin.length === 0 && (
+                    <tr>
+                      <td colSpan={3} className="px-4 py-6 text-center text-sm text-slate-500">
+                        Aucune ligne de besoin n&apos;a pu être chargée pour cette demande.
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -369,13 +411,13 @@ export default function ReceptionModal({
               <div className="flex items-center gap-3 w-full md:w-auto">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Quantité :</span>
                 <div className="flex gap-1.5">
-                  <button type="button" onClick={() => setConformiteQuantite("CONFORME")} className={`rounded-lg border px-4 py-2 text-sm font-bold shadow-sm transition ${conformiteQuantite === "CONFORME" ? "border-emerald-500 bg-emerald-50 text-emerald-800" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>
+                  <button type="button" onClick={() => setConformiteQuantite("CONFORME")} className={`rounded-xl border px-4 py-2 text-sm font-bold shadow-sm transition ${conformiteQuantite === "CONFORME" ? "border-emerald-500 bg-emerald-50 text-emerald-800" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>
                     Conforme
                   </button>
-                  <button type="button" onClick={() => setConformiteQuantite("PARTIELLE")} className={`rounded-lg border px-4 py-2 text-sm font-bold shadow-sm transition ${conformiteQuantite === "PARTIELLE" ? "border-amber-500 bg-amber-50 text-amber-800" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>
+                  <button type="button" onClick={() => setConformiteQuantite("PARTIELLE")} className={`rounded-xl border px-4 py-2 text-sm font-bold shadow-sm transition ${conformiteQuantite === "PARTIELLE" ? "border-amber-500 bg-amber-50 text-amber-800" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>
                     Partielle
                   </button>
-                  <button type="button" onClick={() => setConformiteQuantite("NON_CONFORME")} className={`rounded-lg border px-4 py-2 text-sm font-bold shadow-sm transition ${conformiteQuantite === "NON_CONFORME" ? "border-rose-500 bg-rose-50 text-rose-800" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>
+                  <button type="button" onClick={() => setConformiteQuantite("NON_CONFORME")} className={`rounded-xl border px-4 py-2 text-sm font-bold shadow-sm transition ${conformiteQuantite === "NON_CONFORME" ? "border-rose-500 bg-rose-50 text-rose-800" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>
                     Non conforme
                   </button>
                 </div>
@@ -386,10 +428,10 @@ export default function ReceptionModal({
               <div className="flex items-center gap-3 w-full md:w-auto">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Qualité :</span>
                 <div className="flex gap-1.5">
-                  <button type="button" onClick={() => setConformiteQualite("CONFORME")} className={`rounded-lg border px-4 py-2 text-sm font-bold shadow-sm transition ${conformiteQualite === "CONFORME" ? "border-emerald-500 bg-emerald-50 text-emerald-800" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>
+                  <button type="button" onClick={() => setConformiteQualite("CONFORME")} className={`rounded-xl border px-4 py-2 text-sm font-bold shadow-sm transition ${conformiteQualite === "CONFORME" ? "border-emerald-500 bg-emerald-50 text-emerald-800" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>
                     Conforme
                   </button>
-                  <button type="button" onClick={() => setConformiteQualite("NON_CONFORME")} className={`rounded-lg border px-4 py-2 text-sm font-bold shadow-sm transition ${conformiteQualite === "NON_CONFORME" || conformiteQualite === "DEFECTUEUX" ? "border-amber-500 bg-amber-50 text-amber-800" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>
+                  <button type="button" onClick={() => setConformiteQualite("NON_CONFORME")} className={`rounded-xl border px-4 py-2 text-sm font-bold shadow-sm transition ${conformiteQualite === "NON_CONFORME" || conformiteQualite === "DEFECTUEUX" ? "border-amber-500 bg-amber-50 text-amber-800" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>
                     Problème
                   </button>
                 </div>
@@ -399,7 +441,7 @@ export default function ReceptionModal({
           </div>
           {/* BLOC 3 - ÉCART (Conditionnel) */}
           {isProblemDetected && (
-            <div className="flex animate-in fade-in slide-in-from-top-2 gap-3 rounded-lg border border-rose-200 bg-rose-50 p-3 flex-col shrink-0">
+            <div className="flex animate-in fade-in slide-in-from-top-2 gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-3 flex-col shrink-0">
               <div className="flex items-center gap-2 mb-1">
                 <div className="rounded-full bg-rose-100 p-1.5 text-rose-600 shrink-0">
                   <AlertCircle className="h-4 w-4" />
@@ -411,22 +453,22 @@ export default function ReceptionModal({
                   value={typeEcart}
                   onChange={(value) => setTypeEcart(value as ReceiveDemandePayload["type_ecart"])}
                   options={[...typeEcartOptions]}
-                  className="rounded border border-rose-200 bg-white px-2 py-1.5 text-xs font-semibold text-rose-900 outline-none"
+                  className="rounded-xl border border-rose-200 bg-white px-2 py-1.5 text-xs font-semibold text-rose-900 outline-none"
                 />
                 <PurchaseSelect
                   value={actionCorrective}
                   onChange={(value) => setActionCorrective(value as ReceiveDemandePayload["action_corrective"])}
                   options={[...actionCorrectiveOptions]}
-                  className="rounded border border-rose-200 bg-white px-2 py-1.5 text-xs font-semibold text-rose-900 outline-none"
+                  className="rounded-xl border border-rose-200 bg-white px-2 py-1.5 text-xs font-semibold text-rose-900 outline-none"
                 />
-                <input type="text" required value={descriptionEcart} onChange={(e) => setDescriptionEcart(e.target.value)} placeholder="Détail du problème..." className="rounded border border-rose-200 bg-white px-2 py-1.5 text-xs text-slate-800 outline-none placeholder:text-rose-300" />
+                <input type="text" required value={descriptionEcart} onChange={(e) => setDescriptionEcart(e.target.value)} placeholder="Détail du problème..." className="rounded-xl border border-rose-200 bg-white px-2 py-1.5 text-xs text-slate-800 outline-none placeholder:text-rose-300" />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div className="flex items-center gap-2 bg-white rounded border border-rose-200 px-2 py-1">
+                <div className="flex items-center gap-2 bg-white rounded-xl border border-rose-200 px-2 py-1">
                   <label className="text-xs font-bold text-rose-800 whitespace-nowrap">Date de résolution</label>
                   <input type="date" value={dateResolution} onChange={(e) => setDateResolution(e.target.value)} className="w-full bg-transparent text-xs text-slate-800 outline-none" />
                 </div>
-                <div className="flex items-center gap-2 bg-white rounded border border-rose-200 px-2 py-1">
+                <div className="flex items-center gap-2 bg-white rounded-xl border border-rose-200 px-2 py-1">
                   <label className="text-xs font-bold text-rose-800 whitespace-nowrap">Suivi résol.</label>
                   <input type="text" value={suiviResolution} onChange={(e) => setSuiviResolution(e.target.value)} placeholder="Commentaires..." className="w-full bg-transparent text-xs text-slate-800 outline-none" />
                 </div>
@@ -435,7 +477,7 @@ export default function ReceptionModal({
           )}
 
           {error && (
-            <div className="rounded-lg border border-rose-200 bg-white px-3 py-2 text-xs font-medium text-rose-600">
+            <div className="rounded-xl border border-rose-200 bg-white px-3 py-2 text-xs font-medium text-rose-600">
               {error}
             </div>
           )}
@@ -446,16 +488,16 @@ export default function ReceptionModal({
               {/* Documents (Compact) */}
               <div className="flex gap-3">
                 <input type="file" id="bl-upload" className="hidden" onChange={(e) => setFileBL(e.target.files?.[0] || null)} />
-                <label htmlFor="bl-upload" className="flex cursor-pointer items-center gap-1.5 rounded border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-700 transition hover:bg-slate-100 shadow-sm">
+                <label htmlFor="bl-upload" className="flex cursor-pointer items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-700 transition hover:bg-slate-100 shadow-sm">
                   <FileText className="h-4 w-4 text-slate-400" />
-                  {fileBL ? `BL: ${fileBL.name.substring(0,10)}...` : <span>Bon livraison <span className="ml-1 text-slate-400 font-normal">[+]</span></span>}
+                  {fileBL ? <span className="max-w-[140px] truncate" title={fileBL.name}>BL: {fileBL.name}</span> : <span>Bon livraison <span className="ml-1 text-slate-400 font-normal">[+]</span></span>}
                   {fileBL && <Check className="h-3 w-3 text-emerald-600" />}
                 </label>
 
                 <input type="file" id="pv-upload" className="hidden" onChange={(e) => setFilePV(e.target.files?.[0] || null)} />
-                <label htmlFor="pv-upload" className="flex cursor-pointer items-center gap-1.5 rounded border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-700 transition hover:bg-slate-100 shadow-sm">
+                <label htmlFor="pv-upload" className="flex cursor-pointer items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-700 transition hover:bg-slate-100 shadow-sm">
                   <FileText className="h-4 w-4 text-slate-400" />
-                  {filePV ? `PV: ${filePV.name.substring(0,10)}...` : <span>PV réception <span className="ml-1 text-slate-400 font-normal">[+]</span></span>}
+                  {filePV ? <span className="max-w-[140px] truncate" title={filePV.name}>PV: {filePV.name}</span> : <span>PV réception <span className="ml-1 text-slate-400 font-normal">[+]</span></span>}
                   {filePV && <Check className="h-3 w-3 text-emerald-600" />}
                 </label>
               </div>
@@ -463,7 +505,7 @@ export default function ReceptionModal({
 
             <button
               type="submit"
-              disabled={saving || conformiteQualite === "" || conformiteQuantite === "" || lignes.some(l => l.quantite_recue === "" as any) || !dateReception || !receptionnaire}
+              disabled={saving || conformiteQualite === "" || conformiteQuantite === "" || lignes.some((ligne) => ligne.quantite_recue === "") || !dateReception}
               className={`inline-flex w-full md:w-auto shrink-0 items-center justify-center gap-2 rounded-xl px-8 py-3 text-[13px] font-black uppercase tracking-wider text-white shadow-[0_8px_20px_rgba(5,150,105,0.3)] transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none disabled:hover:translate-y-0 ${
                 isProblemDetected
                   ? "bg-amber-600 hover:bg-amber-700"

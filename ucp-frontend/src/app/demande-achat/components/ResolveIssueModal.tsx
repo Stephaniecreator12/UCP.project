@@ -26,6 +26,7 @@ export default function ResolveIssueModal({
   useEffect(() => {
     if (open && demande) {
       const today = new Date().toISOString().split("T")[0];
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setDateResolution(today);
       setSuiviResolution("");
       setError(null);
@@ -55,48 +56,47 @@ export default function ResolveIssueModal({
 
   return (
     <div
-      className="fixed inset-0 z-[120] grid place-items-center overflow-y-auto bg-slate-950/70 p-4 backdrop-blur-md animate-in fade-in duration-300 py-10"
+      className="fixed inset-0 z-[120] grid place-items-center bg-slate-950/70 p-4 backdrop-blur-sm animate-in fade-in duration-300"
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div 
-        className="w-full max-w-2xl rounded-3xl border border-white/20 bg-white shadow-2xl animate-in zoom-in-95 duration-300 overflow-hidden"
-        style={{ zoom: 0.8 }}
+        className="w-full max-w-xl overflow-hidden rounded-[28px] border border-white/20 bg-white shadow-[0_24px_60px_rgba(15,23,42,0.18)] animate-in zoom-in-95 duration-300"
       >
         
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-100 bg-amber-50/50 px-8 py-6">
-          <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500 shadow-lg shadow-amber-200">
-              <ShieldAlert className="h-6 w-6 text-white" />
+        <div className="flex items-center justify-between border-b border-slate-100 bg-amber-50/60 px-5 py-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-500 shadow-lg shadow-amber-200/70">
+              <ShieldAlert className="h-5 w-5 text-white" />
             </div>
             <div>
-              <h2 className="text-xl font-black text-slate-900 tracking-tight">RÉSOLUTION D'ÉCART</h2>
-              <p className="text-xs font-bold text-amber-700 uppercase tracking-widest">Mise à jour du statut de livraison</p>
+              <h2 className="text-lg font-black tracking-tight text-slate-900">Résolution d&apos;écart</h2>
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-700">Mise à jour du statut de livraison</p>
             </div>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-rose-600 transition-colors">
-            <X className="h-6 w-6" />
+          <button onClick={onClose} className="rounded-2xl border border-slate-200 bg-white p-2.5 text-slate-400 transition-colors hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600">
+            <X className="h-4 w-4" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-8 space-y-6">
+        <div className="space-y-4 p-5">
           
           {/* Ecart Summary Card */}
-          <div className="rounded-2xl border border-amber-200 bg-amber-50/30 p-5 space-y-3">
+          <div className="space-y-2.5 rounded-2xl border border-amber-200 bg-amber-50/30 p-4">
             <div className="flex items-center justify-between">
-               <span className="text-[10px] font-black text-amber-800 uppercase bg-amber-100 px-2 py-0.5 rounded-full">Écart constaté</span>
-               <span className="text-xs font-bold text-slate-500 uppercase tracking-tighter">DA {demande.numero_demande}</span>
+               <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black uppercase text-amber-800">Écart constaté</span>
+               <span className="text-[11px] font-bold uppercase tracking-tight text-slate-500">DA {demande.numero_demande}</span>
             </div>
             <div>
               <p className="text-sm font-black text-slate-900">{toDisplayLabel(demande.type_ecart)}</p>
-              <p className="mt-1 text-sm text-slate-600 leading-relaxed italic">"{demande.description_ecart || "Aucune description fournie."}"</p>
+              <p className="mt-1 text-sm italic leading-relaxed text-slate-600">&quot;{demande.description_ecart || "Aucune description fournie."}&quot;</p>
             </div>
           </div>
 
-          <form id="resolve-issue-form" onSubmit={handleSubmit} className="space-y-6">
-             <div className="group space-y-2">
-                <label className="flex items-center gap-2 text-xs font-black text-slate-700 uppercase ml-1 group-focus-within:text-amber-600 transition-colors">
+          <form id="resolve-issue-form" onSubmit={handleSubmit} className="space-y-4">
+             <div className="group space-y-1.5">
+                <label className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 transition-colors group-focus-within:text-amber-600">
                   <Calendar className="h-3.5 w-3.5" />
                   Date de résolution <span className="text-rose-500">*</span>
                 </label>
@@ -105,12 +105,12 @@ export default function ResolveIssueModal({
                   required
                   value={dateResolution}
                   onChange={(e) => setDateResolution(e.target.value)}
-                  className="w-full rounded-2xl border border-slate-200 bg-white py-3.5 px-5 text-sm font-bold shadow-sm transition-all focus:border-amber-500 focus:ring-4 focus:ring-amber-50 outline-none"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-semibold shadow-sm outline-none transition-all focus:border-amber-500 focus:ring-4 focus:ring-amber-50"
                 />
              </div>
 
-             <div className="group space-y-2">
-                <label className="flex items-center gap-2 text-xs font-black text-slate-700 uppercase ml-1 group-focus-within:text-amber-600 transition-colors">
+             <div className="group space-y-1.5">
+                <label className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 transition-colors group-focus-within:text-amber-600">
                   <MessageSquare className="h-3.5 w-3.5" />
                   Commentaire / Solution apportée <span className="text-rose-500">*</span>
                 </label>
@@ -118,7 +118,7 @@ export default function ResolveIssueModal({
                   required
                   value={suiviResolution}
                   onChange={(e) => setSuiviResolution(e.target.value)}
-                  className="w-full rounded-2xl border border-slate-200 bg-white py-4 px-5 text-sm font-medium shadow-sm outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-50 min-h-[120px]"
+                  className="min-h-[104px] w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-medium shadow-sm outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-50"
                   placeholder="Expliquez comment l'écart a été résolu (remplacement reçu, avoir crédité, etc.)..."
                 />
              </div>
@@ -133,25 +133,25 @@ export default function ResolveIssueModal({
         </div>
 
         {/* Footer */}
-        <div className="border-t border-slate-100 bg-slate-50/80 px-8 py-6 flex items-center justify-between">
+        <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50/80 px-5 py-4">
            <button
               type="button"
               onClick={onClose}
               disabled={saving}
-              className="text-sm font-black text-slate-500 hover:text-slate-800 transition-colors"
+              className="text-sm font-semibold text-slate-500 transition-colors hover:text-slate-800"
             >
-              ANNULER
+              Annuler
             </button>
             <button
               type="submit"
               form="resolve-issue-form"
               disabled={saving || !suiviResolution}
-              className="inline-flex items-center gap-3 rounded-2xl bg-slate-900 px-8 py-4 text-sm font-black text-white shadow-xl hover:bg-black transition-all active:scale-95 disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white shadow-lg transition-all hover:bg-black active:scale-95 disabled:opacity-50"
             >
-              {saving ? "ENREGISTREMENT..." : (
+              {saving ? "Enregistrement..." : (
                 <>
-                  <CheckCircle className="h-5 w-5" />
-                  CONFIRMER LA RÉSOLUTION
+                  <CheckCircle className="h-4 w-4" />
+                  Confirmer la résolution
                 </>
               )}
             </button>

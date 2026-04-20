@@ -11,7 +11,6 @@ import ResolveIssueModal from "@/app/demande-achat/components/ResolveIssueModal"
 import ClotureModal from "@/app/demande-achat/components/ClotureModal";
 import ReceptionModal from "@/app/demande-achat/components/ReceptionModal";
 import { DashboardFilterBar, useDashboardFilters } from "@/app/demande-achat/components/DashboardFilterBar";
-import "../zoom.css";
 import {
   type DemandePrimaryAction,
   formatDate,
@@ -480,13 +479,10 @@ export default function DashboardPage() {
       />
 
       <ReceptionModal
+        key={receptionModalDemandeId ? `reception-${receptionModalDemandeId}` : "reception-closed"}
         demande={demandes.find((item) => item.id === receptionModalDemandeId) ?? null}
         open={!!receptionModalDemandeId}
         onClose={() => setReceptionModalDemandeId(null)}
-        onOpenDetail={() => {
-          setSelectedDemandeId(receptionModalDemandeId);
-          setDetailViewMode("detail");
-        }}
         onSuccess={() => {
           setReceptionModalDemandeId(null);
           reloadDemandes();

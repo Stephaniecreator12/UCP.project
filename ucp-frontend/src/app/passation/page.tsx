@@ -68,8 +68,6 @@ type AccordionSectionProps = {
   onOpenDetail: (id: number) => void;
   onOpenTimeline: (id: number) => void;
   onOpenPassation: (id: number) => void;
-  activeRingClass: string;
-  hoverBorderClass: string;
 };
 
 type PaginationControlsProps = {
@@ -100,7 +98,7 @@ const isOrderedCandidate = (demande: DemandeAchat) =>
 
 const getAgentSectionNote = (demande: DemandeAchat) => {
   if (demande.statut === "VALIDEE_BUDGETAIRE") {
-    return "Budget validé, bon de commande à créer";
+    return "Dossier validé, bon de commande à créer";
   }
 
   if (demande.date_bon_commande) {
@@ -195,7 +193,7 @@ export default function PassationDashboardPage() {
       borderClass: "border-sky-200",
       items: passationDemandes,
       total: passationDemandes.length,
-      emptyText: "Aucun dossier validé budgétairement à transformer en commande.",
+      emptyText: "Aucun dossier validé pour passation à transformer en commande.",
     },
     ordered: {
       key: "ordered",
@@ -218,147 +216,142 @@ export default function PassationDashboardPage() {
   const selectedDemande = useMemo(() => demandes.find((item) => item.id === selectedDemandeId) ?? null, [demandes, selectedDemandeId]);
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_10%_0%,#f6faf8_0%,transparent_25%),linear-gradient(180deg,#f8fafc_0%,#f1f5f9_100%)] text-slate-800 font-sans antialiased selection:bg-sky-100 selection:text-sky-900 pb-12">
+    <main className="min-h-screen bg-slate-50 text-slate-800 font-sans antialiased selection:bg-sky-100 selection:text-sky-900 pb-12">
       <TopHeader />
 
       <div className="zoom-content h-full">
-        <div className="max-w-7xl-zoomed mx-auto px-6 py-10 animate-in slide-in-from-bottom-8 duration-700">
-          <div className="mb-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div className="flex items-center gap-5">
-              <div className="h-14 w-14 flex items-center justify-center rounded-2xl bg-sky-600 text-white shadow-xl shadow-sky-500/20">
-                <Package className="h-7 w-7" />
+        <div className="mx-auto max-w-5xl-zoomed px-4 py-8 animate-in slide-in-from-bottom-8 duration-700">
+          <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-sky-600 text-white shadow-lg shadow-sky-500/15">
+                <Package className="h-6 w-6" />
               </div>
               <div>
-                <h1 className="text-2xl font-black tracking-tight text-slate-900 leading-tight">Espace Passation</h1>
-                <p className="text-[13px] font-bold text-sky-600 uppercase tracking-widest mt-0.5">{agentRoleLabel || "Agent achat"}</p>
+                <h1 className="text-xl font-bold tracking-tight text-slate-900">Espace Passation</h1>
+                <p className="mt-0.5 text-[11px] font-bold uppercase tracking-[0.28em] text-sky-600">{agentRoleLabel || "Agent achat"}</p>
               </div>
             </div>
 
-            <div className="flex items-center gap-4 w-full md:w-auto">
-              <div className="group relative flex-1 sm:w-80">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 transition-colors group-focus-within:text-sky-500" />
+            <div className="flex items-center gap-3 w-full md:w-auto">
+              <div className="group relative flex-1 sm:w-72">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 transition-colors group-focus-within:text-sky-500" />
                 <input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Rechercher un dossier par numéro, objet..."
-                  className="w-full bg-white/70 border border-white/40 backdrop-blur-md rounded-2xl py-3 pl-11 pr-10 text-[14px] outline-none shadow-[0_4px_12px_rgba(0,0,0,0.03)] transition-all focus:bg-white focus:border-sky-500 focus:ring-4 focus:ring-sky-500/10 placeholder:text-slate-400"
+                  className="w-full bg-white border border-slate-300/80 rounded-xl py-2.5 pl-9 pr-9 text-sm outline-none shadow-sm transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/10 placeholder:text-slate-400"
                 />
                 {query && (
-                  <button onClick={() => setQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-rose-500 transition-colors">
-                    <X className="h-4 w-4" />
+                  <button onClick={() => setQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-rose-500 transition-colors">
+                    <X className="h-3.5 w-3.5" />
                   </button>
                 )}
               </div>
             </div>
           </div>
-        </div>
 
-        {loading ? (
-          <div className="space-y-4 animate-pulse">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="h-32 rounded-2xl border border-white/40 bg-white/60 shadow-sm flex flex-col justify-between p-4 gap-4">
-                <div className="flex-1 space-y-3">
-                  <div className="flex gap-2">
-                    <div className="h-4 w-20 bg-slate-200 rounded"></div>
-                    <div className="h-4 w-16 bg-slate-100 rounded"></div>
+          {loading ? (
+            <div className="space-y-4 animate-pulse">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="h-32 rounded-2xl border border-white/40 bg-white/60 shadow-sm flex flex-col justify-between p-4 gap-4">
+                  <div className="flex-1 space-y-3">
+                    <div className="flex gap-2">
+                      <div className="h-4 w-20 bg-slate-200 rounded"></div>
+                      <div className="h-4 w-16 bg-slate-100 rounded"></div>
+                    </div>
+                    <div className="h-5 w-3/4 bg-slate-200 rounded"></div>
                   </div>
-                  <div className="h-5 w-3/4 bg-slate-200 rounded"></div>
+                  <div className="flex justify-end gap-2">
+                    <div className="h-8 w-20 bg-slate-100 rounded-lg"></div>
+                    <div className="h-8 w-32 bg-slate-200 rounded-lg"></div>
+                  </div>
                 </div>
-                <div className="flex justify-end gap-2">
-                  <div className="h-8 w-20 bg-slate-100 rounded-lg"></div>
-                  <div className="h-8 w-32 bg-slate-200 rounded-lg"></div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : error ? (
-          <div className="rounded-xl border-l-4 border-rose-500 bg-white p-5 text-sm font-medium text-rose-800 shadow-sm">
-            {error}
-          </div>
-        ) : (
-          <div className="mb-8 space-y-6">
-            <DashboardFilterBar filterProps={filterProps} />
+              ))}
+            </div>
+          ) : error ? (
+            <div className="rounded-xl border-l-4 border-rose-500 bg-white p-5 text-sm font-medium text-rose-800 shadow-sm">
+              {error}
+            </div>
+          ) : (
+            <div className="mb-6 space-y-5">
+              <DashboardFilterBar filterProps={filterProps} compact />
 
-            {filteredDemandes.length === 0 && !isSearching ? (
-              <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center shadow-sm">
-                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-sky-50 mb-4">
-                  <Package className="h-8 w-8 text-sky-500" />
+              {filteredDemandes.length === 0 && !isSearching ? (
+                <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center shadow-sm">
+                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-sky-50 mb-4">
+                    <Package className="h-8 w-8 text-sky-500" />
+                  </div>
+                  <h2 className="text-lg font-bold text-slate-900 mb-2">Aucun dossier</h2>
+                  <p className="text-sm text-slate-500">
+                    {demandes.length > 0 ? "Aucun dossier ne correspond à vos filtres." : "Votre file de traitement est actuellement vide."}
+                  </p>
+                  {(filterProps.selectedFinancements.length > 0 || filterProps.selectedTypes.length > 0) && (
+                    <button 
+                      onClick={() => { filterProps.setSelectedFinancements([]); filterProps.setSelectedTypes([]); }}
+                      className="mt-4 text-sm font-bold text-sky-600 hover:underline"
+                    >
+                      Effacer les filtres
+                    </button>
+                  )}
                 </div>
-                <h2 className="text-lg font-bold text-slate-900 mb-2">Aucun dossier</h2>
-                <p className="text-sm text-slate-500">
-                  {demandes.length > 0 ? "Aucun dossier ne correspond à vos filtres." : "Votre file de traitement est actuellement vide."}
-                </p>
-                {(filterProps.selectedFinancements.length > 0 || filterProps.selectedTypes.length > 0) && (
-                  <button 
-                    onClick={() => { filterProps.setSelectedFinancements([]); filterProps.setSelectedTypes([]); }}
-                    className="mt-4 text-sm font-bold text-sky-600 hover:underline"
-                  >
-                    Effacer les filtres
-                  </button>
-                )}
-              </div>
-            ) : isSearching ? (
-              <div className="animate-in slide-in-from-top-2 fade-in duration-300">
-                <SearchResultsList
-                  items={searchResults}
-                  query={query}
-                  currentUser={currentUser}
-                  router={router}
-                  onOpenDetail={(id: number) => {
-                    setSelectedDemandeId(id);
-                    setDetailViewMode("detail");
-                  }}
-                  onOpenTimeline={(id: number) => {
-                    setSelectedDemandeId(id);
-                    setDetailViewMode("timeline");
-                  }}
-                  onOpenPassation={(id: number) => setPassationModalDemandeId(id)}
-                />
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <AccordionSection
-                  section={sections.passation}
-                  isActive={activeSection === "passation"}
-                  onToggle={() => setActiveSection(activeSection === "passation" ? null : "passation")}
-                  currentUser={currentUser}
-                  router={router}
-                  onOpenDetail={(id: number) => {
-                    setSelectedDemandeId(id);
-                    setDetailViewMode("detail");
-                  }}
-                  onOpenTimeline={(id: number) => {
-                    setSelectedDemandeId(id);
-                    setDetailViewMode("timeline");
-                  }}
-                  onOpenPassation={(id: number) => setPassationModalDemandeId(id)}
-                  activeRingClass="ring-sky-50 border-sky-300"
-                  hoverBorderClass="hover:border-sky-200"
-                />
-                <AccordionSection
-                  section={sections.ordered}
-                  isActive={activeSection === "ordered"}
-                  onToggle={() => setActiveSection(activeSection === "ordered" ? null : "ordered")}
-                  currentUser={currentUser}
-                  router={router}
-                  onOpenDetail={(id: number) => {
-                    setSelectedDemandeId(id);
-                    setDetailViewMode("detail");
-                  }}
-                  onOpenTimeline={(id: number) => {
-                    setSelectedDemandeId(id);
-                    setDetailViewMode("timeline");
-                  }}
-                  onOpenPassation={(id: number) => setPassationModalDemandeId(id)}
-                  activeRingClass="ring-slate-100 border-slate-300"
-                  hoverBorderClass="hover:border-slate-300"
-                />
-              </div>
-            )}
-          </div>
-        )}
+              ) : isSearching ? (
+                <div className="animate-in slide-in-from-top-2 fade-in duration-300">
+                  <SearchResultsList
+                    items={searchResults}
+                    query={query}
+                    currentUser={currentUser}
+                    router={router}
+                    onOpenDetail={(id: number) => {
+                      setSelectedDemandeId(id);
+                      setDetailViewMode("detail");
+                    }}
+                    onOpenTimeline={(id: number) => {
+                      setSelectedDemandeId(id);
+                      setDetailViewMode("timeline");
+                    }}
+                    onOpenPassation={(id: number) => setPassationModalDemandeId(id)}
+                  />
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <AccordionSection
+                    section={sections.passation}
+                    isActive={activeSection === "passation"}
+                    onToggle={() => setActiveSection(activeSection === "passation" ? null : "passation")}
+                    currentUser={currentUser}
+                    router={router}
+                    onOpenDetail={(id: number) => {
+                      setSelectedDemandeId(id);
+                      setDetailViewMode("detail");
+                    }}
+                    onOpenTimeline={(id: number) => {
+                      setSelectedDemandeId(id);
+                      setDetailViewMode("timeline");
+                    }}
+                    onOpenPassation={(id: number) => setPassationModalDemandeId(id)}
+                  />
+                  <AccordionSection
+                    section={sections.ordered}
+                    isActive={activeSection === "ordered"}
+                    onToggle={() => setActiveSection(activeSection === "ordered" ? null : "ordered")}
+                    currentUser={currentUser}
+                    router={router}
+                    onOpenDetail={(id: number) => {
+                      setSelectedDemandeId(id);
+                      setDetailViewMode("detail");
+                    }}
+                    onOpenTimeline={(id: number) => {
+                      setSelectedDemandeId(id);
+                      setDetailViewMode("timeline");
+                    }}
+                    onOpenPassation={(id: number) => setPassationModalDemandeId(id)}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
 
       <DemandeDetailModal
         demande={selectedDemande}
@@ -393,9 +386,9 @@ function SearchResultsList({ items, query, currentUser, router, onOpenDetail, on
 
   return (
     <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-      <div className="bg-slate-50 border-b border-slate-200 px-5 py-4">
-        <h2 className="text-lg font-bold text-slate-800">Résultats de recherche</h2>
-        <p className="text-sm text-slate-500">
+      <div className="bg-slate-50 border-b border-slate-200 px-4 py-3.5">
+        <h2 className="text-base font-bold text-slate-800">Résultats de recherche</h2>
+        <p className="text-xs text-slate-500">
           {items.length} correspondant à « {query} »
         </p>
       </div>
@@ -403,7 +396,7 @@ function SearchResultsList({ items, query, currentUser, router, onOpenDetail, on
       {items.length === 0 ? (
         <div className="p-8 text-center text-slate-500">Aucun résultat trouvé pour cette recherche.</div>
       ) : (
-        <div className="p-4 space-y-3">
+        <div className="p-3 space-y-2.5">
           {paginatedItems.map((demande: DemandeAchat) => (
             <CompactDemandeRow
               key={demande.id}
@@ -425,7 +418,7 @@ function SearchResultsList({ items, query, currentUser, router, onOpenDetail, on
   );
 }
 
-function AccordionSection({ section, isActive, onToggle, currentUser, router, onOpenDetail, onOpenTimeline, onOpenPassation, activeRingClass, hoverBorderClass }: AccordionSectionProps) {
+function AccordionSection({ section, isActive, onToggle, currentUser, router, onOpenDetail, onOpenTimeline, onOpenPassation }: AccordionSectionProps) {
   const Icon = section.icon;
   const hasItems = section.total > 0;
   const sectionRef = useRef<HTMLDivElement>(null);
@@ -443,11 +436,11 @@ function AccordionSection({ section, isActive, onToggle, currentUser, router, on
   }, [isActive]);
 
   return (
-    <div ref={sectionRef} className={`overflow-hidden rounded-[28px] border transition-all duration-500 ${isActive ? `border-white/60 bg-white/80 shadow-[0_32px_64px_rgba(15,23,42,0.12)] backdrop-blur-xl ring-1 ring-white/50` : `border-white/40 bg-white/60 backdrop-blur-md shadow-[0_8px_32px_rgba(0,0,0,0.04)] hover:shadow-[0_12px_48px_rgba(0,0,0,0.06)] hover:-translate-y-0.5`}`}>
+    <div ref={sectionRef} className={`overflow-hidden rounded-2xl border transition-all duration-300 ${isActive ? 'border-slate-300 bg-white shadow-md ring-4 ring-slate-100' : 'border-slate-200 bg-white shadow-sm hover:border-slate-300'}`}>
       <button
         onClick={onToggle}
         disabled={!hasItems}
-        className={`w-full flex items-center justify-between px-8 py-6 transition-colors ${!hasItems ? 'cursor-not-allowed opacity-60' : isActive ? 'bg-slate-50/30' : 'hover:bg-white/40'}`}
+        className={`w-full flex items-center justify-between px-5 py-4 transition-colors ${!hasItems ? 'bg-slate-50/50 cursor-not-allowed opacity-60' : isActive ? 'bg-slate-50 border-b border-slate-200' : 'bg-white hover:bg-slate-50'}`}
       >
         <div className="flex items-center gap-4">
           <div className={`p-2 rounded-xl shadow-inner bg-gradient-to-br ${section.gradientFrom} ${section.gradientTo} text-white`}>
@@ -462,10 +455,10 @@ function AccordionSection({ section, isActive, onToggle, currentUser, router, on
         
         {hasItems && (
           <div className="flex items-center gap-2 text-sm font-semibold text-slate-500">
-            <span className={isActive ? 'text-slate-700' : 'text-slate-400'}>
+            <span className={isActive ? 'text-sky-600' : 'text-slate-400'}>
               {isActive ? 'Fermer' : 'Traiter'}
             </span>
-            <div className={`p-1 rounded-full transition-colors ${isActive ? 'bg-slate-200 text-slate-700' : 'bg-slate-100 text-slate-400'}`}>
+            <div className={`p-1 rounded-full transition-colors ${isActive ? 'bg-sky-100 text-sky-600' : 'bg-slate-100 text-slate-400'}`}>
               <ChevronDown className={`h-4 w-4 transition-transform duration-300 ${isActive ? 'rotate-180' : ''}`} />
             </div>
           </div>
@@ -473,7 +466,7 @@ function AccordionSection({ section, isActive, onToggle, currentUser, router, on
       </button>
 
       {isActive && hasItems && (
-        <div className="bg-slate-50/50 p-4 space-y-3">
+        <div className="bg-slate-50/50 p-3 space-y-2.5">
           {paginatedItems.map((demande) => (
             <CompactDemandeRow
               key={demande.id}
@@ -527,32 +520,32 @@ function CompactDemandeRow({ demande, sectionKey, onOpenDetail, onOpenTimeline, 
   void onOpenTimeline;
 
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm hover:border-sky-300 hover:shadow-md transition-all">
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-slate-200/80 bg-white px-3.5 py-3 shadow-sm hover:border-sky-300 hover:shadow-md transition-all">
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-1.5">
-          <span className="text-xs font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded uppercase tracking-tight">{demande.numero_demande}</span>
-          <span className={`px-2 py-0.5 text-[0.65rem] uppercase font-bold rounded-md whitespace-nowrap shadow-sm ${statusClasses[demande.statut] ?? "bg-slate-200 text-slate-700"}`}>
+        <div className="mb-1 flex flex-wrap items-center gap-2">
+          <span className="rounded bg-slate-100 px-2 py-0.5 text-[11px] font-bold uppercase tracking-tight text-slate-900">{demande.numero_demande}</span>
+          <span className={`rounded-md px-2 py-0.5 text-[0.6rem] uppercase font-bold whitespace-nowrap shadow-sm ${statusClasses[demande.statut] ?? "bg-slate-200 text-slate-700"}`}>
             {statusLabels[demande.statut] ?? demande.statut}
           </span>
         </div>
         
-        <p className="text-[13.5px] font-bold text-slate-800 truncate mb-1.5" title={demande.objet}>
+        <p className="mb-1 text-[13px] font-bold text-slate-800 truncate" title={demande.objet}>
           {demande.objet}
         </p>
         
-        <div className="flex flex-wrap items-center gap-3 text-xs font-semibold text-slate-500">
+        <div className="flex flex-wrap items-center gap-2.5 text-[11px] font-semibold text-slate-500">
           <span className="truncate max-w-[140px] text-slate-700">{getCompactNeedLabel(demande)}</span>
-          <span className="text-slate-900 border-l border-slate-200 pl-3">{formatMoney(demande.montant_commande ?? demande.cout_total_estime)}</span>
-          <span className="text-sky-700 border-l border-slate-200 pl-3 hidden sm:block truncate max-w-[220px]">
+          <span className="border-l border-slate-200 pl-2.5 text-slate-900">{formatMoney(demande.montant_commande ?? demande.cout_total_estime)}</span>
+          <span className="hidden max-w-[220px] truncate border-l border-slate-200 pl-2.5 text-sky-700 sm:block">
             {getAgentSectionNote(demande)}
           </span>
         </div>
       </div>
 
-      <div className="flex shrink-0 w-full sm:w-auto grid grid-cols-2 sm:flex sm:flex-row items-center gap-2">
+      <div className="grid w-full shrink-0 grid-cols-2 items-center gap-2 sm:flex sm:w-auto sm:flex-row">
         <button
           onClick={onOpenDetail}
-          className="col-span-1 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 shadow-sm hover:bg-slate-100 hover:border-slate-300 transition-colors text-center"
+          className="col-span-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-700 shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-100 text-center"
         >
           Détail
         </button>
@@ -566,7 +559,7 @@ function CompactDemandeRow({ demande, sectionKey, onOpenDetail, onOpenTimeline, 
                 router.push(action.href);
               }
             }}
-            className={`col-span-2 sm:col-span-1 mt-2 sm:mt-0 rounded-lg px-4 py-2 text-xs font-bold text-white shadow-md transition-all text-center ${action.tone === 'emerald' ? 'bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800' : 'bg-gradient-to-r from-sky-600 to-blue-700 hover:from-sky-700 hover:to-blue-800'}`}
+            className={`col-span-2 rounded-lg px-4 py-2 text-xs font-bold text-white shadow-md transition-all text-center sm:col-span-1 ${action.tone === 'emerald' ? 'bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800' : 'bg-gradient-to-r from-sky-600 to-blue-700 hover:from-sky-700 hover:to-blue-800'}`}
           >
             {action.label}
           </button>

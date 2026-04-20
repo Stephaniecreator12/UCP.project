@@ -17,7 +17,7 @@ export const statusLabels: Record<string, string> = {
   SOUMISE: "Soumise",
   A_COMPLETER: "À compléter",
   VALIDEE: "Validée",
-  VALIDEE_BUDGETAIRE: "Validée budgétairement",
+  VALIDEE_BUDGETAIRE: "Validée pour passation",
   EN_COMMANDE: "En commande",
   EN_LIVRAISON: "En livraison",
   LIVREE: "Livrée",
@@ -55,18 +55,26 @@ export const typeLabels: Record<string, string> = {
 
 export const financementLabels: Record<string, string> = {
   NON_DEFINI: "Non défini",
-  BANQUE_MONDIALE: "Banque mondiale",
-  FONDS_MONDIAL: "Fonds mondial",
-  GAVI: "Gavi",
+  SRPS_CS7_FM: "SRPS / CS7 / Fonds Mondial",
+  RSS3_GAVI: "RSS3 / Alliance GAVI",
+  FAE_GAVI: "FAE / Alliance GAVI",
+  CDS_GAVI: "CDS / Alliance GAVI",
+  VAR_GAVI: "VAR / Alliance GAVI",
+  PARN2_BM: "PARN2 / Banque Mondiale",
+  PPSB_BM: "PPSB / Banque Mondiale",
   FONDS_PROPRES: "Budget interne",
   AUTRES: "Autres partenaires",
 };
 
 export const financementColors: Record<string, string> = {
   NON_DEFINI: "bg-amber-400",
-  BANQUE_MONDIALE: "bg-blue-500",
-  FONDS_MONDIAL: "bg-emerald-500",
-  GAVI: "bg-sky-400",
+  SRPS_CS7_FM: "bg-emerald-500",
+  RSS3_GAVI: "bg-sky-400",
+  FAE_GAVI: "bg-sky-500",
+  CDS_GAVI: "bg-sky-600",
+  VAR_GAVI: "bg-teal-500",
+  PARN2_BM: "bg-blue-500",
+  PPSB_BM: "bg-blue-600",
   FONDS_PROPRES: "bg-indigo-500",
   AUTRES: "bg-slate-400",
 };
@@ -104,6 +112,7 @@ export const timelineValidationSteps: Array<{
 }> = [
   { key: "HIERARCHIQUE", label: "Validation hiérarchique" },
   { key: "TECHNIQUE", label: "Validation technique" },
+  { key: "BUDGETAIRE", label: "Validation budgétaire" },
   { key: "PROGRAMMATIQUE", label: "Validation programmatique" },
   { key: "APPROBATION_FINALE", label: "Approbation finale" },
 ];
@@ -376,15 +385,6 @@ export const buildLifecycleTimeline = (demande: DemandeAchat): TimelineItem[] =>
     },
     ...validationItems,
     {
-      id: "budget",
-      label: "Estimation financière",
-      date: budgetHistory?.created_at ?? null,
-      state: hasBudget ? "done" : isBudgetCurrent ? "current" : "pending",
-      description:
-        demande.numero_engagement_budgetaire ||
-        (isBudgetCurrent ? "À compléter par la finance" : undefined),
-    },
-    {
       id: "order",
       label: "Bon de commande émis",
       date: demande.date_bon_commande,
@@ -437,19 +437,7 @@ export const getDemandePrimaryAction = (
   demande: DemandeAchat,
   user: UserProfile | null,
 ): DemandePrimaryAction | null => {
-  if (isFinanceUser(user)) {
-    if (demande.statut === "VALIDEE") {
-      return {
-        href: `/demande-achat/${demande.id}/finance`,
-        label: "Compléter budget",
-        tone: "amber",
-      };
-    }
-
-    return null;
-  }
-
-  if (isValidatorUser(user)) {
+  if (isValidatorUser(user) || isFinanceUser(user)) {
     return {
       href: `/demande-achat/${demande.id}/validation`,
       label: "Valider",

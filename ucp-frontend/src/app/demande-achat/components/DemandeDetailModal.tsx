@@ -47,7 +47,7 @@ export default function DemandeDetailModal({
 
   return (
     <div
-      className="fixed inset-0 z-[120] flex items-center justify-center overflow-y-auto bg-slate-950/65 p-2 backdrop-blur-sm sm:p-4 lg:p-5 xl:p-6 animate-in fade-in duration-200"
+      className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/65 p-2 backdrop-blur-sm sm:p-4 lg:p-5 xl:p-6 animate-in fade-in duration-200"
       role="dialog"
       aria-modal="true"
       aria-labelledby="demande-detail-modal-title"
@@ -58,8 +58,8 @@ export default function DemandeDetailModal({
       }}
     >
       <div 
-        className="flex min-h-[84vh] w-full max-w-[108rem] max-h-[calc(100vh-1rem)] flex-col overflow-hidden rounded-[26px] border border-slate-200 bg-white shadow-2xl ring-1 ring-black/5 animate-in zoom-in-95 duration-200 lg:min-h-[90vh] xl:max-w-[112rem]"
-        style={{ zoom: 0.8 }}
+        className="flex min-h-[84vh] w-full max-w-[108rem] max-h-[calc(100vh-1rem)] flex-col overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-2xl ring-1 ring-black/5 animate-in zoom-in-95 duration-200 lg:min-h-[90vh] xl:max-w-[112rem]"
+        style={{ zoom: 0.9 }}
       >
         
         {/* Header - Professional compact style */}
@@ -77,7 +77,7 @@ export default function DemandeDetailModal({
           <button
             type="button"
             onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-200/60 text-slate-500 transition-colors hover:bg-slate-200 hover:text-slate-800"
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-200/60 text-slate-500 transition-colors hover:bg-slate-200 hover:text-slate-800"
             aria-label="Fermer"
           >
             <X className="h-4 w-4" />

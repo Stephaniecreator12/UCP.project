@@ -31,32 +31,36 @@ MARCHE_GROUPS = [AGENT_MARCHE_GROUP, MARCHES_GROUP, LOGISTIQUE_GROUP]
 
 BUDGET_MOCK_BY_LINE = {
     "2.1.1 Fournitures bureau": {
-        DemandeAchat.SOURCE_FONDS_MONDIAL: Decimal("3200000.00"),
-        DemandeAchat.SOURCE_BANQUE_MONDIALE: Decimal("2800000.00"),
-        DemandeAchat.SOURCE_GAVI: Decimal("1800000.00"),
+        DemandeAchat.SOURCE_SRPS_CS7_FM: Decimal("3200000.00"),
+        DemandeAchat.SOURCE_PARN2_BM: Decimal("2800000.00"),
+        DemandeAchat.SOURCE_RSS3_GAVI: Decimal("1800000.00"),
     },
     "2.2.1 Materiel informatique": {
-        DemandeAchat.SOURCE_FONDS_MONDIAL: Decimal("9500000.00"),
-        DemandeAchat.SOURCE_BANQUE_MONDIALE: Decimal("12000000.00"),
-        DemandeAchat.SOURCE_GAVI: Decimal("4500000.00"),
+        DemandeAchat.SOURCE_SRPS_CS7_FM: Decimal("9500000.00"),
+        DemandeAchat.SOURCE_PARN2_BM: Decimal("12000000.00"),
+        DemandeAchat.SOURCE_RSS3_GAVI: Decimal("4500000.00"),
     },
     "3.1.1 Services": {
-        DemandeAchat.SOURCE_FONDS_MONDIAL: Decimal("6400000.00"),
-        DemandeAchat.SOURCE_BANQUE_MONDIALE: Decimal("7100000.00"),
-        DemandeAchat.SOURCE_GAVI: Decimal("3900000.00"),
+        DemandeAchat.SOURCE_SRPS_CS7_FM: Decimal("6400000.00"),
+        DemandeAchat.SOURCE_PARN2_BM: Decimal("7100000.00"),
+        DemandeAchat.SOURCE_RSS3_GAVI: Decimal("3900000.00"),
     },
 }
 
 DEFAULT_BUDGET_BALANCE_BY_SOURCE = {
-    DemandeAchat.SOURCE_FONDS_MONDIAL: Decimal("3000000.00"),
-    DemandeAchat.SOURCE_BANQUE_MONDIALE: Decimal("4500000.00"),
-    DemandeAchat.SOURCE_GAVI: Decimal("2200000.00"),
+    DemandeAchat.SOURCE_SRPS_CS7_FM: Decimal("3000000.00"),
+    DemandeAchat.SOURCE_PARN2_BM: Decimal("4500000.00"),
+    DemandeAchat.SOURCE_RSS3_GAVI: Decimal("2200000.00"),
 }
 
 SUBVENTION_BY_SOURCE = {
-    DemandeAchat.SOURCE_FONDS_MONDIAL: "FM",
-    DemandeAchat.SOURCE_BANQUE_MONDIALE: "BM",
-    DemandeAchat.SOURCE_GAVI: "GAVI",
+    DemandeAchat.SOURCE_SRPS_CS7_FM: "MDG - S MOH 4041",
+    DemandeAchat.SOURCE_RSS3_GAVI: "MDG - HSS - 3",
+    DemandeAchat.SOURCE_FAE_GAVI: "MDG - FAE",
+    DemandeAchat.SOURCE_CDS_GAVI: "MDG - COVID19 - CDS",
+    DemandeAchat.SOURCE_VAR_GAVI: "MDG - VAR Camp",
+    DemandeAchat.SOURCE_PARN2_BM: "P175110, PAD 4924",
+    DemandeAchat.SOURCE_PPSB_BM: "P174903",
 }
 
 
@@ -156,14 +160,8 @@ def list_demandes_budgetaires(user):
 
     return (
         DemandeAchat.objects.filter(
-            statut__in=[
-                DemandeAchat.STATUT_VALIDEE,
-                DemandeAchat.STATUT_VALIDEE_BUDGETAIRE,
-                DemandeAchat.STATUT_EN_COMMANDE,
-                DemandeAchat.STATUT_EN_LIVRAISON,
-                DemandeAchat.STATUT_LIVREE,
-                DemandeAchat.STATUT_CLOTUREE,
-            ]
+            statut=DemandeAchat.STATUT_SOUMISE,
+            etape_validation_actuelle=DemandeAchat.ETAPE_BUDGETAIRE,
         )
         .select_related("demandeur")
         .prefetch_related(
@@ -179,7 +177,7 @@ def list_demandes_budgetaires(user):
                 queryset=HistoriqueDemande.objects.select_related("user"),
             ),
         )
-        .order_by("-updated_at", "-created_at")
+        .order_by("-submitted_at", "-created_at")
     )
 
 
@@ -228,9 +226,7 @@ def _build_numero_bon_commande():
 def _build_numero_subvention(source_financement):
     if not source_financement:
         return ""
-    code = SUBVENTION_BY_SOURCE.get(source_financement, "UCP")
-    year = timezone.now().year
-    return f"SUBV/{code}/{year}"
+    return SUBVENTION_BY_SOURCE.get(source_financement, "NON_DEFINI")
 
 
 def _build_numero_engagement_budgetaire():
@@ -445,71 +441,16 @@ def complete_budget_estimation(demande, data, user):
             {"detail": "Seul le service finance peut compléter l'estimation budgétaire."}
         )
 
-    if demande.statut not in [
-        DemandeAchat.STATUT_VALIDEE,
-        DemandeAchat.STATUT_VALIDEE_BUDGETAIRE,
-    ]:
-        raise ValidationError(
-            {
-                "detail": "Le budget ne peut être complété qu'après validation finale et avant la passation."
-            }
-        )
+    del demande, data
 
-    ligne_budgetaire = (data.get("ligne_budgetaire") or "").strip()
-    source_financement = data["source_financement"]
-    if not ligne_budgetaire:
-        raise ValidationError({"ligne_budgetaire": "La ligne budgétaire est obligatoire."})
-
-    solde_disponible = _get_mock_budget_balance(ligne_budgetaire, source_financement)
-    cout_estime = Decimal(demande.cout_total_estime or Decimal("0.00"))
-    solde_apres_engagement = solde_disponible - cout_estime
-
-    if solde_apres_engagement < Decimal("0.00"):
-        raise ValidationError(
-            {
-                "solde_disponible_ligne_budgetaire": "Le solde disponible est insuffisant pour engager cette demande."
-            }
-        )
-
-    demande.ligne_budgetaire = ligne_budgetaire
-    demande.source_financement = source_financement
-    demande.numero_subvention = _build_numero_subvention(source_financement)
-    demande.solde_disponible_ligne_budgetaire = solde_disponible
-    demande.solde_apres_engagement = solde_apres_engagement
-    if not demande.numero_engagement_budgetaire:
-        demande.numero_engagement_budgetaire = _build_numero_engagement_budgetaire()
-    demande.statut = DemandeAchat.STATUT_VALIDEE_BUDGETAIRE
-    demande.save(
-        update_fields=[
-            "ligne_budgetaire",
-            "source_financement",
-            "numero_subvention",
-            "solde_disponible_ligne_budgetaire",
-            "solde_apres_engagement",
-            "numero_engagement_budgetaire",
-            "statut",
-            "updated_at",
-        ]
+    raise ValidationError(
+        {
+            "detail": (
+                "La validation budgetaire ne se fait plus apres les 5 validations. "
+                "Elle est integree a l'etape budgetaire du circuit de validation."
+            )
+        }
     )
-
-    create_history_entry(
-        demande=demande,
-        action=HistoriqueDemande.ACTION_BUDGET_VALIDE,
-        user=user,
-        description="L'estimation financière a été complétée par la finance.",
-        metadata={
-            "statut": demande.statut,
-            "ligne_budgetaire": demande.ligne_budgetaire,
-            "source_financement": demande.source_financement,
-            "solde_disponible_ligne_budgetaire": str(
-                demande.solde_disponible_ligne_budgetaire or ""
-            ),
-            "numero_engagement_budgetaire": demande.numero_engagement_budgetaire,
-            "solde_apres_engagement": str(demande.solde_apres_engagement or ""),
-        },
-    )
-    notify_budget_validated(demande)
-    return demande
 
 
 @transaction.atomic
@@ -532,6 +473,7 @@ def issue_order(demande, data, user):
 
     demande.type_procedure = data["type_procedure"]
     demande.fournisseur_retenu = data["fournisseur_retenu"]
+    demande.email_fournisseur = data["email_fournisseur"]
     if not demande.numero_bon_commande:
         demande.numero_bon_commande = _build_numero_bon_commande()
     demande.date_bon_commande = date_bon_commande
@@ -546,6 +488,7 @@ def issue_order(demande, data, user):
         update_fields=[
             "type_procedure",
             "fournisseur_retenu",
+            "email_fournisseur",
             "numero_bon_commande",
             "date_bon_commande",
             "montant_commande",
@@ -567,6 +510,7 @@ def issue_order(demande, data, user):
         metadata={
             "numero_bon_commande": demande.numero_bon_commande,
             "fournisseur_retenu": demande.fournisseur_retenu,
+            "email_fournisseur": demande.email_fournisseur,
             "montant_commande": str(demande.montant_commande or ""),
         },
     )

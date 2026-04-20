@@ -13,6 +13,11 @@ ALLOWED_DECISIONS_BY_STEP = {
         ValidationDemande.DECISION_DEFAVORABLE,
         ValidationDemande.DECISION_A_COMPLETER,
     },
+    DemandeAchat.ETAPE_BUDGETAIRE: {
+        ValidationDemande.DECISION_FAVORABLE,
+        ValidationDemande.DECISION_DEFAVORABLE,
+        ValidationDemande.DECISION_A_COMPLETER,
+    },
     DemandeAchat.ETAPE_PROGRAMMATIQUE: {
         ValidationDemande.DECISION_APPROUVEE,
         ValidationDemande.DECISION_REJETEE,
@@ -29,6 +34,14 @@ REQUIRED_FIELDS_BY_STEP = {
     DemandeAchat.ETAPE_TECHNIQUE: [
         "conformite_technique",
         "verification_stock",
+    ],
+    DemandeAchat.ETAPE_BUDGETAIRE: [
+        "disponibilite_budgetaire",
+        "conformite_financiere",
+        "respect_seuils",
+        "ligne_budgetaire",
+        "source_financement",
+        "solde_disponible_ligne_budgetaire",
     ],
 }
 

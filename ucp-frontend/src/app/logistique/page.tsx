@@ -324,10 +324,6 @@ export default function MarcheDashboardPage() {
         demande={demandes.find((item) => item.id === receptionModalDemandeId) ?? null}
         open={!!receptionModalDemandeId}
         onClose={() => setReceptionModalDemandeId(null)}
-        onOpenDetail={() => {
-          setSelectedDemandeId(receptionModalDemandeId);
-          setDetailViewMode("detail");
-        }}
         onSuccess={() => {
           setReceptionModalDemandeId(null);
           reloadDemandes();

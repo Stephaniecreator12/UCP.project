@@ -20,9 +20,11 @@ import {
 } from "@/app/demande-achat/components/demandeAchatShared";
 import {
   getCurrentUser,
+  getFinanceRoleLabel,
   getLandingRouteForUser,
   getToken,
   getValidatorRoleLabel,
+  isFinanceUser,
   isValidatorUser,
 } from "@/services/auth";
 import { DemandeAchat, listDemandesEnAttenteValidation, getDemandeAchatById } from "@/services/achats";
@@ -78,7 +80,8 @@ const filterDemandesByQuery = (items: DemandeAchat[], query: string) => {
 export default function ValidationDashboardPage() {
   const router = useRouter();
   const [currentUser] = useState(() => getCurrentUser());
-  const validatorRoleLabel = getValidatorRoleLabel(currentUser);
+  const validationRoleLabel =
+    getValidatorRoleLabel(currentUser) || getFinanceRoleLabel(currentUser);
   const [demandes, setDemandes] = useState<DemandeAchat[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -90,11 +93,13 @@ export default function ValidationDashboardPage() {
 
   useEffect(() => {
     if (!getToken()) {
+      setLoading(false);
       router.replace("/login");
       return;
     }
 
-    if (!isValidatorUser(currentUser)) {
+    if (!isValidatorUser(currentUser) && !isFinanceUser(currentUser)) {
+      setLoading(false);
       router.replace(getLandingRouteForUser(currentUser));
       return;
     }
@@ -175,9 +180,9 @@ export default function ValidationDashboardPage() {
         <div className="mx-auto max-w-5xl-zoomed px-4 py-8">
           <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <h1 className="text-xl font-bold tracking-tight text-slate-900">Espace Validateur</h1>
+            <h1 className="text-xl font-bold tracking-tight text-slate-900">Espace Validation</h1>
             <div className="hidden h-6 w-[1px] bg-slate-300 md:block"></div>
-            <p className="text-sm font-medium text-slate-500 hidden sm:block">{validatorRoleLabel || "Comité d'approbation"}</p>
+            <p className="text-sm font-medium text-slate-500 hidden sm:block">{validationRoleLabel || "Comité d'approbation"}</p>
           </div>
 
           <div className="flex items-center gap-3 w-full md:w-auto">

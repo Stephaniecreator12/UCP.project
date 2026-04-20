@@ -85,7 +85,7 @@ button {
 
   .purchase-form-zoom {
     width: 100%;
-    zoom: 0.8;
+    zoom: 0.9;
   }
 }
 
@@ -93,7 +93,7 @@ button {
 @supports not (zoom: 1) {
   @media (min-width: 1024px) and (pointer: fine) {
     .purchase-form-zoom {
-      width: 100%;
+      width: 111.1111%;
       transform: scale(0.9);
       transform-origin: top center;
       margin-bottom: calc(-10% + 8px);
@@ -132,18 +132,18 @@ button {
   }
 
   .achat-dashboard-zoom {
-    width: 125%;
-    zoom: 0.8;
+    width: 100%;
+    zoom: 0.9;
   }
 }
 
 @supports not (zoom: 1) {
   @media (min-width: 1024px) and (pointer: fine) {
     .achat-dashboard-zoom {
-      width: 133.3334%;
-      transform: scale(0.75);
+      width: 111.1111%;
+      transform: scale(0.9);
       transform-origin: top center;
-      margin-bottom: calc(-25% + 12px);
+      margin-bottom: calc(-10% + 12px);
     }
   }
 }

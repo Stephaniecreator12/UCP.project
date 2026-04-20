@@ -71,7 +71,7 @@ type TdrStDocument = {
   periode_fin: string;
   duree_estimee_valeur: number;
   duree_estimee_unite: DureeUnite;
-  sources_financement: FundingSource[];
+  sources_financement: string;
   numero_subvention: string;
   ligne_budgetaire: string;
   montant_estime_usd: string;
@@ -111,7 +111,7 @@ type TdrStFormState = {
   periode_fin: string;
   duree_estimee_valeur: number;
   duree_estimee_unite: DureeUnite;
-  sources_financement: FundingSource[];
+  sources_financement: string;
   numero_subvention: string;
   ligne_budgetaire: string;
   montant_estime_usd: string;
@@ -202,7 +202,7 @@ const makeEmptyForm = (): TdrStFormState => ({
   periode_fin: "",
   duree_estimee_valeur: 1,
   duree_estimee_unite: "MOIS",
-  sources_financement: [],
+  sources_financement: "",
   numero_subvention: "",
   ligne_budgetaire: "",
   montant_estime_usd: "",
@@ -410,7 +410,9 @@ export default function TdRStPage() {
     if (role !== "auditeur") return [];
     const set = new Set<FundingSource>();
     documents.forEach((doc) => {
-      (doc.sources_financement ?? []).forEach((s) => set.add(s));
+      if (doc.sources_financement && typeof doc.sources_financement === "string") {
+        set.add(doc.sources_financement as FundingSource);
+      }
     });
     return Array.from(set).sort((a, b) => a.localeCompare(b, "fr"));
   }, [documents, role]);
@@ -674,7 +676,7 @@ export default function TdRStPage() {
         periode_fin: activeDoc.periode_fin || "",
         duree_estimee_valeur: activeDoc.duree_estimee_valeur || 1,
         duree_estimee_unite: activeDoc.duree_estimee_unite || "JOURS",
-        sources_financement: activeDoc.sources_financement || [],
+        sources_financement: activeDoc.sources_financement || "",
         numero_subvention: activeDoc.numero_subvention || "",
         ligne_budgetaire: activeDoc.ligne_budgetaire || "",
         montant_estime_usd: activeDoc.montant_estime_usd?.toString() || "",
@@ -682,19 +684,6 @@ export default function TdRStPage() {
       });
     }
   }, [activeDoc]);
-
-  const toggleFunding = (source: FundingSource) => {
-    if (isReadOnly) return;
-    setForm((prev) => {
-      const exists = prev.sources_financement.includes(source);
-      return {
-        ...prev,
-        sources_financement: exists
-          ? prev.sources_financement.filter((s) => s !== source)
-          : [...prev.sources_financement, source],
-      };
-    });
-  };
 
   useEffect(() => {
     if (!error && !success) return;
@@ -1114,11 +1103,12 @@ export default function TdRStPage() {
               className={`inline-flex items-center gap-2 text-sm ${isReadOnly ? "cursor-not-allowed opacity-70" : "cursor-pointer"}`}
             >
               <input
-                type="checkbox"
+                type="radio"
+                name="sources_financement"
                 disabled={isReadOnly}
                 className="h-4 w-4 accent-emerald-600"
                 checked={form.sources_financement.includes(s)}
-                onChange={() => toggleFunding(s)}
+                onChange={() => setForm((p) => ({ ...p, sources_financement: s }))}
               />
               {s}
             </label>
@@ -1176,97 +1166,97 @@ export default function TdRStPage() {
         </p>
       </div>
 
-      {role === "auditeur" ? (
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <label className="block">
-            <span className="block text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Recherche</span>
-            <div className="mt-1 flex flex-col gap-2 md:flex-row md:items-center">
-              <input
-                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm"
-                value={auditeurSearch}
-                onChange={(e) => setAuditeurSearch(e.target.value)}
-                placeholder="Numéro, intitulé, PTBA, unité, acteur…"
-              />
-              {auditeurSearch.trim() ? (
-                <button
-                  type="button"
-                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 md:w-auto"
-                  onClick={() => setAuditeurSearch("")}
-                >
-                  Effacer
-                </button>
-              ) : null}
-            </div>
-          </label>
-        </div>
-      ) : null}
+{role === "auditeur" ? (
+  <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+    <label className="block">
+      <span className="block text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Recherche</span>
+      <div className="mt-1 flex flex-col gap-2 md:flex-row md:items-center">
+        <input
+          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-emerald-300 focus:outline-none focus:ring-4 focus:ring-emerald-500/10"
+          value={auditeurSearch}
+          onChange={(e) => setAuditeurSearch(e.target.value)}
+          placeholder="Numéro, intitulé, PTBA, unité, acteur…"
+        />
+        {auditeurSearch.trim() ? (
+          <button
+            type="button"
+            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 md:w-auto"
+            onClick={() => setAuditeurSearch("")}
+          >
+            Effacer
+          </button>
+        ) : null}
+      </div>
+    </label>
+  </div>
+) : null}
 
-      {role === "auditeur" ? (
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-          <div className="grid gap-3 md:grid-cols-4">
-            <label className="block">
-              <span className="block text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Statut</span>
-              <select
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm"
-                value={auditeurStatutFilter}
-                onChange={(e) => setAuditeurStatutFilter(e.target.value as Statut | "TOUS")}
-              >
-                <option value="TOUS">Tous</option>
-                <option value="VALIDE">Validé</option>
-                <option value="REJETE">Rejeté</option>
-                <option value="SUSPENDU">Suspendu</option>
-              </select>
-            </label>
+{role === "auditeur" ? (
+  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+    <div className="grid gap-3 md:grid-cols-4">
+      <label className="block">
+        <span className="block text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Statut</span>
+        <select
+          className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-emerald-300 focus:outline-none focus:ring-4 focus:ring-emerald-500/10"
+          value={auditeurStatutFilter}
+          onChange={(e) => setAuditeurStatutFilter(e.target.value as Statut | "TOUS")}
+        >
+          <option value="TOUS">Tous</option>
+          <option value="VALIDE">Validé</option>
+          <option value="REJETE">Rejeté</option>
+          <option value="SUSPENDU">Suspendu</option>
+        </select>
+      </label>
 
-            <label className="block">
-              <span className="block text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Financement</span>
-              <select
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm"
-                value={auditeurFundingFilter}
-                onChange={(e) => setAuditeurFundingFilter(e.target.value as FundingSource | "TOUS")}
-              >
-                <option value="TOUS">Tous</option>
-                {auditeurFundingOptions.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            </label>
+      <label className="block">
+        <span className="block text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Financement</span>
+        <select
+          className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-emerald-300 focus:outline-none focus:ring-4 focus:ring-emerald-500/10"
+          value={auditeurFundingFilter}
+          onChange={(e) => setAuditeurFundingFilter(e.target.value as FundingSource | "TOUS")}
+        >
+          <option value="TOUS">Tous</option>
+          {auditeurFundingOptions.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
+      </label>
 
-            <label className="block">
-              <span className="block text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Acteur</span>
-              <select
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm"
-                value={auditeurActorFilter}
-                onChange={(e) => setAuditeurActorFilter(e.target.value)}
-              >
-                <option value="TOUS">Tous</option>
-                {auditeurActorOptions.map((u) => (
-                  <option key={u} value={u}>
-                    {u}
-                  </option>
-                ))}
-              </select>
-            </label>
+      <label className="block">
+        <span className="block text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Acteur</span>
+        <select
+          className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-emerald-300 focus:outline-none focus:ring-4 focus:ring-emerald-500/10"
+          value={auditeurActorFilter}
+          onChange={(e) => setAuditeurActorFilter(e.target.value)}
+        >
+          <option value="TOUS">Tous</option>
+          {auditeurActorOptions.map((u) => (
+            <option key={u} value={u}>
+              {u}
+            </option>
+          ))}
+        </select>
+      </label>
 
-            <div className="flex items-end justify-end">
-              <button
-                type="button"
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
-                onClick={() => {
-                  setAuditeurStatutFilter("TOUS");
-                  setAuditeurFundingFilter("TOUS");
-                  setAuditeurActorFilter("TOUS");
-                  setAuditeurSearch("");
-                }}
-              >
-                Réinitialiser
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <div className="flex items-end justify-end">
+        <button
+          type="button"
+          className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+          onClick={() => {
+            setAuditeurStatutFilter("TOUS");
+            setAuditeurFundingFilter("TOUS");
+            setAuditeurActorFilter("TOUS");
+            setAuditeurSearch("");
+          }}
+        >
+          Réinitialiser
+        </button>
+      </div>
+    </div>
+  </div>
+) : null}
 
       <div className="max-h-[320px] overflow-y-auto">
         <table className="w-full text-left text-sm text-slate-600">

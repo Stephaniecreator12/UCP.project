@@ -16,6 +16,11 @@ const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
 });
 
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "UCP - Passation de marchés",
+};
 
 export default function RootLayout({
   children,
@@ -32,3 +37,4 @@ export default function RootLayout({
     </html>
   );
 }
+

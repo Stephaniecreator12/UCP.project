@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { X, CheckCircle, Package } from "lucide-react";
-import { DemandeAchat, IssueOrderPayload, issueOrderDemandeAchat } from "@/services/achats";
+import { DemandeAchat, IssueOrderPayload, issueOrderDemandeAchat, listFournisseurs, Fournisseur } from "@/services/achats";
 import { formatMoney, getCompactNeedLabel } from "@/app/demande-achat/components/demandeAchatShared";
 import PurchaseSelect from "@/app/demande-achat/components/PurchaseSelect";
 
-type PassationFormState = Omit<IssueOrderPayload, "type_procedure" | "delai_livraison_contractuel"> & {
+type PassationFormState = Omit<IssueOrderPayload, "type_procedure" | "delai_livraison_contractuel" | "fournisseur"> & {
   type_procedure: IssueOrderPayload["type_procedure"] | "";
+  fournisseur: number | "";
   delai_livraison_contractuel: number | "";
 };
 
@@ -21,6 +22,7 @@ type PassationModalProps = {
 
 const initialFormState: PassationFormState = {
   type_procedure: "",
+  fournisseur: "",
   fournisseur_retenu: "",
   email_fournisseur: "",
   numero_bon_commande: "",
@@ -45,18 +47,32 @@ export default function PassationModal({
   onSuccess,
 }: PassationModalProps) {
   const [form, setForm] = useState<PassationFormState>(initialFormState);
+  const [fournisseurs, setFournisseurs] = useState<Fournisseur[]>([]);
+  const [loadingFournisseurs, setLoadingFournisseurs] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fieldLabelClass = "text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500";
 
   useEffect(() => {
     if (open && demande) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setForm({
         ...initialFormState,
         montant_commande: demande.cout_total_estime,
       });
       setError(null);
+      
+      const loadFournisseurs = async () => {
+        setLoadingFournisseurs(true);
+        try {
+          const data = await listFournisseurs();
+          setFournisseurs(data);
+        } catch (err) {
+          console.error("Erreur chargement fournisseurs:", err);
+        } finally {
+          setLoadingFournisseurs(false);
+        }
+      };
+      loadFournisseurs();
     }
   }, [open, demande]);
 
@@ -72,18 +88,8 @@ export default function PassationModal({
   if (!open || !demande) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!demande) return;
-
-    if (!form.type_procedure) {
-      setError("Veuillez sélectionner le type de procédure.");
-      return;
-    }
-
     if (
-      !form.fournisseur_retenu.trim() ||
-      !form.email_fournisseur.trim() ||
-      !form.numero_bon_commande?.trim() ||
+      !form.fournisseur ||
       !form.date_bon_commande ||
       form.delai_livraison_contractuel === ""
     ) {
@@ -96,13 +102,34 @@ export default function PassationModal({
     try {
       await issueOrderDemandeAchat(demande.id, {
         ...form,
-        type_procedure: form.type_procedure,
+        type_procedure: form.type_procedure as IssueOrderPayload["type_procedure"],
+        fournisseur: Number(form.fournisseur),
         delai_livraison_contractuel: Number(form.delai_livraison_contractuel),
       });
       onSuccess();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur lors de la création de la commande");
       setSaving(false);
+    }
+  };
+
+  const handleFournisseurChange = (id: string) => {
+    const fId = Number(id);
+    const selected = fournisseurs.find(f => f.id === fId);
+    if (selected) {
+      setForm({
+        ...form,
+        fournisseur: fId,
+        fournisseur_retenu: selected.nom,
+        email_fournisseur: selected.email,
+      });
+    } else {
+      setForm({
+        ...form,
+        fournisseur: "",
+        fournisseur_retenu: "",
+        email_fournisseur: "",
+      });
     }
   };
 
@@ -114,7 +141,7 @@ export default function PassationModal({
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div 
-        className="flex w-full max-w-4xl flex-col rounded-[28px] border border-slate-200 bg-white shadow-[0_24px_60px_rgba(15,23,42,0.16)] animate-in zoom-in-95 duration-200"
+        className="flex w-full max-w-4xl flex-col overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-[0_24px_60px_rgba(15,23,42,0.16)] animate-in zoom-in-95 duration-200"
       >
         
         {/* Header */}
@@ -170,36 +197,31 @@ export default function PassationModal({
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className={fieldLabelClass}>Fournisseur retenu</label>
-                <input
-                  required
-                  value={form.fournisseur_retenu}
-                  onChange={(e) => setForm({ ...form, fournisseur_retenu: e.target.value })}
+                <label className={fieldLabelClass}>Sélection Fournisseur</label>
+                <PurchaseSelect
+                  value={form.fournisseur.toString()}
+                  onChange={handleFournisseurChange}
+                  options={fournisseurs.map(f => ({ value: f.id.toString(), label: f.nom }))}
+                  placeholder={loadingFournisseurs ? "Chargement..." : "Choisir un fournisseur..."}
                   className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm shadow-sm transition-colors outline-none focus:border-sky-500 focus:bg-white focus:ring-2 focus:ring-sky-100"
-                  placeholder="Nom du fournisseur"
                 />
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className={fieldLabelClass}>Email fournisseur</label>
                 <input
                   type="email"
-                  required
+                  readOnly
                   value={form.email_fournisseur}
-                  onChange={(e) => setForm({ ...form, email_fournisseur: e.target.value })}
-                  className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm shadow-sm transition-colors outline-none focus:border-sky-500 focus:bg-white focus:ring-2 focus:ring-sky-100"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-100 px-3 py-2.5 text-sm text-slate-500 shadow-sm outline-none cursor-not-allowed"
                   placeholder="contact@fournisseur.com"
                 />
               </div>
 
               <div className="flex flex-col gap-1.5">
                 <label className={fieldLabelClass}>N° bon de commande</label>
-                <input
-                  required
-                  value={form.numero_bon_commande || ""}
-                  onChange={(e) => setForm({ ...form, numero_bon_commande: e.target.value })}
-                  className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm font-mono shadow-sm transition-colors outline-none focus:border-sky-500 focus:bg-white focus:ring-2 focus:ring-sky-100"
-                  placeholder="UCP/BC/YYYY/XXXXX"
-                />
+                <div className="w-full rounded-xl border border-slate-200 bg-slate-100 px-3 py-2.5 text-sm font-mono text-slate-500 shadow-sm">
+                  {demande.numero_bon_commande || (demande.numero_demande ? demande.numero_demande.replace("DA", "BC") : "Généré automatiquement")}
+                </div>
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className={fieldLabelClass}>Date bon de commande</label>

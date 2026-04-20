@@ -435,6 +435,8 @@ def notify_order_issued_to_requester(demande):
             ("N° Demande", demande.numero_demande, "accent"),
             ("Fournisseur", demande.fournisseur_retenu or "Non précisé", "default"),
             ("Bon de commande", demande.numero_bon_commande or "Généré", "info"),
+            ("Montant total", f"{demande.montant_commande} Ar", "success"),
+            ("Délai de livraison", f"{demande.delai_livraison_contractuel} jours", "warning"),
         ])}
         <p style="margin: 0;">Le suivi passe maintenant côté Marché pour l'expédition et la réception.</p>
     """
@@ -471,13 +473,31 @@ def notify_order_issued_to_supplier(demande):
         {_render_email_details([
             ("N° Demande", demande.numero_demande, "accent"),
             ("Fournisseur", demande.fournisseur_retenu or "Non précisé", "default"),
-            ("Email fournisseur", supplier_email, "info"),
             ("Bon de commande", demande.numero_bon_commande or "Généré", "info"),
             ("Date bon", demande.date_bon_commande, "default"),
-            ("Montant", demande.montant_commande, "success"),
-            ("Conditions livraison", demande.conditions_livraison or "-", "default"),
-            ("Garantie", demande.garantie or "-", "default"),
+            ("Montant total", f"{demande.montant_commande} Ar", "success"),
+            ("Délai de livraison", f"{demande.delai_livraison_contractuel} jours", "warning"),
+            ("Conditions", demande.conditions_livraison or "-", "default"),
         ])}
+        
+        <div style="margin: 14px 0;">
+            <p style="margin: 0 0 6px; font-weight: 700; font-size: 13px; color: #0f172a;">Détail des articles :</p>
+            <table style="width: 100%; border-collapse: collapse; font-size: 12px; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+                <thead style="background-color: #f1f5f9;">
+                    <tr>
+                        <th style="padding: 8px; text-align: left; border-bottom: 1px solid #e2e8f0; color: #64748b;">Article / Service</th>
+                        <th style="padding: 8px; text-align: center; border-bottom: 1px solid #e2e8f0; color: #64748b;">Quantité</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {''.join([
+                        f'<tr><td style="padding: 8px; border-bottom: 1px solid #f1f5f9;">{escape(l.designation or l.description_service)}</td>'
+                        f'<td style="padding: 8px; text-align: center; border-bottom: 1px solid #f1f5f9;">{l.quantite or 1} {escape(l.unite or "")}</td></tr>'
+                        for l in demande.lignes_besoin.all()
+                    ])}
+                </tbody>
+            </table>
+        </div>
         <p style="margin: 0;">
             Merci de prendre en compte cette commande et de suivre les modalités convenues avec l'UCP.
         </p>

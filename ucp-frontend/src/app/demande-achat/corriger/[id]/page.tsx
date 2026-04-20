@@ -87,8 +87,8 @@ const categorieBesoinOptions = [
 ] as const;
 
 const prioriteOptions = [
-  { value: "NORMAL", label: "Normale (48h)" },
-  { value: "URGENT", label: "Urgente (24h)" },
+  { value: "NORMAL", label: "Normal (5 jours)" },
+  { value: "URGENT", label: "Urgent (48h)" },
 ] as const;
 
 const documentTypesOptions = [

@@ -86,8 +86,8 @@ const categorieBesoinOptions = [
 ] as const;
 
 const prioriteOptions = [
-  { value: "NORMAL", label: "Normale (48h)" },
-  { value: "URGENT", label: "Urgente (24h)" },
+  { value: "NORMAL", label: "Normal (5 jours)" },
+  { value: "URGENT", label: "Urgent (48h)" },
 ] as const;
 
 const documentTypesOptions = [
@@ -97,11 +97,11 @@ const documentTypesOptions = [
   { value: "BON_SORTIE_STOCK", label: "Bon de sortie stock (PDF)" },
 ] as const;
 
-const fieldClass = "w-full rounded-xl border border-slate-200 bg-white/50 backdrop-blur-sm px-4 py-3 text-[14px] text-slate-800 shadow-sm transition-all duration-300 placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 hover:border-slate-300";
-const labelClass = "mb-2 block text-[13px] font-bold uppercase tracking-wider text-slate-600 ml-1";
-const modalFieldClass = "w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-sm transition-all duration-200 placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10";
-const modalAreaClass = `${modalFieldClass} min-h-[92px] resize-none leading-5`;
-const modalLabelClass = "mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500";
+const fieldClass = "w-full rounded-xl border border-slate-200 bg-white/50 backdrop-blur-sm px-4 py-2.5 text-[13px] font-semibold text-slate-800 shadow-sm transition-all duration-300 placeholder:text-slate-400 focus:border-slate-400 focus:bg-white focus:ring-4 focus:ring-slate-100 hover:border-slate-300";
+const labelClass = "mb-1.5 block text-[11px] font-black uppercase tracking-widest text-slate-500 ml-1";
+const modalFieldClass = "w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-[13px] font-semibold text-slate-700 shadow-sm transition-all duration-200 placeholder:text-slate-400 focus:border-slate-400 focus:ring-4 focus:ring-slate-100";
+const modalAreaClass = `${modalFieldClass} min-h-[80px] resize-none leading-5`;
+const modalLabelClass = "mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-400";
 
 const emptyLigne = (typeDemande: string = "MATERIELS"): LigneForm => ({
   designation: "",
@@ -189,7 +189,7 @@ function LigneBesoinModal({ open, mode, isServiceRequest, ligne, error, onClose,
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-4 backdrop-blur-sm animate-in fade-in duration-300" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div 
-        className="w-full max-w-4xl overflow-hidden rounded-[28px] border border-white/40 bg-white shadow-[0_24px_60px_rgba(15,23,42,0.18)] animate-in zoom-in-95 slide-in-from-bottom-8 duration-300"
+        className="w-full max-w-4xl overflow-hidden rounded-[32px] border border-white/40 bg-white shadow-[0_24px_60px_rgba(15,23,42,0.18)] animate-in zoom-in-95 slide-in-from-bottom-8 duration-300"
       >
         <div className="relative border-b border-slate-100 bg-slate-50/80 px-5 py-4">
            <div className="absolute left-0 top-0 h-1 w-full bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-500"></div>
@@ -591,30 +591,30 @@ export default function NouvelleDemandePage() {
       {notification && <NotificationPopup message={notification.message} type={notification.type} onClose={() => setNotification(null)} />}
 
       <div className="zoom-content h-full">
-        <div className="max-w-container-zoomed mx-auto px-4 md:px-6 gap-8 mt-10 pb-12 flex flex-col animate-in slide-in-from-bottom-6 duration-700">
+        <div className="max-w-[1400px] mx-auto px-4 md:px-6 gap-6 mt-8 pb-12 flex flex-col animate-in slide-in-from-bottom-6 duration-700">
         
-        {/* EN-TETE HERO - MODERN, COLORFUL LOGO & RETURN BTN */}
-        <div className="bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 relative overflow-hidden group w-full">
+        {/* EN-TETE HERO - MODERN, COLORFUL & REFINED */}
+        <div className="bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 p-5 flex flex-col md:flex-row md:items-center justify-between gap-6 relative overflow-hidden group w-full">
            <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-emerald-100 to-teal-50 opacity-50 rounded-full blur-3xl -z-10 group-hover:scale-110 transition-transform duration-700"></div>
            
-           <div className="flex items-center gap-5">
+           <div className="flex items-center gap-4">
               <div className="relative">
-                 <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-400 flex items-center justify-center text-white shadow-lg shadow-emerald-500/20 rotate-3 group-hover:rotate-6 transition-all duration-300">
-                    <FileText className="h-7 w-7" />
+                 <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-400 flex items-center justify-center text-white shadow-lg shadow-emerald-500/20 rotate-3 group-hover:rotate-6 transition-all duration-300">
+                    <FileText className="h-6 w-6" />
                  </div>
-                 <Sparkles className="absolute -top-2 -right-2 h-5 w-5 text-amber-400 animate-pulse" />
+                 <Sparkles className="absolute -top-2 -right-2 h-4 w-4 text-amber-400 animate-pulse" />
               </div>
               <div>
-                 <h1 className="text-xl md:text-2xl font-black text-slate-800 tracking-tight leading-tight">ÉTAT DE BESOINS DE BIENS ET SERVICES</h1>
-                 <div className="flex items-center gap-2 mt-1.5">
-                    <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <p className="text-sm text-slate-500 font-medium tracking-wide">Formulaire officiel de remontée des besoins</p>
+                 <h1 className="text-xl font-black text-slate-800 tracking-tight">ÉTAT DE BESOINS</h1>
+                 <div className="flex items-center gap-2 mt-1">
+                    <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <p className="text-[11px] text-slate-500 font-black uppercase tracking-widest">Nouveau dossier de demande</p>
                  </div>
               </div>
            </div>
            
-           <button type="button" onClick={() => router.push("/demande-achat/dashboard")} className="flex items-center gap-2 px-5 py-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 rounded-xl font-bold text-sm transition-all hover:scale-105 active:scale-95 shadow-sm">
-              <ArrowLeft className="h-4 w-4" /> Retour
+           <button type="button" onClick={() => router.push("/demande-achat/dashboard")} className="flex items-center gap-2 px-4 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all hover:scale-105 active:scale-95 shadow-sm">
+              <ArrowLeft className="h-3.5 w-3.5" /> Retour
            </button>
         </div>
 
@@ -623,9 +623,9 @@ export default function NouvelleDemandePage() {
           {/* SECTION 1: INFORMATIONS ADMINISTRATIVES */}
           <div className="group relative overflow-hidden rounded-3xl border border-white/40 bg-white/70 shadow-[0_8px_32px_rgba(0,0,0,0.05)] backdrop-blur-md transition-all duration-500 hover:shadow-[0_12px_48px_rgba(0,0,0,0.08)]">
              <div className="absolute top-0 left-0 h-1.5 w-full bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-500 bg-[length:200%_100%] animate-gradient"></div>
-             <div className="p-8">
-                <h2 className="mb-8 flex items-center gap-4 text-base font-black uppercase tracking-tight text-slate-800">
-                   <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-100/80 text-emerald-600 shadow-sm backdrop-blur-sm transition-transform duration-300 group-hover:scale-110">
+             <div className="p-6">
+                <h2 className="mb-6 flex items-center gap-3 text-[11px] font-black uppercase tracking-widest text-slate-800">
+                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100/80 text-emerald-600 shadow-sm backdrop-blur-sm transition-transform duration-300 group-hover:scale-110">
                       <Briefcase className="h-5 w-5" />
                    </div>
                    1. Informations Administratives
@@ -683,9 +683,9 @@ export default function NouvelleDemandePage() {
           {/* SECTION 2: IDENTIFICATION DU BESOIN */}
           <div className="group relative overflow-hidden rounded-3xl border border-white/40 bg-white/70 shadow-[0_8px_32px_rgba(0,0,0,0.05)] backdrop-blur-md transition-all duration-500 hover:shadow-[0_12px_48px_rgba(0,0,0,0.08)]">
              <div className="absolute top-0 left-0 h-1.5 w-full bg-gradient-to-r from-teal-500 via-emerald-400 to-teal-500 bg-[length:200%_100%] animate-gradient"></div>
-             <div className="p-8">
-                <h2 className="mb-8 flex items-center gap-4 text-base font-black uppercase tracking-tight text-slate-800">
-                   <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-teal-100/80 text-teal-600 shadow-sm backdrop-blur-sm transition-transform duration-300 group-hover:scale-110">
+             <div className="p-6">
+                <h2 className="mb-6 flex items-center gap-3 text-[11px] font-black uppercase tracking-widest text-slate-800">
+                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-100/80 text-teal-600 shadow-sm backdrop-blur-sm transition-transform duration-300 group-hover:scale-110">
                       <Target className="h-5 w-5" />
                    </div>
                    2. Identification du besoin
@@ -715,16 +715,16 @@ export default function NouvelleDemandePage() {
           {/* SECTION 3: LIGNES DE BESOINS */}
           <div id="lignesSection" className="group relative overflow-hidden rounded-3xl border border-white/40 bg-white/70 shadow-[0_8px_32px_rgba(0,0,0,0.05)] backdrop-blur-md transition-all duration-500 hover:shadow-[0_12px_48px_rgba(0,0,0,0.08)]">
              <div className="absolute top-0 left-0 h-1.5 w-full bg-gradient-to-r from-emerald-500 via-sky-400 to-emerald-500 bg-[length:200%_100%] animate-gradient"></div>
-             <div className="p-8">
-                <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-                   <h2 className="flex items-center gap-4 text-base font-black uppercase tracking-tight text-slate-800">
-                      <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-100/80 text-emerald-600 shadow-sm backdrop-blur-sm transition-transform duration-300 group-hover:scale-110">
+             <div className="p-6">
+                <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                   <h2 className="flex items-center gap-3 text-[11px] font-black uppercase tracking-widest text-slate-800">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100/80 text-emerald-600 shadow-sm backdrop-blur-sm transition-transform duration-300 group-hover:scale-110">
                          <Layers className="h-5 w-5" />
                       </div>
                       3. Besoins (État quantitatif)
                    </h2>
-                   <button type="button" onClick={openCreateLigneModal} className="group relative flex items-center gap-3 overflow-hidden rounded-2xl bg-emerald-600 px-6 py-3 text-[14px] font-black uppercase tracking-wider text-white shadow-[0_10px_20px_rgba(5,150,105,0.2)] transition-all hover:bg-emerald-700 hover:shadow-[0_15px_30px_rgba(5,150,105,0.3)] hover:-translate-y-0.5 active:translate-y-0">
-                      <Plus className="h-5 w-5" /> Ajouter un besoin
+                   <button type="button" onClick={openCreateLigneModal} className="flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-[10px] font-black uppercase tracking-widest text-white shadow-lg shadow-emerald-500/20 transition-all hover:bg-emerald-700 hover:-translate-y-0.5 active:translate-y-0">
+                      <Plus className="h-4 w-4" /> Ajouter un besoin
                    </button>
                 </div>
                 
@@ -751,9 +751,9 @@ export default function NouvelleDemandePage() {
                                </div>
                             </div>
                          </div>
-                         <div className="flex items-center gap-2 self-end sm:self-auto pt-4 sm:pt-0 border-t sm:border-t-0 border-slate-100 w-full sm:w-auto">
-                            <button type="button" onClick={() => openEditLigneModal(i)} className="flex-1 sm:flex-none text-blue-600 hover:text-blue-800 text-[13px] font-bold px-3 py-2 flex items-center justify-center gap-2 border border-slate-200 rounded-lg shadow-sm hover:bg-slate-50 transition-colors"><Edit2 className="h-4 w-4" /> Modifier</button>
-                            <button type="button" onClick={() => setLignes(prev => prev.filter((_, idx) => idx !== i))} className="flex-1 sm:flex-none text-red-600 hover:text-red-800 text-[13px] font-bold px-3 py-2 flex items-center justify-center gap-2 border border-slate-200 rounded-lg shadow-sm hover:bg-red-50 transition-colors"><Trash2 className="h-4 w-4" /> Supprimer</button>
+                         <div className="flex items-center gap-2 self-end sm:self-auto pt-3 sm:pt-0 border-t sm:border-t-0 border-slate-50 w-full sm:w-auto">
+                            <button type="button" onClick={() => openEditLigneModal(i)} className="flex-1 sm:flex-none text-slate-600 hover:text-slate-900 text-[10px] font-black uppercase tracking-widest px-3 py-2 flex items-center justify-center gap-2 border border-slate-200 rounded-lg shadow-sm hover:bg-slate-50 transition-all">Modifier</button>
+                            <button type="button" onClick={() => setLignes(prev => prev.filter((_, idx) => idx !== i))} className="flex-1 sm:flex-none text-red-500 hover:text-red-700 text-[10px] font-black uppercase tracking-widest px-3 py-2 flex items-center justify-center gap-2 border border-slate-200 rounded-lg shadow-sm hover:bg-red-50 transition-all">Supprimer</button>
                          </div>
                       </div>
                     ))}
@@ -765,16 +765,16 @@ export default function NouvelleDemandePage() {
           {/* SECTION 4: PIECES JOINTES */}
           <div className="group relative overflow-hidden rounded-3xl border border-white/40 bg-white/70 shadow-[0_8px_32px_rgba(0,0,0,0.05)] backdrop-blur-md transition-all duration-500 hover:shadow-[0_12px_48px_rgba(0,0,0,0.08)]">
              <div className="absolute top-0 left-0 h-1.5 w-full bg-gradient-to-r from-emerald-500 via-amber-400 to-emerald-500 bg-[length:200%_100%] animate-gradient"></div>
-             <div className="p-8">
-                <div id="documentsSection" className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-                   <h2 className="flex items-center gap-4 text-base font-black uppercase tracking-tight text-slate-800">
-                      <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-100/80 text-amber-600 shadow-sm backdrop-blur-sm transition-transform duration-300 group-hover:scale-110">
+             <div className="p-6">
+                <div id="documentsSection" className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                   <h2 className="flex items-center gap-3 text-[11px] font-black uppercase tracking-widest text-slate-800">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100/80 text-amber-600 shadow-sm backdrop-blur-sm transition-transform duration-300 group-hover:scale-110">
                          <FolderArchive className="h-5 w-5" />
                       </div>
                       4. Documents justificatifs
                    </h2>
-                   <button type="button" onClick={() => setDocuments([...documents, { type_document: "", commentaire: "", fichier: null }])} className="flex items-center gap-3 overflow-hidden rounded-2xl bg-white border border-slate-200 px-6 py-3 text-[14px] font-black uppercase tracking-wider text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:border-slate-300 active:scale-95">
-                      <Plus className="h-5 w-5" /> Ajouter un fichier
+                   <button type="button" onClick={() => setDocuments([...documents, { type_document: "", commentaire: "", fichier: null }])} className="flex items-center gap-2 rounded-xl bg-white border border-slate-200 px-5 py-2.5 text-[10px] font-black uppercase tracking-widest text-slate-600 shadow-sm transition-all hover:bg-slate-50 hover:border-slate-300 active:scale-95">
+                      <Plus className="h-4 w-4" /> Ajouter un fichier
                    </button>
                 </div>
                    {getDocumentRecommendations().length > 0 && (

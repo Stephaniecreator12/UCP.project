@@ -25,167 +25,45 @@
   --font-mono: var(--font-code), ui-monospace, monospace;
 }
 
-html,
-body {
+html, body {
   margin: 0;
   padding: 0;
   height: 100%;
   background-color: var(--bg);
   color: var(--text);
   font-family: var(--font-ui), ui-sans-serif, system-ui, sans-serif;
-  line-height: 1.5;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
-input,
-textarea,
-select,
-button {
-  font: inherit;
-}
-
-.purchase-form-stage {
-  overflow-x: clip;
-  background:
-    radial-gradient(circle at top center, rgba(16, 185, 129, 0.1), transparent 24%),
-    linear-gradient(180deg, #f4f7f6 0%, #edf2f0 100%);
-}
-
-.purchase-form-shell {
-  width: 100%;
-  padding: 1rem 0 2.25rem;
-}
-
-.purchase-form-zoom-frame {
-  width: min(1120px, calc(100vw - 32px));
-  margin-inline: auto;
-}
-
-.purchase-form-zoom {
-  width: 100%;
-}
-
-@media (min-width: 768px) {
-  .purchase-form-shell {
-    padding-top: 1.5rem;
+/* Réduction d'affichage "type zoom 80%" (écran PC) */
+@media (min-width: 1024px) and (pointer: fine) {
+  html {
+    zoom: 0.8;
   }
 
-  .purchase-form-zoom-frame {
-    width: min(1120px, calc(100vw - 96px));
+  /* Compense le zoom pour garder la même largeur visuelle des conteneurs centrés */
+  .max-w-\[1480px\] {
+    max-width: 1550px;
+  }
+
+  /* compense le zoom pour garder la hauteur visuelle des éléments à 100vh */
+  .h-screen {
+    height: 120vh;
+  }
+
+  /* Le header utilise `mx-30` : on le recentre proprement sur PC */
+  .mx-30 {
+    margin-left: auto;
+    margin-right: auto;
   }
 }
 
-@media (min-width: 768px) {
-  .purchase-form-shell {
-    display: flex;
-    justify-content: center;
-  }
-
-  .purchase-form-zoom {
-    width: 100%;
-    zoom: 0.9;
-  }
-}
-
-/* Fallback pour Firefox et les navigateurs sans support du zoom CSS */
+/* Fallback (navigateurs sans support de `zoom`, ex: Firefox) */
 @supports not (zoom: 1) {
   @media (min-width: 1024px) and (pointer: fine) {
-    .purchase-form-zoom {
-      width: 111.1111%;
-      transform: scale(0.9);
-      transform-origin: top center;
-      margin-bottom: calc(-10% + 8px);
+    html {
+      font-size: 80%;
     }
   }
-}
-
-.achat-dashboard-shell {
-  width: 100%;
-  padding: 0.85rem 0 2rem;
-}
-
-.achat-dashboard-zoom-frame {
-  width: min(1220px, calc(100vw - 24px));
-  margin-inline: auto;
-}
-
-.achat-dashboard-zoom {
-  width: 100%;
-}
-
-@media (min-width: 768px) {
-  .achat-dashboard-shell {
-    padding-top: 1.1rem;
-  }
-
-  .achat-dashboard-zoom-frame {
-    width: min(1220px, calc(100vw - 72px));
-  }
-}
-
-@media (min-width: 768px) {
-  .achat-dashboard-shell {
-    display: flex;
-    justify-content: center;
-  }
-
-  .achat-dashboard-zoom {
-    width: 100%;
-    zoom: 0.9;
-  }
-}
-
-@supports not (zoom: 1) {
-  @media (min-width: 1024px) and (pointer: fine) {
-    .achat-dashboard-zoom {
-      width: 111.1111%;
-      transform: scale(0.9);
-      transform-origin: top center;
-      margin-bottom: calc(-10% + 12px);
-    }
-  }
-}
-
-/* NOUVELLES CLASSES POUR LE ZOOM HAUTE DENSITÉ */
-.zoom-content {
-  width: 100%;
-}
-
-@media (min-width: 768px) {
-  .zoom-content {
-    zoom: 0.9;
-  }
-}
-
-/* Fallback non-zoom pour Firefox */
-@supports not (zoom: 1) {
-  @media (min-width: 1024px) and (pointer: fine) {
-    .zoom-content {
-      transform: scale(0.9);
-      transform-origin: top center;
-      width: 111.1111%; /* 1/0.9 */
-    }
-  }
-}
-
-.max-w-5xl-zoomed {
-  max-width: 64rem; /* 1024px (5xl) / 0.9 = 1137px */
-  margin-left: auto;
-  margin-right: auto;
-}
-
-.max-w-7xl-zoomed {
-  max-width: 89rem; /* 1280px (7xl) / 0.9 = 1422px */
-  margin-left: auto;
-  margin-right: auto;
-}
-
-.max-w-container-zoomed {
-  max-width: 89rem;
-  margin-left: auto;
-  margin-right: auto;
 }
 
 /* En Tailwind v4, on définit les composants personnalisés 
@@ -206,32 +84,18 @@ button {
 }
 
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes dashFadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @keyframes dashIntroSlide {
@@ -266,63 +130,34 @@ button {
   animation: dashIntroSlide 0.55s ease-out both;
 }
 
+.progress-grow {
+  transform-origin: left;
+  animation: progressGrow 0.7s ease-out both;
+}
+
+@keyframes progressGrow {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
 .animate-saveMessageSlide {
   animation-name: saveMessageSlide;
-  animation-duration: 0.5s;
+  animation-duration: 2.5s;
   animation-timing-function: cubic-bezier(0.22, 0.61, 0.36, 1);
   animation-fill-mode: both;
 }
 
-.field {
+/* On garde les classes de zoom spécifiques si besoin pour compatibilité */
+.zoom-content {
   width: 100%;
-  border-radius: 16px;
-  border: 1px solid #dbe4ee;
-  background: linear-gradient(180deg, #ffffff 0%, #fcfdff 100%);
-  padding: 0.9rem 1rem;
-  color: #0f172a;
-  outline: none;
-  transition:
-    background-color 0.2s ease,
-    border-color 0.2s ease,
-    box-shadow 0.2s ease,
-    transform 0.2s ease;
 }
 
-.field:hover {
-  border-color: #c4d5e7;
-}
-
-.field:focus {
-  border-color: #10b981;
-  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.12);
-  transform: translateY(-1px);
-}
-
-.field::placeholder {
-  color: #94a3b8;
-}
-
-.field[readonly],
-.field:disabled {
-  border-color: #dbe3e8;
-  background: linear-gradient(180deg, #f8fafc 0%, #f2f6f8 100%);
-  color: #475569;
-  box-shadow: none;
-  cursor: default;
-}
-
-.field[readonly]:focus,
-.field:disabled:focus {
-  border-color: #dbe3e8;
-  box-shadow: none;
-  transform: none;
-}
-@keyframes gradient {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-
-.animate-gradient {
-  animation: gradient 3s ease infinite;
+.max-w-\[1440px\] {
+  max-width: 1440px;
+  margin-left: auto;
+  margin-right: auto;
 }

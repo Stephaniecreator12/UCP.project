@@ -3,6 +3,7 @@ from rest_framework import serializers
 from apps.achats.models import (
     DemandeAchat,
     DocumentDemande,
+    Fournisseur,
     HistoriqueDemande,
     LigneBesoin,
     ValidationDemande,
@@ -156,6 +157,7 @@ class DemandeAchatSerializer(serializers.ModelSerializer):
             "solde_apres_engagement",
             "cout_total_estime",
             "type_procedure",
+            "fournisseur",
             "fournisseur_retenu",
             "email_fournisseur",
             "numero_bon_commande",
@@ -343,8 +345,8 @@ class BudgetEstimationSerializer(serializers.Serializer):
 
 class IssueOrderSerializer(serializers.Serializer):
     type_procedure = serializers.ChoiceField(choices=DemandeAchat.TYPE_PROCEDURE_CHOICES)
-    fournisseur_retenu = serializers.CharField()
-    email_fournisseur = serializers.EmailField()
+    fournisseur = serializers.PrimaryKeyRelatedField(queryset=Fournisseur.objects.all())
+    email_fournisseur = serializers.EmailField(required=False)
     montant_commande = serializers.DecimalField(max_digits=14, decimal_places=2)
     delai_livraison_contractuel = serializers.IntegerField(min_value=1)
     conditions_livraison = serializers.CharField(required=False, allow_blank=True)

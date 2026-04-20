@@ -213,25 +213,25 @@ export default function DemandeDetailPanel({
 
   return (
     <div className="flex flex-col gap-4 font-sans text-[13px] leading-relaxed text-slate-800">
-      <div className="flex flex-wrap items-center gap-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5">
+      <div className="flex flex-wrap items-center gap-4 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold uppercase tracking-widest text-slate-500">
+          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
             Statut
           </span>
           <span
-            className={`inline-flex rounded px-1.5 py-0.5 text-xs font-bold uppercase tracking-wider ${
+            className={`inline-flex rounded px-2 py-0.5 text-[10px] font-black uppercase tracking-widest shadow-sm ${
               statusClasses[demande.statut] ?? "bg-slate-200 text-slate-700"
             }`}
           >
             {statusLabels[demande.statut] ?? demande.statut}
           </span>
         </div>
-        <div className="h-4 w-px bg-slate-300"></div>
+        <div className="h-4 w-px bg-slate-200"></div>
         <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold uppercase tracking-widest text-slate-500">
+          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
             Étape
           </span>
-          <span className="inline-flex rounded border border-slate-200 bg-white px-1.5 py-0.5 text-xs font-bold uppercase text-slate-700">
+          <span className="inline-flex rounded border border-slate-100 bg-slate-50 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-slate-600">
             {stepLabels[demande.etape_validation_actuelle] ??
               demande.etape_validation_actuelle}
           </span>
@@ -242,14 +242,14 @@ export default function DemandeDetailPanel({
         <button
           type="button"
           onClick={() => setShowTimeline(!showTimeline)}
-          className="flex items-center gap-1 text-sm font-semibold text-indigo-600 transition-colors hover:text-indigo-800"
+          className="flex items-center gap-1 text-[11px] font-black uppercase tracking-widest text-slate-900 transition-all hover:text-slate-600"
         >
           {showTimeline ? (
-            <ChevronDown className="h-3 w-3" />
+            <ChevronDown className="h-3.5 w-3.5" />
           ) : (
-            <ChevronRight className="h-3 w-3" />
+            <ChevronRight className="h-3.5 w-3.5" />
           )}
-          {showTimeline ? "Masquer la chronologie" : "Voir la chronologie"}
+          Chronologie
         </button>
       </div>
 
@@ -726,7 +726,7 @@ export default function DemandeDetailPanel({
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="flex flex-col gap-3">
-      <h3 className="border-b border-slate-200 pb-1 text-xs font-bold uppercase tracking-widest text-slate-500">
+      <h3 className="border-b border-slate-100 pb-1.5 text-[11px] font-black uppercase tracking-widest text-slate-400">
         {title}
       </h3>
       <div>{children}</div>
@@ -747,8 +747,8 @@ function DataPair({
 }) {
   return (
     <div style={{ gridColumn: `span ${colSpan}` }}>
-      <p className="mb-0.5 text-xs font-bold uppercase text-slate-400">{label}</p>
-      <p className={`font-semibold ${highlight ? "text-rose-600" : "text-slate-900"}`}>
+      <p className="mb-0.5 text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</p>
+      <p className={`text-[13px] font-bold ${highlight ? "text-red-600" : "text-slate-900"}`}>
         {renderDisplayValue(value)}
       </p>
     </div>
@@ -769,13 +769,13 @@ function DataPairRow({
   highlight?: boolean;
 }) {
   return (
-    <div className="flex items-start justify-between gap-4 text-sm">
-      <span className="font-medium text-slate-500">{label}</span>
+    <div className="flex items-start justify-between gap-4 text-[13px] py-0.5">
+      <span className="font-bold text-slate-400 uppercase text-[10px] tracking-widest pt-0.5">{label}</span>
       <span
         className={`text-right ${
           monospace ? "font-mono" : ""
-        } ${boldValue ? "font-bold text-slate-900" : "text-slate-700"} ${
-          highlight ? "font-bold text-indigo-600" : ""
+        } ${boldValue ? "font-black text-slate-900" : "font-bold text-slate-700"} ${
+          highlight ? "font-black text-slate-900 bg-slate-100 px-1.5 py-0.5 rounded" : ""
         }`}
       >
         {renderDisplayValue(value)}

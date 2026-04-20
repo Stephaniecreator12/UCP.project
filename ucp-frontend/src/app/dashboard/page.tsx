@@ -342,7 +342,7 @@ export default function DashboardPage() {
 
       <TopHeader />
 
-      <main className="mx-auto max-w-[1480px] animate-[dashFadeIn_0.4s_ease-out] p-4 md:px-8 md:pb-8 md:pt-4">
+      <main className="mx-auto max-w-[1400px] animate-[dashFadeIn_0.4s_ease-out] p-4 md:px-8 md:pb-8 md:pt-4">
         <header className="mb-6 flex flex-col justify-between gap-2 md:flex-row md:items-end">
           <div className="animate-[dashIntroSlide_0.5s_ease-out_forwards]">
             <h1 className="mb-1 text-[1.6rem] font-extrabold tracking-tight text-[#17212e]">

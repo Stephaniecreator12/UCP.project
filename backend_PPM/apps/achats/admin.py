@@ -3,6 +3,7 @@ from django.contrib import admin
 from apps.achats.models import (
     DemandeAchat,
     DocumentDemande,
+    Fournisseur,
     HistoriqueDemande,
     LigneBesoin,
     ValidationDemande,
@@ -67,3 +68,10 @@ class HistoriqueDemandeAdmin(admin.ModelAdmin):
     list_display = ("id", "demande", "action", "user", "created_at")
     list_filter = ("action",)
     search_fields = ("demande__numero_demande", "description", "user__username")
+
+
+@admin.register(Fournisseur)
+class FournisseurAdmin(admin.ModelAdmin):
+    list_display = ("id", "nom", "email", "telephone", "actif", "created_at")
+    list_filter = ("actif",)
+    search_fields = ("nom", "email", "telephone")

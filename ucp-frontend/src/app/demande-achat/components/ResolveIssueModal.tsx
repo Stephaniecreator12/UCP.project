@@ -60,7 +60,7 @@ export default function ResolveIssueModal({
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div 
-        className="w-full max-w-xl overflow-hidden rounded-[28px] border border-white/20 bg-white shadow-[0_24px_60px_rgba(15,23,42,0.18)] animate-in zoom-in-95 duration-300"
+        className="w-full max-w-xl overflow-hidden rounded-[32px] border border-white/20 bg-white shadow-[0_24px_60px_rgba(15,23,42,0.18)] animate-in zoom-in-95 duration-300"
       >
         
         {/* Header */}

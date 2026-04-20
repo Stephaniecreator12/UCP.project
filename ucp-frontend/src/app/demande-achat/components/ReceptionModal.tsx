@@ -265,7 +265,7 @@ export default function ReceptionModal({
       }}
     >
       <div 
-        className="w-full max-w-4xl w-[95vw] rounded-[30px] bg-white shadow-2xl flex flex-col max-h-[95vh]"
+        className="w-full max-w-4xl w-[95vw] overflow-hidden rounded-[32px] bg-white shadow-2xl flex flex-col max-h-[95vh]"
         style={{ zoom: 0.8 }}
       >
         {/* HEADER */}

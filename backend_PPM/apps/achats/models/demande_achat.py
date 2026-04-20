@@ -254,6 +254,13 @@ class DemandeAchat(models.Model):
         choices=TYPE_PROCEDURE_CHOICES,
         blank=True,
     )
+    fournisseur = models.ForeignKey(
+        "Fournisseur",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="demandes_achat",
+    )
     fournisseur_retenu = models.CharField(max_length=255, blank=True)
     email_fournisseur = models.EmailField(blank=True)
     numero_bon_commande = models.CharField(max_length=30, blank=True)

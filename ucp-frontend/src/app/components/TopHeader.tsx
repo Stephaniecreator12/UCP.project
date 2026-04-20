@@ -43,10 +43,10 @@ export default function TopHeader() {
   };
 
   return (
-    <div className="sticky top-0 z-40">
+    <div className="sticky top-0 z-50">
       <header
         ref={headerRef}
-        className="relative h-[2cm] overflow-hidden border-b border-slate-200 bg-white shadow-sm"
+        className="relative h-[1.8cm] overflow-hidden border-b border-[var(--line)] bg-[var(--surface)] shadow-[0_1px_3px_rgba(0,0,0,0.02)]"
       >
         {/* Ligne de couleur en haut */}
         <div
@@ -54,7 +54,7 @@ export default function TopHeader() {
           aria-hidden="true"
         />
 
-        <div className="relative z-10 mx-auto flex h-[calc(2cm-3px)] max-w-[1480px] items-center justify-between gap-3 px-4 sm:px-6">
+        <div className="relative z-10 mx-auto flex h-[calc(1.8cm-3px)] max-w-[1480px] items-center justify-between gap-3 px-6">
           {/* Logo & Brand */}
           <Link
             href={showAuthenticatedActions ? "/formulaire" : "/login"}
@@ -68,23 +68,23 @@ export default function TopHeader() {
               className="rounded-xl border border-slate-200 bg-white object-contain"
               priority
             />
-            <div className="grid min-w-0 gap-0.5">
-              <strong className="truncate text-[0.78rem] font-bold uppercase tracking-[0.04em] text-slate-800 sm:text-[0.96rem]">
+            <div className="grid min-w-0 gap-0">
+              <strong className="truncate text-[0.85rem] font-black uppercase tracking-widest text-[var(--text)]">
                 unité de coordination des projets
               </strong>
-              <span className="hidden text-[0.74rem] tracking-[0.03em] text-slate-500 sm:block">
-                e-Procurement
+              <span className="hidden text-[0.7rem] font-bold uppercase tracking-widest text-[var(--muted)] sm:block">
+                e-Procurement Platform
               </span>
             </div>
           </Link>
 
           {/* Actions - Déconnexion */}
-          <div className="shrink-0">
+          <div className="shrink-0 flex items-center gap-4">
             {showAuthenticatedActions && (
               <button
                 type="button"
                 onClick={handleLogout}
-                className="rounded-full border border-slate-300 bg-white px-[0.95rem] py-[0.46rem] text-[0.8rem] font-bold text-[#2f3d4c] shadow-[0_10px_20px_-16px_rgba(6,20,34,0.65)] transition-all hover:bg-slate-50"
+                className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-2 text-[11px] font-black uppercase tracking-widest text-[var(--text)] shadow-sm transition-all hover:bg-[var(--panel)] hover:border-[var(--line-strong)]"
               >
                 Déconnexion
               </button>

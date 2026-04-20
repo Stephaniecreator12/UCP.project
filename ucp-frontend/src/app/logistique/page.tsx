@@ -233,14 +233,18 @@ export default function MarcheDashboardPage() {
     <main className="min-h-screen bg-slate-50 text-slate-800 font-sans selection:bg-indigo-100 selection:text-indigo-900 pb-12">
       <TopHeader />
 
-      <div className="zoom-content">
-        <div className="mx-auto max-w-7xl-zoomed px-4 py-8">
-          <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <h1 className="text-xl font-bold tracking-tight text-slate-900">Espace Marché</h1>
-            <div className="hidden h-6 w-[1px] bg-slate-300 md:block"></div>
-            <p className="text-sm font-medium text-slate-500 hidden sm:block">{marketRoleLabel || "Agent marché"}</p>
-          </div>
+      <div className="zoom-content h-full">
+        <div className="mx-auto max-w-[1400px] px-4 py-8 animate-in slide-in-from-bottom-8 duration-700">
+          <div className="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-6">
+            <div className="flex items-center gap-4">
+              <div className="h-12 w-12 rounded-xl bg-slate-900 flex items-center justify-center text-white shadow-lg shadow-slate-200">
+                <PackageCheck className="h-6 w-6" />
+              </div>
+              <div>
+                <h1 className="text-xl font-black text-slate-900 tracking-tight uppercase">Espace Marché</h1>
+                <p className="mt-0.5 text-[10px] font-black uppercase tracking-widest text-slate-400">{marketRoleLabel || "Agent marché"}</p>
+              </div>
+            </div>
 
           <div className="flex items-center gap-3 w-full md:w-auto">
             <div className="relative flex-1 sm:w-64">
@@ -350,8 +354,8 @@ function SearchResultsList({ items, query, currentUser, router, onOpenDetail, on
   return (
     <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
       <div className="bg-slate-50 border-b border-slate-200 px-5 py-4">
-        <h2 className="text-lg font-bold text-slate-800">Résultats de recherche</h2>
-        <p className="text-sm text-slate-500">
+        <h2 className="text-[12px] font-black uppercase tracking-widest text-slate-900">Résultats de recherche</h2>
+        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-1">
           {items.length} correspondant à « {query} »
         </p>
       </div>
@@ -400,30 +404,30 @@ function AccordionSection({ section, isActive, onToggle, currentUser, router, on
   }, [isActive]);
 
   return (
-    <div ref={sectionRef} className={`overflow-hidden rounded-2xl border transition-all ${isActive ? 'border-slate-300 shadow-md ring-4 ring-slate-100' : 'border-slate-200 bg-white shadow-sm hover:border-slate-300'}`}>
+    <div ref={sectionRef} className={`overflow-hidden rounded-2xl border transition-all duration-300 ${isActive ? 'border-slate-300 bg-white shadow-md ring-4 ring-slate-100' : 'border-slate-200 bg-white shadow-sm hover:border-slate-300'}`}>
       <button
         onClick={onToggle}
         disabled={!hasItems}
         className={`w-full flex items-center justify-between px-5 py-4 transition-colors ${!hasItems ? 'bg-slate-50/50 cursor-not-allowed opacity-60' : isActive ? 'bg-slate-50 border-b border-slate-200' : 'bg-white hover:bg-slate-50'}`}
       >
         <div className="flex items-center gap-4">
-          <div className={`p-2 rounded-xl shadow-inner ${isAlert ? `bg-gradient-to-br ${section.gradientFrom} ${section.gradientTo} text-white` : section.bgLight}`}>
+          <div className={`p-2 rounded-xl shadow-inner bg-gradient-to-br ${section.gradientFrom} ${section.gradientTo} text-white`}>
             <Icon className="h-5 w-5" strokeWidth={2} />
           </div>
-          <span className="text-base font-bold text-slate-900">{section.title}</span>
+          <span className="text-[14px] font-black uppercase tracking-widest text-slate-900">{section.title}</span>
           
-          <span className={`ml-2 px-3 py-1 rounded-full text-xs font-bold shadow-sm ${hasItems ? (isAlert ? `bg-gradient-to-r ${section.gradientFrom} ${section.gradientTo} text-white` : 'bg-white border border-slate-200 text-slate-800') : 'bg-slate-100 text-slate-400'}`}>
+          <span className={`ml-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm ${hasItems ? `bg-white text-slate-800 border border-slate-200` : 'bg-slate-100 text-slate-400'}`}>
             {section.total}
           </span>
         </div>
         
-        {hasItems && (
-          <div className="flex items-center gap-2 text-sm font-semibold text-slate-500">
-            <span className={isActive ? 'text-indigo-600' : 'text-slate-400'}>
-              {isActive ? 'Fermer' : 'Voir'}
+        {isActive && hasItems && (
+          <div className="flex items-center gap-2.5 text-[10px] font-black uppercase tracking-widest text-slate-400">
+            <span className={isActive ? 'text-slate-900' : ''}>
+              {isActive ? 'Masquer' : 'Afficher'}
             </span>
-            <div className={`p-1 rounded-full transition-colors ${isActive ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-400'}`}>
-              <ChevronDown className={`h-4 w-4 transition-transform duration-300 ${isActive ? 'rotate-180' : ''}`} />
+            <div className={`p-1 rounded-lg transition-all ${isActive ? 'bg-slate-900 text-white rotate-180' : 'bg-slate-100 text-slate-400'}`}>
+              <ChevronDown className="h-3.5 w-3.5" />
             </div>
           </div>
         )}
@@ -484,32 +488,34 @@ function CompactDemandeRow({ demande, sectionKey, onOpenDetail, onOpenTimeline, 
   void onOpenTimeline;
 
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm hover:border-indigo-300 hover:shadow-md transition-all">
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm hover:border-slate-400 hover:shadow-md transition-all duration-300 group/row">
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-1.5">
-          <span className="text-xs font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded uppercase tracking-tight">{demande.numero_demande}</span>
-          <span className={`px-2 py-0.5 text-[0.65rem] uppercase font-bold rounded-md whitespace-nowrap shadow-sm ${statusClasses[demande.statut] ?? "bg-slate-200 text-slate-700"}`}>
+        <div className="flex items-center flex-wrap gap-2 mb-2">
+          <span className="text-[10px] font-black text-slate-500 bg-slate-100 px-2 py-0.5 rounded tracking-widest uppercase">{demande.numero_demande}</span>
+          <span className={`px-2 py-0.5 text-[9px] uppercase font-black rounded tracking-widest shadow-sm ${statusClasses[demande.statut] ?? "bg-slate-200 text-slate-700"}`}>
             {statusLabels[demande.statut] ?? demande.statut}
           </span>
         </div>
         
-        <p className="text-[13.5px] font-bold text-slate-800 truncate mb-1.5" title={demande.objet}>
+        <p className="text-[14px] font-bold text-slate-900 truncate mb-1.5 leading-tight group-hover/row:text-slate-700 transition-colors" title={demande.objet}>
           {demande.objet}
         </p>
         
-        <div className="flex flex-wrap items-center gap-3 text-xs font-semibold text-slate-500">
-          <span className="truncate max-w-[140px] text-slate-700">{getCompactNeedLabel(demande)}</span>
-          <span className="text-slate-900 border-l border-slate-200 pl-3">{formatMoney(demande.montant_commande ?? demande.cout_total_estime)}</span>
-          <span className="text-indigo-600 border-l border-slate-200 pl-3 hidden sm:block truncate max-w-[220px]">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] font-bold text-slate-400">
+          <span className="text-slate-600 flex items-center gap-1.5">
+            {getCompactNeedLabel(demande)}
+          </span>
+          <span className="text-slate-900 bg-slate-50 px-1.5 py-0.5 rounded">{formatMoney(demande.montant_commande ?? demande.cout_total_estime)}</span>
+          <span className="text-indigo-600 font-medium italic hidden sm:block truncate max-w-[300px]">
             {getSectionContextLine(demande, sectionKey)}
           </span>
         </div>
       </div>
 
-      <div className="flex shrink-0 w-full sm:w-auto grid grid-cols-2 sm:flex sm:flex-row items-center gap-2">
+      <div className="flex shrink-0 w-full sm:w-auto items-center gap-2 mt-2 sm:mt-0 pt-3 sm:pt-0 border-t sm:border-t-0 border-slate-50">
         <button
           onClick={onOpenDetail}
-          className="col-span-1 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 shadow-sm hover:bg-slate-100 hover:border-slate-300 transition-colors text-center"
+          className="flex-1 sm:flex-none rounded-xl px-4 py-2 text-[11px] font-black uppercase tracking-widest text-slate-600 bg-white border border-slate-200 shadow-sm hover:bg-slate-50 hover:border-slate-300 transition-all text-center"
         >
           Détail
         </button>
@@ -525,7 +531,7 @@ function CompactDemandeRow({ demande, sectionKey, onOpenDetail, onOpenTimeline, 
                 router.push(action.href);
               }
             }}
-            className="col-span-2 sm:col-span-1 mt-2 sm:mt-0 rounded-lg px-4 py-2 text-xs font-bold text-white bg-gradient-to-r from-slate-800 to-slate-900 hover:from-slate-900 hover:to-black shadow-md transition-all text-center"
+            className="flex-1 sm:flex-none rounded-xl px-5 py-2 text-[11px] font-black uppercase tracking-widest text-white bg-slate-900 shadow-lg shadow-slate-100 hover:bg-slate-800 hover:-translate-y-0.5 active:translate-y-0 transition-all text-center"
           >
             {action.label}
           </button>

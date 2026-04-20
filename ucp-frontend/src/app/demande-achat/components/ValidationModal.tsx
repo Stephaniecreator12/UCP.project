@@ -429,7 +429,7 @@ export default function ValidationModal({
       }}
     >
       <div
-        className="my-4 flex w-full max-w-5xl flex-col rounded-[24px] border border-slate-200 bg-white shadow-[0_20px_48px_rgba(15,23,42,0.12)] animate-in zoom-in-95 duration-200"
+        className="my-4 flex w-full max-w-5xl flex-col overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-[0_20px_48px_rgba(15,23,42,0.12)] animate-in zoom-in-95 duration-200"
         style={{ zoom: 0.82 }}
       >
         <div className="flex items-center justify-between border-b border-slate-200 bg-white px-5 py-3">

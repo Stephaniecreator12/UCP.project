@@ -168,10 +168,20 @@ export interface BudgetEstimationPayload {
   ligne_budgetaire: string;
   source_financement: "SRPS_CS7_FM" | "RSS3_GAVI" | "FAE_GAVI" | "CDS_GAVI" | "VAR_GAVI" | "PARN2_BM" | "PPSB_BM";
 }
+export interface Fournisseur {
+  id: number;
+  nom: string;
+  email: string;
+  telephone?: string;
+  adresse?: string;
+  actif: boolean;
+}
+
 export interface IssueOrderPayload {
   type_procedure: "DEMANDE_COTATION" | "BON_COMMANDE_DIRECT" | "SELECTION_APRES_COTATION";
-  fournisseur_retenu: string;
-  email_fournisseur: string;
+  fournisseur: number;
+  email_fournisseur?: string;
+  fournisseur_retenu?: string;
   numero_bon_commande?: string;
   montant_commande: string;
   delai_livraison_contractuel: number;
@@ -179,6 +189,21 @@ export interface IssueOrderPayload {
   garantie?: string;
   date_bon_commande?: string;
 }
+
+export const listFournisseurs = () =>
+  apiFetch<Fournisseur[]>("/api/achats/fournisseurs/", { method: "GET" });
+
+export const createFournisseur = (payload: Partial<Fournisseur>) =>
+  apiFetch<Fournisseur>("/api/achats/fournisseurs/", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
+export const updateFournisseur = (id: number, payload: Partial<Fournisseur>) =>
+  apiFetch<Fournisseur>(`/api/achats/fournisseurs/${id}/`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
 
 export interface UpdateDeliveryPayload {
   date_arrivee_prevue?: string;

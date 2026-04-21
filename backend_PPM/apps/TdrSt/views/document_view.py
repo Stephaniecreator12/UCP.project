@@ -65,12 +65,17 @@ def document_detail_view(request, id: int):
 @permission_classes([IsAuthenticated])
 def submit_document_view(request, id: int):
     doc = get_object_or_404(TdrStDocument, id=id)
-    perm = CanSubmitOrUploadOwnDocument()
-    if not perm.has_object_permission(request, None, doc):
-        return Response({"detail": "Accès refusé."}, status=status.HTTP_403_FORBIDDEN)
+    # Vérifier que l'utilisateur est l'initiateur
+    if doc.initiateur != request.user:
+        return Response({"detail": "Seul l'initiateur peut soumettre ce document."}, 
+                       status=status.HTTP_403_FORBIDDEN)
+    # Vérifier le statut (BROUILLON ou A_REVOIR)
+    if doc.statut not in (TdrStDocument.Statut.BROUILLON, TdrStDocument.Statut.A_REVOIR):
+        return Response({"detail": "Seuls les brouillons ou documents à revoir peuvent être soumis."},
+                       status=status.HTTP_400_BAD_REQUEST)
+    
     doc = submit_document(doc, request.user)
     return Response(TdrStDocumentReadSerializer(doc).data)
-
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated, CanSubmitOrUploadOwnDocument])

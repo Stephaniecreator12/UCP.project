@@ -134,12 +134,24 @@ def list_tech_documents(user):
     - inclut les documents en attente (SOUMIS)
     - inclut aussi les documents deja traites (historique)
     """
+    # Documents en attente de validation technique
     pending = TdrStDocument.objects.filter(statut=TdrStDocument.Statut.SOUMIS)
-    return _list_role_documents_with_history(
-        pending_qs=pending,
-        treated_etape=TdrStValidationAction.Etape.VALIDATION_TECHNIQUE,
-        user=None,
+    
+    # Documents déjà traités par ce vérificateur
+    treated = TdrStDocument.objects.filter(
+        actions_validation__etape=TdrStValidationAction.Etape.VALIDATION_TECHNIQUE,
+        actions_validation__acteur=user
     )
+    
+    resubmitted = TdrStDocument.objects.filter(
+        statut=TdrStDocument.Statut.A_REVOIR,
+        actions_validation__etape=TdrStValidationAction.Etape.DEPOT,
+        actions_validation__meta__action="RESUBMIT"
+    )
+
+    return (pending | treated | resubmitted).distinct().select_related(
+        "initiateur", "fichier_courant"
+    ).order_by("-updated_at")
 
 
 def list_pending_final():
@@ -215,42 +227,24 @@ def list_auditeur_documents():
 def submit_document(doc: TdrStDocument, user) -> TdrStDocument:
     if getattr(doc, "initiateur_id", None) != getattr(user, "id", None):
         raise ValidationError({"detail": "Seul l'initiateur peut soumettre ce document."})
+    
+    # Autoriser la soumission depuis BROUILLON ou A_REVOIR
     if doc.statut not in (TdrStDocument.Statut.BROUILLON, TdrStDocument.Statut.A_REVOIR):
         raise ValidationError({"statut": "Seuls les brouillons/à revoir peuvent être soumis."})
     
+    # Passer en SOUMIS (même si c'était A_REVOIR)
     doc.statut = TdrStDocument.Statut.SOUMIS
     doc.save(update_fields=["statut", "updated_at"])
     
-    # "Soumettre" est souvent precede d'un upload de PDF via un second appel API.
-    # Pour eviter 2 lignes "DEPOT" consecutives dans l'historique, on fusionne
-    # l'upload et la soumission quand ils arrivent quasi simultanement.
-    last_depot = (
-        TdrStValidationAction.objects.filter(document=doc, etape=TdrStValidationAction.Etape.DEPOT)
-        .order_by("-horodatage")
-        .first()
+    # Créer une nouvelle action de dépôt
+    TdrStValidationAction.objects.create(
+        document=doc,
+        etape=TdrStValidationAction.Etape.DEPOT,
+        acteur=user,
+        meta={"action": "RESUBMIT", "previous_status": "A_REVOIR"},
     )
-    if (
-        last_depot
-        and last_depot.acteur_id == getattr(user, "id", None)
-        and isinstance(getattr(last_depot, "meta", None), dict)
-        and last_depot.meta.get("action") == "UPLOAD_VERSION"
-        and (timezone.now() - last_depot.horodatage).total_seconds() <= 120
-    ):
-        meta = dict(last_depot.meta or {})
-        meta["action"] = "UPLOAD_AND_SUBMIT"
-        meta["submit"] = True
-        last_depot.meta = meta
-        last_depot.save(update_fields=["meta"])
-    else:
-        TdrStValidationAction.objects.create(
-            document=doc,
-            etape=TdrStValidationAction.Etape.DEPOT,
-            acteur=user,
-            meta={"action": "SUBMIT"},
-        )
     
     # ENVOI EMAIL AUX VERIFICATEURS TECHNIQUES
-    print(f"[EMAIL] Envoi email aux vérificateurs techniques pour le document {doc.numero_document}")
     send_document_submitted_email(doc)
     
     return doc
@@ -258,7 +252,8 @@ def submit_document(doc: TdrStDocument, user) -> TdrStDocument:
 
 @transaction.atomic
 def tech_decide(doc: TdrStDocument, user, decision: str, observations: str = "") -> TdrStDocument:
-    if doc.statut != TdrStDocument.Statut.SOUMIS:
+    # Permettre la décision même si le document était déjà en A_REVOIR
+    if doc.statut not in (TdrStDocument.Statut.SOUMIS, TdrStDocument.Statut.A_REVOIR):
         raise ValidationError({"statut": "Décision technique impossible pour ce statut."})
 
     if decision == TdrStValidationAction.Decision.FAVORABLE:
@@ -280,13 +275,11 @@ def tech_decide(doc: TdrStDocument, user, decision: str, observations: str = "")
     doc.statut = next_statut
     doc.save(update_fields=["statut", "updated_at"])
     
-    # ENVOI EMAIL À L'INITIATEUR
-    print(f"[EMAIL] Envoi email à l'initiateur pour la décision technique du document {doc.numero_document}")
+    # Envoyer l'email à l'initiateur
     send_tech_decision_email(doc, decision, observations)
     
-    # SI LE DOCUMENT PASSE EN VALIDATION FINALE, ENVOI AUX APPROBATEURS
+    # Si le document passe en validation finale, notifier les approbateurs
     if next_statut == TdrStDocument.Statut.EN_VALIDATION:
-        print(f"[EMAIL] Envoi email aux approbateurs finaux pour le document {doc.numero_document}")
         send_demande_final_approve_email(doc)
     
     return doc
@@ -400,14 +393,34 @@ def suspendre_document(doc: TdrStDocument, user, observations: str = "") -> TdrS
 
     return doc
 
-
 @transaction.atomic
 def add_new_file_version(doc: TdrStDocument, uploaded_file, user) -> TdrStDocumentFileVersion:
     if getattr(doc, "initiateur_id", None) != getattr(user, "id", None):
         raise ValidationError({"detail": "Seul l'initiateur peut téléverser une version."})
     if doc.statut not in (TdrStDocument.Statut.BROUILLON, TdrStDocument.Statut.A_REVOIR):
         raise ValidationError({"statut": "Téléversement autorisé uniquement en brouillon/à revoir."})
+    
     next_version = (doc.versions_fichier.aggregate(models.Max("version")).get("version__max") or 0) + 1
+    
+    # ⭐ CAPTURE DE L'ÉTAT COMPLET DU DOCUMENT
+    snapshot = {
+        "unite_technique": doc.unite_technique,
+        "type_document": doc.type_document,
+        "categorie_activite": doc.categorie_activite,
+        "intitule": doc.intitule,
+        "reference_ptba": doc.reference_ptba,
+        "periode_debut": str(doc.periode_debut) if doc.periode_debut else None,
+        "periode_fin": str(doc.periode_fin) if doc.periode_fin else None,
+        "duree_estimee_valeur": doc.duree_estimee_valeur,
+        "duree_estimee_unite": doc.duree_estimee_unite,
+        "sources_financement": doc.sources_financement,
+        "numero_subvention": doc.numero_subvention,
+        "ligne_budgetaire": doc.ligne_budgetaire,
+        "montant_estime_usd": str(doc.montant_estime_usd) if doc.montant_estime_usd else None,
+        "procedure_envisagee": doc.procedure_envisagee,
+        "statut": doc.statut,
+    }
+    
     version_obj = TdrStDocumentFileVersion.objects.create(
         document=doc,
         version=next_version,
@@ -415,19 +428,14 @@ def add_new_file_version(doc: TdrStDocument, uploaded_file, user) -> TdrStDocume
         fichier_nom_original=getattr(uploaded_file, "name", "") or "",
         fichier_taille_octets=getattr(uploaded_file, "size", None),
         uploaded_by=user,
+        snapshot_data=snapshot,  # ⭐ STOCKAGE DU SNAPSHOT
     )
-    version_obj.empreinte_sha256 = version_obj.compute_sha256()  
+    
+    version_obj.empreinte_sha256 = version_obj.compute_sha256()
     version_obj.save(update_fields=["empreinte_sha256"])
 
     doc.fichier_courant = version_obj
     doc.version = next_version
     doc.save(update_fields=["fichier_courant", "version", "updated_at"])
-
-    TdrStValidationAction.objects.create(
-        document=doc,
-        etape=TdrStValidationAction.Etape.DEPOT,
-        acteur=user,
-        meta={"action": "UPLOAD_VERSION", "version": next_version, "sha256": version_obj.empreinte_sha256},
-    )
 
     return version_obj

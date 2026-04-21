@@ -69,12 +69,20 @@ class DashboardAPIView(APIView):
 
     def count_financement_sources(self):
         sources_set = set()
+        valid_sources = ["Fonds mondial", "Banque mondiale", "Alliance GAVI"]
+        
         for doc in TdrStDocument.objects.exclude(sources_financement=[]):
-            for source in doc.sources_financement:
-                if isinstance(source, str):
+            sources = doc.sources_financement
+            
+            if isinstance(sources, str):
+                sources = [sources] if sources else []
+            
+            for source in sources:
+                if isinstance(source, str) and source in valid_sources:
                     sources_set.add(source)
                 elif isinstance(source, dict) and "nom" in source:
-                    sources_set.add(source["nom"])
+                    if source["nom"] in valid_sources:
+                        sources_set.add(source["nom"])
         return len(sources_set)
 
     def get_monthly_data(self, docs_year):
@@ -107,12 +115,23 @@ class DashboardAPIView(APIView):
     def get_documents_by_source(self):
         from collections import Counter
         source_counter = Counter()
+        
+        valid_sources = ["Fonds mondial", "Banque mondiale", "Alliance GAVI"]
+        
         for doc in TdrStDocument.objects.exclude(sources_financement=[]):
-            for source in doc.sources_financement:
+            sources = doc.sources_financement
+            
+            # Si c'est une string (radio button), la mettre dans un tableau
+            if isinstance(sources, str):
+                sources = [sources] if sources else []
+            
+            for source in sources:
                 if isinstance(source, str):
-                    source_counter[source] += 1
+                    if source in valid_sources:
+                        source_counter[source] += 1
                 elif isinstance(source, dict) and "nom" in source:
-                    source_counter[source["nom"]] += 1
+                    if source["nom"] in valid_sources:
+                        source_counter[source["nom"]] += 1
         
         documents_by_source = [
             {"source": source, "documents": count, "fullMark": 0}

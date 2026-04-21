@@ -129,6 +129,7 @@ class TdrStDocumentFileVersion(models.Model):
         related_name="tdr_st_uploads",
     )
     uploaded_at = models.DateTimeField(auto_now_add=True)
+    snapshot_data = models.JSONField(default=dict, blank=True) #Snapshot des métadonnées au moment de la création de la version
 
     class Meta:
         db_table = "tdr_st_document_file_version"

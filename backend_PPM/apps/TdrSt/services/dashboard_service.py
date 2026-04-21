@@ -97,12 +97,25 @@ def _get_documents_by_source() -> list:
     """Documents par source de financement (top 6)"""
     from collections import Counter
     source_counter = Counter()
+    
+    # Sources valides autorisées
+    valid_sources = ["Fonds mondial", "Banque mondiale", "Alliance GAVI"]
+    
     for doc in TdrStDocument.objects.exclude(sources_financement=[]):
-        for source in doc.sources_financement:
+        sources = doc.sources_financement
+        
+        # Si c'est une string (radio button), la mettre dans un tableau
+        if isinstance(sources, str):
+            sources = [sources] if sources else []
+        
+        for source in sources:
             if isinstance(source, str):
-                source_counter[source] += 1
+                # Ne compter que les sources valides
+                if source in valid_sources:
+                    source_counter[source] += 1
             elif isinstance(source, dict) and "nom" in source:
-                source_counter[source["nom"]] += 1
+                if source["nom"] in valid_sources:
+                    source_counter[source["nom"]] += 1
     
     documents_by_source = [
         {"source": source, "documents": count, "fullMark": 0}

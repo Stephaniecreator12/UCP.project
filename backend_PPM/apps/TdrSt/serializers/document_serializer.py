@@ -45,6 +45,7 @@ class TdrStDocumentFileVersionSerializer(serializers.ModelSerializer):
             "empreinte_sha256",
             "uploaded_by",
             "uploaded_at",
+            "snapshot_data",
         ]
         read_only_fields = fields
 

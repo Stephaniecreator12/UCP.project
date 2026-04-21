@@ -55,6 +55,34 @@ type ValidationAction = {
   meta: Record<string, unknown>;
 };
 
+type DocumentVersion = {
+  id: number;
+  version: number;
+  fichier_pdf: string;
+  fichier_nom_original: string;
+  fichier_taille_octets?: number;
+  empreinte_sha256?: string;
+  uploaded_by?: number;
+  uploaded_at?: string;
+  snapshot_data?: {
+    unite_technique?: string;
+    type_document?: DocumentType;
+    categorie_activite?: CategorieActivite;
+    intitule?: string;
+    reference_ptba?: string;
+    periode_debut?: string;
+    periode_fin?: string;
+    duree_estimee_valeur?: number;
+    duree_estimee_unite?: DureeUnite;
+    sources_financement?: string;
+    numero_subvention?: string;
+    ligne_budgetaire?: string;
+    montant_estime_usd?: string;
+    procedure_envisagee?: Procedure;
+    statut?: Statut;
+  };
+};
+
 type TdrStDocument = {
   id: number;
   numero_document: string;
@@ -83,22 +111,14 @@ type TdrStDocument = {
     empreinte_sha256?: string;
     uploaded_by?: number;
   };
-  versions_fichier?: {
-    id: number;
-    version: number;
-    fichier_pdf: string;
-    fichier_nom_original: string;
-    fichier_taille_octets?: number;
-    empreinte_sha256?: string;
-    uploaded_by?: number;
-    uploaded_at?: string;
-  }[];
+  versions_fichier?: DocumentVersion[];
 };
 
 type DocumentRow = {
   doc: TdrStDocument;
   versionNumber: number;
   uploadedAt?: string;
+  snapshot?: DocumentVersion["snapshot_data"] | null;
 };
 
 type TdrStFormState = {
@@ -349,6 +369,8 @@ export default function TdRStPage() {
   const [focusedDoc, setFocusedDoc] = useState<TdrStDocument | null>(null);
   const [decisionObs, setDecisionObs] = useState("");
   const [hasTakenDecision, setHasTakenDecision] = useState(false);
+  const [displayedVersion, setDisplayedVersion] = useState<number | null>(null);
+  const [historicalSnapshot, setHistoricalSnapshot] = useState<any>(null);
 
   const selected = useMemo(
     () => (selectedId ? documents.find((d) => d.id === selectedId) || null : null),
@@ -377,6 +399,10 @@ export default function TdRStPage() {
   const hasPdfFile = useMemo(() => {
     if (role !== "initiateur") return true;
     if (!activeDoc) return false;
+    if (activeDoc.statut === "A_REVOIR") {
+    // Un nouveau PDF doit être sélectionné
+    return !!pdfFile;
+  }
     return !!(pdfFile || activeDoc.fichier_courant?.fichier_pdf);
   }, [role, activeDoc, pdfFile]);
 
@@ -410,9 +436,18 @@ export default function TdRStPage() {
     if (role !== "auditeur") return [];
     const set = new Set<FundingSource>();
     documents.forEach((doc) => {
-      if (doc.sources_financement && typeof doc.sources_financement === "string") {
-        set.add(doc.sources_financement as FundingSource);
+      // sources_financement peut être une string ou un tableau
+      let sources: string[] = [];
+      if (typeof doc.sources_financement === "string") {
+        sources = [doc.sources_financement];
+      } else if (Array.isArray(doc.sources_financement)) {
+        sources = doc.sources_financement as string[];
       }
+      sources.forEach((source) => {
+        if (source === "Fonds mondial" || source === "Banque mondiale" || source === "Alliance GAVI") {
+          set.add(source as FundingSource);
+        }
+      });
     });
     return Array.from(set).sort((a, b) => a.localeCompare(b, "fr"));
   }, [documents, role]);
@@ -431,7 +466,15 @@ export default function TdRStPage() {
 
     return documents.filter((doc) => {
       if (auditeurStatutFilter !== "TOUS" && doc.statut !== auditeurStatutFilter) return false;
-      if (auditeurFundingFilter !== "TOUS" && !doc.sources_financement?.includes(auditeurFundingFilter)) return false;
+      if (auditeurFundingFilter !== "TOUS") {
+        let sources: string[] = [];
+        if (typeof doc.sources_financement === "string") {
+          sources = [doc.sources_financement];
+        } else if (Array.isArray(doc.sources_financement)) {
+          sources = doc.sources_financement as string[];
+        }
+        if (!sources.includes(auditeurFundingFilter)) return false;
+      }
       if (
         auditeurActorFilter !== "TOUS" &&
         !(doc.actions_validation ?? []).some((a) => a.acteur_username === auditeurActorFilter)
@@ -475,44 +518,45 @@ export default function TdRStPage() {
     }
   }, [docsForAuditeur, role, selectedId]);
 
-  const documentRows = useMemo<DocumentRow[]>(() => {
-    const docsForTable = role === "auditeur" ? docsForAuditeur : documents;
-
-    if (role === "auditeur") {
-      return docsForTable.map((doc) => ({
-        doc,
-        versionNumber: doc.version ?? 1,
-        uploadedAt: doc.updated_at ?? doc.created_at,
-      }));
-    }
-
-    return docsForTable.flatMap((doc) => {
-      const versions = doc.versions_fichier ?? [];
-      if (!versions.length) {
-        return [
-          {
-            doc,
-            versionNumber: doc.version ?? 1,
-            uploadedAt: doc.created_at,
-          },
-        ];
-      }
-      const sorted = [...versions].sort((a, b) => (b.version ?? 0) - (a.version ?? 0));
-      const rows = sorted.map((version) => ({
-        doc,
-        versionNumber: version.version ?? doc.version ?? 1,
-        uploadedAt: version.uploaded_at ?? doc.updated_at ?? doc.created_at,
-      }));
-      if (!sorted.some((version) => version.version === doc.version)) {
-        rows.unshift({
-          doc,
-          versionNumber: doc.version ?? 1,
-          uploadedAt: doc.updated_at ?? doc.created_at,
-        });
-      }
-      return rows;
+const documentRows = useMemo<DocumentRow[]>(() => {
+  const allRows: DocumentRow[] = [];
+  
+  // Pour tous les rôles, on veut afficher toutes les versions
+  // mais avec un comportement différent selon le rôle
+  const docsToProcess = role === "auditeur" ? docsForAuditeur : documents;
+  
+  docsToProcess.forEach((doc) => {
+    // Ajouter la version courante
+    allRows.push({
+      doc,
+      versionNumber: doc.version ?? 1,
+      uploadedAt: doc.updated_at ?? doc.created_at,
+      snapshot: undefined,
     });
-  }, [documents, docsForAuditeur, role]);
+    
+    // Pour initiateur et auditeur, ajouter toutes les versions historiques
+    if ((role === "initiateur" || role === "auditeur") && doc.versions_fichier && doc.versions_fichier.length > 0) {
+      doc.versions_fichier.forEach((version) => {
+        // Éviter la duplication si la version courante est déjà dans la liste
+        if (version.version !== doc.version) {
+          allRows.push({
+            doc,
+            versionNumber: version.version,
+            uploadedAt: version.uploaded_at,
+            snapshot: version.snapshot_data,
+          });
+        }
+      });
+    }
+  });
+  
+  // Trier par date de création (plus récent d'abord)
+  return allRows.sort((a, b) => {
+    const dateA = a.uploadedAt ? new Date(a.uploadedAt).getTime() : 0;
+    const dateB = b.uploadedAt ? new Date(b.uploadedAt).getTime() : 0;
+    return dateB - dateA;
+  });
+}, [documents, docsForAuditeur, role]);
 
   const auditeurOverview = useMemo<AuditeurOverview | null>(() => {
     if (role !== "auditeur") return null;
@@ -603,6 +647,29 @@ export default function TdRStPage() {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const notificationTimeoutRef = useRef<number | null>(null);
 
+  // Utiliser le snapshot pour les versions historiques
+  const displayForm = useMemo(() => {
+    if (historicalSnapshot && displayedVersion !== activeDoc?.version) {
+      return {
+        unite_technique: historicalSnapshot.unite_technique || "",
+        type_document: historicalSnapshot.type_document || "TDR",
+        categorie_activite: historicalSnapshot.categorie_activite || "FORMATION",
+        intitule: historicalSnapshot.intitule || "",
+        reference_ptba: historicalSnapshot.reference_ptba || "",
+        periode_debut: historicalSnapshot.periode_debut || "",
+        periode_fin: historicalSnapshot.periode_fin || "",
+        duree_estimee_valeur: historicalSnapshot.duree_estimee_valeur || 1,
+        duree_estimee_unite: historicalSnapshot.duree_estimee_unite || "MOIS",
+        sources_financement: historicalSnapshot.sources_financement || "",
+        numero_subvention: historicalSnapshot.numero_subvention || "",
+        ligne_budgetaire: historicalSnapshot.ligne_budgetaire || "",
+        montant_estime_usd: historicalSnapshot.montant_estime_usd || "",
+        procedure_envisagee: historicalSnapshot.procedure_envisagee || "DC",
+      };
+    }
+    return form;
+  }, [historicalSnapshot, displayedVersion, activeDoc, form]);
+
   const startNewDraft = useCallback(() => {
     if (role !== "initiateur") return;
     setError(null);
@@ -612,6 +679,8 @@ export default function TdRStPage() {
     setFocusedDoc(null);
     setSelectedId(null);
     setForm(makeEmptyForm());
+    setHistoricalSnapshot(null);
+    setDisplayedVersion(null);
     setIsModalVisible(true);
   }, [role]);
 
@@ -642,6 +711,12 @@ export default function TdRStPage() {
   );
 
   useEffect(() => {
+    // Réinitialiser l'état de décision quand le document sélectionné change
+    setHasTakenDecision(false);
+    setDecisionObs("");
+  }, [selected?.id]);
+
+  useEffect(() => {
     setError(null);
     setSuccess(null);
 
@@ -665,7 +740,7 @@ export default function TdRStPage() {
   }, [refreshDocs, router]);
 
   useEffect(() => {
-    if (activeDoc) {
+    if (activeDoc && !historicalSnapshot) {
       setForm({
         unite_technique: activeDoc.unite_technique || "",
         type_document: activeDoc.type_document,
@@ -683,7 +758,7 @@ export default function TdRStPage() {
         procedure_envisagee: activeDoc.procedure_envisagee || "DC",
       });
     }
-  }, [activeDoc]);
+  }, [activeDoc, historicalSnapshot]);
 
   useEffect(() => {
     if (!error && !success) return;
@@ -715,7 +790,7 @@ export default function TdRStPage() {
       
       const res = await fetchJson<TdrStDocument>(url, {
         method,
-        body: JSON.stringify(form),
+        body: JSON.stringify(displayForm),
       });
 
       if (selected) {
@@ -746,7 +821,16 @@ export default function TdRStPage() {
       const updated = await fetchJson<TdrStDocument>(`${API_PREFIX}/documents/${selected.id}/submit/`, {
         method: "POST",
       });
+      
+      // Mettre à jour le document dans la liste
       setDocuments((prev) => prev.map((d) => (d.id === updated.id ? updated : d)));
+      
+      // IMPORTANT: Forcer le rafraîchissement complet de la liste
+      // pour que les vérificateurs techniques voient le changement
+      await refreshDocs(role, { keepSelectedId: updated.id });
+      
+      setFocusedDoc(updated);
+      setSelectedId(updated.id);
       setSuccess("Document soumis avec succès. Les modifications sont maintenant verrouillées.");
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -806,21 +890,20 @@ export default function TdRStPage() {
       });
       if (!res.ok) throw new Error(await toErrorMessage(res));
 
-        const data = await res.json();
+      const data = await res.json();
+      const updatedDoc = data.document || (data.id ? data : null);
 
-        const updatedDoc = data.document || (data.id ? data : null);
+      if (updatedDoc) {
+        setDocuments((prev) => 
+          prev.map((d) => (d.id === updatedDoc.id ? { ...d, ...updatedDoc } : d))
+        );
+      } else {
+        if (role) await refreshDocs(role, { keepSelectedId: selected?.id ?? null });
+      }
 
-        if (updatedDoc) {
-          setDocuments((prev) => 
-            prev.map((d) => (d.id === updatedDoc.id ? { ...d, ...updatedDoc } : d))
-          );
-        } else {
-          if (role) await refreshDocs(role, { keepSelectedId: selected?.id ?? null });
-        }
-
-        setSuccess("Fichier PDF téléversé avec succès.");
-        setPdfFile(null);
-        return true;
+      setSuccess("Fichier PDF téléversé avec succès.");
+      setPdfFile(null);
+      return true;
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       setError(msg);
@@ -831,10 +914,18 @@ export default function TdRStPage() {
   };
 
   const handleSubmitWithOptionalUpload = async () => {
-    if (!hasPdfFile) {
+    // Vérification spécifique pour le statut A_REVOIR
+    if (activeDoc?.statut === "A_REVOIR") {
+      // Pour une resoumission, un nouveau PDF est OBLIGATOIRE
+      if (!pdfFile) {
+        setError("Veuillez sélectionner un nouveau fichier PDF pour cette version corrigée.");
+        return;
+      }
+    } else if (!hasPdfFile) {
       setError("Veuillez d'abord sélectionner un fichier PDF.");
       return;
     }
+    
     const saved = await saveDraft();
     if (!saved) return;
     if (pdfFile) {
@@ -906,12 +997,40 @@ export default function TdRStPage() {
     setIsModalVisible(false);
   };
 
+  const handleDocumentRowClick = (row: DocumentRow) => {
+    setFocusedDoc(null);
+    setSelectedId(row.doc.id);
+    setDisplayedVersion(row.versionNumber);
+    
+    if (row.snapshot) {
+      setHistoricalSnapshot(row.snapshot);
+    } else {
+      setHistoricalSnapshot(null);
+    }
+
+    if (role !== "auditeur") setIsModalVisible(true);
+  };
+
+  // Déterminer si le formulaire doit être en lecture seule pour la version historique
+  const isHistoricalReadOnly = useMemo(() => {
+    return historicalSnapshot !== null && displayedVersion !== activeDoc?.version;
+  }, [historicalSnapshot, displayedVersion, activeDoc]);
+
+  const finalIsReadOnly = isReadOnly || isHistoricalReadOnly;
+
   const formPanel = (
-    <div className={`rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4 ${isReadOnly ? "opacity-75" : ""}`}>
+    <div className={`rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4 ${finalIsReadOnly ? "opacity-75" : ""}`}>
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-slate-900">{activeDoc ? "Détail du document" : "Nouveau brouillon"}</h2>
+        <h2 className="text-lg font-semibold text-slate-900">
+          {activeDoc ? "Détail du document" : "Nouveau brouillon"}
+          {isHistoricalReadOnly && (
+            <span className="ml-2 text-sm font-normal text-slate-500">
+              (Version {displayedVersion} - historique)
+            </span>
+          )}
+        </h2>
         <div className="flex items-center gap-2">
-          {isReadOnly && (
+          {finalIsReadOnly && (
             <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-700">
               Lecture seule
             </span>
@@ -931,9 +1050,9 @@ export default function TdRStPage() {
         <label className="block">
           <span className="block text-sm font-medium">Unité technique *</span>
           <input
-            disabled={isReadOnly}
+            disabled={finalIsReadOnly}
             className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm transition focus:border-emerald-300 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500"
-            value={form.unite_technique}
+            value={displayForm.unite_technique}
             onChange={(e) => setForm((p) => ({ ...p, unite_technique: e.target.value }))}
           />
         </label>
@@ -941,9 +1060,9 @@ export default function TdRStPage() {
         <label className="block">
           <span className="block text-sm font-medium">Type de document *</span>
           <select
-            disabled={isReadOnly}
+            disabled={finalIsReadOnly}
             className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm transition focus:border-emerald-300 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500"
-            value={form.type_document}
+            value={displayForm.type_document}
             onChange={(e) => setForm((p) => ({ ...p, type_document: e.target.value as DocumentType }))}
           >
             <option value="TDR">TDR</option>
@@ -954,9 +1073,9 @@ export default function TdRStPage() {
         <label className="block">
           <span className="block text-sm font-medium">Catégorie d&apos;activité *</span>
           <select
-            disabled={isReadOnly}
+            disabled={finalIsReadOnly}
             className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm transition focus:border-emerald-300 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500"
-            value={form.categorie_activite}
+            value={displayForm.categorie_activite}
             onChange={(e) => setForm((p) => ({ ...p, categorie_activite: e.target.value as CategorieActivite }))}
           >
             {[
@@ -983,9 +1102,9 @@ export default function TdRStPage() {
         <label className="block">
           <span className="block text-sm font-medium">Procédure envisagée *</span>
           <select
-            disabled={isReadOnly}
+            disabled={finalIsReadOnly}
             className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm transition focus:border-emerald-300 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500"
-            value={form.procedure_envisagee}
+            value={displayForm.procedure_envisagee}
             onChange={(e) => setForm((p) => ({ ...p, procedure_envisagee: e.target.value as Procedure }))}
           >
             <option value="DC">DC</option>
@@ -999,9 +1118,9 @@ export default function TdRStPage() {
       <label className="block">
         <span className="block text-sm font-medium">Intitulé *</span>
         <input
-          disabled={isReadOnly}
+          disabled={finalIsReadOnly}
           className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm transition focus:border-emerald-300 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500"
-          value={form.intitule}
+          value={displayForm.intitule}
           onChange={(e) => setForm((p) => ({ ...p, intitule: e.target.value }))}
         />
       </label>
@@ -1010,18 +1129,18 @@ export default function TdRStPage() {
         <label className="block">
           <span className="block text-sm font-medium">Référence PTBA *</span>
           <input
-            disabled={isReadOnly}
+            disabled={finalIsReadOnly}
             className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm transition focus:border-emerald-300 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500"
-            value={form.reference_ptba}
+            value={displayForm.reference_ptba}
             onChange={(e) => setForm((p) => ({ ...p, reference_ptba: e.target.value }))}
           />
         </label>
         <label className="block">
           <span className="block text-sm font-medium">Ligne budgétaire *</span>
           <input
-            disabled={isReadOnly}
+            disabled={finalIsReadOnly}
             className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm transition focus:border-emerald-300 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500"
-            value={form.ligne_budgetaire}
+            value={displayForm.ligne_budgetaire}
             onChange={(e) => setForm((p) => ({ ...p, ligne_budgetaire: e.target.value }))}
           />
         </label>
@@ -1032,9 +1151,9 @@ export default function TdRStPage() {
           <span className="block text-sm font-medium">Période (début) *</span>
           <input
             type="date"
-            disabled={isReadOnly}
+            disabled={finalIsReadOnly}
             className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm transition focus:border-emerald-300 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500"
-            value={form.periode_debut}
+            value={displayForm.periode_debut}
             onChange={(e) => setForm((p) => ({ ...p, periode_debut: e.target.value }))}
           />
         </label>
@@ -1042,9 +1161,9 @@ export default function TdRStPage() {
           <span className="block text-sm font-medium">Période (fin) *</span>
           <input
             type="date"
-            disabled={isReadOnly}
+            disabled={finalIsReadOnly}
             className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm transition focus:border-emerald-300 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500"
-            value={form.periode_fin}
+            value={displayForm.periode_fin}
             onChange={(e) => setForm((p) => ({ ...p, periode_fin: e.target.value }))}
           />
         </label>
@@ -1056,18 +1175,18 @@ export default function TdRStPage() {
           <input
             type="number"
             min={1}
-            disabled={isReadOnly}
+            disabled={finalIsReadOnly}
             className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm transition focus:border-emerald-300 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500"
-            value={form.duree_estimee_valeur}
+            value={displayForm.duree_estimee_valeur}
             onChange={(e) => setForm((p) => ({ ...p, duree_estimee_valeur: Number(e.target.value) }))}
           />
         </label>
         <label className="block">
           <span className="block text-sm font-medium">Unité *</span>
           <select
-            disabled={isReadOnly}
+            disabled={finalIsReadOnly}
             className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm transition focus:border-emerald-300 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500"
-            value={form.duree_estimee_unite}
+            value={displayForm.duree_estimee_unite}
             onChange={(e) => setForm((p) => ({ ...p, duree_estimee_unite: e.target.value as DureeUnite }))}
           >
             <option value="JOURS">Jours</option>
@@ -1082,12 +1201,12 @@ export default function TdRStPage() {
           type="number"
           min={0}
           step="0.01"
-          disabled={isReadOnly}
-          className={`mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm transition focus:border-emerald-300 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500 ${Number(form.montant_estime_usd) > 50000 ? "border-orange-400 ring-4 ring-orange-100/60 focus:border-orange-300 focus:ring-orange-200/60" : ""}`}
-          value={form.montant_estime_usd}
+          disabled={finalIsReadOnly}
+          className={`mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm transition focus:border-emerald-300 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500 ${Number(displayForm.montant_estime_usd) > 50000 ? "border-orange-400 ring-4 ring-orange-100/60 focus:border-orange-300 focus:ring-orange-200/60" : ""}`}
+          value={displayForm.montant_estime_usd}
           onChange={(e) => setForm((p) => ({ ...p, montant_estime_usd: e.target.value }))}
         />
-        {Number(form.montant_estime_usd) > 50000 && (
+        {Number(displayForm.montant_estime_usd) > 50000 && (
           <p className="mt-1 text-xs font-bold text-orange-600 italic">
             ⚠️ Seuil critique : Validation du bailleur requise ( {'>'} 50k USD)
           </p>
@@ -1100,14 +1219,14 @@ export default function TdRStPage() {
           {(["Fonds mondial", "Banque mondiale", "Alliance GAVI"] as const).map((s) => (
             <label
               key={s}
-              className={`inline-flex items-center gap-2 text-sm ${isReadOnly ? "cursor-not-allowed opacity-70" : "cursor-pointer"}`}
+              className={`inline-flex items-center gap-2 text-sm ${finalIsReadOnly ? "cursor-not-allowed opacity-70" : "cursor-pointer"}`}
             >
               <input
                 type="radio"
                 name="sources_financement"
-                disabled={isReadOnly}
+                disabled={finalIsReadOnly}
                 className="h-4 w-4 accent-emerald-600"
-                checked={form.sources_financement.includes(s)}
+                checked={displayForm.sources_financement.includes(s)}
                 onChange={() => setForm((p) => ({ ...p, sources_financement: s }))}
               />
               {s}
@@ -1119,20 +1238,20 @@ export default function TdRStPage() {
       <label className="block">
         <span className="block text-sm font-medium">Numéro de subvention (si bailleur)</span>
         <input
-          disabled={isReadOnly}
+          disabled={finalIsReadOnly}
           className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm transition focus:border-emerald-300 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500"
-          value={form.numero_subvention}
+          value={displayForm.numero_subvention}
           onChange={(e) => setForm((p) => ({ ...p, numero_subvention: e.target.value }))}
         />
       </label>
 
-      {role !== "auditeur" && (
+      {role !== "auditeur" && !isHistoricalReadOnly && (
         <div className="flex justify-end pt-4">
           <button
             type="button"
             className="rounded-full bg-emerald-600 px-5 py-2 text-sm font-semibold text-white shadow transition hover:bg-emerald-700 disabled:opacity-50"
             onClick={() => handleModalClose(true)}
-            disabled={loading || isReadOnly}
+            disabled={loading || finalIsReadOnly}
           >
             OK
           </button>
@@ -1140,12 +1259,6 @@ export default function TdRStPage() {
       )}
     </div>
   );
-
-  const handleDocumentRowClick = (doc: TdrStDocument) => {
-    setFocusedDoc(null);
-    setSelectedId(doc.id);
-    if (role !== "auditeur") setIsModalVisible(true);
-  };
 
   const documentTable = (
     <div className="space-y-4">
@@ -1166,97 +1279,97 @@ export default function TdRStPage() {
         </p>
       </div>
 
-{role === "auditeur" ? (
-  <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-    <label className="block">
-      <span className="block text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Recherche</span>
-      <div className="mt-1 flex flex-col gap-2 md:flex-row md:items-center">
-        <input
-          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-emerald-300 focus:outline-none focus:ring-4 focus:ring-emerald-500/10"
-          value={auditeurSearch}
-          onChange={(e) => setAuditeurSearch(e.target.value)}
-          placeholder="Numéro, intitulé, PTBA, unité, acteur…"
-        />
-        {auditeurSearch.trim() ? (
-          <button
-            type="button"
-            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 md:w-auto"
-            onClick={() => setAuditeurSearch("")}
-          >
-            Effacer
-          </button>
-        ) : null}
-      </div>
-    </label>
-  </div>
-) : null}
+      {role === "auditeur" ? (
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <label className="block">
+            <span className="block text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Recherche</span>
+            <div className="mt-1 flex flex-col gap-2 md:flex-row md:items-center">
+              <input
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-emerald-300 focus:outline-none focus:ring-4 focus:ring-emerald-500/10"
+                value={auditeurSearch}
+                onChange={(e) => setAuditeurSearch(e.target.value)}
+                placeholder="Numéro, intitulé, PTBA, unité, acteur…"
+              />
+              {auditeurSearch.trim() ? (
+                <button
+                  type="button"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 md:w-auto"
+                  onClick={() => setAuditeurSearch("")}
+                >
+                  Effacer
+                </button>
+              ) : null}
+            </div>
+          </label>
+        </div>
+      ) : null}
 
-{role === "auditeur" ? (
-  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-    <div className="grid gap-3 md:grid-cols-4">
-      <label className="block">
-        <span className="block text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Statut</span>
-        <select
-          className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-emerald-300 focus:outline-none focus:ring-4 focus:ring-emerald-500/10"
-          value={auditeurStatutFilter}
-          onChange={(e) => setAuditeurStatutFilter(e.target.value as Statut | "TOUS")}
-        >
-          <option value="TOUS">Tous</option>
-          <option value="VALIDE">Validé</option>
-          <option value="REJETE">Rejeté</option>
-          <option value="SUSPENDU">Suspendu</option>
-        </select>
-      </label>
+      {role === "auditeur" ? (
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <div className="grid gap-3 md:grid-cols-4">
+            <label className="block">
+              <span className="block text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Statut</span>
+              <select
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-emerald-300 focus:outline-none focus:ring-4 focus:ring-emerald-500/10"
+                value={auditeurStatutFilter}
+                onChange={(e) => setAuditeurStatutFilter(e.target.value as Statut | "TOUS")}
+              >
+                <option value="TOUS">Tous</option>
+                <option value="VALIDE">Validé</option>
+                <option value="REJETE">Rejeté</option>
+                <option value="SUSPENDU">Suspendu</option>
+              </select>
+            </label>
 
-      <label className="block">
-        <span className="block text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Financement</span>
-        <select
-          className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-emerald-300 focus:outline-none focus:ring-4 focus:ring-emerald-500/10"
-          value={auditeurFundingFilter}
-          onChange={(e) => setAuditeurFundingFilter(e.target.value as FundingSource | "TOUS")}
-        >
-          <option value="TOUS">Tous</option>
-          {auditeurFundingOptions.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
-      </label>
+            <label className="block">
+              <span className="block text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Financement</span>
+              <select
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-emerald-300 focus:outline-none focus:ring-4 focus:ring-emerald-500/10"
+                value={auditeurFundingFilter}
+                onChange={(e) => setAuditeurFundingFilter(e.target.value as FundingSource | "TOUS")}
+              >
+                <option value="TOUS">Tous</option>
+                {auditeurFundingOptions.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-      <label className="block">
-        <span className="block text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Acteur</span>
-        <select
-          className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-emerald-300 focus:outline-none focus:ring-4 focus:ring-emerald-500/10"
-          value={auditeurActorFilter}
-          onChange={(e) => setAuditeurActorFilter(e.target.value)}
-        >
-          <option value="TOUS">Tous</option>
-          {auditeurActorOptions.map((u) => (
-            <option key={u} value={u}>
-              {u}
-            </option>
-          ))}
-        </select>
-      </label>
+            <label className="block">
+              <span className="block text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Acteur</span>
+              <select
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-emerald-300 focus:outline-none focus:ring-4 focus:ring-emerald-500/10"
+                value={auditeurActorFilter}
+                onChange={(e) => setAuditeurActorFilter(e.target.value)}
+              >
+                <option value="TOUS">Tous</option>
+                {auditeurActorOptions.map((u) => (
+                  <option key={u} value={u}>
+                    {u}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-      <div className="flex items-end justify-end">
-        <button
-          type="button"
-          className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
-          onClick={() => {
-            setAuditeurStatutFilter("TOUS");
-            setAuditeurFundingFilter("TOUS");
-            setAuditeurActorFilter("TOUS");
-            setAuditeurSearch("");
-          }}
-        >
-          Réinitialiser
-        </button>
-      </div>
-    </div>
-  </div>
-) : null}
+            <div className="flex items-end justify-end">
+              <button
+                type="button"
+                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+                onClick={() => {
+                  setAuditeurStatutFilter("TOUS");
+                  setAuditeurFundingFilter("TOUS");
+                  setAuditeurActorFilter("TOUS");
+                  setAuditeurSearch("");
+                }}
+              >
+                Réinitialiser
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <div className="max-h-[320px] overflow-y-auto">
         <table className="w-full text-left text-sm text-slate-600">
@@ -1282,7 +1395,7 @@ export default function TdRStPage() {
                   className={`cursor-pointer border-b last:border-b-0 transition hover:bg-slate-50 ${
                     selectedId === row.doc.id ? "bg-slate-50" : ""
                   }`}
-                  onClick={() => handleDocumentRowClick(row.doc)}
+                  onClick={() => handleDocumentRowClick(row)}
                 >
                   <td className="px-4 py-3 font-semibold text-slate-800">
                     {row.doc.numero_document || `#${row.doc.id}`}
@@ -1292,7 +1405,14 @@ export default function TdRStPage() {
                   {role === "auditeur" ? (
                     <td className="px-4 py-3">{row.doc.unite_technique || "—"}</td>
                   ) : null}
-                  <td className="px-4 py-3 font-semibold text-slate-800">{row.versionNumber ?? 1}</td>
+                  <td className="px-4 py-3 font-semibold text-slate-800">
+                    {row.versionNumber ?? 1}
+                    {role === "initiateur" && row.versionNumber !== row.doc.version && (
+                      <span className="ml-2 text-xs font-normal text-slate-400">
+                        (hist.)
+                      </span>
+                    )}
+                  </td>
                   <td className="px-4 py-3">{row.doc.reference_ptba || "—"}</td>
                   <td className="px-4 py-3">{formatAmountForRow(row.doc.montant_estime_usd)}</td>
                   {role === "auditeur" ? (
@@ -1334,11 +1454,11 @@ export default function TdRStPage() {
 
   const formActions = (
     <div className="flex flex-wrap gap-3 pt-4">
-      {role === "initiateur" ? (
+      {role === "initiateur" && !isHistoricalReadOnly ? (
         <button
           className="rounded-full bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white shadow transition hover:-translate-y-[1px] hover:bg-emerald-700 disabled:opacity-50"
           onClick={() => void saveDraft()}
-          disabled={loading || isReadOnly}
+          disabled={loading || finalIsReadOnly}
         >
           {activeDoc ? "Enregistrer" : "Enregistrer brouillon"}
         </button>
@@ -1371,206 +1491,205 @@ export default function TdRStPage() {
           className="space-y-6 w-full"
           style={{ maxInlineSize: "calc(100% - 2cm)", marginInline: "auto" }}
         >
-        <header className="rounded-2xl border border-slate-200 bg-white shadow-sm page-enter-up" style={{ animationDelay: "0.08s" }}>
-          <div className="rounded-2xl border-t-4 border-t-emerald-600 px-5 py-4 md:px-6 md:py-5">
-            <div className="flex flex-wrap items-start justify-between gap-6">
-              <div className="space-y-1">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-700">
-                  Unité de coordination des projets
-                </p>
-                <h1 className="text-2xl font-semibold text-slate-900">Termes de Référence & Spécifications Techniques</h1>
-                <p className="text-sm text-slate-600">
-                  {role === "auditeur"
-                    ? "Consultation des documents clôturés et de leur traçabilité complète."
-                    : isReadOnly
-                      ? "Ce document est en cours de validation et ne peut plus être modifié."
-                      : "Créez votre brouillon et soumettez-le."}
-                </p>
-                {role ? (
-                  <p className="pt-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                    {ROLE_LABEL[role]}
+          <header className="rounded-2xl border border-slate-200 bg-white shadow-sm page-enter-up" style={{ animationDelay: "0.08s" }}>
+            <div className="rounded-2xl border-t-4 border-t-emerald-600 px-5 py-4 md:px-6 md:py-5">
+              <div className="flex flex-wrap items-start justify-between gap-6">
+                <div className="space-y-1">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-700">
+                    Unité de coordination des projets
                   </p>
+                  <h1 className="text-2xl font-semibold text-slate-900">Termes de Référence & Spécifications Techniques</h1>
+                  <p className="text-sm text-slate-600">
+                    {role === "auditeur"
+                      ? "Consultation des documents clôturés et de leur traçabilité complète."
+                      : finalIsReadOnly
+                        ? "Ce document est en cours de validation et ne peut plus être modifié."
+                        : "Créez votre brouillon et soumettez-le."}
+                  </p>
+                  {role ? (
+                    <p className="pt-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                      {ROLE_LABEL[role]}
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="mt-5">
+                <StatusStepper statut={activeDoc?.statut} />
+              </div>
+            </div>
+          </header>
+
+          {(error || success) && (
+            <div className="fixed right-6 bottom-[20px] z-[100] space-y-2">
+              {error && (
+                <div
+                  className="min-w-[220px] max-w-[340px] rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-3 font-semibold text-rose-800 shadow-lg transition-opacity duration-200 animate-saveMessageSlide"
+                  style={{ animationDuration: "0.5s" }}
+                >
+                  Erreur : {error}
+                </div>
+              )}
+              {success && (
+                <div
+                  className="min-w-[220px] max-w-[340px] rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-3 font-semibold text-emerald-800 shadow-lg transition-opacity duration-200 animate-saveMessageSlide"
+                  style={{ animationDuration: "0.5s" }}
+                >
+                  Succès : {success}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div
+            className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-6 page-enter-up"
+            style={{ animationDelay: "0.14s" }}
+          >
+            {role === "auditeur" && auditeurOverview ? (
+              <DashboardIndividual overview={auditeurOverview} />
+            ) : null}
+            {documentTable}
+            {formActions}
+          </div>
+
+          <div className="space-y-6 page-enter-up" style={{ animationDelay: "0.2s" }}>
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-lg font-semibold text-slate-900">
+                  {role === "auditeur" ? "Traçabilité (Section G)" : "Processus de validation"}
+                </h2>
+                {activeDoc ? (
+                  <button
+                    type="button"
+                    className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 transition hover:border-slate-300 hover:bg-slate-50"
+                    onClick={() => setIsModalVisible(true)}
+                  >
+                    Voir formulaire
+                  </button>
                 ) : null}
               </div>
-            </div>
 
-            <div className="mt-5">
-              <StatusStepper statut={activeDoc?.statut} />
-            </div>
-          </div>
-        </header>
-
-        {(error || success) && (
-          <div className="fixed right-6 bottom-[20px] z-[100] space-y-2">
-            {error && (
-              <div
-                className="min-w-[220px] max-w-[340px] rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-3 font-semibold text-rose-800 shadow-lg transition-opacity duration-200 animate-saveMessageSlide"
-                style={{ animationDuration: "0.5s" }}
-              >
-                Erreur : {error}
-              </div>
-            )}
-            {success && (
-              <div
-                className="min-w-[220px] max-w-[340px] rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-3 font-semibold text-emerald-800 shadow-lg transition-opacity duration-200 animate-saveMessageSlide"
-                style={{ animationDuration: "0.5s" }}
-              >
-                Succès : {success}
-              </div>
-            )}
-          </div>
-        )}
-
-        <div
-          className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-6 page-enter-up"
-          style={{ animationDelay: "0.14s" }}
-        >
-          {role === "auditeur" && auditeurOverview ? (
-            <DashboardIndividual overview={auditeurOverview} />
-          ) : null}
-          {documentTable}
-          {formActions}
-        </div>
-
-        <div className="space-y-6 page-enter-up" style={{ animationDelay: "0.2s" }}>
-
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-lg font-semibold text-slate-900">
-                {role === "auditeur" ? "Traçabilité (Section G)" : "Processus de validation"}
-              </h2>
-              {activeDoc ? (
-                <button
-                  type="button"
-                  className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 transition hover:border-slate-300 hover:bg-slate-50"
-                  onClick={() => setIsModalVisible(true)}
-                >
-                  Voir formulaire
-                </button>
-              ) : null}
-            </div>
-
-            {!activeDoc ? (
-              <p className="text-sm text-slate-600">Sélectionne un document.</p>
-            ) : (
-              <>
-                <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
-                  <div className="space-y-3">
-                    <div className="text-sm font-semibold text-slate-900">Historique des actions</div>
-                    {activeDoc.actions_validation?.length ? (
-                      <div className="space-y-2">
-                        {activeDoc.actions_validation.map((a) => (
-                          <div key={a.id} className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
-                                {a.etape} {a.decision ? `• ${a.decision}` : ""}
-                              </p>
-                              <p className="text-xs text-slate-500">{new Date(a.horodatage).toLocaleString()}</p>
-                            </div>
-                            <p className="mt-1 text-sm text-slate-800">
-                              <span className="font-semibold">{a.acteur_username}:</span>{" "}
-                              {a.observations?.trim() ? a.observations : <span className="text-slate-500">—</span>}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-slate-500">Aucun historique.</p>
-                    )}
-                  </div>
-
-                  <div className="space-y-4">
-                    <div className="rounded-xl border border-slate-200 bg-white p-4">
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div className="text-sm font-bold text-slate-900">
-                          Document PDF ({formatPdfVersionLabel(activeDoc.version)})
-                        </div>
-                        {activeDoc.fichier_courant?.fichier_pdf ? (
-                          <a
-                            href={resolveBackendUrl(activeDoc.fichier_courant.fichier_pdf) ?? "#"}
-                            target="_blank"
-                            className="text-xs font-bold text-emerald-600 hover:underline"
-                            rel="noreferrer"
-                          >
-                            Visualiser le PDF actuel
-                          </a>
-                        ) : null}
-                      </div>
-                      {!activeDoc.fichier_courant?.fichier_pdf ? (
-                        <p className="mt-2 text-sm text-slate-600">Aucun PDF téléversé pour ce document.</p>
-                      ) : (
-                        <p className="mt-2 text-xs text-slate-500">
-                          {role === "auditeur"
-                            ? "Document officiel — consultation uniquement."
-                            : "Le PDF est la version officielle à relire/valider (lecture seule pour les validateurs)."}
-                        </p>
-                      )}
-
-                      {role === "auditeur" && activeDoc.fichier_courant?.fichier_pdf ? (
-                        <div className="mt-4 space-y-4 border-t border-slate-100 pt-4">
-                          <div>
-                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                              Empreinte SHA-256 (PDF courant)
-                            </p>
-                            <p className="mt-2 break-all rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-[11px] text-slate-700">
-                              {activeDoc.fichier_courant.empreinte_sha256 ?? "—"}
-                            </p>
-                          </div>
-
-                          <div>
-                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Versioning</p>
-                            {activeDoc.versions_fichier?.length ? (
-                              <div className="mt-2 space-y-2">
-                                {[...activeDoc.versions_fichier]
-                                  .sort((a, b) => (b.version ?? 0) - (a.version ?? 0))
-                                  .map((v) => (
-                                    <div key={v.id} className="rounded-xl border border-slate-200 bg-white px-3 py-2">
-                                      <div className="flex items-center justify-between gap-2">
-                                        <p className="text-xs font-semibold text-slate-800">
-                                          {formatPdfVersionLabel(v.version)}
-                                        </p>
-                                        {v.fichier_pdf ? (
-                                          <a
-                                            href={resolveBackendUrl(v.fichier_pdf) ?? "#"}
-                                            target="_blank"
-                                            className="text-xs font-bold text-emerald-600 hover:underline"
-                                            rel="noreferrer"
-                                          >
-                                            Télécharger
-                                          </a>
-                                        ) : null}
-                                      </div>
-                                      <p className="mt-1 text-xs text-slate-600" title={v.fichier_nom_original}>
-                                        {v.fichier_nom_original || "—"}
-                                      </p>
-                                      <p className="mt-1 break-all font-mono text-[11px] text-slate-600">
-                                        {v.empreinte_sha256 ?? "—"}
-                                      </p>
-                                    </div>
-                                  ))}
+              {!activeDoc ? (
+                <p className="text-sm text-slate-600">Sélectionne un document.</p>
+              ) : (
+                <>
+                  <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+                    <div className="space-y-3">
+                      <div className="text-sm font-semibold text-slate-900">Historique des actions</div>
+                      {activeDoc.actions_validation?.length ? (
+                        <div className="space-y-2">
+                          {activeDoc.actions_validation.map((a) => (
+                            <div key={a.id} className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                                  {a.etape} {a.decision ? `• ${a.decision}` : ""}
+                                </p>
+                                <p className="text-xs text-slate-500">{new Date(a.horodatage).toLocaleString()}</p>
                               </div>
-                            ) : (
-                              <p className="mt-2 text-sm text-slate-500">Aucune version disponible.</p>
-                            )}
-                          </div>
+                              <p className="mt-1 text-sm text-slate-800">
+                                <span className="font-semibold">{a.acteur_username}:</span>{" "}
+                                {a.observations?.trim() ? a.observations : <span className="text-slate-500">—</span>}
+                              </p>
+                            </div>
+                          ))}
                         </div>
-                      ) : null}
+                      ) : (
+                        <p className="text-sm text-slate-500">Aucun historique.</p>
+                      )}
                     </div>
 
-                    {role === "auditeur" ? (
-                      <div className="rounded-xl border border-violet-100 bg-violet-50 p-4 text-xs text-violet-700">
-                        <button
-                          type="button"
-                          className="mt-3 w-full rounded-xl border border-emerald-200 bg-emerald-50 py-3 text-sm font-semibold text-emerald-900 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-100 disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none"
-                          onClick={() => router.push("/TdrSt/dashboard")}
-                          disabled={loading}
-                        >
-                          Voir dashboard
-                        </button>
+                    <div className="space-y-4">
+                      <div className="rounded-xl border border-slate-200 bg-white p-4">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div className="text-sm font-bold text-slate-900">
+                            Document PDF ({formatPdfVersionLabel(activeDoc.version)})
+                          </div>
+                          {activeDoc.fichier_courant?.fichier_pdf ? (
+                            <a
+                              href={resolveBackendUrl(activeDoc.fichier_courant.fichier_pdf) ?? "#"}
+                              target="_blank"
+                              className="text-xs font-bold text-emerald-600 hover:underline"
+                              rel="noreferrer"
+                            >
+                              Visualiser le PDF actuel
+                            </a>
+                          ) : null}
+                        </div>
+                        {!activeDoc.fichier_courant?.fichier_pdf ? (
+                          <p className="mt-2 text-sm text-slate-600">Aucun PDF téléversé pour ce document.</p>
+                        ) : (
+                          <p className="mt-2 text-xs text-slate-500">
+                            {role === "auditeur"
+                              ? "Document officiel — consultation uniquement."
+                              : "Le PDF est la version officielle à relire/valider (lecture seule pour les validateurs)."}
+                          </p>
+                        )}
+
+                        {role === "auditeur" && activeDoc.fichier_courant?.fichier_pdf ? (
+                          <div className="mt-4 space-y-4 border-t border-slate-100 pt-4">
+                            <div>
+                              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                                Empreinte SHA-256 (PDF courant)
+                              </p>
+                              <p className="mt-2 break-all rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-[11px] text-slate-700">
+                                {activeDoc.fichier_courant.empreinte_sha256 ?? "—"}
+                              </p>
+                            </div>
+
+                            <div>
+                              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Versioning</p>
+                              {activeDoc.versions_fichier?.length ? (
+                                <div className="mt-2 space-y-2">
+                                  {[...activeDoc.versions_fichier]
+                                    .sort((a, b) => (b.version ?? 0) - (a.version ?? 0))
+                                    .map((v) => (
+                                      <div key={v.id} className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+                                        <div className="flex items-center justify-between gap-2">
+                                          <p className="text-xs font-semibold text-slate-800">
+                                            {formatPdfVersionLabel(v.version)}
+                                          </p>
+                                          {v.fichier_pdf ? (
+                                            <a
+                                              href={resolveBackendUrl(v.fichier_pdf) ?? "#"}
+                                              target="_blank"
+                                              className="text-xs font-bold text-emerald-600 hover:underline"
+                                              rel="noreferrer"
+                                            >
+                                              Télécharger
+                                            </a>
+                                          ) : null}
+                                        </div>
+                                        <p className="mt-1 text-xs text-slate-600" title={v.fichier_nom_original}>
+                                          {v.fichier_nom_original || "—"}
+                                        </p>
+                                        <p className="mt-1 break-all font-mono text-[11px] text-slate-600">
+                                          {v.empreinte_sha256 ?? "—"}
+                                        </p>
+                                      </div>
+                                    ))}
+                                </div>
+                              ) : (
+                                <p className="mt-2 text-sm text-slate-500">Aucune version disponible.</p>
+                              )}
+                            </div>
+                          </div>
+                        ) : null}
                       </div>
-                    ) : role === "initiateur" ? (
-                      <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                        <div className="text-sm font-bold text-slate-900">Téléverser un nouveau PDF</div>
+
+                      {role === "auditeur" ? (
+                        <div className="rounded-xl border border-violet-100 bg-violet-50 p-4 text-xs text-violet-700">
+                          <button
+                            type="button"
+                            className="mt-3 w-full rounded-xl border border-emerald-200 bg-emerald-50 py-3 text-sm font-semibold text-emerald-900 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-100 disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none"
+                            onClick={() => router.push("/TdrSt/dashboard")}
+                            disabled={loading}
+                          >
+                            Voir dashboard
+                          </button>
+                        </div>
+                      ) : role === "initiateur" ? (
+                        <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                          <div className="text-sm font-bold text-slate-900">Téléverser un nouveau PDF</div>
                           <div
                             className={`rounded-xl border-2 border-dashed p-6 text-center ${
                               activeDoc.statut === "BROUILLON" || activeDoc.statut === "A_REVOIR"
@@ -1585,7 +1704,7 @@ export default function TdRStPage() {
                               accept="application/pdf"
                               onChange={(e) => setPdfFile(e.target.files?.[0] ?? null)}
                               disabled={
-                                loading || !(activeDoc.statut === "BROUILLON" || activeDoc.statut === "A_REVOIR")
+                                loading || !(activeDoc.statut === "BROUILLON" || activeDoc.statut === "A_REVOIR") || isHistoricalReadOnly
                               }
                             />
                             <label
@@ -1602,7 +1721,7 @@ export default function TdRStPage() {
                           <button
                             className="w-full rounded-xl bg-emerald-600 py-3 text-sm font-bold text-white shadow-md transition hover:bg-emerald-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none"
                             onClick={() => void handleSubmitWithOptionalUpload()}
-                            disabled={loading || !(activeDoc.statut === "BROUILLON" || activeDoc.statut === "A_REVOIR") || !hasPdfFile}
+                            disabled={loading || !(activeDoc.statut === "BROUILLON" || activeDoc.statut === "A_REVOIR") || !hasPdfFile || isHistoricalReadOnly}
                           >
                             {activeDoc.statut === "BROUILLON" || activeDoc.statut === "A_REVOIR"
                               ? (hasPdfFile ? "Soumettre pour validation" : "Ajoutez un PDF pour soumettre")
@@ -1611,7 +1730,7 @@ export default function TdRStPage() {
                           <button
                             className="w-full rounded-xl border border-slate-200 bg-white py-3 text-sm font-semibold text-slate-900 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none"
                             onClick={() => void suspendSelectedDocument()}
-                            disabled={loading || !canSuspendSelectedDoc}
+                            disabled={loading || !canSuspendSelectedDoc || isHistoricalReadOnly}
                             title={
                               !selected
                                 ? "Sélectionne un document"
@@ -1622,137 +1741,136 @@ export default function TdRStPage() {
                           >
                             Suspendre le workflow
                           </button>
-                            <button
-                              type="button"
-                              className="w-full rounded-xl border border-emerald-200 bg-emerald-50 py-3 text-sm font-semibold text-emerald-900 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-100 disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none"
-                              onClick={() => router.push("/TdrSt/dashboard")}
-                              disabled={loading}
-                            >
-                              Voir dashboard
-                            </button>
+                          <button
+                            type="button"
+                            className="w-full rounded-xl border border-emerald-200 bg-emerald-50 py-3 text-sm font-semibold text-emerald-900 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-100 disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none"
+                            onClick={() => router.push("/TdrSt/dashboard")}
+                            disabled={loading}
+                          >
+                            Voir dashboard
+                          </button>
                         </div>
-                    ) : (
-                      <div className="space-y-3">
-                        <div className="text-sm font-semibold text-slate-900">Décision</div>
-                        {!selected ? (
-                          <p className="text-sm text-slate-600">
-                            Document traité. Sélectionne un autre document dans la liste pour prendre une nouvelle décision.
-                          </p>
-                        ) : (
-                          <>
-                            <textarea
-                              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-[0_1px_2px_rgba(15,23,42,0.05)] focus:border-emerald-500 focus:outline-none focus:ring-4 focus:ring-emerald-500/12"
-                              rows={3}
-                              value={decisionObs}
-                              onChange={(e) => setDecisionObs(e.target.value)}
-                              disabled={loading || isClosedDoc || hasTakenDecision}
-                              placeholder="Observations (optionnel)"
-                            />
+                      ) : (
+                        <div className="space-y-3">
+                          <div className="text-sm font-semibold text-slate-900">Décision</div>
+                          {!selected ? (
+                            <p className="text-sm text-slate-600">
+                              Document traité. Sélectionne un autre document dans la liste pour prendre une nouvelle décision.
+                            </p>
+                          ) : (
+                            <>
+                              <textarea
+                                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-[0_1px_2px_rgba(15,23,42,0.05)] focus:border-emerald-500 focus:outline-none focus:ring-4 focus:ring-emerald-500/12"
+                                rows={3}
+                                value={decisionObs}
+                                onChange={(e) => setDecisionObs(e.target.value)}
+                                disabled={loading || isClosedDoc || hasTakenDecision}
+                                placeholder="Observations (optionnel)"
+                              />
 
-                            {role === "verificateur_technique" ? (
-                              <div className="flex flex-wrap gap-2">
-                                <button
-                                  className="rounded-full bg-emerald-600 px-4.5 py-2.5 text-sm font-semibold text-white shadow transition hover:-translate-y-[1px] hover:bg-emerald-700 disabled:opacity-50"
-                                  onClick={() => void handleDecision("FAVORABLE")}
-                                  disabled={loading || isClosedDoc || hasTakenDecision}
-                                >
-                                  Avis favorable
-                                </button>
-                                <button
-                                  className="rounded-full border border-amber-300 bg-amber-50 px-4.5 py-2.5 text-sm font-semibold text-amber-900 shadow-sm transition hover:-translate-y-[1px] hover:border-amber-400 disabled:opacity-50"
-                                  onClick={() => void handleDecision("A_REVOIR")}
-                                  disabled={loading || isClosedDoc || hasTakenDecision}
-                                >
-                                  À revoir
-                                </button>
-                              </div>
-                            ) : null}
+                              {role === "verificateur_technique" ? (
+                                <div className="flex flex-wrap gap-2">
+                                  <button
+                                    className="rounded-full bg-emerald-600 px-4.5 py-2.5 text-sm font-semibold text-white shadow transition hover:-translate-y-[1px] hover:bg-emerald-700 disabled:opacity-50"
+                                    onClick={() => void handleDecision("FAVORABLE")}
+                                    disabled={loading || isClosedDoc || hasTakenDecision}
+                                  >
+                                    Avis favorable
+                                  </button>
+                                  <button
+                                    className="rounded-full border border-amber-300 bg-amber-50 px-4.5 py-2.5 text-sm font-semibold text-amber-900 shadow-sm transition hover:-translate-y-[1px] hover:border-amber-400 disabled:opacity-50"
+                                    onClick={() => void handleDecision("A_REVOIR")}
+                                    disabled={loading || isClosedDoc || hasTakenDecision}
+                                  >
+                                    À revoir
+                                  </button>
+                                </div>
+                              ) : null}
 
-                            {role === "approbateur_final" ? (
-                              <div className="flex flex-wrap gap-2">
-                                <button
-                                  className="rounded-full bg-emerald-600 px-4.5 py-2.5 text-sm font-semibold text-white shadow transition hover:-translate-y-[1px] hover:bg-emerald-700 disabled:opacity-50"
-                                  onClick={() => void handleDecision("APPROUVE")}
-                                  disabled={loading || isClosedDoc || hasTakenDecision}
-                                >
-                                  Approuver
-                                </button>
-                                <button
-                                  className="rounded-full border border-rose-300 bg-rose-50 px-4.5 py-2.5 text-sm font-semibold text-rose-900 shadow-sm transition hover:-translate-y-[1px] hover:border-rose-400 disabled:opacity-50"
-                                  onClick={() => void handleDecision("REJETE")}
-                                  disabled={loading || isClosedDoc || hasTakenDecision}
-                                >
-                                  Rejeter
-                                </button>
-                              </div>
-                            ) : null}
+                              {role === "approbateur_final" ? (
+                                <div className="flex flex-wrap gap-2">
+                                  <button
+                                    className="rounded-full bg-emerald-600 px-4.5 py-2.5 text-sm font-semibold text-white shadow transition hover:-translate-y-[1px] hover:bg-emerald-700 disabled:opacity-50"
+                                    onClick={() => void handleDecision("APPROUVE")}
+                                    disabled={loading || isClosedDoc || hasTakenDecision}
+                                  >
+                                    Approuver
+                                  </button>
+                                  <button
+                                    className="rounded-full border border-rose-300 bg-rose-50 px-4.5 py-2.5 text-sm font-semibold text-rose-900 shadow-sm transition hover:-translate-y-[1px] hover:border-rose-400 disabled:opacity-50"
+                                    onClick={() => void handleDecision("REJETE")}
+                                    disabled={loading || isClosedDoc || hasTakenDecision}
+                                  >
+                                    Rejeter
+                                  </button>
+                                </div>
+                              ) : null}
 
-                            {role === "bailleur" ? (
-                              <div className="flex flex-wrap gap-2">
-                                <button
-                                  className="rounded-full bg-emerald-600 px-4.5 py-2.5 text-sm font-semibold text-white shadow transition hover:-translate-y-[1px] hover:bg-emerald-700 disabled:opacity-50"
-                                  onClick={() => void handleDecision("ANO_ACCORDE")}
-                                  disabled={loading || isClosedDoc || hasTakenDecision}
-                                >
-                                  Octroyer ANO
-                                </button>
-                                <button
-                                  className="rounded-full border border-rose-300 bg-rose-50 px-4.5 py-2.5 text-sm font-semibold text-rose-900 shadow-sm transition hover:-translate-y-[1px] hover:border-rose-400 disabled:opacity-50"
-                                  onClick={() => void handleDecision("ANO_REFUSE")}
-                                  disabled={loading || isClosedDoc || hasTakenDecision}
-                                >
-                                  Refuser
-                                </button>
-                              </div>
-                            ) : null}
-                          </>
-                        )}
-                        <button
-                          type="button"
-                          className="w-full rounded-xl border border-emerald-200 bg-emerald-50 py-3 text-sm font-semibold text-emerald-900 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-100 disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none"
-                          onClick={() => router.push("/TdrSt/dashboard")}
-                          disabled={loading}
-                        >
-                          Voir dashboard
-                        </button>
-                      </div>
-                    )}
+                              {role === "bailleur" ? (
+                                <div className="flex flex-wrap gap-2">
+                                  <button
+                                    className="rounded-full bg-emerald-600 px-4.5 py-2.5 text-sm font-semibold text-white shadow transition hover:-translate-y-[1px] hover:bg-emerald-700 disabled:opacity-50"
+                                    onClick={() => void handleDecision("ANO_ACCORDE")}
+                                    disabled={loading || isClosedDoc || hasTakenDecision}
+                                  >
+                                    Octroyer ANO
+                                  </button>
+                                  <button
+                                    className="rounded-full border border-rose-300 bg-rose-50 px-4.5 py-2.5 text-sm font-semibold text-rose-900 shadow-sm transition hover:-translate-y-[1px] hover:border-rose-400 disabled:opacity-50"
+                                    onClick={() => void handleDecision("ANO_REFUSE")}
+                                    disabled={loading || isClosedDoc || hasTakenDecision}
+                                  >
+                                    Refuser
+                                  </button>
+                                </div>
+                              ) : null}
+                            </>
+                          )}
+                          <button
+                            type="button"
+                            className="w-full rounded-xl border border-emerald-200 bg-emerald-50 py-3 text-sm font-semibold text-emerald-900 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-100 disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none"
+                            onClick={() => router.push("/TdrSt/dashboard")}
+                            disabled={loading}
+                          >
+                            Voir dashboard
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
 
-                {role === "approbateur_final" && activeDoc.requires_ano ? (
-                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
-                    <p className="text-sm font-semibold">Seuil bailleur dépassé</p>
-                    <p className="mt-1 text-xs">
-                      Après approbation, le document passera en <span className="font-semibold">En attente ANO</span>.
-                    </p>
-                  </div>
-                ) : null}
-
-              </>
-            )}
-          </div>
-        </div>
-        {isModalVisible && (
-          <>
-            <div
-              className="fixed inset-0 z-40 bg-slate-950/40 backdrop-blur-sm pointer-events-none"
-              aria-hidden="true"
-            />
-            <div
-              className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-6"
-              role="dialog"
-              aria-modal="true"
-              aria-label="Formulaire TdR"
-            >
-              <div className="relative w-full max-w-5xl">
-                {formPanel}
-              </div>
+                  {role === "approbateur_final" && activeDoc.requires_ano ? (
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
+                      <p className="text-sm font-semibold">Seuil bailleur dépassé</p>
+                      <p className="mt-1 text-xs">
+                        Après approbation, le document passera en <span className="font-semibold">En attente ANO</span>.
+                      </p>
+                    </div>
+                  ) : null}
+                </>
+              )}
             </div>
-          </>
-        )}
-      </div>
-    </main>
-  </div>
+          </div>
+          {isModalVisible && (
+            <>
+              <div
+                className="fixed inset-0 z-40 bg-slate-950/40 backdrop-blur-sm pointer-events-none"
+                aria-hidden="true"
+              />
+              <div
+                className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-6"
+                role="dialog"
+                aria-modal="true"
+                aria-label="Formulaire TdR"
+              >
+                <div className="relative w-full max-w-5xl">
+                  {formPanel}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      </main>
+    </div>
   );
 }

@@ -5,6 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import { Plus, Trash2, X, ArrowLeft, Edit2, AlertCircle, UploadCloud, Clock, ShoppingBag, Wrench, ShieldCheck, ChevronRight, Briefcase, Target, Layers, FolderArchive } from "lucide-react";
 import TopHeader from "@/app/components/TopHeader";
 import PurchaseSelect from "@/app/demande-achat/components/PurchaseSelect";
+import { FRENCH_DATE_INPUT_PROPS, formatFrenchIsoDate } from "@/lib/date";
 
 import {
   getDemandeAchat,
@@ -20,6 +21,10 @@ import {
   isFinanceUser,
   isValidatorUser,
 } from "@/services/auth";
+import {
+  listExternalPersonnel,
+  type PersonnelDirectoryOption,
+} from "@/services/personnel";
 
 type LigneForm = {
   designation: string;
@@ -52,6 +57,9 @@ type LigneModalProps = {
   isServiceRequest: boolean;
   ligne: LigneForm;
   error: string | null;
+  personnelOptions: PersonnelDirectoryOption[];
+  personnelLoading: boolean;
+  personnelError: string | null;
   onClose: () => void;
   onChange: (field: keyof LigneForm, value: string | number) => void;
   onSave: () => void;
@@ -64,6 +72,7 @@ const uniteTechniqueOptions = [
   { value: "LOGISTIQUE", label: "Logistique" },
   { value: "COORDINATION", label: "Coordination" },
   { value: "TECHNIQUE", label: "Technique" },
+  { value: "RH_ADMIN", label: "Ressource humaine/administrative" },
 ] as const;
 
 const typeServiceOptions = [
@@ -92,9 +101,9 @@ const prioriteOptions = [
 ] as const;
 
 const documentTypesOptions = [
-  { value: "SPECIFICATIONS_TECHNIQUES", label: "Spécifications techniques détaillées (PDF/Excel)" },
+  { value: "SPECIFICATIONS_TECHNIQUES", label: "Spécifications techniques détaillées (PDF)" },
   { value: "TDR_SIMPLIFIE", label: "Termes de Référence simplifiés (PDF)" },
-  { value: "DEVIS_ESTIMATIF", label: "Devis estimatif (PDF/Excel)" },
+  { value: "DEVIS_ESTIMATIF", label: "Devis estimatif (PDF)" },
   { value: "BON_SORTIE_STOCK", label: "Bon de sortie stock (PDF)" },
 ] as const;
 
@@ -148,6 +157,17 @@ const normalizeInteger = (value: string) => {
   return Number.isInteger(parsed) && parsed >= 0 ? parsed : undefined;
 };
 
+const getTodayDate = () => new Date().toISOString().split("T")[0];
+
+const formatFrenchDate = (value: string) => formatFrenchIsoDate(value);
+
+const formatFrenchDateRange = (start: string, end: string) => {
+  if (start && end) return `${formatFrenchDate(start)} au ${formatFrenchDate(end)}`;
+  if (start) return `À partir du ${formatFrenchDate(start)}`;
+  if (end) return `Jusqu'au ${formatFrenchDate(end)}`;
+  return "Dates non définies";
+};
+
 function NotificationPopup({ message, type, onClose }: { message: string, type: 'error' | 'success', onClose: () => void }) {
   useEffect(() => {
     const t = setTimeout(onClose, 5000);
@@ -158,22 +178,34 @@ function NotificationPopup({ message, type, onClose }: { message: string, type: 
   
   // Positionné en bas à droite pour être bien visible mais sans bloquer l'interface, style très clean type "Sonner"
   return (
-    <div className={`fixed inset-x-4 bottom-4 z-[9999] flex items-start gap-4 rounded-2xl border px-5 py-5 text-white shadow-[0_24px_60px_rgba(15,23,42,0.3)] ring-1 ring-white/15 backdrop-blur-sm animate-in slide-in-from-bottom-8 fade-in duration-300 sm:left-auto sm:right-6 sm:bottom-6 sm:max-w-[34rem] sm:min-w-[24rem] sm:px-6 sm:py-5 ${isError ? 'bg-red-600/95 border-red-500' : 'bg-emerald-600/95 border-emerald-500'}`}>
-      <div className="rounded-xl bg-white/20 p-3 shadow-inner">
+    <div className={`ucp-toast ${isError ? "ucp-toast--error" : "ucp-toast--success"} animate-in slide-in-from-bottom-8 fade-in duration-300`}>
+      <div className="ucp-toast__icon-shell">
         {isError ? <AlertCircle className="h-6 w-6" /> : <ShieldCheck className="h-6 w-6" />}
       </div>
       <div className="min-w-0 flex-1 pr-1">
-        <h4 className="mb-1 text-base font-black tracking-wide">{isError ? "Action requise" : "Operation reussie"}</h4>
-        <p className="whitespace-pre-line text-[15px] font-semibold leading-6 text-white/95 sm:text-base">{message}</p>
+        <h4 className="ucp-toast__title">{isError ? "Action requise" : "Operation reussie"}</h4>
+        <p className="ucp-toast__message whitespace-pre-line">{message}</p>
       </div>
-      <button onClick={onClose} className="ml-1 rounded-xl p-2.5 transition-colors hover:bg-white/20">
+      <button onClick={onClose} className="ucp-toast__close">
         <X className="h-5 w-5" />
       </button>
     </div>
   );
 }
 
-function LigneBesoinModal({ open, mode, isServiceRequest, ligne, error, onClose, onChange, onSave }: LigneModalProps) {
+function LigneBesoinModal({
+  open,
+  mode,
+  isServiceRequest,
+  ligne,
+  error,
+  personnelOptions,
+  personnelLoading,
+  personnelError,
+  onClose,
+  onChange,
+  onSave,
+}: LigneModalProps) {
   useEffect(() => {
     if (!open) return;
     const h = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -186,6 +218,8 @@ function LigneBesoinModal({ open, mode, isServiceRequest, ligne, error, onClose,
   const handleInnerSave = () => {
     onSave();
   };
+  const personnelListId = "modal-destinataire-final-list";
+  const hasPersonnelOptions = personnelOptions.length > 0;
   
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-4 backdrop-blur-sm animate-in fade-in duration-300" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
@@ -226,8 +260,8 @@ function LigneBesoinModal({ open, mode, isServiceRequest, ligne, error, onClose,
                    />
                  </div>
                  <div className="md:col-span-2 xl:col-span-3"><label className={modalLabelClass}>Description du service *</label><textarea id="modal_description" value={ligne.description_service} onChange={(e) => onChange("description_service", e.target.value)} className={modalAreaClass} placeholder="Décrivez la prestation attendue..." /></div>
-                 <div><label className={modalLabelClass}>Période début *</label><input id="modal_date_debut" type="date" value={ligne.date_debut} onChange={(e) => onChange("date_debut", e.target.value)} className={modalFieldClass} /></div>
-                 <div><label className={modalLabelClass}>Période fin *</label><input id="modal_date_fin" type="date" value={ligne.date_fin} onChange={(e) => onChange("date_fin", e.target.value)} className={modalFieldClass} /></div>
+                 <div><label className={modalLabelClass}>Période début *</label><input id="modal_date_debut" type="date" min={getTodayDate()} value={ligne.date_debut} onChange={(e) => onChange("date_debut", e.target.value)} {...FRENCH_DATE_INPUT_PROPS} className={modalFieldClass} /></div>
+                 <div><label className={modalLabelClass}>Période fin *</label><input id="modal_date_fin" type="date" min={ligne.date_debut || getTodayDate()} value={ligne.date_fin} onChange={(e) => onChange("date_fin", e.target.value)} {...FRENCH_DATE_INPUT_PROPS} className={modalFieldClass} /></div>
                  <div><label className={modalLabelClass}>Nb. bénéficiaires</label><input type="number" min="0" step="1" value={ligne.nombre_beneficiaires} onChange={(e) => onChange("nombre_beneficiaires", e.target.value)} className={modalFieldClass} placeholder="Ex: 10" /></div>
                  <div><label className={modalLabelClass}>Coût estimé total *</label><input id="modal_prix_service" type="number" min="0" step="0.01" value={ligne.prix_unitaire_estime} onChange={(e) => onChange("prix_unitaire_estime", e.target.value)} className={modalFieldClass} placeholder="0" /></div>
                  <div className="md:col-span-2"><label className={modalLabelClass}>Lieu d&apos;exécution *</label><input id="modal_lieu_execution" value={ligne.lieu_execution} onChange={(e) => onChange("lieu_execution", e.target.value)} className={modalFieldClass} placeholder="Ex: Bloc hospitalier..." /></div>
@@ -242,8 +276,51 @@ function LigneBesoinModal({ open, mode, isServiceRequest, ligne, error, onClose,
                 <div className="md:col-span-2 xl:col-span-1"><label className={modalLabelClass}>Prix estimé unitaire</label><input type="number" value={ligne.prix_unitaire_estime} onChange={(e) => onChange("prix_unitaire_estime", e.target.value)} className={modalFieldClass} placeholder="0" /></div>
                 <div className="md:col-span-2 xl:col-span-3"><label className={modalLabelClass}>Caractéristiques techniques *</label><textarea id="modal_caracteristiques" value={ligne.caracteristiques_techniques} onChange={(e) => onChange("caracteristiques_techniques", e.target.value)} className={modalAreaClass} placeholder="Spécificités, puissance, dimensions..." /></div>
                 <div><label className={modalLabelClass}>Lieu de livraison *</label><input id="modal_lieu_livraison" value={ligne.lieu_livraison} onChange={(e) => onChange("lieu_livraison", e.target.value)} className={modalFieldClass} placeholder="Lieu..." /></div>
-                <div className="md:col-span-2"><label className={modalLabelClass}>Destinataire final *</label><input id="modal_destinataire_final" value={ligne.destinataire_final} onChange={(e) => onChange("destinataire_final", e.target.value)} className={modalFieldClass} placeholder="Service ou personne..." /></div>
-               </>
+                <div className="md:col-span-2">
+                  <label className={modalLabelClass}>Destinataire final *</label>
+                  <input
+                    id="modal_destinataire_final"
+                    list={hasPersonnelOptions ? personnelListId : undefined}
+                    value={ligne.destinataire_final}
+                    onChange={(e) => onChange("destinataire_final", e.target.value)}
+                    className={modalFieldClass}
+                    placeholder={
+                      personnelLoading
+                        ? "Chargement du personnel..."
+                        : "Choisir un agent ou saisir manuellement..."
+                    }
+                    autoComplete="off"
+                  />
+                  {hasPersonnelOptions ? (
+                    <datalist id={personnelListId}>
+                      {personnelOptions.map((option) => {
+                        const optionLabel = option.subtitle
+                          ? `${option.label} - ${option.subtitle}`
+                          : option.label;
+
+                        return (
+                          <option
+                            key={`${option.id}-${option.label}`}
+                            value={option.label}
+                            label={optionLabel}
+                          >
+                            {optionLabel}
+                          </option>
+                        );
+                      })}
+                    </datalist>
+                  ) : null}
+                  <p className="mt-1.5 text-[11px] font-medium text-slate-400">
+                    {personnelLoading
+                      ? "Connexion a l'annuaire du personnel en cours."
+                      : personnelError
+                        ? "Annuaire externe indisponible pour l'instant. La saisie manuelle reste possible."
+                        : hasPersonnelOptions
+                          ? "Choisis un agent dans la liste synchronisee avec leur serveur."
+                          : "La liste du personnel sera utilisee des qu'elle sera disponible."}
+                  </p>
+                </div>
+              </>
              )}
           </div>
         </div>
@@ -287,6 +364,9 @@ export default function CorrigerDemandePage() {
   // UI states
   const [saving, setSaving] = useState(false);
   const [notification, setNotification] = useState<{message: string, type: 'error' | 'success'} | null>(null);
+  const [personnelOptions, setPersonnelOptions] = useState<PersonnelDirectoryOption[]>([]);
+  const [personnelLoading, setPersonnelLoading] = useState(false);
+  const [personnelError, setPersonnelError] = useState<string | null>(null);
 
   const isServiceRequest = typeDemande === "PETITS_SERVICES";
   
@@ -353,6 +433,39 @@ export default function CorrigerDemandePage() {
     load();
   }, [router, demandeId]);
 
+  useEffect(() => {
+    let active = true;
+
+    const loadPersonnel = async () => {
+      if (!getToken()) return;
+
+      setPersonnelLoading(true);
+      setPersonnelError(null);
+
+      try {
+        const personnel = await listExternalPersonnel();
+        if (!active) return;
+        setPersonnelOptions(personnel);
+      } catch (error) {
+        if (!active) return;
+        setPersonnelOptions([]);
+        setPersonnelError(
+          error instanceof Error
+            ? error.message
+            : "Annuaire du personnel indisponible.",
+        );
+      } finally {
+        if (active) setPersonnelLoading(false);
+      }
+    };
+
+    loadPersonnel();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const handleUniteTechniqueChange = (value: string) => {
     setUniteTechnique(value);
   };
@@ -363,19 +476,6 @@ export default function CorrigerDemandePage() {
       el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       el.focus({ preventScroll: true }); // Ensure focus visibly happens
     }
-  };
-
-  const getDocumentRecommendations = () => {
-    const recs: string[] = [];
-    if (typeDemande === "MATERIELS") {
-       recs.push("Spécifications techniques détaillées (fortement suggéré pour Matériels complexes)");
-    } else if (typeDemande === "PETITS_SERVICES") {
-       recs.push("Termes de Référence simplifiés (fortement suggéré pour Petits services)");
-    }
-    if (categorieBesoin === "REAPPROVISIONNEMENT") {
-       recs.push("Bon de sortie stock (nécessaire pour Réapprovisionnement)");
-    }
-    return recs;
   };
 
   const buildLignePayload = (ligne: LigneForm) => ({
@@ -402,7 +502,7 @@ export default function CorrigerDemandePage() {
     
     // Auto-scroll Validations
     if (!uniteTechnique) {
-       setNotification({message: "L'Unité technique est obligatoire.", type: 'error'});
+       setNotification({message: "La cellule est obligatoire.", type: 'error'});
        return scrollToElement("uniteTechnique");
     }
     if (!typeDemande) {
@@ -646,13 +746,13 @@ export default function CorrigerDemandePage() {
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                    <div className="lg:col-span-1">
-                     <label className={labelClass}>Unité technique *</label>
+                     <label className={labelClass}>Cellule *</label>
                      <PurchaseSelect
                        id="uniteTechnique"
                        value={uniteTechnique}
                        onChange={handleUniteTechniqueChange}
                        options={[...uniteTechniqueOptions]}
-                       placeholder="Sélectionner une unité..."
+                       placeholder="Sélectionner une cellule..."
                        className={fieldClass}
                      />
                    </div>
@@ -754,7 +854,7 @@ export default function CorrigerDemandePage() {
                                <p className="text-[13.5px] font-bold text-slate-800">{isServiceRequest ? l.description_service : l.designation}</p>
                                <div className="flex items-center gap-2 mt-1 flex-wrap">
                                  {isServiceRequest ? (
-                                    <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-[11px] font-bold flex items-center gap-1"><Clock className="w-3 h-3"/> {l.date_debut && l.date_fin ? `${l.date_debut} au ${l.date_fin}` : 'Dates non définies'}</span>
+                                    <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-[11px] font-bold flex items-center gap-1"><Clock className="w-3 h-3"/> {formatFrenchDateRange(l.date_debut, l.date_fin)}</span>
                                  ) : (
                                     <span className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded text-[11px] font-bold border border-emerald-100">Quantité: {l.quantite} {l.unite}</span>
                                  )}
@@ -777,28 +877,30 @@ export default function CorrigerDemandePage() {
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden group hover:shadow-md transition-shadow">
              <div className="border-t-[4px] border-emerald-500 p-6">
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between mb-6 gap-4">
-                   <div>
-                      <h2 className="text-[15px] font-black text-slate-800 flex items-center gap-2">
-                         <div className="bg-gradient-to-br from-emerald-100 to-teal-100 text-emerald-700 w-8 h-8 rounded-lg flex items-center justify-center p-1.5 shadow-sm">
-                            <FolderArchive className="w-full h-full" />
-                         </div>
-                         Documents justificatifs
-                      </h2>
-                      {getDocumentRecommendations().length > 0 && (
-                         <div className="mt-3 bg-amber-50 border border-amber-200 p-3 rounded-lg text-amber-800 text-xs font-semibold animate-in fade-in duration-300">
-                            <p className="flex items-center gap-1.5 mb-1"><AlertCircle className="w-4 h-4"/> Documents réglementaires conseillés :</p>
-                            <ul className="list-disc pl-6 space-y-1">
-                               {getDocumentRecommendations().map((r, i) => <li key={i}>{r}</li>)}
-                            </ul>
-                         </div>
-                      )}
-                   </div>
-                   <button type="button" onClick={() => setDocuments([...documents, { type_document: "", commentaire: "", fichier: null }])} className="px-5 py-2.5 border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:scale-105 rounded-xl text-sm font-bold transition-all flex items-center gap-2 shadow-sm shrink-0 uppercase tracking-wide">
-                      <Plus className="h-4 w-4" /> Ajouter fichier
-                   </button>
-                </div>
-                
-                {documents.length > 0 && (
+                    <div>
+                       <h2 className="text-[15px] font-black text-slate-800 flex items-center gap-2">
+                          <div className="bg-gradient-to-br from-emerald-100 to-teal-100 text-emerald-700 w-8 h-8 rounded-lg flex items-center justify-center p-1.5 shadow-sm">
+                             <FolderArchive className="w-full h-full" />
+                          </div>
+                          Documents justificatifs
+                       </h2>
+                    </div>
+                    <button type="button" onClick={() => setDocuments([...documents, { type_document: "", commentaire: "", fichier: null }])} className="px-5 py-2.5 border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:scale-105 rounded-xl text-sm font-bold transition-all flex items-center gap-2 shadow-sm shrink-0 uppercase tracking-wide">
+                       <Plus className="h-4 w-4" /> Ajouter fichier
+                    </button>
+                 </div>
+
+                 <div className="mb-4 rounded-xl border border-sky-100 bg-sky-50/50 p-3 shadow-sm">
+                    <p className="mb-2 flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-sky-800"><AlertCircle className="w-3.5 h-3.5"/> Guide des documents (PDF uniquement) :</p>
+                    <div className="flex flex-wrap gap-2 text-[10px]">
+                       <span className="flex items-center gap-1.5 rounded-md bg-white px-2 py-1 border border-sky-100"><strong className="text-slate-700">Spécifications tech.</strong> <span className="text-sky-600 font-semibold">(Si matériels complexes)</span></span>
+                       <span className="flex items-center gap-1.5 rounded-md bg-white px-2 py-1 border border-sky-100"><strong className="text-slate-700">TDR</strong> <span className="text-sky-600 font-semibold">(Si petits services)</span></span>
+                       <span className="flex items-center gap-1.5 rounded-md bg-white px-2 py-1 border border-sky-100"><strong className="text-slate-700">Devis estimatif</strong> <span className="text-sky-600 font-semibold">(Si montant &gt; seuil)</span></span>
+                       <span className="flex items-center gap-1.5 rounded-md bg-white px-2 py-1 border border-sky-100"><strong className="text-slate-700">Bon sortie stock</strong> <span className="text-sky-600 font-semibold">(Si réapprovisionnement)</span></span>
+                    </div>
+                 </div>
+
+                 {documents.length > 0 && (
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     {documents.map((d, i) => (
                       <div key={i} className="flex flex-col sm:flex-row sm:items-center gap-4 p-4 border border-slate-200 rounded-xl bg-slate-50/50 hover:bg-slate-50 transition-colors relative">
@@ -808,7 +910,15 @@ export default function CorrigerDemandePage() {
                                    <UploadCloud className={`h-5 w-5 ${d.fichier ? 'text-emerald-500' : 'text-slate-400 animate-pulse'}`} />
                                 </div>
                                 <div className="flex-1 relative overflow-hidden">
-                                   <input title="Upload" type="file" onChange={(e) => setDocuments(p => p.map((item, idx) => idx === i ? {...item, fichier: e.target.files?.[0] || null} : item))} className="opacity-0 absolute inset-0 z-10 cursor-pointer w-full h-full" />
+                                   <input title="Upload" type="file" accept=".pdf" onChange={(e) => {
+                                       const file = e.target.files?.[0];
+                                       if (file && file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+                                          setNotification({ message: "Seuls les fichiers PDF sont acceptés.", type: "error" });
+                                          e.target.value = '';
+                                          return;
+                                       }
+                                       setDocuments(p => p.map((item, idx) => idx === i ? {...item, fichier: file || null} : item));
+                                   }} className="opacity-0 absolute inset-0 z-10 cursor-pointer w-full h-full" />
                                    <div className={`p-2 border-2 border-dashed rounded-lg flex items-center justify-center text-[13px] font-bold truncate transition-colors cursor-pointer ${d.fichier ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-slate-300 hover:border-emerald-400 hover:bg-white text-slate-500 bg-slate-100/50'}`}>
                                       {d.fichier ? <span className="truncate w-full text-center">{d.fichier.name}</span> : "Cliquez ou glissez un fichier..."}
                                    </div>
@@ -853,6 +963,9 @@ export default function CorrigerDemandePage() {
         isServiceRequest={isServiceRequest}
         ligne={ligneDraft}
         error={ligneModalError}
+        personnelOptions={personnelOptions}
+        personnelLoading={personnelLoading}
+        personnelError={personnelError}
         onClose={closeLigneModal}
         onChange={handleLigneDraftChange}
         onSave={handleSaveLigne}

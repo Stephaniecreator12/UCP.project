@@ -29,6 +29,13 @@ GROUP_TO_STEP = {
     "APPROBATEUR_NATIONAL": DemandeAchat.ETAPE_APPROBATION_FINALE,
 }
 
+RETURN_FOR_CORRECTION_DECISIONS = {
+    ValidationDemande.DECISION_DEFAVORABLE,
+    ValidationDemande.DECISION_REJETEE,
+    ValidationDemande.DECISION_A_COMPLETER,
+    ValidationDemande.DECISION_A_REVOIR,
+}
+
 
 def _parse_budget_amount(value):
     if value in (None, ""):
@@ -188,16 +195,7 @@ def traiter_validation(demande, user, decision, commentaire="", donnees_etape=No
 
     update_fields = {"statut", "etape_validation_actuelle", "updated_at"}
 
-    if decision in [
-        ValidationDemande.DECISION_DEFAVORABLE,
-        ValidationDemande.DECISION_REJETEE,
-    ]:
-        demande.statut = DemandeAchat.STATUT_REJETEE
-
-    elif decision in [
-        ValidationDemande.DECISION_A_COMPLETER,
-        ValidationDemande.DECISION_A_REVOIR,
-    ]:
+    if decision in RETURN_FOR_CORRECTION_DECISIONS:
         demande.statut = DemandeAchat.STATUT_A_COMPLETER
 
     elif decision in [

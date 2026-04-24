@@ -5,6 +5,7 @@ import { X, Truck, CheckCircle } from "lucide-react";
 import { DemandeAchat, UpdateDeliveryPayload, updateDeliveryDemandeAchat } from "@/services/achats";
 import { getCompactNeedLabel } from "@/app/demande-achat/components/demandeAchatShared";
 import PurchaseSelect from "@/app/demande-achat/components/PurchaseSelect";
+import { FRENCH_DATE_INPUT_PROPS } from "@/lib/date";
 
 type LivraisonModalProps = {
   demande: DemandeAchat | null;
@@ -23,6 +24,8 @@ const initialFormState: DeliveryFormState = {
   date_arrivee_prevue: "",
   date_arrivee_effective: "",
 };
+
+const getTodayDate = () => new Date().toISOString().split("T")[0];
 
 const expeditionOptions = [
   { value: "EN_TRANSIT", label: "En transit" },
@@ -157,8 +160,10 @@ export default function LivraisonModal({
                 <label className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Date arrivée prévue</label>
                 <input
                   type="date"
+                  min={getTodayDate()}
                   value={form.date_arrivee_prevue || ""}
                   onChange={(e) => setForm({ ...form, date_arrivee_prevue: e.target.value })}
+                  {...FRENCH_DATE_INPUT_PROPS}
                   className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm shadow-sm transition-colors outline-none focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-100"
                 />
               </div>
@@ -167,18 +172,16 @@ export default function LivraisonModal({
                 <label className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Date arrivée effective</label>
                 <input
                   type="date"
+                  min={getTodayDate()}
                   value={form.date_arrivee_effective || ""}
                   onChange={(e) => setForm({ ...form, date_arrivee_effective: e.target.value })}
+                  {...FRENCH_DATE_INPUT_PROPS}
                   className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm shadow-sm transition-colors outline-none focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-100"
                 />
               </div>
             </div>
             
-            {error && (
-              <p className="text-xs font-medium text-rose-600 bg-rose-50 p-3 rounded-xl border border-rose-100">
-                {error}
-              </p>
-            )}
+            {error && <p className="ucp-inline-notice ucp-inline-notice--error">{error}</p>}
           </form>
         </div>
 

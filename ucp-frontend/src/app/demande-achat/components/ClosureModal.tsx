@@ -8,6 +8,7 @@ import {
   closeDemandeAchat,
 } from "@/services/achats";
 import PurchaseSelect from "@/app/demande-achat/components/PurchaseSelect";
+import { FRENCH_DATE_INPUT_PROPS, formatFrenchDate } from "@/lib/date";
 
 type ClosureModalProps = {
   demande: DemandeAchat | null;
@@ -44,7 +45,6 @@ const receptionStatusLabels: Record<string, string> = {
 const closureStatusOptions = [
   { value: "CLOTURE", label: "Clôturé" },
   { value: "PARTIELLEMENT_EXECUTE", label: "Partiellement exécuté" },
-  { value: "ANNULE", label: "Annulé" },
 ] as const;
 
 const buildClosureForm = (demande: DemandeAchat | null): ClosureFormState => ({
@@ -54,15 +54,6 @@ const buildClosureForm = (demande: DemandeAchat | null): ClosureFormState => ({
   commentaires_finaux: demande?.commentaires_finaux ?? "",
   date_cloture: demande?.date_cloture ?? "",
 });
-
-const formatDate = (value: string | null | undefined) => {
-  if (!value) return "-";
-  return new Date(value).toLocaleDateString("fr-FR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
-};
 
 export default function ClosureModal({
   demande,
@@ -177,11 +168,7 @@ export default function ClosureModal({
 
         <div className="grid gap-4 px-5 py-4 xl:grid-cols-[minmax(0,1fr)_17rem]">
           <section className="space-y-4">
-            {error && (
-              <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-                {error}
-              </div>
-            )}
+            {error && <div className="ucp-inline-notice ucp-inline-notice--error">{error}</div>}
 
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
               <InfoCard
@@ -198,7 +185,7 @@ export default function ClosureModal({
               />
               <InfoCard
                 label="Date réception"
-                value={formatDate(demande.date_reception)}
+                value={formatFrenchDate(demande.date_reception)}
               />
               <InfoCard
                 label="Réceptionnaire"
@@ -226,6 +213,7 @@ export default function ClosureModal({
               <Field label="Date clôture">
                 <input
                   type="date"
+                  min={new Date().toISOString().split("T")[0]}
                   value={form.date_cloture}
                   onChange={(e) =>
                     setForm((prev) => ({
@@ -233,6 +221,7 @@ export default function ClosureModal({
                       date_cloture: e.target.value,
                     }))
                   }
+                  {...FRENCH_DATE_INPUT_PROPS}
                   className="field"
                   disabled={!canClose}
                 />

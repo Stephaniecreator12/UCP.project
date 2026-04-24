@@ -5,6 +5,58 @@ interface LoginResult {
   error?: string;
 }
 
+const extractAuthErrorMessage = (data: unknown): string | null => {
+  if (!data) return null;
+
+  if (typeof data === "string") {
+    const trimmed = data.trim();
+    return trimmed || null;
+  }
+
+  if (typeof data === "object") {
+    const record = data as Record<string, unknown>;
+    const detail = record.detail;
+    const error = record.error;
+
+    if (typeof detail === "string" && detail.trim()) {
+      return detail.trim();
+    }
+
+    if (typeof error === "string" && error.trim()) {
+      return error.trim();
+    }
+  }
+
+  return null;
+};
+
+const readApiResponse = async (response: Response): Promise<unknown> => {
+  const contentType = response.headers.get("content-type") ?? "";
+
+  if (contentType.includes("application/json")) {
+    return response.json().catch(() => null);
+  }
+
+  const text = await response.text().catch(() => "");
+  return text || null;
+};
+
+const getLoginErrorMessage = (status: number, data: unknown) => {
+  if (status === 401) {
+    return "Nom d'utilisateur ou mot de passe incorrect";
+  }
+
+  if (status === 404) {
+    return "Endpoint de connexion introuvable. Vérifie l'URL du backend et le proxy /api/login.";
+  }
+
+  if (status >= 500) {
+    return "Le serveur d'authentification est indisponible pour le moment.";
+  }
+
+  return extractAuthErrorMessage(data) ?? "Connexion impossible pour le moment.";
+};
+
 export interface UserProfile {
   id: number;
   username: string;
@@ -162,10 +214,17 @@ export const fetchCurrentUser = async (): Promise<UserProfile> => {
   });
 
   if (!response.ok) {
-    throw new Error("Impossible de récupérer le profil utilisateur");
+    const data = await readApiResponse(response);
+    throw new Error(
+      extractAuthErrorMessage(data) ??
+        "Impossible de récupérer le profil utilisateur",
+    );
   }
 
-  const user = (await response.json()) as UserProfile;
+  const user = (await readApiResponse(response)) as UserProfile | null;
+  if (!user) {
+    throw new Error("Réponse utilisateur invalide.");
+  }
   storeCurrentUser(user);
   return user;
 };
@@ -181,18 +240,32 @@ export const login = async (
       body: JSON.stringify({ username, password }),
     });
 
-    const data = await response.json();
+    const data = await readApiResponse(response);
 
     if (response.ok) {
-      localStorage.setItem("access_token", data.access);
-      localStorage.setItem("refresh_token", data.refresh);
+      const payload = data as
+        | {
+            access?: string;
+            refresh?: string;
+          }
+        | null;
+
+      if (!payload?.access || !payload?.refresh) {
+        return {
+          success: false,
+          error: "Réponse de connexion invalide.",
+        };
+      }
+
+      localStorage.setItem("access_token", payload.access);
+      localStorage.setItem("refresh_token", payload.refresh);
       await fetchCurrentUser();
       return { success: true };
     }
 
     return {
       success: false,
-      error: "Nom d'utilisateur ou mot de passe incorrect",
+      error: getLoginErrorMessage(response.status, data),
     };
   } catch {
     return { success: false, error: "Erreur de connexion au serveur" };

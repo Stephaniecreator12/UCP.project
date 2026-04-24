@@ -290,7 +290,7 @@ export default function PurchaseSelect({
           openMenu();
         }}
         onKeyDown={handleButtonKeyDown}
-        className={`flex items-center justify-between gap-3 text-left ${className}`}
+        className={`flex items-center justify-between gap-3 text-left disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none ${className}`}
       >
         <span
           className={`min-w-0 truncate ${
@@ -302,7 +302,7 @@ export default function PurchaseSelect({
         <ChevronDown
           className={`h-4 w-4 shrink-0 text-slate-500 transition-transform ${
             open ? "rotate-180" : ""
-          }`}
+          } ${disabled ? "text-slate-300" : ""}`}
         />
       </button>
       {menu}

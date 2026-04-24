@@ -2,9 +2,10 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, X, ArrowLeft, Edit2, AlertCircle, FileText, UploadCloud, Clock, ShoppingBag, Wrench, ShieldCheck, Sparkles, ChevronRight, Briefcase, Target, Layers, FolderArchive } from "lucide-react";
+import { Plus, Trash2, X, ArrowLeft, AlertCircle, FileText, UploadCloud, Clock, ShoppingBag, Wrench, ShieldCheck, Sparkles, ChevronRight, Briefcase, Target, Layers, FolderArchive } from "lucide-react";
 import TopHeader from "@/app/components/TopHeader";
 import PurchaseSelect from "@/app/demande-achat/components/PurchaseSelect";
+import { FRENCH_DATE_INPUT_PROPS, formatFrenchIsoDate } from "@/lib/date";
 
 import {
   createDemandeAchat,
@@ -19,6 +20,10 @@ import {
   isFinanceUser,
   isValidatorUser,
 } from "@/services/auth";
+import {
+  listExternalPersonnel,
+  type PersonnelDirectoryOption,
+} from "@/services/personnel";
 
 type LigneForm = {
   designation: string;
@@ -51,6 +56,9 @@ type LigneModalProps = {
   isServiceRequest: boolean;
   ligne: LigneForm;
   error: string | null;
+  personnelOptions: PersonnelDirectoryOption[];
+  personnelLoading: boolean;
+  personnelError: string | null;
   onClose: () => void;
   onChange: (field: keyof LigneForm, value: string | number) => void;
   onSave: () => void;
@@ -63,6 +71,7 @@ const uniteTechniqueOptions = [
   { value: "LOGISTIQUE", label: "Logistique" },
   { value: "COORDINATION", label: "Coordination" },
   { value: "TECHNIQUE", label: "Technique" },
+  { value: "RH_ADMIN", label: "Ressource humaine/administrative" },
 ] as const;
 
 const typeServiceOptions = [
@@ -91,9 +100,9 @@ const prioriteOptions = [
 ] as const;
 
 const documentTypesOptions = [
-  { value: "SPECIFICATIONS_TECHNIQUES", label: "Spécifications techniques détaillées (PDF/Excel)" },
+  { value: "SPECIFICATIONS_TECHNIQUES", label: "Spécifications techniques détaillées (PDF)" },
   { value: "TDR_SIMPLIFIE", label: "Termes de Référence simplifiés (PDF)" },
-  { value: "DEVIS_ESTIMATIF", label: "Devis estimatif (PDF/Excel)" },
+  { value: "DEVIS_ESTIMATIF", label: "Devis estimatif (PDF)" },
   { value: "BON_SORTIE_STOCK", label: "Bon de sortie stock (PDF)" },
 ] as const;
 
@@ -147,6 +156,17 @@ const normalizeInteger = (value: string) => {
   return Number.isInteger(parsed) && parsed >= 0 ? parsed : undefined;
 };
 
+const getTodayDate = () => new Date().toISOString().split("T")[0];
+
+const formatFrenchDate = (value: string) => formatFrenchIsoDate(value);
+
+const formatFrenchDateRange = (start: string, end: string) => {
+  if (start && end) return `${formatFrenchDate(start)} au ${formatFrenchDate(end)}`;
+  if (start) return `À partir du ${formatFrenchDate(start)}`;
+  if (end) return `Jusqu'au ${formatFrenchDate(end)}`;
+  return "Dates non définies";
+};
+
 function NotificationPopup({ message, type, onClose }: { message: string, type: 'error' | 'success', onClose: () => void }) {
   useEffect(() => {
     const t = setTimeout(onClose, 5000);
@@ -157,22 +177,34 @@ function NotificationPopup({ message, type, onClose }: { message: string, type: 
   
   // Positionné en bas à droite pour être bien visible mais sans bloquer l'interface, style très clean type "Sonner"
   return (
-    <div className={`fixed inset-x-4 bottom-4 z-[9999] flex items-start gap-4 rounded-2xl border px-5 py-5 text-white shadow-[0_24px_60px_rgba(15,23,42,0.3)] ring-1 ring-white/15 backdrop-blur-sm animate-in slide-in-from-bottom-8 fade-in duration-300 sm:left-auto sm:right-6 sm:bottom-6 sm:max-w-[34rem] sm:min-w-[24rem] sm:px-6 sm:py-5 ${isError ? 'bg-red-600/95 border-red-500' : 'bg-emerald-600/95 border-emerald-500'}`}>
-      <div className="rounded-xl bg-white/20 p-3 shadow-inner">
+    <div className={`ucp-toast ${isError ? "ucp-toast--error" : "ucp-toast--success"} animate-in slide-in-from-bottom-8 fade-in duration-300`}>
+      <div className="ucp-toast__icon-shell">
         {isError ? <AlertCircle className="h-6 w-6" /> : <ShieldCheck className="h-6 w-6" />}
       </div>
       <div className="min-w-0 flex-1 pr-1">
-        <h4 className="mb-1 text-base font-black tracking-wide">{isError ? "Action requise" : "Operation reussie"}</h4>
-        <p className="whitespace-pre-line text-[15px] font-semibold leading-6 text-white/95 sm:text-base">{message}</p>
+        <h4 className="ucp-toast__title">{isError ? "Action requise" : "Operation reussie"}</h4>
+        <p className="ucp-toast__message whitespace-pre-line">{message}</p>
       </div>
-      <button onClick={onClose} className="ml-1 rounded-xl p-2.5 transition-colors hover:bg-white/20">
+      <button onClick={onClose} className="ucp-toast__close">
         <X className="h-5 w-5" />
       </button>
     </div>
   );
 }
 
-function LigneBesoinModal({ open, mode, isServiceRequest, ligne, error, onClose, onChange, onSave }: LigneModalProps) {
+function LigneBesoinModal({
+  open,
+  mode,
+  isServiceRequest,
+  ligne,
+  error,
+  personnelOptions,
+  personnelLoading,
+  personnelError,
+  onClose,
+  onChange,
+  onSave,
+}: LigneModalProps) {
   useEffect(() => {
     if (!open) return;
     const h = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -185,6 +217,8 @@ function LigneBesoinModal({ open, mode, isServiceRequest, ligne, error, onClose,
   const handleInnerSave = () => {
     onSave();
   };
+  const personnelListId = "modal-destinataire-final-list";
+  const hasPersonnelOptions = personnelOptions.length > 0;
   
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-4 backdrop-blur-sm animate-in fade-in duration-300" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
@@ -211,7 +245,7 @@ function LigneBesoinModal({ open, mode, isServiceRequest, ligne, error, onClose,
         
         <div className="p-5 sm:p-6">
           {error && (
-            <div className="mb-5 flex items-center gap-3 rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-600 shadow-sm animate-in shake duration-500">
+            <div className="mb-5 ucp-inline-notice ucp-inline-notice--error animate-in shake duration-500">
               <AlertCircle className="h-5 w-5 shrink-0" />
               {error}
             </div>
@@ -235,8 +269,8 @@ function LigneBesoinModal({ open, mode, isServiceRequest, ligne, error, onClose,
                    <label className={modalLabelClass}>Description du service *</label>
                    <textarea id="modal_description" value={ligne.description_service} onChange={(e) => onChange("description_service", e.target.value)} className={modalAreaClass} placeholder="Décrivez la prestation attendue avec précision..." />
                  </div>
-                 <div><label className={modalLabelClass}>Date de début *</label><input id="modal_date_debut" type="date" value={ligne.date_debut} onChange={(e) => onChange("date_debut", e.target.value)} className={modalFieldClass} /></div>
-                 <div><label className={modalLabelClass}>Date de fin *</label><input id="modal_date_fin" type="date" value={ligne.date_fin} onChange={(e) => onChange("date_fin", e.target.value)} className={modalFieldClass} /></div>
+                 <div><label className={modalLabelClass}>Date de début *</label><input id="modal_date_debut" type="date" min={getTodayDate()} value={ligne.date_debut} onChange={(e) => onChange("date_debut", e.target.value)} {...FRENCH_DATE_INPUT_PROPS} className={modalFieldClass} /></div>
+                 <div><label className={modalLabelClass}>Date de fin *</label><input id="modal_date_fin" type="date" min={ligne.date_debut || getTodayDate()} value={ligne.date_fin} onChange={(e) => onChange("date_fin", e.target.value)} {...FRENCH_DATE_INPUT_PROPS} className={modalFieldClass} /></div>
                  <div>
                    <label className={modalLabelClass}>Nb. bénéficiaires</label>
                    <input type="number" min="0" step="1" value={ligne.nombre_beneficiaires} onChange={(e) => onChange("nombre_beneficiaires", e.target.value)} className={modalFieldClass} placeholder="Ex: 10" />
@@ -272,7 +306,50 @@ function LigneBesoinModal({ open, mode, isServiceRequest, ligne, error, onClose,
                  </div>
                  <div className="md:col-span-2 xl:col-span-3"><label className={modalLabelClass}>Caractéristiques techniques détaillées *</label><textarea id="modal_caracteristiques" value={ligne.caracteristiques_techniques} onChange={(e) => onChange("caracteristiques_techniques", e.target.value)} className={modalAreaClass} placeholder="Spécificités techniques, puissance, dimensions, normes..." /></div>
                  <div><label className={modalLabelClass}>Lieu de livraison *</label><input id="modal_lieu_livraison" value={ligne.lieu_livraison} onChange={(e) => onChange("lieu_livraison", e.target.value)} className={modalFieldClass} placeholder="Destination..." /></div>
-                 <div className="md:col-span-2"><label className={modalLabelClass}>Destinataire final *</label><input id="modal_destinataire_final" value={ligne.destinataire_final} onChange={(e) => onChange("destinataire_final", e.target.value)} className={modalFieldClass} placeholder="Service ou unité..." /></div>
+                 <div className="md:col-span-2">
+                   <label className={modalLabelClass}>Destinataire final *</label>
+                   <input
+                     id="modal_destinataire_final"
+                     list={hasPersonnelOptions ? personnelListId : undefined}
+                     value={ligne.destinataire_final}
+                     onChange={(e) => onChange("destinataire_final", e.target.value)}
+                     className={modalFieldClass}
+                     placeholder={
+                       personnelLoading
+                         ? "Chargement du personnel..."
+                         : "Choisir un agent ou saisir manuellement..."
+                     }
+                     autoComplete="off"
+                   />
+                   {hasPersonnelOptions ? (
+                     <datalist id={personnelListId}>
+                       {personnelOptions.map((option) => {
+                         const optionLabel = option.subtitle
+                           ? `${option.label} - ${option.subtitle}`
+                           : option.label;
+
+                         return (
+                           <option
+                             key={`${option.id}-${option.label}`}
+                             value={option.label}
+                             label={optionLabel}
+                           >
+                             {optionLabel}
+                           </option>
+                         );
+                       })}
+                     </datalist>
+                   ) : null}
+                   <p className="mt-1.5 text-[11px] font-medium text-slate-400">
+                     {personnelLoading
+                       ? "Connexion a l'annuaire du personnel en cours."
+                       : personnelError
+                         ? "Annuaire externe indisponible pour l'instant. La saisie manuelle reste possible."
+                         : hasPersonnelOptions
+                           ? "Choisis un agent dans la liste synchronisee avec leur serveur."
+                           : "La liste du personnel sera utilisee des qu'elle sera disponible."}
+                   </p>
+                 </div>
                </>
              )}
           </div>
@@ -313,6 +390,9 @@ export default function NouvelleDemandePage() {
   // UI states
   const [saving, setSaving] = useState(false);
   const [notification, setNotification] = useState<{message: string, type: 'error' | 'success'} | null>(null);
+  const [personnelOptions, setPersonnelOptions] = useState<PersonnelDirectoryOption[]>([]);
+  const [personnelLoading, setPersonnelLoading] = useState(false);
+  const [personnelError, setPersonnelError] = useState<string | null>(null);
 
   const isServiceRequest = typeDemande === "PETITS_SERVICES";
   
@@ -321,6 +401,39 @@ export default function NouvelleDemandePage() {
     const u = getCurrentUser(); 
     if (isValidatorUser(u) || isAgentAchatUser(u) || isFinanceUser(u)) router.replace(getLandingRouteForUser(u));
   }, [router]);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadPersonnel = async () => {
+      if (!getToken()) return;
+
+      setPersonnelLoading(true);
+      setPersonnelError(null);
+
+      try {
+        const personnel = await listExternalPersonnel();
+        if (!active) return;
+        setPersonnelOptions(personnel);
+      } catch (error) {
+        if (!active) return;
+        setPersonnelOptions([]);
+        setPersonnelError(
+          error instanceof Error
+            ? error.message
+            : "Annuaire du personnel indisponible.",
+        );
+      } finally {
+        if (active) setPersonnelLoading(false);
+      }
+    };
+
+    loadPersonnel();
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const handleUniteTechniqueChange = (value: string) => {
     setUniteTechnique(value);
@@ -332,26 +445,6 @@ export default function NouvelleDemandePage() {
       el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       el.focus({ preventScroll: true }); // Ensure focus visibly happens
     }
-  };
-
-  const getDocumentRecommendations = () => {
-    const recs: { label: string; required: boolean }[] = [];
-    if (typeDemande === "MATERIELS") {
-       recs.push({ label: "Spécifications techniques détaillées (Obligatoire pour matériels complexes)", required: true });
-    } else if (typeDemande === "PETITS_SERVICES") {
-       recs.push({ label: "Termes de Référence simplifiés (Obligatoire pour petits services simplifiés)", required: true });
-    }
-    if (categorieBesoin === "REAPPROVISIONNEMENT") {
-       recs.push({ label: "Bon de sortie stock (Obligatoire pour Réapprovisionnement)", required: true });
-    }
-    
-    // Devis estimatif est généralement requis au delà de certains montants (ex: 300 000 Ar)
-    const totalEstime = lignes.reduce((acc, l) => acc + getLigneTotal(l, isServiceRequest), 0);
-    if (totalEstime > 0) {
-       recs.push({ label: "Devis estimatif (Obligatoire pour toute demande chiffrée)", required: true });
-    }
-    
-    return recs;
   };
 
   const buildLignePayload = (ligne: LigneForm) => ({
@@ -378,7 +471,7 @@ export default function NouvelleDemandePage() {
     
     // Auto-scroll Validations
     if (!uniteTechnique) {
-       setNotification({message: "L'Unité technique est obligatoire.", type: 'error'});
+       setNotification({message: "La cellule est obligatoire.", type: 'error'});
        return scrollToElement("uniteTechnique");
     }
     if (!typeDemande) {
@@ -419,31 +512,6 @@ export default function NouvelleDemandePage() {
        setNotification({message: "Choisissez un type pour chaque document ajouté.", type: 'error'});
        return scrollToElement("documentsSection");
     }
-
-    // --- VALIDATION DES DOCUMENTS OBLIGATOIRES ---
-    const uploadedTypes = documents.filter(d => d.fichier).map(d => d.type_document);
-    
-    if (typeDemande === "MATERIELS" && !uploadedTypes.includes("SPECIFICATIONS_TECHNIQUES")) {
-       setNotification({message: "Les Spécifications techniques détaillées sont obligatoires pour les matériels.", type: 'error'});
-       return scrollToElement("documentsSection");
-    }
-    
-    if (typeDemande === "PETITS_SERVICES" && !uploadedTypes.includes("TDR_SIMPLIFIE")) {
-       setNotification({message: "Les Termes de Référence (TDR) sont obligatoires pour les services.", type: 'error'});
-       return scrollToElement("documentsSection");
-    }
-    
-    if (categorieBesoin === "REAPPROVISIONNEMENT" && !uploadedTypes.includes("BON_SORTIE_STOCK")) {
-       setNotification({message: "Le Bon de sortie stock est obligatoire pour un réapprovisionnement.", type: 'error'});
-       return scrollToElement("documentsSection");
-    }
-    
-    const totalEstime = lignes.reduce((acc, l) => acc + getLigneTotal(l, isServiceRequest), 0);
-    if (totalEstime > 0 && !uploadedTypes.includes("DEVIS_ESTIMATIF")) {
-       setNotification({message: "Le Devis estimatif est obligatoire car la demande comporte un montant estimé.", type: 'error'});
-       return scrollToElement("documentsSection");
-    }
-    // ---------------------------------------------
     
     setSaving(true);
     try {
@@ -633,13 +701,13 @@ export default function NouvelleDemandePage() {
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                    <div className="lg:col-span-1">
-                     <label className={labelClass}>Unité technique *</label>
+                     <label className={labelClass}>Cellule *</label>
                      <PurchaseSelect
                        id="uniteTechnique"
                        value={uniteTechnique}
                        onChange={handleUniteTechniqueChange}
                        options={[...uniteTechniqueOptions]}
-                       placeholder="Sélectionner une unité..."
+                       placeholder="Sélectionner une cellule..."
                        className={fieldClass}
                      />
                    </div>
@@ -743,7 +811,7 @@ export default function NouvelleDemandePage() {
                                <p className="text-[13.5px] font-bold text-slate-800">{isServiceRequest ? l.description_service : l.designation}</p>
                                <div className="flex items-center gap-2 mt-1 flex-wrap">
                                  {isServiceRequest ? (
-                                    <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-[11px] font-bold flex items-center gap-1"><Clock className="w-3 h-3"/> {l.date_debut && l.date_fin ? `${l.date_debut} au ${l.date_fin}` : 'Dates non définies'}</span>
+                                    <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-[11px] font-bold flex items-center gap-1"><Clock className="w-3 h-3"/> {formatFrenchDateRange(l.date_debut, l.date_fin)}</span>
                                  ) : (
                                     <span className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded text-[11px] font-bold border border-emerald-100">Quantité: {l.quantite} {l.unite}</span>
                                  )}
@@ -777,19 +845,16 @@ export default function NouvelleDemandePage() {
                       <Plus className="h-4 w-4" /> Ajouter un fichier
                    </button>
                 </div>
-                   {getDocumentRecommendations().length > 0 && (
-                      <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50/50 p-5 text-amber-800 text-[12px] font-bold shadow-sm backdrop-blur-sm animate-in fade-in slide-in-from-top-2 duration-500">
-                         <p className="flex items-center gap-2.5 mb-2.5 text-amber-700"><AlertCircle className="w-5 h-5"/> Documents recommandés pour cette configuration :</p>
-                         <ul className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 list-none">
-                            {getDocumentRecommendations().map((r, i) => (
-                               <li key={i} className="flex items-center gap-2">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
-                                  <span>{r.label} {r.required && <span className="text-rose-500 font-extrabold ml-1">*</span>}</span>
-                                </li>
-                            ))}
-                         </ul>
-                      </div>
-                   )}
+
+                <div className="mb-4 rounded-xl border border-sky-100 bg-sky-50/50 p-3 shadow-sm">
+                   <p className="mb-2 flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-sky-800"><AlertCircle className="w-3.5 h-3.5"/> Guide des documents (PDF uniquement) :</p>
+                   <div className="flex flex-wrap gap-2 text-[10px]">
+                      <span className="flex items-center gap-1.5 rounded-md bg-white px-2 py-1 border border-sky-100"><strong className="text-slate-700">Spécifications tech.</strong> <span className="text-sky-600 font-semibold">(Si matériels complexes)</span></span>
+                      <span className="flex items-center gap-1.5 rounded-md bg-white px-2 py-1 border border-sky-100"><strong className="text-slate-700">TDR</strong> <span className="text-sky-600 font-semibold">(Si petits services)</span></span>
+                      <span className="flex items-center gap-1.5 rounded-md bg-white px-2 py-1 border border-sky-100"><strong className="text-slate-700">Devis estimatif</strong> <span className="text-sky-600 font-semibold">(Si montant &gt; seuil)</span></span>
+                      <span className="flex items-center gap-1.5 rounded-md bg-white px-2 py-1 border border-sky-100"><strong className="text-slate-700">Bon sortie stock</strong> <span className="text-sky-600 font-semibold">(Si réapprovisionnement)</span></span>
+                   </div>
+                </div>
                 
                 {documents.length > 0 && (
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -801,7 +866,15 @@ export default function NouvelleDemandePage() {
                                    <UploadCloud className={`h-5 w-5 ${d.fichier ? 'text-emerald-500' : 'text-slate-400 animate-pulse'}`} />
                                 </div>
                                 <div className="flex-1 relative overflow-hidden">
-                                   <input title="Upload" type="file" onChange={(e) => setDocuments(p => p.map((item, idx) => idx === i ? {...item, fichier: e.target.files?.[0] || null} : item))} className="opacity-0 absolute inset-0 z-10 cursor-pointer w-full h-full" />
+                                   <input title="Upload" type="file" accept=".pdf" onChange={(e) => {
+                                       const file = e.target.files?.[0];
+                                       if (file && file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+                                          setNotification({ message: "Seuls les fichiers PDF sont acceptés.", type: "error" });
+                                          e.target.value = '';
+                                          return;
+                                       }
+                                       setDocuments(p => p.map((item, idx) => idx === i ? {...item, fichier: file || null} : item));
+                                   }} className="opacity-0 absolute inset-0 z-10 cursor-pointer w-full h-full" />
                                    <div className={`p-2 border-2 border-dashed rounded-lg flex items-center justify-center text-[13px] font-bold truncate transition-colors cursor-pointer ${d.fichier ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-slate-300 hover:border-emerald-400 hover:bg-white text-slate-500 bg-slate-100/50'}`}>
                                       {d.fichier ? <span className="truncate w-full text-center">{d.fichier.name}</span> : "Cliquez ou glissez un fichier..."}
                                    </div>
@@ -845,6 +918,9 @@ export default function NouvelleDemandePage() {
         isServiceRequest={isServiceRequest}
         ligne={ligneDraft}
         error={ligneModalError}
+        personnelOptions={personnelOptions}
+        personnelLoading={personnelLoading}
+        personnelError={personnelError}
         onClose={closeLigneModal}
         onChange={handleLigneDraftChange}
         onSave={handleSaveLigne}

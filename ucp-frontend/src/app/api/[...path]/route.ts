@@ -17,7 +17,10 @@ const getBackendBase = (): string => {
     process.env.BACKEND_URL ||
     process.env.NEXT_PUBLIC_BACKEND_URL ||
     "http://127.0.0.1:8000";
-  return raw.replace(/\/+$/, "");
+
+  // Accept either a pure backend origin (`http://host:8000`) or a value
+  // mistakenly ending with `/api`, since the proxied path already contains it.
+  return raw.replace(/\/+$/, "").replace(/\/api$/i, "");
 };
 
 async function proxy(request: Request): Promise<Response> {

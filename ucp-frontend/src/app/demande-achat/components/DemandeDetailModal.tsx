@@ -47,7 +47,7 @@ export default function DemandeDetailModal({
 
   return (
     <div
-      className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/65 p-2 backdrop-blur-sm sm:p-4 lg:p-5 xl:p-6 animate-in fade-in duration-200"
+      className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/65 p-1 backdrop-blur-sm sm:p-2 lg:p-3 xl:p-4 animate-in fade-in duration-200"
       role="dialog"
       aria-modal="true"
       aria-labelledby="demande-detail-modal-title"
@@ -58,8 +58,8 @@ export default function DemandeDetailModal({
       }}
     >
       <div 
-        className="flex min-h-[84vh] w-full max-w-[108rem] max-h-[calc(100vh-1rem)] flex-col overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-2xl ring-1 ring-black/5 animate-in zoom-in-95 duration-200 lg:min-h-[90vh] xl:max-w-[112rem]"
-        style={{ zoom: 0.9 }}
+        className="flex min-h-[97vh] w-full max-w-[114rem] max-h-[calc(100vh-0.25rem)] flex-col overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-2xl ring-1 ring-black/5 animate-in zoom-in-95 duration-200 lg:min-h-[98vh] xl:max-w-[118rem]"
+        style={{ zoom: 0.94 }}
       >
         
         {/* Header - Professional compact style */}

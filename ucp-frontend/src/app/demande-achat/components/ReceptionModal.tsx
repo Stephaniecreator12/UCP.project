@@ -20,6 +20,7 @@ import {
 } from "@/services/achats";
 import { getCurrentUser } from "@/services/auth";
 import PurchaseSelect from "@/app/demande-achat/components/PurchaseSelect";
+import { FRENCH_DATE_INPUT_PROPS, formatFrenchDate as formatDate } from "@/lib/date";
 
 type ReceptionModalProps = {
   demande: DemandeAchat | null;
@@ -33,6 +34,9 @@ type ReceptionFormLigne = Omit<ReceptionLignePayload, "quantite_recue"> & {
 };
 
 const getTodayDate = () => new Date().toISOString().split("T")[0];
+
+const isPdfFile = (file: File | null) =>
+  !file || file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
 
 const getDefaultReceptionnaire = (
   demande: DemandeAchat | null,
@@ -51,11 +55,6 @@ const buildInitialLignes = (demande: DemandeAchat | null): ReceptionFormLigne[] 
     quantite_recue: ligne.quantite_recue ?? "",
     observation_reception: ligne.observation_reception || "",
   }));
-};
-
-const formatDate = (dateStr?: string | null) => {
-  if (!dateStr) return "Non définie";
-  return new Date(dateStr).toLocaleDateString("fr-FR");
 };
 
 const typeEcartOptions = [
@@ -98,6 +97,7 @@ export default function ReceptionModal({
 
   const [fileBL, setFileBL] = useState<File | null>(null);
   const [filePV, setFilePV] = useState<File | null>(null);
+  const [fileNotification, setFileNotification] = useState<string | null>(null);
 
   const [typeEcart, setTypeEcart] = useState<ReceiveDemandePayload["type_ecart"] | "">(
     () => (demande?.type_ecart as ReceiveDemandePayload["type_ecart"]) || "",
@@ -138,6 +138,13 @@ export default function ReceptionModal({
   }, [conformiteQualite, isProblemDetected]);
 
   useEffect(() => {
+    if (!fileNotification) return;
+
+    const timeout = window.setTimeout(() => setFileNotification(null), 4000);
+    return () => window.clearTimeout(timeout);
+  }, [fileNotification]);
+
+  useEffect(() => {
     if (!open) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -174,6 +181,7 @@ export default function ReceptionModal({
     setLignes(buildInitialLignes(demande));
     setFileBL(null);
     setFilePV(null);
+    setFileNotification(null);
     setError(null);
     setSaving(false);
   }, [currentUser, demande, open]);
@@ -190,9 +198,28 @@ export default function ReceptionModal({
     );
   };
 
+  const handlePdfFileChange = (file: File | null, target: "BL" | "PV") => {
+    if (!isPdfFile(file)) {
+      setFileNotification("Seuls les fichiers PDF sont acceptés.");
+      if (target === "BL") setFileBL(null);
+      else setFilePV(null);
+      return false;
+    }
+
+    setFileNotification(null);
+    if (target === "BL") setFileBL(file);
+    else setFilePV(file);
+    return true;
+  };
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!dateReception || conformiteQualite === "" || conformiteQuantite === "") return;
+
+    if (!isPdfFile(fileBL) || !isPdfFile(filePV)) {
+      setFileNotification("Seuls les fichiers PDF sont acceptés.");
+      return;
+    }
 
     if (isProblemDetected && (!typeEcart || !actionCorrective || !descriptionEcart.trim())) {
       setError("Renseignez le type d'écart, l'action corrective et le détail du problème.");
@@ -265,8 +292,8 @@ export default function ReceptionModal({
       }}
     >
       <div 
-        className="w-full max-w-4xl w-[95vw] overflow-hidden rounded-[32px] bg-white shadow-2xl flex flex-col max-h-[95vh]"
-        style={{ zoom: 0.8 }}
+        className="flex w-[96vw] max-h-[95vh] w-full max-w-5xl flex-col overflow-hidden rounded-[32px] bg-white shadow-2xl"
+        style={{ zoom: 0.9 }}
       >
         {/* HEADER */}
         <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3 shrink-0">
@@ -275,7 +302,7 @@ export default function ReceptionModal({
               <ClipboardCheck className="h-5 w-5" />
             </div>
             <div>
-              <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-600">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-600">
                 Dossier: {demande.numero_demande}
               </div>
               <h2 className="text-lg font-black text-slate-800 leading-tight">
@@ -296,7 +323,7 @@ export default function ReceptionModal({
         <form onSubmit={handleSubmit} className="flex flex-col p-4 md:p-5 gap-4 overflow-hidden">
           
           {/* BLOC 1 - EXPÉDITION (compact) */}
-          <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-[13px] shrink-0">
+          <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm shrink-0">
             <div className="flex items-center font-bold text-slate-700">
               <Package className="mr-2 h-4 w-4 text-slate-500" />
               Livraison
@@ -325,7 +352,7 @@ export default function ReceptionModal({
             <div className="h-4 w-px bg-slate-300 hidden md:block"></div>
             <div className="text-slate-600 flex items-center gap-2">
               <span className="font-bold">Date réelle:</span>
-              <input type="date" required value={dateReception} onChange={(e) => setDateReception(e.target.value)} className="w-[120px] rounded-xl border border-slate-200 bg-white px-2 py-1 text-xs text-slate-900 outline-none focus:border-emerald-500" />
+              <input type="date" required min={getTodayDate()} value={dateReception} onChange={(e) => setDateReception(e.target.value)} {...FRENCH_DATE_INPUT_PROPS} className="w-[128px] rounded-xl border border-slate-200 bg-white px-2 py-1 text-sm text-slate-900 outline-none focus:border-emerald-500" />
             </div>
           </div>
 
@@ -334,17 +361,17 @@ export default function ReceptionModal({
             {/* Haut de Bloc 2: Infos Base (Ultra compact sur 1 ligne) */}
             <div className="flex flex-wrap items-center gap-4 border-b border-slate-100 px-4 py-2 bg-slate-50/50 rounded-t-xl">
               <div className="flex items-center gap-2 flex-1">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 whitespace-nowrap">
+                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 whitespace-nowrap">
                   Observations
                 </label>
-                <input value={observationsReception} onChange={(e) => setObservationsReception(e.target.value)} placeholder="Constats finaux..." className="w-full rounded-xl border border-slate-200 bg-white px-2 py-1 text-xs text-slate-800 outline-none focus:border-emerald-500" />
+                <input value={observationsReception} onChange={(e) => setObservationsReception(e.target.value)} placeholder="Constats finaux..." className="w-full rounded-xl border border-slate-200 bg-white px-2 py-1 text-sm text-slate-800 outline-none focus:border-emerald-500" />
               </div>
             </div>
 
             {/* Tableau compact avec scroll */}
             <div className="overflow-y-auto overflow-x-hidden border-t border-slate-100">
-              <table className="w-full text-left text-[13px]">
-                <thead className="bg-slate-50 text-xs font-bold text-slate-500 sticky top-0 z-10 shadow-sm">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-slate-50 text-[13px] font-bold text-slate-500 sticky top-0 z-10 shadow-sm">
                   <tr>
                     <th className="px-4 py-2 border-b border-slate-100">Désignation</th>
                     <th className="w-20 border-b border-slate-100 px-4 py-2 text-center text-slate-400">Prévu</th>
@@ -364,7 +391,7 @@ export default function ReceptionModal({
                           <p className="font-semibold text-slate-900 truncate max-w-sm" title={ligne.designation || ligne.description_service}>
                             {ligne.designation || ligne.description_service}
                           </p>
-                          <p className="text-xs text-slate-500">{ligne.unite || "unité"}</p>
+                          <p className="text-[13px] text-slate-500">{ligne.unite || "unité"}</p>
                         </td>
                         <td className="px-4 py-2 text-center">
                           <span className="rounded-xl bg-slate-100 px-2 py-1 font-semibold text-slate-700">
@@ -409,16 +436,13 @@ export default function ReceptionModal({
             <div className="flex flex-col gap-4 border-t border-slate-100 bg-slate-50/50 px-4 py-3 md:flex-row items-center justify-center">
               
               <div className="flex items-center gap-3 w-full md:w-auto">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Quantité :</span>
+                <span className="text-sm font-bold uppercase tracking-wider text-slate-500">Quantité :</span>
                 <div className="flex gap-1.5">
                   <button type="button" onClick={() => setConformiteQuantite("CONFORME")} className={`rounded-xl border px-4 py-2 text-sm font-bold shadow-sm transition ${conformiteQuantite === "CONFORME" ? "border-emerald-500 bg-emerald-50 text-emerald-800" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>
-                    Conforme
+                    Totalité
                   </button>
                   <button type="button" onClick={() => setConformiteQuantite("PARTIELLE")} className={`rounded-xl border px-4 py-2 text-sm font-bold shadow-sm transition ${conformiteQuantite === "PARTIELLE" ? "border-amber-500 bg-amber-50 text-amber-800" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>
                     Partielle
-                  </button>
-                  <button type="button" onClick={() => setConformiteQuantite("NON_CONFORME")} className={`rounded-xl border px-4 py-2 text-sm font-bold shadow-sm transition ${conformiteQuantite === "NON_CONFORME" ? "border-rose-500 bg-rose-50 text-rose-800" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>
-                    Non conforme
                   </button>
                 </div>
               </div>
@@ -426,13 +450,13 @@ export default function ReceptionModal({
               <div className="hidden h-6 w-px bg-slate-300 md:block mx-1"></div>
               
               <div className="flex items-center gap-3 w-full md:w-auto">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Qualité :</span>
+                <span className="text-sm font-bold uppercase tracking-wider text-slate-500">Qualité :</span>
                 <div className="flex gap-1.5">
                   <button type="button" onClick={() => setConformiteQualite("CONFORME")} className={`rounded-xl border px-4 py-2 text-sm font-bold shadow-sm transition ${conformiteQualite === "CONFORME" ? "border-emerald-500 bg-emerald-50 text-emerald-800" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>
                     Conforme
                   </button>
                   <button type="button" onClick={() => setConformiteQualite("NON_CONFORME")} className={`rounded-xl border px-4 py-2 text-sm font-bold shadow-sm transition ${conformiteQualite === "NON_CONFORME" || conformiteQualite === "DEFECTUEUX" ? "border-amber-500 bg-amber-50 text-amber-800" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>
-                    Problème
+                    Non conforme
                   </button>
                 </div>
               </div>
@@ -453,52 +477,58 @@ export default function ReceptionModal({
                   value={typeEcart}
                   onChange={(value) => setTypeEcart(value as ReceiveDemandePayload["type_ecart"])}
                   options={[...typeEcartOptions]}
-                  className="rounded-xl border border-rose-200 bg-white px-2 py-1.5 text-xs font-semibold text-rose-900 outline-none"
+                  className="rounded-xl border border-rose-200 bg-white px-2 py-1.5 text-sm font-semibold text-rose-900 outline-none"
                 />
                 <PurchaseSelect
                   value={actionCorrective}
                   onChange={(value) => setActionCorrective(value as ReceiveDemandePayload["action_corrective"])}
                   options={[...actionCorrectiveOptions]}
-                  className="rounded-xl border border-rose-200 bg-white px-2 py-1.5 text-xs font-semibold text-rose-900 outline-none"
+                  className="rounded-xl border border-rose-200 bg-white px-2 py-1.5 text-sm font-semibold text-rose-900 outline-none"
                 />
-                <input type="text" required value={descriptionEcart} onChange={(e) => setDescriptionEcart(e.target.value)} placeholder="Détail du problème..." className="rounded-xl border border-rose-200 bg-white px-2 py-1.5 text-xs text-slate-800 outline-none placeholder:text-rose-300" />
+                <input type="text" required value={descriptionEcart} onChange={(e) => setDescriptionEcart(e.target.value)} placeholder="Détail du problème..." className="rounded-xl border border-rose-200 bg-white px-2 py-1.5 text-sm text-slate-800 outline-none placeholder:text-rose-300" />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div className="flex items-center gap-2 bg-white rounded-xl border border-rose-200 px-2 py-1">
-                  <label className="text-xs font-bold text-rose-800 whitespace-nowrap">Date de résolution</label>
-                  <input type="date" value={dateResolution} onChange={(e) => setDateResolution(e.target.value)} className="w-full bg-transparent text-xs text-slate-800 outline-none" />
+                  <label className="text-sm font-bold text-rose-800 whitespace-nowrap">Date de résolution</label>
+                  <input type="date" min={getTodayDate()} value={dateResolution} onChange={(e) => setDateResolution(e.target.value)} {...FRENCH_DATE_INPUT_PROPS} className="w-full bg-transparent text-sm text-slate-800 outline-none" />
                 </div>
                 <div className="flex items-center gap-2 bg-white rounded-xl border border-rose-200 px-2 py-1">
-                  <label className="text-xs font-bold text-rose-800 whitespace-nowrap">Suivi résol.</label>
-                  <input type="text" value={suiviResolution} onChange={(e) => setSuiviResolution(e.target.value)} placeholder="Commentaires..." className="w-full bg-transparent text-xs text-slate-800 outline-none" />
+                  <label className="text-sm font-bold text-rose-800 whitespace-nowrap">Suivi résol.</label>
+                  <input type="text" value={suiviResolution} onChange={(e) => setSuiviResolution(e.target.value)} placeholder="Commentaires..." className="w-full bg-transparent text-sm text-slate-800 outline-none" />
                 </div>
               </div>
             </div>
           )}
 
-          {error && (
-            <div className="rounded-xl border border-rose-200 bg-white px-3 py-2 text-xs font-medium text-rose-600">
-              {error}
-            </div>
-          )}
+          {error && <div className="ucp-inline-notice ucp-inline-notice--error">{error}</div>}
 
           {/* BLOC 4 & FOOTER - Documents et Validation */}
           <div className="mt-auto flex flex-col items-center justify-between gap-3 pt-3 border-t border-slate-100 shrink-0 md:flex-row">
             <div className="flex flex-col md:flex-row items-start md:items-center gap-4 w-full md:w-auto pt-4">
               {/* Documents (Compact) */}
               <div className="flex gap-3">
-                <input type="file" id="bl-upload" className="hidden" onChange={(e) => setFileBL(e.target.files?.[0] || null)} />
-                <label htmlFor="bl-upload" className="flex cursor-pointer items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-700 transition hover:bg-slate-100 shadow-sm">
-                  <FileText className="h-4 w-4 text-slate-400" />
-                  {fileBL ? <span className="max-w-[140px] truncate" title={fileBL.name}>BL: {fileBL.name}</span> : <span>Bon livraison <span className="ml-1 text-slate-400 font-normal">[+]</span></span>}
-                  {fileBL && <Check className="h-3 w-3 text-emerald-600" />}
+                <input type="file" id="bl-upload" accept=".pdf,application/pdf" className="hidden" onChange={(e) => {
+                  const file = e.target.files?.[0] || null;
+                  if (!handlePdfFileChange(file, "BL")) {
+                    e.currentTarget.value = "";
+                  }
+                }} />
+                <label htmlFor="bl-upload" className="flex cursor-pointer items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-[15px] font-bold text-slate-700 transition hover:bg-slate-100 shadow-sm">
+                  <FileText className="h-5 w-5 text-slate-400" />
+                  {fileBL ? <span className="max-w-[170px] truncate" title={fileBL.name}>BL: {fileBL.name}</span> : <span>Bon livraison <span className="ml-1 text-slate-400 font-normal">[+]</span></span>}
+                  {fileBL && <Check className="h-4 w-4 text-emerald-600" />}
                 </label>
 
-                <input type="file" id="pv-upload" className="hidden" onChange={(e) => setFilePV(e.target.files?.[0] || null)} />
-                <label htmlFor="pv-upload" className="flex cursor-pointer items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-700 transition hover:bg-slate-100 shadow-sm">
-                  <FileText className="h-4 w-4 text-slate-400" />
-                  {filePV ? <span className="max-w-[140px] truncate" title={filePV.name}>PV: {filePV.name}</span> : <span>PV réception <span className="ml-1 text-slate-400 font-normal">[+]</span></span>}
-                  {filePV && <Check className="h-3 w-3 text-emerald-600" />}
+                <input type="file" id="pv-upload" accept=".pdf,application/pdf" className="hidden" onChange={(e) => {
+                  const file = e.target.files?.[0] || null;
+                  if (!handlePdfFileChange(file, "PV")) {
+                    e.currentTarget.value = "";
+                  }
+                }} />
+                <label htmlFor="pv-upload" className="flex cursor-pointer items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-[15px] font-bold text-slate-700 transition hover:bg-slate-100 shadow-sm">
+                  <FileText className="h-5 w-5 text-slate-400" />
+                  {filePV ? <span className="max-w-[170px] truncate" title={filePV.name}>PV: {filePV.name}</span> : <span>PV réception <span className="ml-1 text-slate-400 font-normal">[+]</span></span>}
+                  {filePV && <Check className="h-4 w-4 text-emerald-600" />}
                 </label>
               </div>
             </div>
@@ -506,7 +536,7 @@ export default function ReceptionModal({
             <button
               type="submit"
               disabled={saving || conformiteQualite === "" || conformiteQuantite === "" || lignes.some((ligne) => ligne.quantite_recue === "") || !dateReception}
-              className={`inline-flex w-full md:w-auto shrink-0 items-center justify-center gap-2 rounded-xl px-8 py-3 text-[13px] font-black uppercase tracking-wider text-white shadow-[0_8px_20px_rgba(5,150,105,0.3)] transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none disabled:hover:translate-y-0 ${
+              className={`inline-flex w-full md:w-auto shrink-0 items-center justify-center gap-2 rounded-xl px-8 py-3 text-sm font-black uppercase tracking-wider text-white shadow-[0_8px_20px_rgba(5,150,105,0.3)] transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none disabled:hover:translate-y-0 ${
                 isProblemDetected
                   ? "bg-amber-600 hover:bg-amber-700"
                   : "bg-emerald-600 hover:bg-emerald-700"
@@ -527,6 +557,13 @@ export default function ReceptionModal({
           </div>
         </form>
       </div>
+
+      {fileNotification && (
+        <div className="pointer-events-none ucp-toast ucp-toast--error animate-in slide-in-from-bottom-8 fade-in duration-300">
+          <AlertCircle className="h-6 w-6 shrink-0" />
+          <span className="ucp-toast__message">{fileNotification}</span>
+        </div>
+      )}
     </div>
   );
 }

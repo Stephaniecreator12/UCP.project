@@ -46,8 +46,14 @@ export default function TopHeader() {
     <div className="sticky top-0 z-50">
       <header
         ref={headerRef}
+        onMouseMove={handleHeaderMove}
+        onMouseLeave={resetHeaderGlow}
         className="relative h-[1.8cm] overflow-hidden border-b border-[var(--line)] bg-[var(--surface)] shadow-[0_1px_3px_rgba(0,0,0,0.02)]"
       >
+        <div
+          className="pointer-events-none absolute inset-0 z-0 bg-[radial-gradient(circle_at_var(--mx,50%)_var(--my,50%),rgba(16,185,129,0.08)_0%,transparent_25%)] transition-all duration-300 ease-out"
+          aria-hidden="true"
+        />
         {/* Ligne de couleur en haut */}
         <div
           className="h-[3px] bg-emerald-500"

@@ -66,19 +66,36 @@ SUBVENTION_BY_SOURCE = {
 
 def list_mes_demandes(user):
     qs = DemandeAchat.objects.all()
+    filters = Q(demandeur=user)
+
     if is_agent_marche(user):
         # Marche needs to see everything that is ordered, shipped or received.
-        qs = qs.filter(
-            Q(demandeur=user) | 
-            Q(statut__in=[
-                DemandeAchat.STATUT_EN_COMMANDE, 
-                DemandeAchat.STATUT_EN_LIVRAISON, 
-                DemandeAchat.STATUT_LIVREE, 
-                DemandeAchat.STATUT_CLOTUREE
-            ])
-        )
-    else:
-        qs = qs.filter(demandeur=user)
+        filters |= Q(statut__in=[
+            DemandeAchat.STATUT_EN_COMMANDE, 
+            DemandeAchat.STATUT_EN_LIVRAISON, 
+            DemandeAchat.STATUT_LIVREE, 
+            DemandeAchat.STATUT_CLOTUREE
+        ])
+    
+    if is_agent_achat(user):
+        filters |= Q(statut__in=[
+            DemandeAchat.STATUT_VALIDEE_BUDGETAIRE,
+            DemandeAchat.STATUT_EN_COMMANDE, 
+            DemandeAchat.STATUT_EN_LIVRAISON, 
+        ])
+        
+    if is_finance(user):
+        filters |= Q(statut__in=[
+            DemandeAchat.STATUT_SOUMISE,
+            DemandeAchat.STATUT_VALIDEE,
+            DemandeAchat.STATUT_VALIDEE_BUDGETAIRE,
+            DemandeAchat.STATUT_EN_COMMANDE,
+            DemandeAchat.STATUT_EN_LIVRAISON,
+            DemandeAchat.STATUT_LIVREE,
+            DemandeAchat.STATUT_CLOTUREE,
+        ])
+        
+    qs = qs.filter(filters)
 
     from django.db.models import Prefetch
     from apps.achats.models import ValidationDemande, HistoriqueDemande

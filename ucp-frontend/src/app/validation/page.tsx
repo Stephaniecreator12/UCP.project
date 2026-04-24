@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Search, X, ChevronDown, Activity, Clock, FileCheck, ChevronLeft, ChevronRight as ChevronRightIcon } from "lucide-react";
+import { Search, X, ChevronDown, Activity, Clock, FileCheck, ChevronLeft, ChevronRight as ChevronRightIcon, CheckCircle } from "lucide-react";
 
 import TopHeader from "@/app/components/TopHeader";
 import DemandeDetailModal from "@/app/demande-achat/components/DemandeDetailModal";
@@ -26,6 +26,7 @@ import {
   getValidatorRoleLabel,
   isFinanceUser,
   isValidatorUser,
+  type UserProfile,
 } from "@/services/auth";
 import { DemandeAchat, listDemandesEnAttenteValidation, getDemandeAchatById } from "@/services/achats";
 
@@ -79,7 +80,8 @@ const filterDemandesByQuery = (items: DemandeAchat[], query: string) => {
 
 export default function ValidationDashboardPage() {
   const router = useRouter();
-  const [currentUser] = useState(() => getCurrentUser());
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [isHydrated, setIsHydrated] = useState(false);
   const validationRoleLabel =
     getValidatorRoleLabel(currentUser) || getFinanceRoleLabel(currentUser);
   const [demandes, setDemandes] = useState<DemandeAchat[]>([]);
@@ -90,8 +92,21 @@ export default function ValidationDashboardPage() {
   const [selectedDemandeId, setSelectedDemandeId] = useState<number | null>(null);
   const [detailViewMode, setDetailViewMode] = useState<DetailViewMode>("detail");
   const [selectedValidationId, setSelectedValidationId] = useState<number | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   useEffect(() => {
+    setCurrentUser(getCurrentUser());
+    setIsHydrated(true);
+  }, []);
+
+  const showToast = (message: string) => {
+    setToastMessage(message);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  useEffect(() => {
+    if (!isHydrated) return;
+
     if (!getToken()) {
       setLoading(false);
       router.replace("/login");
@@ -116,7 +131,7 @@ export default function ValidationDashboardPage() {
       }
     };
     void load();
-  }, [currentUser, router]);
+  }, [currentUser, isHydrated, router]);
 
   const { filteredDemandes, filterProps } = useDashboardFilters(demandes);
   const orderedDemandes = useMemo(() => filteredDemandes, [filteredDemandes]);
@@ -148,6 +163,7 @@ export default function ValidationDashboardPage() {
     try {
       const data = await listDemandesEnAttenteValidation();
       setDemandes(data);
+      showToast("Validation effectuée avec succès !");
     } catch (err) {
       // Ignored
     }
@@ -290,6 +306,13 @@ export default function ValidationDashboardPage() {
         }}
         onValidationSuccess={handleValidationSuccess}
       />
+
+      {toastMessage && (
+        <div className="ucp-toast ucp-toast--success animate-in slide-in-from-bottom-8 fade-in duration-300">
+          <CheckCircle className="h-6 w-6 shrink-0" />
+          <span className="ucp-toast__message">{toastMessage}</span>
+        </div>
+      )}
     </main>
   );
 }

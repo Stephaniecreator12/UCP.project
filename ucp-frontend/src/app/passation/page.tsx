@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Search, X, ChevronDown, Package, ClipboardList, ChevronLeft, ChevronRight as ChevronRightIcon } from "lucide-react";
+import { Search, X, ChevronDown, Package, ClipboardList, ChevronLeft, ChevronRight as ChevronRightIcon, CheckCircle } from "lucide-react";
 
 import TopHeader from "@/app/components/TopHeader";
 import DemandeDetailModal from "@/app/demande-achat/components/DemandeDetailModal";
@@ -143,6 +143,12 @@ export default function PassationDashboardPage() {
   const [selectedDemandeId, setSelectedDemandeId] = useState<number | null>(null);
   const [detailViewMode, setDetailViewMode] = useState<DetailViewMode>("detail");
   const [passationModalDemandeId, setPassationModalDemandeId] = useState<number | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = (message: string) => {
+    setToastMessage(message);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
 
   const reloadDemandes = async () => {
     try {
@@ -371,8 +377,16 @@ export default function PassationDashboardPage() {
         onSuccess={() => {
           setPassationModalDemandeId(null);
           reloadDemandes();
+          showToast("Bon de commande créé avec succès !");
         }}
       />
+
+      {toastMessage && (
+        <div className="ucp-toast ucp-toast--success animate-in slide-in-from-bottom-8 fade-in duration-300">
+          <CheckCircle className="h-6 w-6 shrink-0" />
+          <span className="ucp-toast__message">{toastMessage}</span>
+        </div>
+      )}
     </main>
   );
 }

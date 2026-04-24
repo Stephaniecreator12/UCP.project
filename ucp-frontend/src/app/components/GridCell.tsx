@@ -2,6 +2,7 @@
 
 import React, { useRef, useEffect } from "react";
 import { ColumnConfig } from "@/types/grid";
+import { FRENCH_DATE_INPUT_PROPS } from "@/lib/date";
 
 interface GridCellProps {
   column: ColumnConfig;
@@ -140,6 +141,7 @@ export default function GridCell({
       <input
         ref={inputRef as React.Ref<HTMLInputElement>}
         type="date"
+        {...FRENCH_DATE_INPUT_PROPS}
         value={draftDate}
         min={minDate}
         max={maxDate}
@@ -202,5 +204,4 @@ export default function GridCell({
     />
   );
 }
-
 

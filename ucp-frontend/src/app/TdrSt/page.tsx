@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { getToken } from "@/services/auth";
+import { FRENCH_DATE_INPUT_PROPS } from "@/lib/date";
 
 type DocumentType = "TDR" | "ST";
 type Statut =
@@ -256,9 +257,9 @@ export default function TdRStPage() {
         </div>
       </div>
 
-      {error ? <div className="border border-red-200 bg-red-50 text-red-800 p-3 rounded">{error}</div> : null}
+      {error ? <div className="ucp-inline-notice ucp-inline-notice--error">{error}</div> : null}
       {success ? (
-        <div className="border border-green-200 bg-green-50 text-green-800 p-3 rounded">{success}</div>
+        <div className="ucp-inline-notice ucp-inline-notice--success">{success}</div>
       ) : null}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -363,6 +364,7 @@ export default function TdRStPage() {
               <span className="block text-sm font-medium">Période (début) *</span>
               <input
                 type="date"
+                {...FRENCH_DATE_INPUT_PROPS}
                 className="mt-1 w-full border rounded-md px-3 py-2"
                 value={form.periode_debut}
                 onChange={(e) => setForm((p) => ({ ...p, periode_debut: e.target.value }))}
@@ -372,6 +374,7 @@ export default function TdRStPage() {
               <span className="block text-sm font-medium">Période (fin) *</span>
               <input
                 type="date"
+                {...FRENCH_DATE_INPUT_PROPS}
                 className="mt-1 w-full border rounded-md px-3 py-2"
                 value={form.periode_fin}
                 onChange={(e) => setForm((p) => ({ ...p, periode_fin: e.target.value }))}

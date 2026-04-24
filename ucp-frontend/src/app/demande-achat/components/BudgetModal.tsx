@@ -355,11 +355,7 @@ export default function BudgetModal({
               </div>
             </div>
 
-            {error ? (
-              <p className="rounded-xl border border-rose-100 bg-rose-50 p-3 text-xs font-medium text-rose-600">
-                {error}
-              </p>
-            ) : null}
+            {error ? <p className="ucp-inline-notice ucp-inline-notice--error">{error}</p> : null}
           </form>
         </div>
 

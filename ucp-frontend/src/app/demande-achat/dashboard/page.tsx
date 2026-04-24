@@ -203,6 +203,13 @@ export default function DashboardPage() {
   const [resolveIssueModalDemandeId, setResolveIssueModalDemandeId] = useState<number | null>(null);
   const [clotureModalDemandeId, setClotureModalDemandeId] = useState<number | null>(null);
   const [corrigerModalDemandeId, setCorrigerModalDemandeId] = useState<number | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = (message: string) => {
+    setToastMessage(message);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
+
   const { filteredDemandes, filterProps } = useDashboardFilters(demandes);
   const { selectedFinancements, setSelectedFinancements, selectedTypes, setSelectedTypes } = filterProps;
 
@@ -344,7 +351,7 @@ export default function DashboardPage() {
   const hasActiveFilters = selectedFinancements.length > 0 || selectedTypes.length > 0;
   const executionCount = deliveryDemandes.length + receptionDemandes.length + closureDemandes.length;
   const attentionCount = correctionDemandes.length + receptionDemandes.length + closureDemandes.length;
-  const statusShortcutOrder: SectionKey[] = ["all", "pending", "correction", "delivery", "reception", "closure", "archive"];
+  const statusShortcutOrder: SectionKey[] = ["pending", "delivery", "correction", "reception", "closure", "all", "archive"];
   const resetFilters = () => {
     setSelectedFinancements([]);
     setSelectedTypes([]);
@@ -459,12 +466,11 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {sections.correction.total > 0 && <AccordionSection section={sections.correction} isActive={activeSection === "correction"} onToggle={() => setActiveSection(activeSection === "correction" ? null : "correction")} currentUser={currentUser} router={router} onOpenDetail={(id: number) => { setSelectedDemandeId(id); setDetailViewMode("detail"); }} onOpenTimeline={(id: number) => { setSelectedDemandeId(id); setDetailViewMode("timeline"); }} onOpenReception={(id: number) => setReceptionModalDemandeId(id)} onOpenResolveIssue={(id: number) => setResolveIssueModalDemandeId(id)} onOpenCloture={(id: number) => setClotureModalDemandeId(id)} /> }
-                  {sections.reception.total > 0 && <AccordionSection section={sections.reception} isActive={activeSection === "reception"} onToggle={() => setActiveSection(activeSection === "reception" ? null : "reception")} currentUser={currentUser} router={router} onOpenDetail={(id: number) => { setSelectedDemandeId(id); setDetailViewMode("detail"); }} onOpenTimeline={(id: number) => { setSelectedDemandeId(id); setDetailViewMode("timeline"); }} onOpenReception={(id: number) => setReceptionModalDemandeId(id)} onOpenResolveIssue={(id: number) => setResolveIssueModalDemandeId(id)} onOpenCloture={(id: number) => setClotureModalDemandeId(id)} onOpenCorriger={(id: number) => setCorrigerModalDemandeId(id)} isAlert />}
-                  {sections.closure.total > 0 && <AccordionSection section={sections.closure} isActive={activeSection === "closure"} onToggle={() => setActiveSection(activeSection === "closure" ? null : "closure")} currentUser={currentUser} router={router} onOpenDetail={(id: number) => { setSelectedDemandeId(id); setDetailViewMode("detail"); }} onOpenTimeline={(id: number) => { setSelectedDemandeId(id); setDetailViewMode("timeline"); }} onOpenReception={(id: number) => setReceptionModalDemandeId(id)} onOpenResolveIssue={(id: number) => setResolveIssueModalDemandeId(id)} onOpenCloture={(id: number) => setClotureModalDemandeId(id)} onOpenCorriger={(id: number) => setCorrigerModalDemandeId(id)} isAlert />}
-                  
                   <AccordionSection section={sections.pending} isActive={activeSection === "pending"} onToggle={() => setActiveSection(activeSection === "pending" ? null : "pending")} currentUser={currentUser} router={router} onOpenDetail={(id: number) => { setSelectedDemandeId(id); setDetailViewMode("detail"); }} onOpenTimeline={(id: number) => { setSelectedDemandeId(id); setDetailViewMode("timeline"); }} onOpenReception={(id: number) => setReceptionModalDemandeId(id)} onOpenResolveIssue={(id: number) => setResolveIssueModalDemandeId(id)} onOpenCloture={(id: number) => setClotureModalDemandeId(id)} onOpenCorriger={(id: number) => setCorrigerModalDemandeId(id)} />
                   <AccordionSection section={sections.delivery} isActive={activeSection === "delivery"} onToggle={() => setActiveSection(activeSection === "delivery" ? null : "delivery")} currentUser={currentUser} router={router} onOpenDetail={(id: number) => { setSelectedDemandeId(id); setDetailViewMode("detail"); }} onOpenTimeline={(id: number) => { setSelectedDemandeId(id); setDetailViewMode("timeline"); }} onOpenReception={(id: number) => setReceptionModalDemandeId(id)} onOpenResolveIssue={(id: number) => setResolveIssueModalDemandeId(id)} onOpenCloture={(id: number) => setClotureModalDemandeId(id)} onOpenCorriger={(id: number) => setCorrigerModalDemandeId(id)} />
+                  {sections.correction.total > 0 && <AccordionSection section={sections.correction} isActive={activeSection === "correction"} onToggle={() => setActiveSection(activeSection === "correction" ? null : "correction")} currentUser={currentUser} router={router} onOpenDetail={(id: number) => { setSelectedDemandeId(id); setDetailViewMode("detail"); }} onOpenTimeline={(id: number) => { setSelectedDemandeId(id); setDetailViewMode("timeline"); }} onOpenReception={(id: number) => setReceptionModalDemandeId(id)} onOpenResolveIssue={(id: number) => setResolveIssueModalDemandeId(id)} onOpenCloture={(id: number) => setClotureModalDemandeId(id)} onOpenCorriger={(id: number) => setCorrigerModalDemandeId(id)} /> }
+                  {sections.reception.total > 0 && <AccordionSection section={sections.reception} isActive={activeSection === "reception"} onToggle={() => setActiveSection(activeSection === "reception" ? null : "reception")} currentUser={currentUser} router={router} onOpenDetail={(id: number) => { setSelectedDemandeId(id); setDetailViewMode("detail"); }} onOpenTimeline={(id: number) => { setSelectedDemandeId(id); setDetailViewMode("timeline"); }} onOpenReception={(id: number) => setReceptionModalDemandeId(id)} onOpenResolveIssue={(id: number) => setResolveIssueModalDemandeId(id)} onOpenCloture={(id: number) => setClotureModalDemandeId(id)} onOpenCorriger={(id: number) => setCorrigerModalDemandeId(id)} isAlert />}
+                  {sections.closure.total > 0 && <AccordionSection section={sections.closure} isActive={activeSection === "closure"} onToggle={() => setActiveSection(activeSection === "closure" ? null : "closure")} currentUser={currentUser} router={router} onOpenDetail={(id: number) => { setSelectedDemandeId(id); setDetailViewMode("detail"); }} onOpenTimeline={(id: number) => { setSelectedDemandeId(id); setDetailViewMode("timeline"); }} onOpenReception={(id: number) => setReceptionModalDemandeId(id)} onOpenResolveIssue={(id: number) => setResolveIssueModalDemandeId(id)} onOpenCloture={(id: number) => setClotureModalDemandeId(id)} onOpenCorriger={(id: number) => setCorrigerModalDemandeId(id)} isAlert />}
                   <AccordionSection section={sections.all} isActive={activeSection === "all"} onToggle={() => setActiveSection(activeSection === "all" ? null : "all")} currentUser={currentUser} router={router} onOpenDetail={(id: number) => { setSelectedDemandeId(id); setDetailViewMode("detail"); }} onOpenTimeline={(id: number) => { setSelectedDemandeId(id); setDetailViewMode("timeline"); }} onOpenReception={(id: number) => setReceptionModalDemandeId(id)} onOpenResolveIssue={(id: number) => setResolveIssueModalDemandeId(id)} onOpenCloture={(id: number) => setClotureModalDemandeId(id)} onOpenCorriger={(id: number) => setCorrigerModalDemandeId(id)} />
                   <AccordionSection section={sections.archive} isActive={activeSection === "archive"} onToggle={() => setActiveSection(activeSection === "archive" ? null : "archive")} currentUser={currentUser} router={router} onOpenDetail={(id: number) => { setSelectedDemandeId(id); setDetailViewMode("detail"); }} onOpenTimeline={(id: number) => { setSelectedDemandeId(id); setDetailViewMode("timeline"); }} onOpenReception={(id: number) => setReceptionModalDemandeId(id)} onOpenResolveIssue={(id: number) => setResolveIssueModalDemandeId(id)} onOpenCloture={(id: number) => setClotureModalDemandeId(id)} onOpenCorriger={(id: number) => setCorrigerModalDemandeId(id)} />
                 </div>
@@ -490,6 +496,7 @@ export default function DashboardPage() {
         onSuccess={() => {
           setReceptionModalDemandeId(null);
           reloadDemandes();
+          showToast("Réception enregistrée avec succès !");
         }}
       />
 
@@ -500,6 +507,7 @@ export default function DashboardPage() {
         onSuccess={() => {
           setResolveIssueModalDemandeId(null);
           reloadDemandes();
+          showToast("Écart résolu avec succès !");
         }}
       />
 
@@ -514,8 +522,16 @@ export default function DashboardPage() {
         onSuccess={() => {
           setClotureModalDemandeId(null);
           reloadDemandes();
+          showToast("Dossier clôturé avec succès !");
         }}
       />
+
+      {toastMessage && (
+        <div className="ucp-toast ucp-toast--success animate-in slide-in-from-bottom-8 fade-in duration-300">
+          <CheckCircle2 className="h-6 w-6 shrink-0" />
+          <span className="ucp-toast__message">{toastMessage}</span>
+        </div>
+      )}
     </main>
   );
 }

@@ -5,6 +5,7 @@ import { X, Lock, CheckCircle, Star } from "lucide-react";
 import { DemandeAchat, CloseDemandePayload, closeDemandeAchat } from "@/services/achats";
 import { getCompactNeedLabel } from "@/app/demande-achat/components/demandeAchatShared";
 import PurchaseSelect from "@/app/demande-achat/components/PurchaseSelect";
+import { FRENCH_DATE_INPUT_PROPS } from "@/lib/date";
 
 type ClotureModalProps = {
   demande: DemandeAchat | null;
@@ -17,8 +18,9 @@ type ClotureModalProps = {
 const statutFinalOptions = [
   { value: "CLOTURE", label: "Clôturé avec succès" },
   { value: "PARTIELLEMENT_EXECUTE", label: "Partiellement exécuté" },
-  { value: "ANNULE", label: "Annulé" },
 ] as const;
+
+const getTodayDate = () => new Date().toISOString().split("T")[0];
 
 export default function ClotureModal({
   demande,
@@ -37,7 +39,7 @@ export default function ClotureModal({
 
   useEffect(() => {
     if (open && demande) {
-      const today = new Date().toISOString().split("T")[0];
+      const today = getTodayDate();
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setDateCloture(demande.date_cloture || today);
       setStatutFinal((demande.statut_final as CloseDemandePayload["statut_final"]) || "");
@@ -145,9 +147,11 @@ export default function ClotureModal({
                 <label className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Date de clôture</label>
                 <input
                   type="date"
+                  min={getTodayDate()}
                   required
                   value={dateCloture}
                   onChange={(e) => setDateCloture(e.target.value)}
+                  {...FRENCH_DATE_INPUT_PROPS}
                   className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm shadow-sm transition-colors outline-none focus:border-slate-500 focus:bg-white focus:ring-2 focus:ring-slate-100"
                 />
               </div>
@@ -195,11 +199,7 @@ export default function ClotureModal({
               />
             </div>
             
-            {error && (
-              <p className="text-xs font-medium text-rose-600 bg-rose-50 p-3 rounded-xl border border-rose-100">
-                {error}
-              </p>
-            )}
+            {error && <p className="ucp-inline-notice ucp-inline-notice--error">{error}</p>}
           </form>
         </div>
 

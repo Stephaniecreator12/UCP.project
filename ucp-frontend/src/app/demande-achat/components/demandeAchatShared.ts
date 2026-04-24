@@ -11,6 +11,7 @@ import {
   isValidatorUser,
   isLogistiqueUser,
 } from "@/services/auth";
+import { formatFrenchDate, formatFrenchDateTime } from "@/lib/date";
 
 export const statusLabels: Record<string, string> = {
   BROUILLON: "Brouillon",
@@ -148,25 +149,11 @@ const finalReceptionStatuses = [
 ] as const;
 
 export const formatDate = (value: string | null | undefined) => {
-  if (!value) return "-";
-
-  return new Date(value).toLocaleDateString("fr-FR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
+  return formatFrenchDate(value);
 };
 
 export const formatDateTime = (value: string | null | undefined) => {
-  if (!value) return "-";
-
-  return new Date(value).toLocaleString("fr-FR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return formatFrenchDateTime(value);
 };
 
 export const formatMoney = (value: string | number | null | undefined) => {
@@ -264,25 +251,68 @@ export const getCurrentValidationLabel = (demande: DemandeAchat) => {
   return current?.label.toLowerCase() ?? "validation";
 };
 
+const isWeekendDate = (value: Date) => {
+  const day = value.getDay();
+  return day === 0 || day === 6;
+};
+
+const addBusinessDays = (value: Date, days: number) => {
+  const deadline = new Date(value);
+  let daysAdded = 0;
+
+  while (daysAdded < days) {
+    deadline.setDate(deadline.getDate() + 1);
+    if (!isWeekendDate(deadline)) {
+      daysAdded++;
+    }
+  }
+
+  return deadline;
+};
+
+const getBusinessMsBetween = (start: Date, end: Date) => {
+  if (end <= start) return 0;
+
+  let total = 0;
+  let cursor = new Date(start);
+
+  while (cursor < end) {
+    const nextDay = new Date(cursor);
+    nextDay.setHours(24, 0, 0, 0);
+    const sliceEnd = nextDay < end ? nextDay : end;
+
+    if (!isWeekendDate(cursor)) {
+      total += sliceEnd.getTime() - cursor.getTime();
+    }
+
+    cursor = nextDay;
+  }
+
+  return total;
+};
+
 export const getValidationDeadlineState = (demande: DemandeAchat) => {
   if (!["SOUMISE", "A_COMPLETER"].includes(demande.statut)) return null;
-  
-  const referenceDate = new Date(demande.updated_at || demande.submitted_at || demande.created_at).getTime();
-  const deadline = referenceDate + 48 * 60 * 60 * 1000;
-  const now = Date.now();
-  
-  const diffMs = Math.abs(deadline - now);
+
+  const referenceDate = new Date(demande.updated_at || demande.submitted_at || demande.created_at);
+  const durationDays = demande.priorite === "URGENT" ? 2 : 5;
+  const deadlineDate = addBusinessDays(referenceDate, durationDays);
+  const nowDate = new Date();
+  const diffMs =
+    nowDate > deadlineDate
+      ? getBusinessMsBetween(deadlineDate, nowDate)
+      : getBusinessMsBetween(nowDate, deadlineDate);
   const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-  
-  if (now > deadline) {
+
+  if (nowDate.getTime() > deadlineDate.getTime()) {
     return { status: "RETARD", hours: diffHours };
   }
-  
-  // Si moins de 24h restantes (mi-parcours de 48h)
-  if (diffHours <= 24) {
+
+  const totalHours = durationDays * 24;
+  if (diffHours <= (totalHours / 2)) {
     return { status: "ATTENTE_CRITIQUE", hours: diffHours };
   }
-  
+
   return { status: "ATTENTE", hours: diffHours };
 };
 

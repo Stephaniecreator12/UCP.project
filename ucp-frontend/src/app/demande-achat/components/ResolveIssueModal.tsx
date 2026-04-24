@@ -4,6 +4,9 @@ import { useEffect, useState } from "react";
 import { X, AlertCircle, CheckCircle, Calendar, MessageSquare, ShieldAlert } from "lucide-react";
 import { DemandeAchat, ResolveReceptionIssuePayload, resolveReceptionIssueDemandeAchat } from "@/services/achats";
 import { toDisplayLabel } from "@/app/demande-achat/components/demandeAchatShared";
+import { FRENCH_DATE_INPUT_PROPS } from "@/lib/date";
+
+const getTodayDate = () => new Date().toISOString().split("T")[0];
 
 type ResolveIssueModalProps = {
   demande: DemandeAchat | null;
@@ -25,7 +28,7 @@ export default function ResolveIssueModal({
 
   useEffect(() => {
     if (open && demande) {
-      const today = new Date().toISOString().split("T")[0];
+      const today = getTodayDate();
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setDateResolution(today);
       setSuiviResolution("");
@@ -102,9 +105,11 @@ export default function ResolveIssueModal({
                 </label>
                 <input
                   type="date"
+                  min={getTodayDate()}
                   required
                   value={dateResolution}
                   onChange={(e) => setDateResolution(e.target.value)}
+                  {...FRENCH_DATE_INPUT_PROPS}
                   className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-semibold shadow-sm outline-none transition-all focus:border-amber-500 focus:ring-4 focus:ring-amber-50"
                 />
              </div>
@@ -124,9 +129,9 @@ export default function ResolveIssueModal({
              </div>
 
              {error && (
-              <div className="flex items-center gap-3 rounded-2xl bg-rose-50 p-4 border border-rose-100 shadow-sm">
+              <div className="ucp-inline-notice ucp-inline-notice--error">
                 <AlertCircle className="h-5 w-5 text-rose-500 shrink-0" />
-                <p className="text-sm font-bold text-rose-600">{error}</p>
+                <p>{error}</p>
               </div>
             )}
           </form>

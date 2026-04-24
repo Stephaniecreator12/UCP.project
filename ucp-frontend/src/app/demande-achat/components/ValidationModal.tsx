@@ -74,9 +74,8 @@ const verificationStockOptions = [
 ] as const;
 
 const disponibiliteBudgetaireOptions = [
-  { value: "DISPONIBLE", label: "Disponible" },
-  { value: "PARTIELLE", label: "Partielle" },
-  { value: "NON_DISPONIBLE", label: "Non disponible" },
+  { value: "DISPONIBLE", label: "Suffisant" },
+  { value: "NON_DISPONIBLE", label: "Non suffisant" },
 ] as const;
 
 const conformiteFinanciereOptions = [
@@ -421,7 +420,7 @@ export default function ValidationModal({
 
   return (
     <div
-      className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/40 p-4 animate-in fade-in duration-200"
+      className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/40 p-3 animate-in fade-in duration-200"
       role="dialog"
       aria-modal="true"
       onMouseDown={(event) => {
@@ -429,10 +428,10 @@ export default function ValidationModal({
       }}
     >
       <div
-        className="my-4 flex w-full max-w-5xl flex-col overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-[0_20px_48px_rgba(15,23,42,0.12)] animate-in zoom-in-95 duration-200"
-        style={{ zoom: 0.82 }}
+        className="flex w-full max-w-[88rem] flex-col overflow-hidden rounded-[30px] border border-slate-200 bg-white shadow-[0_20px_48px_rgba(15,23,42,0.12)] animate-in zoom-in-95 duration-200"
+        style={{ zoom: 0.88 }}
       >
-        <div className="flex items-center justify-between border-b border-slate-200 bg-white px-5 py-3">
+        <div className="flex items-center justify-between border-b border-slate-200 bg-white px-5 py-2.5">
           <div className="flex items-center gap-3">
             <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
               <Activity className="h-4 w-4" />
@@ -455,13 +454,13 @@ export default function ValidationModal({
           </button>
         </div>
 
-        <div className="flex-1 space-y-4 bg-slate-50 p-4">
-          <div className="flex flex-col items-center justify-between gap-3 rounded-[18px] border border-slate-200 bg-white p-4 shadow-sm sm:flex-row">
+        <div className="space-y-3 bg-slate-50 p-3">
+          <div className="flex flex-col items-center justify-between gap-2 rounded-[18px] border border-slate-200 bg-white p-3 shadow-sm sm:flex-row">
             <div className="min-w-0">
               <p className="truncate text-[14px] font-bold text-slate-900" title={demande.objet}>
                 {demande.objet}
               </p>
-              <div className="mt-1 flex flex-wrap gap-2 text-[11px] font-medium text-slate-600">
+              <div className="mt-1 flex flex-wrap gap-1.5 text-[11px] font-medium text-slate-600">
                 <span className="rounded-md border border-slate-100 bg-slate-50 px-1.5 py-0.5">
                   {getCompactNeedLabel(demande)}
                 </span>
@@ -482,34 +481,8 @@ export default function ValidationModal({
             </button>
           </div>
 
-          <div className="space-y-4 rounded-[18px] border border-slate-200 bg-white p-4 shadow-sm">
-            <div>
-              <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
-                Decision
-              </p>
-              <div className="grid grid-cols-3 gap-2">
-                {decisionOptions.map((option) => {
-                  const isActive = form.decision === option.value;
-                  const tone = toneClasses[option.tone];
-                  const isLocked =
-                    selectedStep === "BUDGETAIRE" &&
-                    (remainingBalance < 0 || form.disponibilite_budgetaire === "NON_DISPONIBLE") &&
-                    option.value !== "DEFAVORABLE";
+          <div className="space-y-3 rounded-[18px] border border-slate-200 bg-white p-3 shadow-sm">
 
-                  return (
-                    <button
-                      key={option.value}
-                      type="button"
-                      disabled={isLocked}
-                      onClick={() => setForm((prev) => ({ ...prev, decision: option.value }))}
-                      className={`rounded-[14px] border px-3 py-2 text-center transition ${isActive ? tone.active : tone.base} disabled:cursor-not-allowed disabled:opacity-50`}
-                    >
-                      <p className="text-[11px] font-bold">{option.label}</p>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
 
             {selectedStep === "TECHNIQUE" && (
               <div className="grid gap-3 sm:grid-cols-2">
@@ -535,13 +508,13 @@ export default function ValidationModal({
             )}
 
             {selectedStep === "BUDGETAIRE" && (
-              <div className="space-y-4 animate-in slide-in-from-top-2 duration-300">
-                <div className="rounded-[16px] border border-slate-200 bg-slate-50/70 p-4">
-                  <div className="mb-3 flex items-center gap-2">
+              <div className="space-y-3 animate-in slide-in-from-top-2 duration-300">
+                <div className="rounded-[16px] border border-slate-200 bg-slate-50/70 p-3">
+                  <div className="mb-2 flex items-center gap-2">
                     <div className="h-2 w-2 rounded-full bg-emerald-500" />
                     <p className="text-sm font-semibold text-slate-900">Choix budgetaire</p>
                   </div>
-                  <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
+                  <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
                     <div className="flex flex-col gap-1.5">
                       <label className="text-xs font-semibold text-slate-700">Source de financement</label>
                       <PurchaseSelect
@@ -585,12 +558,12 @@ export default function ValidationModal({
                   </div>
                 </div>
 
-                <div className="rounded-[16px] border border-slate-200 bg-white p-4">
-                  <div className="mb-3 flex items-center gap-2">
+                <div className="rounded-[16px] border border-slate-200 bg-white p-3">
+                  <div className="mb-2 flex items-center gap-2">
                     <div className="h-2 w-2 rounded-full bg-sky-500" />
                     <p className="text-sm font-semibold text-slate-900">Analyse budgetaire</p>
                   </div>
-                  <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
+                  <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
                     <div className="flex flex-col gap-1.5">
                       <label className="text-xs font-semibold text-slate-700">Cout estime</label>
                       <input
@@ -621,19 +594,23 @@ export default function ValidationModal({
                       <PurchaseSelect
                         value={form.disponibilite_budgetaire}
                         onChange={(value) => setForm((prev) => ({ ...prev, disponibilite_budgetaire: value }))}
+                        disabled
                         options={[...disponibiliteBudgetaireOptions]}
                         className="w-full rounded-[14px] border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm"
                       />
+                      <span className="text-[11px] text-slate-400">
+                        Champ calcule automatiquement selon le solde apres engagement.
+                      </span>
                     </div>
                   </div>
                 </div>
 
-                <div className="rounded-[16px] border border-slate-200 bg-white p-4">
-                  <div className="mb-3 flex items-center gap-2">
+                <div className="rounded-[16px] border border-slate-200 bg-white p-3">
+                  <div className="mb-2 flex items-center gap-2">
                     <div className="h-2 w-2 rounded-full bg-violet-500" />
-                    <p className="text-sm font-semibold text-slate-900">Controles et decision</p>
+                    <p className="text-sm font-semibold text-slate-900">Controles budgetaires</p>
                   </div>
-                  <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
+                  <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
                     <div className="flex flex-col gap-1.5">
                       <label className="text-xs font-semibold text-slate-700">Conformite financiere</label>
                       <PurchaseSelect
@@ -653,14 +630,6 @@ export default function ValidationModal({
                       />
                     </div>
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-xs font-semibold text-slate-700">Avis financier</label>
-                      <input
-                        readOnly
-                        value={decisionOptions.find((item) => item.value === form.decision)?.label ?? form.decision}
-                        className={`w-full rounded-[14px] border px-3 py-2 text-sm font-bold ${form.decision === "DEFAVORABLE" ? "border-rose-300 bg-rose-50 text-rose-700" : "border-emerald-200 bg-emerald-50 text-emerald-700"}`}
-                      />
-                    </div>
-                    <div className="flex flex-col gap-1.5">
                       <label className="text-xs font-semibold text-slate-700">Numero engagement</label>
                       <input
                         readOnly
@@ -671,7 +640,7 @@ export default function ValidationModal({
                   </div>
                 </div>
 
-                {remainingBalance < 0 && (
+            {remainingBalance < 0 && (
                   <div className="rounded-[14px] border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-medium text-amber-800">
                     Depassement budgetaire detecte. Un avis defavorable est requis.
                   </div>
@@ -685,19 +654,43 @@ export default function ValidationModal({
                 value={form.commentaire}
                 onChange={(e) => setForm((prev) => ({ ...prev, commentaire: e.target.value }))}
                 placeholder="Renseignez vos observations ici..."
-                className="min-h-[56px] w-full resize-none rounded-[14px] border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm"
+                className="min-h-[52px] w-full resize-none rounded-[14px] border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm"
               />
             </div>
 
-            {error && (
-              <p className="rounded-[14px] border border-rose-100 bg-rose-50 p-2.5 text-xs font-semibold text-rose-600">
-                {error}
+            <div>
+              <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+                Decision
               </p>
-            )}
+              <div className="grid grid-cols-3 gap-2">
+                {decisionOptions.map((option) => {
+                  const isActive = form.decision === option.value;
+                  const tone = toneClasses[option.tone];
+                  const isLocked =
+                    selectedStep === "BUDGETAIRE" &&
+                    (remainingBalance < 0 || form.disponibilite_budgetaire === "NON_DISPONIBLE") &&
+                    option.value !== "DEFAVORABLE";
+
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      disabled={isLocked}
+                      onClick={() => setForm((prev) => ({ ...prev, decision: option.value }))}
+                      className={`rounded-[14px] border px-3 py-2 text-center transition ${isActive ? tone.active : tone.base} disabled:cursor-not-allowed disabled:opacity-50`}
+                    >
+                      <p className="text-[11px] font-bold">{option.label}</p>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {error && <p className="ucp-inline-notice ucp-inline-notice--error">{error}</p>}
           </div>
         </div>
 
-        <div className="flex items-center justify-between border-t border-slate-200 bg-white px-5 py-3">
+        <div className="flex items-center justify-between border-t border-slate-200 bg-white px-5 py-2.5">
           <button
             onClick={onClose}
             disabled={saving}
@@ -710,7 +703,7 @@ export default function ValidationModal({
             disabled={saving}
             className="rounded-[14px] bg-emerald-600 px-5 py-2 text-sm font-bold text-white shadow-md transition-colors hover:bg-emerald-700 disabled:opacity-60"
           >
-            {saving ? "..." : "Valider la decision"}
+            {saving ? "..." : "Valider la décision"}
           </button>
         </div>
       </div>

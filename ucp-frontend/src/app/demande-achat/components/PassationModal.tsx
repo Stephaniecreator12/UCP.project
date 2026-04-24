@@ -5,6 +5,7 @@ import { X, CheckCircle, Package } from "lucide-react";
 import { DemandeAchat, IssueOrderPayload, issueOrderDemandeAchat, listFournisseurs, Fournisseur } from "@/services/achats";
 import { formatMoney, getCompactNeedLabel } from "@/app/demande-achat/components/demandeAchatShared";
 import PurchaseSelect from "@/app/demande-achat/components/PurchaseSelect";
+import { FRENCH_DATE_INPUT_PROPS } from "@/lib/date";
 
 type PassationFormState = Omit<IssueOrderPayload, "type_procedure" | "delai_livraison_contractuel" | "fournisseur"> & {
   type_procedure: IssueOrderPayload["type_procedure"] | "";
@@ -38,6 +39,8 @@ const procedureOptions = [
   { value: "BON_COMMANDE_DIRECT", label: "Bon de commande direct" },
   { value: "SELECTION_APRES_COTATION", label: "Sélection après cotation" },
 ] as const;
+
+const getTodayDate = () => new Date().toISOString().split("T")[0];
 
 export default function PassationModal({
   demande,
@@ -88,6 +91,7 @@ export default function PassationModal({
   if (!open || !demande) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (
       !form.fournisseur ||
       !form.date_bon_commande ||
@@ -227,9 +231,11 @@ export default function PassationModal({
                 <label className={fieldLabelClass}>Date bon de commande</label>
                 <input
                   type="date"
+                  min={getTodayDate()}
                   required
                   value={form.date_bon_commande || ""}
                   onChange={(e) => setForm({ ...form, date_bon_commande: e.target.value })}
+                  {...FRENCH_DATE_INPUT_PROPS}
                   className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm shadow-sm transition-colors outline-none focus:border-sky-500 focus:bg-white focus:ring-2 focus:ring-sky-100"
                 />
               </div>
@@ -278,11 +284,7 @@ export default function PassationModal({
               </div>
             </div>
             
-            {error && (
-              <p className="text-xs font-medium text-rose-600 bg-rose-50 p-3 rounded-xl border border-rose-100">
-                {error}
-              </p>
-            )}
+            {error && <p className="ucp-inline-notice ucp-inline-notice--error">{error}</p>}
           </form>
         </div>
 

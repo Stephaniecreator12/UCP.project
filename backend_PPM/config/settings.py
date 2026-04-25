@@ -177,8 +177,8 @@ EMAIL_HOST = 'smtp.gmail.com'  # ou ton serveur SMTP
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'oriahrakotomavo90@gmail.com'
-EMAIL_HOST_PASSWORD = 'pmzseekagxqpnuku'
-DEFAULT_FROM_EMAIL = 'UCP-TDR/ST <oriahrakotomavo90@gmail.com>'
+EMAIL_HOST_PASSWORD = 'cxemjjxllooxtons'
+DEFAULT_FROM_EMAIL = 'TDR/ST <oriahrakotomavo90@gmail.com>'
 
 # Frontend URL pour les liens
 FRONTEND_URL = 'http://localhost:3000'  # À adapter en production

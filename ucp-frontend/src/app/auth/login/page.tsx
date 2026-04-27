@@ -8,7 +8,7 @@ import { getToken, login } from "@/services/auth";
 const DEFAULT_AFTER_LOGIN_ROUTE = "/dashboard";
 
 export default function LoginPage() {
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
@@ -24,13 +24,19 @@ export default function LoginPage() {
     e.preventDefault();
     setError("");
 
-    const result = await login(username, password);
+    const result = await login(email, password);
 
     if (result.success) {
       router.push("/dashboard");
     } else {
-      setError(result.error || "Une erreur est survenue");
+      setError(result.message || "Une erreur est survenue");
     }
+  };
+
+  const handleRegisterRedirection = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    router.push("/auth/register");
   };
 
   return (
@@ -74,23 +80,23 @@ export default function LoginPage() {
             </div>
 
             {error && (
-              <div className="mt-5 bg-red-500/10 border border-red-400/40 text-red-200 px-4 py-3 rounded-lg text-sm">
+              <div className="mt-5 bg-red-500/10 border border-red-400/40 text-black px-4 py-3 rounded-lg text-sm">
                 {error}
               </div>
             )}
 
             <form onSubmit={handleLogin} className="mt-6 space-y-4">
-              {/* Utilisateur */}
+              {/* Email */}
               <div>
                 <label className="block text-slate-200 text-sm font-semibold mb-2 tracking-wide">
-                  Utilisateur
+                  Email
                 </label>
                 <input
                   type="text"
                   className="w-full p-3 rounded-xl text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 transition-all focus:ring-emerald-400/60 focus:border-emerald-300 border border-[#ced1d1] bg-slate-800/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Votre nom d'utilisateur"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Votre email"
                 />
               </div>
 
@@ -135,6 +141,15 @@ export default function LoginPage() {
                 className="w-full mt-2 bg-[linear-gradient(96deg,#68ff8a_0%,#31d767_42%,#14943e_100%)] text-[#154b30eb] font-bold tracking-wide py-3 px-4 rounded-xl hover:brightness-110 transition duration-200 shadow-[0_16px_26px_-14px_rgba(46,218,102,0.88)]"
               >
                 Se connecter
+              </button>
+              <button
+                type="button"
+                className="w-full mt-2 bg-[linear-gradient(96deg,#68ff8a_0%,#31d767_42%,#14943e_100%)] text-[#154b30eb] font-bold tracking-wide py-3 px-4 rounded-xl hover:brightness-110 transition duration-200 shadow-[0_16px_26px_-14px_rgba(46,218,102,0.88)]"
+                onClick={
+                  handleRegisterRedirection
+                }
+              >
+                Créer un compte
               </button>
             </form>
             

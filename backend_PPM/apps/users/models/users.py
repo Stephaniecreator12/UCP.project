@@ -10,7 +10,6 @@ class UserProfile(models.Model):
         BAILLEUR = "bailleur", "Bailleur"
         AUDITEUR = "auditeur", "Auditeur"
 
-        
 
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,

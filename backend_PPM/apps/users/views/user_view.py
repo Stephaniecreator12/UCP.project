@@ -1,13 +1,13 @@
 from django.contrib.auth import get_user_model
 
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
 from rest_framework.response import Response
 from rest_framework import status
 
 from apps.users.serializers.user_serializer import (
-    UserSerializer,
-    UserCreateSerializer,
+    PublicProfileSerializer,
+    PublicProfileRegistrationSerializer
 )
 
 User = get_user_model()
@@ -17,34 +17,34 @@ User = get_user_model()
 @permission_classes([IsAuthenticated])
 def me(request):
 
-    serializer = UserSerializer(request.user)
+    serializer = PublicProfileSerializer(request.user)
 
     return Response(serializer.data)
 
 
 @api_view(["GET"])
-@permission_classes([IsAuthenticated, IsAdminUser])
+@permission_classes([IsAdminUser])
 def list_users(request):
 
-    users = User.objects.all().order_by("id")
+    users = User.objects.all().select_related('employee_profile').order_by("id")
 
-    serializer = UserSerializer(users, many=True)
+    serializer = PublicProfileSerializer(users, many=True)
 
     return Response(serializer.data)
 
 
 @api_view(["POST"])
-@permission_classes([IsAuthenticated, IsAdminUser])
+@permission_classes([AllowAny])
 def create_user(request):
 
-    serializer = UserCreateSerializer(data=request.data)
+    serializer = PublicProfileRegistrationSerializer(data=request.data)
 
     if serializer.is_valid():
 
         user = serializer.save()
 
         return Response(
-            UserSerializer(user).data,
+            PublicProfileSerializer(user).data,
             status=status.HTTP_201_CREATED
         )
 

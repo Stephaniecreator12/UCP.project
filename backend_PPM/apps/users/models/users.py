@@ -7,7 +7,6 @@ class UserProfile(models.Model):
         INITIATEUR = "initiateur", "Initiateur"
         VERIFICATEUR_TECHNIQUE = "verificateur_technique", "Vérificateur technique"
         APPROBATEUR_FINAL = "approbateur_final", "Approbateur final"
-        BAILLEUR = "bailleur", "Bailleur"
         AUDITEUR = "auditeur", "Auditeur"
 
         

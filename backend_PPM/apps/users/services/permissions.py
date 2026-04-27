@@ -41,10 +41,6 @@ class IsVerificateurTechnique(RolePermission):
 class IsApprobateurFinal(RolePermission):
     allowed_roles = (UserProfile.Role.APPROBATEUR_FINAL,)
 
-
-class IsBailleur(RolePermission):
-    allowed_roles = (UserProfile.Role.BAILLEUR,)
-
 class IsAuditeur(RolePermission):
     allowed_roles = (UserProfile.Role.AUDITEUR,)
 

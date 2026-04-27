@@ -22,12 +22,3 @@ class FinalDecisionSerializer(serializers.Serializer):
     )
     observations = serializers.CharField(required=False, allow_blank=True)
 
-
-class AnoDecisionSerializer(serializers.Serializer):
-    decision = serializers.ChoiceField(
-        choices=[
-            TdrStValidationAction.Decision.ANO_ACCORDE,
-            TdrStValidationAction.Decision.ANO_REFUSE,
-        ]
-    )
-    observations = serializers.CharField(required=False, allow_blank=True)

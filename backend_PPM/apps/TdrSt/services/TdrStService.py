@@ -16,8 +16,6 @@ from apps.TdrSt.services.emailService import (
     send_tech_decision_email,
     send_demande_final_approve_email,
     send_final_decision_email,
-    send_ano_request_email,
-    send_ano_decision_email,
     send_document_suspended_email,
 )
 
@@ -175,32 +173,6 @@ def list_final_documents(user):
         user=None,
     )
 
-
-def list_bailleur_documents():
-    return (
-        TdrStDocument.objects.filter(statut=TdrStDocument.Statut.EN_ATTENTE_ANO)
-        .select_related("initiateur", "fichier_courant")
-        .order_by("-created_at")
-    )
-
-
-def list_bailleur_documents_all(user):
-    """
-    Pour les bailleurs:
-    - inclut les documents en attente (EN_ATTENTE_ANO)
-    - inclut l'historique des documents sur lesquels il a rendu un avis ANO
-
-    Note: ces documents correspondent au cas "seuil depasse" (ANO requis),
-    car seuls ceux-ci passent par l'etape ANO / EN_ATTENTE_ANO.
-    """
-    pending = TdrStDocument.objects.filter(statut=TdrStDocument.Statut.EN_ATTENTE_ANO)
-    return _list_role_documents_with_history(
-        pending_qs=pending,
-        treated_etape=TdrStValidationAction.Etape.ANO,
-        user=None,
-    )
-
-
 def list_auditeur_documents():
     """
     Pour les auditeurs (lecture seule, a posteriori) :
@@ -291,13 +263,11 @@ def final_decide(doc: TdrStDocument, user, decision: str, observations: str = ""
         raise ValidationError({"statut": "Décision finale impossible pour ce statut."})
 
     if decision == TdrStValidationAction.Decision.APPROUVE:
-        next_statut = (
-            TdrStDocument.Statut.EN_ATTENTE_ANO if requires_ano(doc) else TdrStDocument.Statut.VALIDE
-        )
+      next_statut = TdrStDocument.Statut.VALIDE
     elif decision == TdrStValidationAction.Decision.REJETE:
-        next_statut = TdrStDocument.Statut.REJETE
+      next_statut = TdrStDocument.Statut.REJETE
     else:
-        raise ValidationError({"decision": "Décision finale invalide."})
+      raise ValidationError({"decision": "Décision finale invalide."})
 
     TdrStValidationAction.objects.create(
         document=doc,
@@ -312,10 +282,7 @@ def final_decide(doc: TdrStDocument, user, decision: str, observations: str = ""
     doc.save(update_fields=["statut", "updated_at"])
     
     # ENVOI DES EMAILS SELON LE CAS
-    if decision == TdrStValidationAction.Decision.APPROUVE and requires_ano(doc):
-        print(f"[EMAIL] Envoi email aux bailleurs pour demande ANO - document {doc.numero_document}")
-        send_ano_request_email(doc)
-    else:
+    if decision == TdrStValidationAction.Decision.APPROUVE:
         print(f"[EMAIL] Envoi email à l'initiateur pour décision finale - document {doc.numero_document}")
         send_final_decision_email(doc, decision, observations)
     
@@ -334,37 +301,6 @@ def requires_ano(doc: TdrStDocument) -> bool:
         return doc.montant_estime_usd is not None and doc.montant_estime_usd > seuil
     except Exception:
         return False
-
-
-@transaction.atomic
-def bailleur_decide(doc: TdrStDocument, user, decision: str, observations: str = "") -> TdrStDocument:
-    if doc.statut != TdrStDocument.Statut.EN_ATTENTE_ANO:
-        raise ValidationError({"statut": "Décision ANO impossible pour ce statut."})
-
-    if decision == TdrStValidationAction.Decision.ANO_ACCORDE:
-        next_statut = TdrStDocument.Statut.VALIDE
-    elif decision == TdrStValidationAction.Decision.ANO_REFUSE:
-        next_statut = TdrStDocument.Statut.REJETE
-    else:
-        raise ValidationError({"decision": "Décision ANO invalide."})
-
-    TdrStValidationAction.objects.create(
-        document=doc,
-        etape=TdrStValidationAction.Etape.ANO,
-        decision=decision,
-        observations=observations or "",
-        acteur=user,
-        meta={"action": "ANO_DECISION"},
-    )
-
-    doc.statut = next_statut
-    doc.save(update_fields=["statut", "updated_at"])
-    
-    # ENVOI EMAIL À L'INITIATEUR POUR LA DECISION ANO
-    print(f"[EMAIL] Envoi email à l'initiateur pour décision ANO - document {doc.numero_document}")
-    send_ano_decision_email(doc, decision, observations)
-    
-    return doc
 
 
 @transaction.atomic

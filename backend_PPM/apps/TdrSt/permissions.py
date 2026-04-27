@@ -42,12 +42,6 @@ class CanReadDocument(BasePermission):
             return obj.initiateur_id == getattr(request.user, "id", None)
         if role in (UserProfile.Role.VERIFICATEUR_TECHNIQUE, UserProfile.Role.APPROBATEUR_FINAL):
             return True
-        if role == UserProfile.Role.BAILLEUR:
-            if obj.statut == TdrStDocument.Statut.EN_ATTENTE_ANO:
-                return True
-            # Autoriser la consultation de l'historique des documents passes par l'etape ANO
-            # (cas seuil depasse / etape bailleur), meme s'ils ne sont plus EN_ATTENTE_ANO.
-            return obj.actions_validation.filter(etape="ANO").exists()
         if role == UserProfile.Role.AUDITEUR:
             # L'auditeur ne voit que les documents à statut final (Validé, Rejeté, Suspendu)
             return obj.statut in AUDITEUR_VISIBLE_STATUTS
@@ -62,11 +56,6 @@ class CanTechValidate(BasePermission):
 class CanFinalApprove(BasePermission):
     def has_permission(self, request, view) -> bool:
         return get_user_role(request.user) == UserProfile.Role.APPROBATEUR_FINAL
-
-
-class CanBailleurRead(BasePermission):
-    def has_permission(self, request, view) -> bool:
-        return get_user_role(request.user) == UserProfile.Role.BAILLEUR
 
 
 class CanAuditeurRead(BasePermission):

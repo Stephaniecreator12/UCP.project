@@ -158,6 +158,16 @@ export const isAgentMarcheUser = (user: UserProfile | null) =>
 export const isLogistiqueUser = (user: UserProfile | null) =>
   isAgentMarcheUser(user);
 
+export const canUseGlobalDashboard = (user: UserProfile | null) =>
+  !!user &&
+  (
+    user.is_staff ||
+    isValidatorUser(user) ||
+    isFinanceUser(user) ||
+    isAgentAchatUser(user) ||
+    isAgentMarcheUser(user)
+  );
+
 export const getValidatorGroup = (
   user: UserProfile | null,
 ): (typeof VALIDATOR_GROUPS)[number] | null => {

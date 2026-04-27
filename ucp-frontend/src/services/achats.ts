@@ -241,6 +241,8 @@ export interface CloseDemandePayload {
   date_cloture?: string;
 }
 
+export type DashboardScope = "mine" | "all";
+
 const handleUnauthorized = (): never => {
   logout();
   if (typeof window !== "undefined") {
@@ -492,8 +494,15 @@ const apiFetchBlob = async (
   return await response.blob();
 };
 
+export const listDemandesAchat = (scope: DashboardScope = "mine") => {
+  const query = scope === "all" ? "?scope=all" : "";
+  return apiFetch<DemandeAchat[]>(`/api/achats/demandes/${query}`, {
+    method: "GET",
+  });
+};
+
 export const listMesDemandesAchat = () =>
-  apiFetch<DemandeAchat[]>("/api/achats/demandes/", { method: "GET" });
+  listDemandesAchat("mine");
 
 export const getDemandeAchat = (id: number) =>
   apiFetch<DemandeAchat>(`/api/achats/demandes/${id}/`, { method: "GET" });

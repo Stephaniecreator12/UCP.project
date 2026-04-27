@@ -728,7 +728,7 @@ export default function CorrigerDemandePage() {
               <div className="bg-amber-50 border-l-[6px] border-amber-500 rounded-2xl shadow-sm border border-slate-200 overflow-hidden group hover:shadow-md transition-shadow p-6 flex items-start gap-4">
                  <AlertCircle className="w-8 h-8 text-amber-600 shrink-0 mt-0.5" />
                  <div>
-                    <h2 className="text-[16px] font-black text-amber-900 flex items-center gap-2 uppercase tracking-wide">⚠️ À compléter</h2>
+                    <h2 className="text-[16px] font-black text-amber-900 flex items-center gap-2 uppercase tracking-wide">⚠️ À revoir</h2>
                     <p className="text-[14px] text-amber-800 font-semibold mt-2 whitespace-pre-wrap leading-relaxed">{rejectReason}</p>
                  </div>
               </div>

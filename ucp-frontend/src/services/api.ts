@@ -5,6 +5,7 @@
 
 export const API_BASE_URL =
   "";
+export const API_RH_URL = "http://192.168.0.168:8000"
 const SESSION_EXPIRED_MESSAGE = "Session expirée. Connecte-toi puis réessaie.";
 
 const clearSessionAndRedirectToLogin = () => {

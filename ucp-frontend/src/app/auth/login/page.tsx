@@ -3,40 +3,52 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { getToken, login } from "@/services/auth";
+import { getToken, login, isUCPDomain } from "@/services/auth";
 
 const DEFAULT_AFTER_LOGIN_ROUTE = "/dashboard";
+const DEFAULT_PUBLIC_LOGIN_ROUTE = "/auth/public";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
     if (getToken()) {
-      router.replace(DEFAULT_AFTER_LOGIN_ROUTE);
+      router.replace(`${DEFAULT_AFTER_LOGIN_ROUTE}`);
     }
   }, [router]);
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
+const handleLogin = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setLoading(true);
+  setError("");
 
-    const result = await login(email, password);
+  const result = await login(email, password);
 
-    if (result.success) {
-      router.push("/dashboard");
-    } else {
-      setError(result.message || "Une erreur est survenue");
+  if (result.success) {
+    router.push(`${DEFAULT_AFTER_LOGIN_ROUTE}`);
+  } else {
+    if (!isUCPDomain(email)) {
+      setError("Domaine non reconnu. Redirection vers l'espace public...");
+            setTimeout(() => {
+        router.push(`${DEFAULT_PUBLIC_LOGIN_ROUTE}`);
+        setLoading(false);
+      }, 2000);
+      
+      return;
     }
-  };
+      setError(result.message || "Une erreur est survenue");
+  }
+};
 
   const handleRegisterRedirection = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    router.push("/auth/register");
+    router.push(`${DEFAULT_PUBLIC_LOGIN_ROUTE}`);
   };
 
   return (
@@ -137,7 +149,7 @@ export default function LoginPage() {
               </div>
 
               <button
-                type="submit"
+                type={`${loading? "button": "submit"}`}
                 className="w-full mt-2 bg-[linear-gradient(96deg,#68ff8a_0%,#31d767_42%,#14943e_100%)] text-[#154b30eb] font-bold tracking-wide py-3 px-4 rounded-xl hover:brightness-110 transition duration-200 shadow-[0_16px_26px_-14px_rgba(46,218,102,0.88)]"
               >
                 Se connecter
@@ -149,7 +161,7 @@ export default function LoginPage() {
                   handleRegisterRedirection
                 }
               >
-                Créer un compte
+                Créer un compte publique
               </button>
             </form>
             

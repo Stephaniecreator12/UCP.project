@@ -1,19 +1,23 @@
-import { API_BASE_URL } from "./api";
+import { API_BASE_URL, API_RH_URL } from "./api";
 
 interface LoginResult {
   success: boolean;
-  error?: string;
+  message?: string;
+}
+interface RegisterResult {
+  success: boolean;
+  message?: string;
 }
 
 export const login = async (
-  username: string,
+  email: string,
   password: string,
 ): Promise<LoginResult> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/login/`, {
+    const response = await fetch(`${API_RH_URL}/api/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ email, password }),
     });
 
     const data = await response.json();
@@ -26,10 +30,10 @@ export const login = async (
 
     return {
       success: false,
-      error: "Nom d'utilisateur ou mot de passe incorrect",
+      message: "Nom d'utilisateur ou mot de passe incorrect",
     };
   } catch {
-    return { success: false, error: "Erreur de connexion au serveur" };
+    return { success: false, message: "Erreur de connexion au serveur" };
   }
 };
 
@@ -43,3 +47,64 @@ export const getToken = () => {
   if (typeof window === "undefined") return null;
   return localStorage.getItem("access_token");
 };
+
+export const register = async (
+  full_name: string,
+  email: string,
+  phone: string,
+  type_entite: string,
+  nif: string,
+  password: string,
+
+): Promise<RegisterResult> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/users/create/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(
+        { full_name,
+          email,
+          phone,
+          type_entite,
+          nif,
+         password }
+        ),
+    });
+    const result = await response.json();
+    if (response.ok) {
+      return { success: true , message: "Profil enregistré"};
+    }
+    let errorMessage = '';
+    if (result.email) {
+  errorMessage = result.email[0];
+} 
+else if (result.password) {
+  errorMessage = result.password[0];
+} 
+else if (result.phone) {
+  errorMessage = result.phone[0];
+}else if (result.full_name) {
+  errorMessage = result.full_name[0];
+}else if (result.type_entite) {
+  errorMessage = result.type_entite[0];
+}
+    else{
+      errorMessage = "Une erreur est survenue"
+    }
+    return {
+      success: false,
+      message: errorMessage,
+    };
+  } catch {
+    return { success: false, message: "Erreur de connexion au serveur" };
+  }
+};
+
+export const isUCPDomain = (email: string): boolean =>{
+  const domain = email.split('@')
+  const ucpDomain = "ucp.mg"
+  if(domain[1] == ucpDomain){
+    return true;
+  }
+  return false;
+}

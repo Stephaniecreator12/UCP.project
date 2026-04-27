@@ -27,7 +27,7 @@ type ClosureFormState = {
 const statusLabels: Record<string, string> = {
   BROUILLON: "Brouillon",
   SOUMISE: "Soumise",
-  A_COMPLETER: "À compléter",
+  A_COMPLETER: "À revoir",
   VALIDEE: "Validée",
   EN_COMMANDE: "En commande",
   EN_LIVRAISON: "En livraison",

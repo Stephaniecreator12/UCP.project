@@ -16,7 +16,7 @@ import { formatFrenchDate, formatFrenchDateTime } from "@/lib/date";
 export const statusLabels: Record<string, string> = {
   BROUILLON: "Brouillon",
   SOUMISE: "Soumise",
-  A_COMPLETER: "À compléter",
+  A_COMPLETER: "À revoir",
   VALIDEE: "Validée",
   VALIDEE_BUDGETAIRE: "Validée pour passation",
   EN_COMMANDE: "En commande",
@@ -227,7 +227,12 @@ export const matchesDashboardFilter = (
   return true;
 };
 
-export const getCompactNeedLabel = (demande: any) => {
+type DashboardDisplayDemande = DemandeAchat & {
+  first_designation?: string | null;
+  lignes_count?: number | null;
+};
+
+export const getCompactNeedLabel = (demande: DashboardDisplayDemande) => {
   // If we have optimized fields from DemandeAchatListSerializer
   if (demande.first_designation !== undefined) {
     const first = demande.first_designation || demande.objet;
@@ -249,6 +254,63 @@ export const getCurrentValidationLabel = (demande: DemandeAchat) => {
     (step) => step.key === demande.etape_validation_actuelle,
   );
   return current?.label.toLowerCase() ?? "validation";
+};
+
+const currentOwnerLabels: Record<string, string> = {
+  HIERARCHIQUE: "Supérieur hiérarchique",
+  TECHNIQUE: "Responsable technique",
+  BUDGETAIRE: "Finance / RAF",
+  PROGRAMMATIQUE: "Point focal programme",
+  APPROBATION_FINALE: "Approbateur final",
+  TERMINEE: "Circuit terminé",
+};
+
+export const getDemandeTrackingStageLabel = (demande: DemandeAchat) => {
+  if (demande.statut === "BROUILLON") return "Préparation";
+  if (demande.statut === "A_COMPLETER") return "À revoir";
+  if (demande.statut === "VALIDEE_BUDGETAIRE") return "Passation";
+  if (["EN_COMMANDE", "EN_LIVRAISON"].includes(demande.statut)) {
+    return "Livraison";
+  }
+  if (needsReceptionAction(demande) || demande.statut === "LIVREE") {
+    return "Réception";
+  }
+  if (needsClosureAction(demande)) {
+    return "Clôture";
+  }
+  if (demande.statut === "CLOTUREE" || demande.statut === "REJETEE") {
+    return "Archive";
+  }
+  if (["SOUMISE", "VALIDEE"].includes(demande.statut)) {
+    return stepLabels[demande.etape_validation_actuelle] ?? "Validation";
+  }
+
+  return statusLabels[demande.statut] ?? demande.statut;
+};
+
+export const getDemandeCurrentOwnerLabel = (demande: DemandeAchat) => {
+  if (demande.statut === "BROUILLON") return "Demandeur";
+  if (demande.statut === "A_COMPLETER") return "Demandeur";
+  if (demande.statut === "VALIDEE_BUDGETAIRE") return "Agent achat";
+  if (["EN_COMMANDE", "EN_LIVRAISON"].includes(demande.statut)) {
+    return "Marché / logistique";
+  }
+  if (needsReceptionAction(demande) || demande.statut === "LIVREE") {
+    return "Marché / logistique";
+  }
+  if (needsClosureAction(demande)) {
+    return "Demandeur";
+  }
+  if (demande.statut === "CLOTUREE" || demande.statut === "REJETEE") {
+    return "Dossier terminé";
+  }
+  if (["SOUMISE", "VALIDEE"].includes(demande.statut)) {
+    return (
+      currentOwnerLabels[demande.etape_validation_actuelle] ?? "Validation en cours"
+    );
+  }
+
+  return "Traitement en cours";
 };
 
 const isWeekendDate = (value: Date) => {

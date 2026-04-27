@@ -3,14 +3,12 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useRef, type MouseEvent } from "react";
 import { logout } from "@/services/auth";
 import Menu from "@/app/components/menu";
 
 export default function TopHeader() {
   const pathname = usePathname();
   const router = useRouter();
-  const headerRef = useRef<HTMLElement | null>(null);
 
   const handleLogout = () => {
     logout();
@@ -25,35 +23,11 @@ export default function TopHeader() {
 
   const showAuthenticatedActions = pathname !== "/login";
 
-  const handleHeaderMove = (event: MouseEvent<HTMLElement>) => {
-    const header = headerRef.current;
-    if (!header) return;
-    const rect = header.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-    header.style.setProperty("--mx", `${x}px`);
-    header.style.setProperty("--my", `${y}px`);
-  };
-
-  const resetHeaderGlow = () => {
-    const header = headerRef.current;
-    if (!header) return;
-    header.style.setProperty("--mx", "50%");
-    header.style.setProperty("--my", "50%");
-  };
-
   return (
     <div className="sticky top-0 z-50">
       <header
-        ref={headerRef}
-        onMouseMove={handleHeaderMove}
-        onMouseLeave={resetHeaderGlow}
         className="relative h-[1.8cm] overflow-hidden border-b border-[var(--line)] bg-[var(--surface)] shadow-[0_1px_3px_rgba(0,0,0,0.02)]"
       >
-        <div
-          className="pointer-events-none absolute inset-0 z-0 bg-[radial-gradient(circle_at_var(--mx,50%)_var(--my,50%),rgba(16,185,129,0.08)_0%,transparent_25%)] transition-all duration-300 ease-out"
-          aria-hidden="true"
-        />
         {/* Ligne de couleur en haut */}
         <div
           className="h-[3px] bg-emerald-500"
@@ -71,7 +45,7 @@ export default function TopHeader() {
               alt="Logo UCP"
               width={48}
               height={48}
-              className="rounded-xl border border-slate-200 bg-white object-contain"
+              className="rounded-md border border-slate-200 bg-white object-contain"
               priority
             />
             <div className="grid min-w-0 gap-0">

@@ -64,6 +64,12 @@ const VALIDATOR_LINKS: MenuLink[] = [
     match: (pathname) =>
       pathname === "/validation" || pathname.startsWith("/validation/"),
   },
+  {
+    label: "état de besoins",
+    href: "/demande-achat",
+    match: (pathname) =>
+      pathname === "/demande-achat" || pathname.startsWith("/demande-achat/"),
+  },
 ];
 
 
@@ -72,6 +78,12 @@ const AGENT_ACHAT_LINKS: MenuLink[] = [
     label: "passation",
     href: "/passation",
     match: (pathname) => pathname === "/passation" || pathname.startsWith("/passation/"),
+  },
+  {
+    label: "état de besoins",
+    href: "/demande-achat",
+    match: (pathname) =>
+      pathname === "/demande-achat" || pathname.startsWith("/demande-achat/"),
   },
 ];
 
@@ -84,6 +96,12 @@ const MARKET_LINKS: MenuLink[] = [
       pathname.startsWith("/marche/") ||
       pathname === "/logistique" ||
       pathname.startsWith("/logistique/"),
+  },
+  {
+    label: "état de besoins",
+    href: "/demande-achat",
+    match: (pathname) =>
+      pathname === "/demande-achat" || pathname.startsWith("/demande-achat/"),
   },
 ];
 

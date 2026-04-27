@@ -8,6 +8,7 @@ from django.core.management import call_command
 from django.test import TestCase
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
+from rest_framework.test import APIClient
 
 from apps.achats.models import DemandeAchat, ValidationDemande
 from apps.achats.services.demande_service import (
@@ -425,3 +426,90 @@ class AchatsNotificationTests(TestCase):
         self.assertEqual(updated.version, 2)
         self.assertEqual(updated.historiques.last().metadata.get("previous_version"), 1)
         self.assertEqual(updated.historiques.last().metadata.get("version"), 2)
+
+
+class DashboardScopeApiTests(TestCase):
+    def setUp(self):
+        super().setUp()
+        self.sequence = 0
+        self.client = APIClient()
+
+    def _create_user(self, username, email, groups=None):
+        user = User.objects.create_user(
+            username=username,
+            email=email,
+            password="secret123",
+            first_name=username.capitalize(),
+        )
+
+        for group_name in groups or []:
+            group, _ = Group.objects.get_or_create(name=group_name)
+            user.groups.add(group)
+
+        return user
+
+    def _create_demande(self, demandeur, **overrides):
+        self.sequence += 1
+        defaults = {
+            "numero_demande": f"UCP/DA/2026/{self.sequence:04d}",
+            "demandeur": demandeur,
+            "unite_technique": "Unite test",
+            "categorie_besoin": DemandeAchat.CATEGORIE_NOUVEAU_BESOIN,
+            "type_demande": DemandeAchat.TYPE_MATERIELS,
+            "priorite": DemandeAchat.PRIORITE_NORMAL,
+            "objet": f"Objet {self.sequence}",
+            "justification": "Besoin de fonctionnement",
+            "lien_ptba": "PTBA-2026-01",
+            "service_beneficiaire": "Service support",
+            "ligne_budgetaire": "2.1.1 Fournitures bureau",
+            "source_financement": DemandeAchat.SOURCE_SRPS_CS7_FM,
+            "numero_subvention": "SUBV/FM/2026",
+        }
+        defaults.update(overrides)
+        return DemandeAchat.objects.create(**defaults)
+
+    def test_scope_all_is_forbidden_for_standard_user(self):
+        demandeur = self._create_user("simple", "simple@example.com")
+        self.client.force_authenticate(demandeur)
+
+        response = self.client.get("/api/achats/demandes/?scope=all")
+
+        self.assertEqual(response.status_code, 403)
+        self.assertIn("Accès réservé", response.json()["detail"])
+
+    def test_scope_all_returns_global_non_draft_dossiers_for_finance(self):
+        finance = self._create_user("finance", "finance@example.com", groups=["FINANCE"])
+        demandeur_a = self._create_user("alice", "alice@example.com")
+        demandeur_b = self._create_user("bob", "bob@example.com")
+
+        visible = self._create_demande(
+            demandeur_a,
+            statut=DemandeAchat.STATUT_SOUMISE,
+            etape_validation_actuelle=DemandeAchat.ETAPE_HIERARCHIQUE,
+        )
+        also_visible = self._create_demande(
+            demandeur_b,
+            statut=DemandeAchat.STATUT_CLOTUREE,
+            etape_validation_actuelle=DemandeAchat.ETAPE_TERMINEE,
+        )
+        self._create_demande(
+            demandeur_b,
+            statut=DemandeAchat.STATUT_BROUILLON,
+            etape_validation_actuelle=DemandeAchat.ETAPE_HIERARCHIQUE,
+        )
+
+        self.client.force_authenticate(finance)
+        response = self.client.get("/api/achats/demandes/?scope=all")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+
+        self.assertEqual(len(payload), 2)
+        self.assertCountEqual(
+            [item["numero_demande"] for item in payload],
+            [visible.numero_demande, also_visible.numero_demande],
+        )
+        self.assertCountEqual(
+            [item["demandeur_nom"] for item in payload],
+            [demandeur_a.first_name, demandeur_b.first_name],
+        )

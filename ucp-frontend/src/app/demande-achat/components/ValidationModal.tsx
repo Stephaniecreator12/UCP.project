@@ -200,7 +200,7 @@ const getDecisionOptions = (step: EtapeValidation | null): DecisionOption[] => {
 
   return [
     { value: "FAVORABLE", label: "Favorable", tone: "emerald" },
-    { value: "A_COMPLETER", label: "A completer", tone: "amber" },
+    { value: "A_COMPLETER", label: "À revoir", tone: "amber" },
     { value: "DEFAVORABLE", label: "Defavorable", tone: "rose" },
   ];
 };

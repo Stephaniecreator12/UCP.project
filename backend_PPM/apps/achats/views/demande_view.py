@@ -44,7 +44,29 @@ from apps.achats.services import (
 @permission_classes([IsAuthenticated])
 def demande_list_create_view(request):
     if request.method == "GET":
-        demandes = list_mes_demandes(request.user)
+        scope = (request.query_params.get("scope") or "mine").strip().lower()
+        if scope not in {"mine", "all"}:
+            return Response(
+                {"detail": "Le scope doit etre 'mine' ou 'all'."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        can_view_all = any(
+            [
+                request.user.is_staff,
+                is_agent_achat(request.user),
+                is_finance(request.user),
+                is_agent_marche(request.user),
+                bool(get_user_validation_step(request.user)),
+            ]
+        )
+        if scope == "all" and not can_view_all:
+            return Response(
+                {"detail": "Accès réservé aux profils globaux."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        demandes = list_mes_demandes(request.user, scope=scope)
         serializer = DemandeAchatSerializer(demandes, many=True)
         return Response(serializer.data)
 

@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useRef, type MouseEvent } from "react";
 import { logout } from "@/services/auth";
 import Menu from "@/app/components/menu";
+const DEFAULT_AFTER_LOGOUT_ROUTE = "/auth/login";
 
 export default function TopHeader() {
   const pathname = usePathname();
@@ -14,16 +15,16 @@ export default function TopHeader() {
 
   const handleLogout = () => {
     logout();
-    router.replace("/login");
+    router.replace(`${DEFAULT_AFTER_LOGOUT_ROUTE}`);
     router.refresh();
     setTimeout(() => {
-      if (typeof window !== "undefined" && window.location.pathname !== "/login") {
-        window.location.replace("/login");
+      if (typeof window !== "undefined" && window.location.pathname !== `${DEFAULT_AFTER_LOGOUT_ROUTE}`) {
+        window.location.replace(`${DEFAULT_AFTER_LOGOUT_ROUTE}`);
       }
     }, 120);
   };
 
-  const showAuthenticatedActions = pathname !== "/login";
+  const showAuthenticatedActions = pathname !== `${DEFAULT_AFTER_LOGOUT_ROUTE}`;
 
   const handleHeaderMove = (event: MouseEvent<HTMLElement>) => {
     const header = headerRef.current;

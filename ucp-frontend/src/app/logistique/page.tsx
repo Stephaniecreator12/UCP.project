@@ -8,6 +8,7 @@ import TopHeader from "@/app/components/TopHeader";
 import DemandeDetailModal from "@/app/demande-achat/components/DemandeDetailModal";
 import ReceptionModal from "@/app/demande-achat/components/ReceptionModal";
 import ResolveIssueModal from "@/app/demande-achat/components/ResolveIssueModal";
+import DashboardTableView from "@/app/demande-achat/components/DashboardTableView";
 import { DashboardFilterBar, useDashboardFilters } from "@/app/demande-achat/components/DashboardFilterBar";
 import {
   type DemandePrimaryAction,
@@ -33,6 +34,7 @@ import { DemandeAchat, listMesDemandesAchat } from "@/services/achats";
 
 type SectionKey = "all" | "action";
 type DetailViewMode = "detail" | "timeline";
+type DisplayMode = "status" | "table";
 
 type SectionData = {
   key: SectionKey;
@@ -138,6 +140,7 @@ export default function MarcheDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const [displayMode, setDisplayMode] = useState<DisplayMode>("status");
   const [activeSection, setActiveSection] = useState<SectionKey | null>("action");
   const [selectedDemandeId, setSelectedDemandeId] = useState<number | null>(null);
   const [detailViewMode, setDetailViewMode] = useState<DetailViewMode>("detail");
@@ -232,8 +235,29 @@ export default function MarcheDashboardPage() {
   // Si on est en train de chercher, on filtre tout et on affiche la vue recherche
   const isSearching = query.trim().length > 0;
   const searchResults = useMemo(() => isSearching ? filterDemandesByQuery(marketDemandes, query) : [], [isSearching, marketDemandes, query]);
+  const radarDemandes = useMemo(
+    () => (isSearching ? searchResults : marketDemandes),
+    [isSearching, marketDemandes, searchResults],
+  );
 
   const selectedDemande = useMemo(() => demandes.find((item) => item.id === selectedDemandeId) ?? null, [demandes, selectedDemandeId]);
+
+  const handleRunTableAction = (
+    demande: DemandeAchat,
+    action: DemandePrimaryAction,
+  ) => {
+    if (action.href.endsWith("/reception")) {
+      setReceptionModalDemandeId(demande.id);
+      return;
+    }
+
+    if (action.href.endsWith("/resolve-issue")) {
+      setResolveIssueModalDemandeId(demande.id);
+      return;
+    }
+
+    router.push(action.href);
+  };
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-800 font-sans selection:bg-indigo-100 selection:text-indigo-900 pb-12">
@@ -252,24 +276,50 @@ export default function MarcheDashboardPage() {
               </div>
             </div>
 
-          <div className="flex items-center gap-3 w-full md:w-auto">
-            <div className="relative flex-1 sm:w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-hover:text-rose-500 transition-colors" />
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Rechercher un dossier..."
-                className="w-full bg-white border border-slate-300/80 rounded-xl py-2 pl-9 pr-8 text-sm outline-none shadow-sm transition-all focus:border-rose-500 focus:ring-2 focus:ring-rose-500/10"
-              />
-              {query && (
-                <button onClick={() => setQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-                  <X className="h-3.5 w-3.5" />
+            <div className="flex w-full flex-col gap-3 md:w-auto md:min-w-[420px] md:items-end">
+              <div className="inline-flex items-center gap-1 self-start rounded-xl border border-slate-200 bg-white p-1 shadow-sm md:self-auto">
+                <button
+                  type="button"
+                  onClick={() => setDisplayMode("status")}
+                  className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                    displayMode === "status"
+                      ? "bg-slate-900 text-white shadow-sm"
+                      : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                  }`}
+                >
+                  Vue par statut
                 </button>
-              )}
+                <button
+                  type="button"
+                  onClick={() => setDisplayMode("table")}
+                  className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                    displayMode === "table"
+                      ? "bg-slate-900 text-white shadow-sm"
+                      : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                  }`}
+                >
+                  Vue tableau
+                </button>
+              </div>
+
+              <div className="flex items-center gap-3 w-full md:w-auto">
+                <div className="relative flex-1 sm:w-64">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-hover:text-rose-500 transition-colors" />
+                  <input
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Rechercher un dossier..."
+                    className="w-full bg-white border border-slate-300/80 rounded-xl py-2 pl-9 pr-8 text-sm outline-none shadow-sm transition-all focus:border-rose-500 focus:ring-2 focus:ring-rose-500/10"
+                  />
+                  {query && (
+                    <button onClick={() => setQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-
         <DashboardFilterBar filterProps={filterProps} />
 
         {loading ? (
@@ -300,6 +350,19 @@ export default function MarcheDashboardPage() {
             <h2 className="text-lg font-bold text-slate-900 mb-2">Aucun dossier Marché</h2>
             <p className="text-sm text-slate-500 mb-6">Aucune expédition ou réception à traiter.</p>
           </div>
+        ) : displayMode === "table" ? (
+          <DashboardTableView
+            title="Radar des dossiers marché"
+            items={radarDemandes}
+            query={query}
+            currentUser={currentUser}
+            emptyText="Aucun dossier visible dans cette vue."
+            onOpenDetail={(id) => {
+              setSelectedDemandeId(id);
+              setDetailViewMode("detail");
+            }}
+            onRunAction={handleRunTableAction}
+          />
         ) : isSearching ? (
           <div className="animate-in slide-in-from-top-2 fade-in duration-300">
             <SearchResultsList 
@@ -405,6 +468,7 @@ function AccordionSection({ section, isActive, onToggle, currentUser, router, on
   const Icon = section.icon;
   const hasItems = section.total > 0;
   const sectionRef = useRef<HTMLDivElement>(null);
+  void isAlert;
   
   const [page, setPage] = useState(1);
   const totalPages = Math.ceil(section.items.length / PAGE_SIZE) || 1;

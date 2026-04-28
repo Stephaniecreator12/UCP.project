@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Search, X, ChevronDown, Activity, Clock, Truck, PackageCheck, CheckCircle2, ChevronLeft, ChevronRight as ChevronRightIcon, Plus } from "lucide-react";
 
@@ -27,9 +27,9 @@ import {
   statusClasses,
   statusLabels,
   stepLabels,
+  typeLabels,
 } from "@/app/demande-achat/components/demandeAchatShared";
 import {
-  canUseGlobalDashboard,
   getCurrentUser,
   getToken,
   type UserProfile,
@@ -37,13 +37,17 @@ import {
 import {
   type DashboardScope,
   DemandeAchat,
+  type EtapeValidation,
   listDemandesAchat,
 } from "@/services/achats";
 
 type SectionKey =
-  | "draft"
-  | "all"
-  | "pending"
+  | "preparation"
+  | "validation_hierarchique"
+  | "validation_technique"
+  | "validation_budgetaire"
+  | "validation_programmatique"
+  | "approbation_finale"
   | "correction"
   | "procurement"
   | "delivery"
@@ -60,6 +64,8 @@ type ArchiveGroupData = {
   total: number;
   emptyText: string;
 };
+
+type DisplayMode = "status" | "table";
 
 type SectionData = {
   key: SectionKey;
@@ -86,12 +92,25 @@ type SearchResultsListProps = {
   onOpenCloture: (id: number) => void;
 };
 
+type RadarTableProps = {
+  items: DemandeAchat[];
+  query: string;
+  dashboardScope: DashboardScope;
+  currentUser: UserProfile | null;
+  router: RouterLike;
+  onOpenDetail: (id: number) => void;
+  onOpenReception: (id: number) => void;
+  onOpenCloture: (id: number) => void;
+};
+
 type AccordionSectionProps = {
   section: SectionData;
   isActive: boolean;
   onToggle: () => void;
   currentUser: UserProfile | null;
   router: RouterLike;
+  activeArchiveGroup: ArchiveGroupKey | null;
+  onToggleArchiveGroup: (groupKey: ArchiveGroupKey) => void;
   onOpenDetail: (id: number) => void;
   onOpenReception: (id: number) => void;
   onOpenCloture: (id: number) => void;
@@ -126,21 +145,17 @@ type SectionDemandesListProps = {
 
 type ArchiveGroupBlockProps = SectionDemandesListProps & {
   group: ArchiveGroupData;
+  isActive: boolean;
+  onToggle: () => void;
 };
 
 type DetailViewMode = "detail" | "timeline";
 
 const PAGE_SIZE = 5;
+const subscribeNoop = () => () => {};
 
-const getElapsedLabel = (value: string | null | undefined) => {
-  if (!value) return "";
-  const diffMs = Date.now() - new Date(value).getTime();
-  if (!Number.isFinite(diffMs) || diffMs <= 0) return "";
-  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-  if (diffHours < 24) return `depuis ${Math.max(diffHours, 1)}h`;
-  const diffDays = Math.floor(diffHours / 24);
-  return `depuis ${diffDays}j`;
-};
+const useHasHydrated = () =>
+  useSyncExternalStore(subscribeNoop, () => true, () => false);
 
 const filterDemandesByQuery = (items: DemandeAchat[], query: string) => {
   const normalizedQuery = query.trim().toLowerCase();
@@ -165,6 +180,79 @@ const filterDemandesByQuery = (items: DemandeAchat[], query: string) => {
   });
 };
 
+type ValidationSectionKey =
+  | "validation_hierarchique"
+  | "validation_technique"
+  | "validation_budgetaire"
+  | "validation_programmatique"
+  | "approbation_finale";
+
+const validationSectionOrder: ValidationSectionKey[] = [
+  "validation_hierarchique",
+  "validation_technique",
+  "validation_budgetaire",
+  "validation_programmatique",
+  "approbation_finale",
+];
+
+const stepToValidationSection: Partial<Record<EtapeValidation, ValidationSectionKey>> = {
+  HIERARCHIQUE: "validation_hierarchique",
+  TECHNIQUE: "validation_technique",
+  BUDGETAIRE: "validation_budgetaire",
+  PROGRAMMATIQUE: "validation_programmatique",
+  APPROBATION_FINALE: "approbation_finale",
+};
+
+const validationSectionConfigs: Record<
+  ValidationSectionKey,
+  Pick<SectionData, "title" | "icon" | "iconClass" | "badgeClass" | "emptyText">
+> = {
+  validation_hierarchique: {
+    title: "En validation hiérarchique",
+    icon: Clock,
+    iconClass: "border-amber-200 bg-amber-100 text-amber-800",
+    badgeClass: "border-amber-200 bg-amber-500 text-white",
+    emptyText: "Aucun dossier en validation hiérarchique.",
+  },
+  validation_technique: {
+    title: "En validation technique",
+    icon: Clock,
+    iconClass: "border-sky-200 bg-sky-100 text-sky-800",
+    badgeClass: "border-sky-200 bg-sky-500 text-white",
+    emptyText: "Aucun dossier en validation technique.",
+  },
+  validation_budgetaire: {
+    title: "En validation budgétaire",
+    icon: Clock,
+    iconClass: "border-emerald-200 bg-emerald-100 text-emerald-800",
+    badgeClass: "border-emerald-200 bg-emerald-500 text-white",
+    emptyText: "Aucun dossier en validation budgétaire.",
+  },
+  validation_programmatique: {
+    title: "En validation programmatique",
+    icon: Clock,
+    iconClass: "border-indigo-200 bg-indigo-100 text-indigo-800",
+    badgeClass: "border-indigo-200 bg-indigo-500 text-white",
+    emptyText: "Aucun dossier en validation programmatique.",
+  },
+  approbation_finale: {
+    title: "En approbation finale",
+    icon: CheckCircle2,
+    iconClass: "border-rose-200 bg-rose-100 text-rose-800",
+    badgeClass: "border-rose-200 bg-rose-500 text-white",
+    emptyText: "Aucun dossier en approbation finale.",
+  },
+};
+
+const isValidationSectionKey = (
+  sectionKey?: SectionKey | null,
+): sectionKey is ValidationSectionKey =>
+  sectionKey === "validation_hierarchique" ||
+  sectionKey === "validation_technique" ||
+  sectionKey === "validation_budgetaire" ||
+  sectionKey === "validation_programmatique" ||
+  sectionKey === "approbation_finale";
+
 const getSectionContextLine = (demande: DemandeAchat, sectionKey?: SectionKey | null) => {
   if (demande.statut === "CLOTUREE") {
     return `Clôturée le ${formatDate(demande.date_cloture || demande.updated_at)}`;
@@ -172,11 +260,16 @@ const getSectionContextLine = (demande: DemandeAchat, sectionKey?: SectionKey | 
   if (demande.statut === "REJETEE") {
     return "État rejeté";
   }
-  if (sectionKey === "correction" || demande.statut === "A_COMPLETER") {
-    return `Retour pour révision ${getElapsedLabel(demande.updated_at ?? demande.submitted_at)}`;
+  if (sectionKey === "preparation" || demande.statut === "BROUILLON") {
+    return `Préparation en cours depuis le ${formatDate(demande.updated_at ?? demande.created_at)}`;
   }
-  if (sectionKey === "pending") {
-    return `En attente ${getCurrentValidationLabel(demande)} ${getElapsedLabel(demande.updated_at ?? demande.submitted_at)}`;
+  if (sectionKey === "correction" || demande.statut === "A_COMPLETER") {
+    return `Retour pour correction le ${formatDate(demande.updated_at ?? demande.submitted_at)}`;
+  }
+  if (isValidationSectionKey(sectionKey)) {
+    return `En attente ${getCurrentValidationLabel(demande)} depuis le ${formatDate(
+      demande.updated_at ?? demande.submitted_at,
+    )}`;
   }
   if (sectionKey === "procurement" || demande.statut === "VALIDEE_BUDGETAIRE") {
     return "Dossier validé. Passation attendue.";
@@ -193,31 +286,59 @@ const getSectionContextLine = (demande: DemandeAchat, sectionKey?: SectionKey | 
   if (sectionKey === "closure" || needsClosureAction(demande)) {
     return "Réception enregistrée. Validation finale attendue.";
   }
-  if (["SOUMISE", "A_COMPLETER"].includes(demande.statut)) {
-    return `En attente ${getCurrentValidationLabel(demande)}`;
+  if (["SOUMISE", "VALIDEE"].includes(demande.statut)) {
+    return `En attente ${getCurrentValidationLabel(demande)} depuis le ${formatDate(
+      demande.updated_at ?? demande.submitted_at,
+    )}`;
   }
   return `Créée le ${formatDate(demande.created_at)}`;
+};
+
+const runPrimaryAction = ({
+  action,
+  router,
+  onOpenReception,
+  onOpenCloture,
+}: {
+  action: DemandePrimaryAction;
+  router: RouterLike;
+  onOpenReception: () => void;
+  onOpenCloture: () => void;
+}) => {
+  if (action.href.endsWith("/reception")) {
+    onOpenReception();
+    return;
+  }
+
+  if (action.href.endsWith("/cloture")) {
+    onOpenCloture();
+    return;
+  }
+
+  router.push(action.href);
 };
 
 export default function DashboardPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [currentUser] = useState(() => getCurrentUser());
+  const hasHydrated = useHasHydrated();
+  const currentUser = hasHydrated ? getCurrentUser() : null;
   const [demandes, setDemandes] = useState<DemandeAchat[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const [displayMode, setDisplayMode] = useState<DisplayMode>("status");
   const [activeSection, setActiveSection] = useState<SectionKey | null>(null);
+  const [activeArchiveGroup, setActiveArchiveGroup] = useState<ArchiveGroupKey | null>(null);
   const [selectedDemandeId, setSelectedDemandeId] = useState<number | null>(null);
   const [detailViewMode, setDetailViewMode] = useState<DetailViewMode>("detail");
   const [receptionModalDemandeId, setReceptionModalDemandeId] = useState<number | null>(null);
   const [resolveIssueModalDemandeId, setResolveIssueModalDemandeId] = useState<number | null>(null);
   const [clotureModalDemandeId, setClotureModalDemandeId] = useState<number | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const canAccessGlobalDashboard = canUseGlobalDashboard(currentUser);
+  const canAccessGlobalDashboard = true;
   const rawScope = (searchParams.get("scope") ?? "").trim().toLowerCase();
-  const dashboardScope: DashboardScope =
-    rawScope === "all" && canAccessGlobalDashboard ? "all" : "mine";
+  const dashboardScope: DashboardScope = rawScope === "all" ? "all" : "mine";
   const searchParamsString = searchParams.toString();
   const mineScopeHref = useMemo(() => {
     const params = new URLSearchParams(searchParamsString);
@@ -248,12 +369,6 @@ export default function DashboardPage() {
       setDemandes(data);
     } catch {}
   };
-
-  useEffect(() => {
-    if (rawScope === "all" && !canAccessGlobalDashboard) {
-      router.replace(mineScopeHref);
-    }
-  }, [rawScope, canAccessGlobalDashboard, mineScopeHref, router]);
 
   useEffect(() => {
     if (!getToken()) {
@@ -293,11 +408,7 @@ export default function DashboardPage() {
     () => filteredDemandes.filter((d) => ["CLOTUREE", "REJETEE"].includes(d.statut)),
     [filteredDemandes],
   );
-  const activeDemandes = useMemo(
-    () => filteredDemandes.filter((d) => !["CLOTUREE", "REJETEE"].includes(d.statut)),
-    [filteredDemandes],
-  );
-  const draftDemandes = useMemo(
+  const preparationDemandes = useMemo(
     () => filteredDemandes.filter((d) => d.statut === "BROUILLON"),
     [filteredDemandes],
   );
@@ -305,8 +416,29 @@ export default function DashboardPage() {
     () => filteredDemandes.filter((d) => d.statut === "A_COMPLETER"),
     [filteredDemandes],
   );
-  const pendingDemandes = useMemo(
-    () => filteredDemandes.filter((d) => ["SOUMISE", "VALIDEE"].includes(d.statut)),
+  const validationDemandesBySection = useMemo(
+    () =>
+      filteredDemandes.reduce(
+        (acc, demande) => {
+          if (!["SOUMISE", "VALIDEE"].includes(demande.statut)) {
+            return acc;
+          }
+
+          const sectionKey = stepToValidationSection[demande.etape_validation_actuelle];
+          if (sectionKey) {
+            acc[sectionKey].push(demande);
+          }
+
+          return acc;
+        },
+        {
+          validation_hierarchique: [],
+          validation_technique: [],
+          validation_budgetaire: [],
+          validation_programmatique: [],
+          approbation_finale: [],
+        } as Record<ValidationSectionKey, DemandeAchat[]>,
+      ),
     [filteredDemandes],
   );
   const procurementDemandes = useMemo(
@@ -343,52 +475,62 @@ export default function DashboardPage() {
 
   const sections = useMemo<Record<SectionKey, SectionData>>(
     () => ({
-      draft: {
-        key: "draft",
-        title: "Brouillons",
+      preparation: {
+        key: "preparation",
+        title: "En préparation",
         icon: Activity,
-        iconClass: "border-slate-200 bg-slate-50 text-slate-600",
-        badgeClass: "border-slate-200 bg-white text-slate-700",
-        items: draftDemandes,
-        total: draftDemandes.length,
-        emptyText: "Aucun brouillon.",
+        iconClass: "border-slate-200 bg-slate-100 text-slate-700",
+        badgeClass: "border-slate-300 bg-slate-100 text-slate-700",
+        items: preparationDemandes,
+        total: preparationDemandes.length,
+        emptyText: "Aucun dossier en préparation.",
       },
-      all: {
-        key: "all",
-        title: "Tous les états actifs",
-        icon: Activity,
-        iconClass: "border-teal-200 bg-teal-50 text-teal-700",
-        badgeClass: "border-slate-200 bg-white text-slate-700",
-        items: activeDemandes,
-        total: activeDemandes.length,
-        emptyText: "Aucun état de besoins actif.",
+      validation_hierarchique: {
+        key: "validation_hierarchique",
+        ...validationSectionConfigs.validation_hierarchique,
+        items: validationDemandesBySection.validation_hierarchique,
+        total: validationDemandesBySection.validation_hierarchique.length,
       },
-      pending: {
-        key: "pending",
-        title: "En attente de validation",
-        icon: Clock,
-        iconClass: "border-amber-200 bg-amber-50 text-amber-700",
-        badgeClass: "border-slate-200 bg-white text-slate-700",
-        items: pendingDemandes,
-        total: pendingDemandes.length,
-        emptyText: "Aucun état de besoins en attente de validation.",
+      validation_technique: {
+        key: "validation_technique",
+        ...validationSectionConfigs.validation_technique,
+        items: validationDemandesBySection.validation_technique,
+        total: validationDemandesBySection.validation_technique.length,
+      },
+      validation_budgetaire: {
+        key: "validation_budgetaire",
+        ...validationSectionConfigs.validation_budgetaire,
+        items: validationDemandesBySection.validation_budgetaire,
+        total: validationDemandesBySection.validation_budgetaire.length,
+      },
+      validation_programmatique: {
+        key: "validation_programmatique",
+        ...validationSectionConfigs.validation_programmatique,
+        items: validationDemandesBySection.validation_programmatique,
+        total: validationDemandesBySection.validation_programmatique.length,
+      },
+      approbation_finale: {
+        key: "approbation_finale",
+        ...validationSectionConfigs.approbation_finale,
+        items: validationDemandesBySection.approbation_finale,
+        total: validationDemandesBySection.approbation_finale.length,
       },
       correction: {
         key: "correction",
-        title: "À revoir",
+        title: "À corriger",
         icon: Activity,
-        iconClass: "border-orange-200 bg-orange-50 text-orange-700",
-        badgeClass: "border-slate-200 bg-white text-slate-700",
+        iconClass: "border-orange-200 bg-orange-100 text-orange-800",
+        badgeClass: "border-orange-200 bg-orange-500 text-white",
         items: correctionDemandes,
         total: correctionDemandes.length,
-        emptyText: "Aucun état de besoins à revoir.",
+        emptyText: "Aucun dossier à corriger.",
       },
       procurement: {
         key: "procurement",
         title: "En passation",
         icon: Activity,
-        iconClass: "border-violet-200 bg-violet-50 text-violet-700",
-        badgeClass: "border-slate-200 bg-white text-slate-700",
+        iconClass: "border-violet-200 bg-violet-100 text-violet-800",
+        badgeClass: "border-violet-200 bg-violet-500 text-white",
         items: procurementDemandes,
         total: procurementDemandes.length,
         emptyText: "Aucun dossier en passation.",
@@ -397,8 +539,8 @@ export default function DashboardPage() {
         key: "delivery",
         title: "En cours de livraison",
         icon: Truck,
-        iconClass: "border-cyan-200 bg-cyan-50 text-cyan-700",
-        badgeClass: "border-slate-200 bg-white text-slate-700",
+        iconClass: "border-cyan-200 bg-cyan-100 text-cyan-800",
+        badgeClass: "border-cyan-200 bg-cyan-500 text-white",
         items: deliveryDemandes,
         total: deliveryDemandes.length,
         emptyText: "Aucun état de besoins en cours de livraison.",
@@ -407,8 +549,8 @@ export default function DashboardPage() {
         key: "reception",
         title: "Réception",
         icon: PackageCheck,
-        iconClass: "border-sky-200 bg-sky-50 text-sky-700",
-        badgeClass: "border-slate-200 bg-white text-slate-700",
+        iconClass: "border-sky-200 bg-sky-100 text-sky-800",
+        badgeClass: "border-sky-200 bg-sky-500 text-white",
         items: receptionDemandes,
         total: receptionDemandes.length,
         emptyText: "Aucun dossier en réception.",
@@ -425,25 +567,24 @@ export default function DashboardPage() {
       },
       archive: {
         key: "archive",
-        title: "Archive",
+        title: "Archives",
         icon: CheckCircle2,
-        iconClass: "border-slate-200 bg-slate-50 text-slate-600",
-        badgeClass: "border-slate-200 bg-white text-slate-700",
+        iconClass: "border-slate-300 bg-slate-100 text-slate-700",
+        badgeClass: "border-slate-300 bg-slate-100 text-slate-700",
         items: archiveDemandes,
         total: archiveDemandes.length,
         emptyText: "Aucun état de besoins archivé.",
       },
     }),
     [
-      activeDemandes,
       archiveDemandes,
       closureDemandes,
       correctionDemandes,
       deliveryDemandes,
-      draftDemandes,
-      pendingDemandes,
+      preparationDemandes,
       procurementDemandes,
       receptionDemandes,
+      validationDemandesBySection,
     ],
   );
 
@@ -469,14 +610,13 @@ export default function DashboardPage() {
 
   const orderedSections = useMemo(
     () => [
-      ...(sections.draft.total > 0 ? [sections.draft] : []),
-      sections.correction,
-      sections.closure,
-      sections.pending,
+      sections.preparation,
+      ...validationSectionOrder.map((key) => sections[key]),
       sections.procurement,
       sections.delivery,
       sections.reception,
-      sections.all,
+      sections.closure,
+      sections.correction,
       sections.archive,
     ],
     [sections],
@@ -486,6 +626,10 @@ export default function DashboardPage() {
   const searchResults = useMemo(
     () => (isSearching ? filterDemandesByQuery(filteredDemandes, query) : []),
     [isSearching, filteredDemandes, query],
+  );
+  const radarDemandes = useMemo(
+    () => (isSearching ? searchResults : filteredDemandes),
+    [filteredDemandes, isSearching, searchResults],
   );
 
   const selectedDemande = useMemo(() => demandes.find((item) => item.id === selectedDemandeId) ?? null, [demandes, selectedDemandeId]);
@@ -503,11 +647,11 @@ export default function DashboardPage() {
       <TopHeader />
 
       <div className="zoom-content">
-        <div className="mx-auto max-w-[1120px] px-4 py-6">
+        <div className="mx-auto max-w-[1560px] px-4 py-6 sm:px-6 lg:px-10">
           <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="space-y-3">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-white">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-900 text-white shadow-sm">
                   <Activity className="h-5 w-5" />
                 </div>
                 <div>
@@ -521,15 +665,15 @@ export default function DashboardPage() {
 
             <div className="flex w-full flex-col gap-3 lg:w-auto lg:min-w-[430px] lg:items-end">
               {canAccessGlobalDashboard && (
-                <div className="flex w-full justify-end">
-                  <div className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-1 shadow-sm">
+                <div className="flex w-full flex-wrap justify-end gap-2">
+                  <div className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
                     <button
                       type="button"
                       onClick={() => router.replace(mineScopeHref)}
                       className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
                         dashboardScope === "mine"
-                          ? "bg-slate-900 text-white"
-                          : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                          ? "bg-slate-900 text-white shadow-sm"
+                          : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                       }`}
                     >
                       Mes dossiers
@@ -539,11 +683,36 @@ export default function DashboardPage() {
                       onClick={() => router.replace(allScopeHref)}
                       className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
                         dashboardScope === "all"
-                          ? "bg-slate-900 text-white"
-                          : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                          ? "bg-slate-900 text-white shadow-sm"
+                          : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                       }`}
                     >
-                      All
+                      Tous les dossiers
+                    </button>
+                  </div>
+
+                  <div className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+                    <button
+                      type="button"
+                      onClick={() => setDisplayMode("status")}
+                      className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                        displayMode === "status"
+                          ? "bg-slate-900 text-white shadow-sm"
+                          : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                      }`}
+                    >
+                      Vue par statut
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDisplayMode("table")}
+                      className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                        displayMode === "table"
+                          ? "bg-slate-900 text-white shadow-sm"
+                          : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                      }`}
+                    >
+                      Vue tableau
                     </button>
                   </div>
                 </div>
@@ -570,7 +739,7 @@ export default function DashboardPage() {
                 {dashboardScope === "mine" && (
                   <Link
                     href="/demande-achat/new"
-                    className="inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-slate-900 px-5 py-2.5 text-[13px] font-semibold text-white transition-colors hover:bg-slate-800"
+                    className="inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-slate-900 px-5 py-2.5 text-[13px] font-semibold text-white shadow-sm transition-colors hover:bg-slate-800"
                   >
                     <Plus className="h-4 w-4" /> Nouvel état
                   </Link>
@@ -633,6 +802,20 @@ export default function DashboardPage() {
                     Effacer les filtres
                   </button>
                 </div>
+              ) : displayMode === "table" ? (
+                <RadarTable
+                  items={radarDemandes}
+                  query={query}
+                  dashboardScope={dashboardScope}
+                  currentUser={currentUser}
+                  router={router}
+                  onOpenDetail={(id: number) => {
+                    setSelectedDemandeId(id);
+                    setDetailViewMode("detail");
+                  }}
+                  onOpenReception={(id: number) => setReceptionModalDemandeId(id)}
+                  onOpenCloture={(id: number) => setClotureModalDemandeId(id)}
+                />
               ) : isSearching ? (
                 <SearchResultsList
                   items={searchResults}
@@ -658,6 +841,12 @@ export default function DashboardPage() {
                       }
                       currentUser={currentUser}
                       router={router}
+                      activeArchiveGroup={activeArchiveGroup}
+                      onToggleArchiveGroup={(groupKey) =>
+                        setActiveArchiveGroup(
+                          activeArchiveGroup === groupKey ? null : groupKey,
+                        )
+                      }
                       onOpenDetail={(id: number) => {
                         setSelectedDemandeId(id);
                         setDetailViewMode("detail");
@@ -741,7 +930,11 @@ function SearchResultsList({
 }: SearchResultsListProps) {
   const [page, setPage] = useState(1);
   const totalPages = Math.ceil(items.length / PAGE_SIZE) || 1;
-  const paginatedItems = items.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const currentPage = Math.min(page, totalPages);
+  const paginatedItems = items.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE,
+  );
 
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -769,9 +962,176 @@ function SearchResultsList({
           ))}
           
           {totalPages > 1 && (
-            <PaginationControls page={page} totalPages={totalPages} setPage={setPage} />
+            <PaginationControls
+              page={currentPage}
+              totalPages={totalPages}
+              setPage={setPage}
+            />
           )}
         </div>
+      )}
+    </div>
+  );
+}
+
+function RadarTable({
+  items,
+  query,
+  dashboardScope,
+  currentUser,
+  router,
+  onOpenDetail,
+  onOpenReception,
+  onOpenCloture,
+}: RadarTableProps) {
+  const [page, setPage] = useState(1);
+
+  const totalPages = Math.ceil(items.length / PAGE_SIZE) || 1;
+  const currentPage = Math.min(page, totalPages);
+  const paginatedItems = items.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE,
+  );
+  const title =
+    dashboardScope === "all" ? "Radar de tous les dossiers" : "Radar de mes dossiers";
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="flex flex-col gap-2 border-b border-slate-200 bg-slate-50 px-5 py-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">
+            Radar des dossiers
+          </p>
+          <h2 className="text-lg font-bold text-slate-900">{title}</h2>
+        </div>
+        <p className="text-sm text-slate-500">
+          {items.length} dossier(s){query.trim() ? ` pour "${query}"` : ""}
+        </p>
+      </div>
+
+      {items.length === 0 ? (
+        <div className="p-10 text-center text-sm text-slate-500">
+          Aucun dossier visible dans cette vue.
+        </div>
+      ) : (
+        <>
+          <div className="overflow-x-auto">
+            <table className="min-w-[1080px] w-full text-left">
+              <thead className="bg-white">
+                <tr className="border-b border-slate-200 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">
+                  <th className="px-4 py-3">Numéro</th>
+                  <th className="px-4 py-3">Intitulé</th>
+                  <th className="px-4 py-3">Demandeur</th>
+                  <th className="px-4 py-3">Type</th>
+                  <th className="px-4 py-3">Version</th>
+                  <th className="px-4 py-3">PTBA</th>
+                  <th className="px-4 py-3">Montant</th>
+                  <th className="px-4 py-3">Position actuelle</th>
+                  <th className="px-4 py-3">Créé le</th>
+                  <th className="px-4 py-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paginatedItems.map((demande) => {
+                  const action = getDemandePrimaryAction(demande, currentUser);
+                  const trackingLabel = getDemandeTrackingStageLabel(demande);
+
+                  return (
+                    <tr
+                      key={demande.id}
+                      className="border-b border-slate-100 align-top text-sm text-slate-700 last:border-b-0"
+                    >
+                      <td className="px-4 py-3">
+                        <button
+                          type="button"
+                          onClick={() => onOpenDetail(demande.id)}
+                          className="rounded-md bg-slate-100 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-600 transition-colors hover:bg-slate-200"
+                        >
+                          {demande.numero_demande}
+                        </button>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="max-w-[220px]">
+                          <p className="font-semibold text-slate-900">{demande.objet}</p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            {getCompactNeedLabel(demande)}
+                          </p>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">
+                        {demande.demandeur_nom || "Non renseigné"}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">
+                        {typeLabels[demande.type_demande] ?? demande.type_demande}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">v{demande.version}</td>
+                      <td className="px-4 py-3">
+                        <span
+                          className="inline-flex max-w-[140px] truncate rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs text-slate-600"
+                          title={demande.lien_ptba}
+                        >
+                          {demande.lien_ptba || "-"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 font-semibold text-slate-900">
+                        {formatMoney(demande.montant_commande ?? demande.cout_total_estime)}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="inline-flex rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700">
+                          {trackingLabel}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">
+                        {formatDate(demande.created_at)}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => onOpenDetail(demande.id)}
+                            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-600 transition-colors hover:bg-slate-50"
+                          >
+                            Détail
+                          </button>
+                          {action ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                runPrimaryAction({
+                                  action,
+                                  router,
+                                  onOpenReception: () => onOpenReception(demande.id),
+                                  onOpenCloture: () => onOpenCloture(demande.id),
+                                })
+                              }
+                              className="rounded-lg bg-slate-900 px-3.5 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-white transition-colors hover:bg-slate-800"
+                            >
+                              {action.label}
+                            </button>
+                          ) : (
+                            <span className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+                              Consultation
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {totalPages > 1 && (
+            <div className="border-t border-slate-200 px-4 py-3">
+              <PaginationControls
+                page={currentPage}
+                totalPages={totalPages}
+                setPage={setPage}
+              />
+            </div>
+          )}
+        </>
       )}
     </div>
   );
@@ -788,12 +1148,12 @@ function SectionDemandesList({
 }: SectionDemandesListProps) {
   const [page, setPage] = useState(1);
 
-  useEffect(() => {
-    setPage(1);
-  }, [items]);
-
   const totalPages = Math.ceil(items.length / PAGE_SIZE) || 1;
-  const paginatedItems = items.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const currentPage = Math.min(page, totalPages);
+  const paginatedItems = items.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE,
+  );
 
   return (
     <div className="space-y-3">
@@ -811,7 +1171,11 @@ function SectionDemandesList({
       ))}
 
       {totalPages > 1 && (
-        <PaginationControls page={page} totalPages={totalPages} setPage={setPage} />
+        <PaginationControls
+          page={currentPage}
+          totalPages={totalPages}
+          setPage={setPage}
+        />
       )}
     </div>
   );
@@ -819,25 +1183,56 @@ function SectionDemandesList({
 
 function ArchiveGroupBlock({
   group,
+  isActive,
+  onToggle,
   currentUser,
   router,
   onOpenDetail,
   onOpenReception,
   onOpenCloture,
 }: ArchiveGroupBlockProps) {
+  const hasItems = group.total > 0;
+
   return (
-    <section className="rounded-xl border border-slate-200 bg-white">
-      <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-        <h3 className="text-sm font-semibold text-slate-900">{group.title}</h3>
-        <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-xs font-semibold text-slate-600">
-          {group.total}
-        </span>
-      </div>
+    <section className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+      <button
+        type="button"
+        onClick={onToggle}
+        disabled={!hasItems}
+        className={`flex w-full items-center justify-between px-4 py-3 text-left transition-colors ${
+          !hasItems
+            ? "cursor-not-allowed bg-slate-50 opacity-60"
+            : isActive
+              ? "border-b border-slate-200 bg-slate-50"
+              : "bg-white hover:bg-slate-50"
+        }`}
+      >
+        <div className="flex items-center gap-3">
+          <h3 className="text-sm font-semibold text-slate-900">{group.title}</h3>
+          <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-xs font-semibold text-slate-600">
+            {group.total}
+          </span>
+        </div>
+        {hasItems && (
+          <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+            <span className={isActive ? "text-slate-700" : ""}>
+              {isActive ? "Masquer" : "Afficher"}
+            </span>
+            <div
+              className={`rounded-lg bg-slate-100 p-1 text-slate-400 transition-transform ${
+                isActive ? "rotate-180" : ""
+              }`}
+            >
+              <ChevronDown className="h-3.5 w-3.5" />
+            </div>
+          </div>
+        )}
+      </button>
 
       <div className="p-4">
-        {group.total === 0 ? (
+        {!hasItems ? (
           <p className="text-sm text-slate-500">{group.emptyText}</p>
-        ) : (
+        ) : isActive ? (
           <SectionDemandesList
             items={group.items}
             sectionKey="archive"
@@ -847,6 +1242,10 @@ function ArchiveGroupBlock({
             onOpenReception={onOpenReception}
             onOpenCloture={onOpenCloture}
           />
+        ) : (
+          <p className="text-sm text-slate-400">
+            Cliquez pour afficher les dossiers {group.title.toLowerCase()}.
+          </p>
         )}
       </div>
     </section>
@@ -859,6 +1258,8 @@ function AccordionSection({
   onToggle,
   currentUser,
   router,
+  activeArchiveGroup,
+  onToggleArchiveGroup,
   onOpenDetail,
   onOpenReception,
   onOpenCloture,
@@ -928,6 +1329,8 @@ function AccordionSection({
                 <ArchiveGroupBlock
                   key={group.key}
                   group={group}
+                  isActive={activeArchiveGroup === group.key}
+                  onToggle={() => onToggleArchiveGroup(group.key)}
                   currentUser={currentUser}
                   router={router}
                   onOpenDetail={onOpenDetail}
@@ -988,7 +1391,8 @@ function CompactDemandeRow({
   action,
   router,
 }: CompactDemandeRowProps) {
-  const deadlineState = getValidationDeadlineState(demande);
+  const showDynamicState = useHasHydrated();
+  const deadlineState = showDynamicState ? getValidationDeadlineState(demande) : null;
   const currentOwner = getDemandeCurrentOwnerLabel(demande);
   const demandeurLabel = demande.demandeur_nom || "Demandeur non renseigné";
 
@@ -1053,17 +1457,14 @@ function CompactDemandeRow({
 
         {action && (
           <button
-            onClick={() => {
-              if (action.label.toLowerCase().includes("réception")) {
-                onOpenReception();
-              } else if (action.label.toLowerCase().includes("clôture")) {
-                onOpenCloture();
-              } else if (action.label.toLowerCase().includes("corriger")) {
-                router.push(action.href);
-              } else {
-                router.push(action.href);
-              }
-            }}
+            onClick={() =>
+              runPrimaryAction({
+                action,
+                router,
+                onOpenReception,
+                onOpenCloture,
+              })
+            }
             className="flex-1 rounded-lg bg-slate-900 px-5 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white transition-colors hover:bg-slate-800 sm:flex-none"
           >
             {action.label}

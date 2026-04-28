@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, X, ArrowLeft, AlertCircle, FileText, UploadCloud, Clock, ShoppingBag, Wrench, ShieldCheck, Sparkles, ChevronRight, Briefcase, Target, Layers, FolderArchive } from "lucide-react";
+import { Plus, X, ArrowLeft, AlertCircle, FileText, Clock, ShoppingBag, Wrench, ShieldCheck, Sparkles, ChevronRight, Briefcase, Target, Layers } from "lucide-react";
 import TopHeader from "@/app/components/TopHeader";
 import PurchaseSelect from "@/app/demande-achat/components/PurchaseSelect";
 import { FRENCH_DATE_INPUT_PROPS, formatFrenchIsoDate } from "@/lib/date";
@@ -10,7 +10,6 @@ import { FRENCH_DATE_INPUT_PROPS, formatFrenchIsoDate } from "@/lib/date";
 import {
   createDemandeAchat,
   submitDemandeAchat,
-  uploadDocumentDemandeAchat,
 } from "@/services/achats";
 import {
   getCurrentUser,
@@ -24,6 +23,11 @@ import {
   listExternalPersonnel,
   type PersonnelDirectoryOption,
 } from "@/services/personnel";
+import {
+  createTdrStDraft,
+  type CreateTdrStDraftPayload,
+  type TdrStDocumentType,
+} from "@/services/tdrSt";
 
 type LigneForm = {
   designation: string;
@@ -44,12 +48,6 @@ type LigneForm = {
   nombre_beneficiaires: string;
 };
 
-type DocumentForm = {
-  type_document: string;
-  commentaire: string;
-  fichier: File | null;
-};
-
 type LigneModalProps = {
   open: boolean;
   mode: "create" | "edit";
@@ -62,6 +60,15 @@ type LigneModalProps = {
   onClose: () => void;
   onChange: (field: keyof LigneForm, value: string | number) => void;
   onSave: () => void;
+};
+
+type ServiceRoutingChoice = "DIRECT_VALIDATION" | "TDR";
+
+type ServiceRoutingModalProps = {
+  open: boolean;
+  saving: boolean;
+  onClose: () => void;
+  onChoose: (choice: ServiceRoutingChoice) => void;
 };
 
 const uniteTechniqueOptions = [
@@ -97,13 +104,6 @@ const categorieBesoinOptions = [
 const prioriteOptions = [
   { value: "NORMAL", label: "Normal (5 jours)" },
   { value: "URGENT", label: "Urgent (48h)" },
-] as const;
-
-const documentTypesOptions = [
-  { value: "SPECIFICATIONS_TECHNIQUES", label: "Spécifications techniques détaillées (PDF)" },
-  { value: "TDR_SIMPLIFIE", label: "Termes de Référence simplifiés (PDF)" },
-  { value: "DEVIS_ESTIMATIF", label: "Devis estimatif (PDF)" },
-  { value: "BON_SORTIE_STOCK", label: "Bon de sortie stock (PDF)" },
 ] as const;
 
 const fieldClass = "w-full rounded-xl border border-slate-200 bg-white/50 backdrop-blur-sm px-4 py-2.5 text-[13px] font-semibold text-slate-800 shadow-sm transition-all duration-300 placeholder:text-slate-400 focus:border-slate-400 focus:bg-white focus:ring-4 focus:ring-slate-100 hover:border-slate-300";
@@ -167,6 +167,92 @@ const formatFrenchDateRange = (start: string, end: string) => {
   return "Dates non définies";
 };
 
+const getUniteTechniqueLabel = (value: string) =>
+  uniteTechniqueOptions.find((option) => option.value === value)?.label ?? value;
+
+const addDaysToIsoDate = (value: string, days: number) => {
+  const baseDate = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(baseDate.getTime())) {
+    return value;
+  }
+  baseDate.setDate(baseDate.getDate() + days);
+  return baseDate.toISOString().split("T")[0];
+};
+
+const getDurationInDays = (start: string, end: string) => {
+  const startDate = new Date(`${start}T00:00:00`);
+  const endDate = new Date(`${end}T00:00:00`);
+  if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+    return 30;
+  }
+  const diff = endDate.getTime() - startDate.getTime();
+  return Math.max(1, Math.round(diff / (1000 * 60 * 60 * 24)) + 1);
+};
+
+const inferFundingSourceFromPtba = (value: string) => {
+  const normalized = value.trim().toLowerCase();
+  if (normalized.includes("gavi")) return ["Alliance GAVI"];
+  if (normalized.includes("bm") || normalized.includes("banque mondiale")) {
+    return ["Banque mondiale"];
+  }
+  return ["Fonds mondial"];
+};
+
+const buildTdrStRedirectUrl = (documentId: number, demandeId: number) =>
+  `/TdrSt/formulaire?id=${documentId}&source=demande-achat&demandeId=${demandeId}`;
+
+const buildTdrDraftPayloadFromDemande = ({
+  lignes,
+  typeDemande,
+  uniteTechnique,
+  objet,
+  lienPtba,
+}: {
+  lignes: LigneForm[];
+  typeDemande: string;
+  uniteTechnique: string;
+  objet: string;
+  lienPtba: string;
+}): CreateTdrStDraftPayload => {
+  const serviceRequest = typeDemande === "PETITS_SERVICES";
+  const totalEstimate = lignes.reduce(
+    (sum, ligne) => sum + getLigneTotal(ligne, serviceRequest),
+    0,
+  );
+
+  const startDate = serviceRequest
+    ? lignes
+        .map((ligne) => ligne.date_debut)
+        .filter(Boolean)
+        .sort()[0] || getTodayDate()
+    : getTodayDate();
+  const endDate = serviceRequest
+    ? lignes
+        .map((ligne) => ligne.date_fin)
+        .filter(Boolean)
+        .sort()
+        .at(-1) || addDaysToIsoDate(startDate, 30)
+    : addDaysToIsoDate(startDate, 30);
+  const typeDocument: TdrStDocumentType = typeDemande === "MATERIELS" ? "ST" : "TDR";
+
+  return {
+    unite_technique: getUniteTechniqueLabel(uniteTechnique),
+    type_document: typeDocument,
+    categorie_activite: typeDemande === "MATERIELS" ? "BIENS" : "ENTREPRISE",
+    intitule: objet.trim(),
+    reference_ptba: lienPtba.trim(),
+    periode_debut: startDate,
+    periode_fin: endDate,
+    duree_estimee_valeur: getDurationInDays(startDate, endDate),
+    duree_estimee_unite: "JOURS",
+    sources_financement: inferFundingSourceFromPtba(lienPtba),
+    numero_subvention: "",
+    ligne_budgetaire: lienPtba.trim(),
+    montant_estime_usd: totalEstimate.toFixed(2),
+    procedure_envisagee: "DC",
+  };
+};
+
 function NotificationPopup({ message, type, onClose }: { message: string, type: 'error' | 'success', onClose: () => void }) {
   useEffect(() => {
     const t = setTimeout(onClose, 5000);
@@ -188,6 +274,102 @@ function NotificationPopup({ message, type, onClose }: { message: string, type: 
       <button onClick={onClose} className="ucp-toast__close">
         <X className="h-5 w-5" />
       </button>
+    </div>
+  );
+}
+
+function ServiceRoutingModal({
+  open,
+  saving,
+  onClose,
+  onChoose,
+}: ServiceRoutingModalProps) {
+  useEffect(() => {
+    if (!open) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !saving) onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open, onClose, saving]);
+
+  if (!open) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 py-6 backdrop-blur-sm"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget && !saving) onClose();
+      }}
+    >
+      <div className="w-full max-w-3xl overflow-hidden rounded-[28px] border border-white/50 bg-white shadow-[0_28px_80px_rgba(15,23,42,0.24)] animate-in zoom-in-95 slide-in-from-bottom-8 duration-300">
+        <div className="relative overflow-hidden border-b border-slate-100 bg-[linear-gradient(135deg,rgba(16,185,129,0.12),rgba(20,184,166,0.06),rgba(255,255,255,0.96))] px-6 py-5">
+          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-500 via-teal-400 to-sky-400" />
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-start gap-3.5">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/20">
+                <Wrench className="h-5 w-5" />
+              </div>
+              <div>
+                <h2 className="text-xl font-black tracking-tight text-slate-900">
+                  Choisir le parcours du dossier
+                </h2>
+                <p className="mt-1 text-sm text-slate-600">
+                  Pour un petit service, on décide ici si le dossier part
+                  directement en validation ou s&apos;il passe d&apos;abord par un TDR.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={saving}
+              className="rounded-2xl border border-slate-200 bg-white p-2.5 text-slate-500 shadow-sm transition-colors hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+
+        <div className="grid gap-4 p-6 md:grid-cols-2">
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() => onChoose("DIRECT_VALIDATION")}
+            className="group rounded-[24px] border border-emerald-100 bg-[linear-gradient(180deg,#ffffff_0%,#f0fdf4_100%)] p-5 text-left shadow-sm transition-all hover:-translate-y-1 hover:border-emerald-300 hover:shadow-[0_18px_40px_rgba(16,185,129,0.12)] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700 transition-transform group-hover:scale-105">
+              <ShieldCheck className="h-5 w-5" />
+            </div>
+            <p className="text-base font-black text-slate-900">Validation directe</p>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              L&apos;état de besoins est soumis immédiatement au circuit hiérarchique.
+            </p>
+            <span className="mt-4 inline-flex rounded-full border border-emerald-200 bg-white px-3 py-1 text-xs font-semibold text-emerald-700">
+              Pas de TDR requis
+            </span>
+          </button>
+
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() => onChoose("TDR")}
+            className="group rounded-[24px] border border-sky-100 bg-[linear-gradient(180deg,#ffffff_0%,#eff6ff_100%)] p-5 text-left shadow-sm transition-all hover:-translate-y-1 hover:border-sky-300 hover:shadow-[0_18px_40px_rgba(14,165,233,0.12)] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-sky-100 text-sky-700 transition-transform group-hover:scale-105">
+              <FileText className="h-5 w-5" />
+            </div>
+            <p className="text-base font-black text-slate-900">Passer par un TDR</p>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              On crée un brouillon TDR, puis on vous redirige vers le module TDR/ST
+              pour finaliser le document.
+            </p>
+            <span className="mt-4 inline-flex rounded-full border border-sky-200 bg-white px-3 py-1 text-xs font-semibold text-sky-700">
+              Préparation documentaire requise
+            </span>
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -383,13 +565,11 @@ export default function NouvelleDemandePage() {
   const [editingLigneIndex, setEditingLigneIndex] = useState<number | null>(null);
   const [ligneDraft, setLigneDraft] = useState<LigneForm>(emptyLigne("MATERIELS"));
   const [ligneModalError, setLigneModalError] = useState<string | null>(null);
-  
-  // Documents
-  const [documents, setDocuments] = useState<DocumentForm[]>([]);
-  
+
   // UI states
   const [saving, setSaving] = useState(false);
   const [notification, setNotification] = useState<{message: string, type: 'error' | 'success'} | null>(null);
+  const [serviceRoutingModalOpen, setServiceRoutingModalOpen] = useState(false);
   const [personnelOptions, setPersonnelOptions] = useState<PersonnelDirectoryOption[]>([]);
   const [personnelLoading, setPersonnelLoading] = useState(false);
   const [personnelError, setPersonnelError] = useState<string | null>(null);
@@ -466,54 +646,59 @@ export default function NouvelleDemandePage() {
     nombre_beneficiaires: normalizeInteger(ligne.nombre_beneficiaires),
   });
 
-  const handleSubmit = async (e: FormEvent | null) => {
-    if (e) e.preventDefault();
-    
-    // Auto-scroll Validations
+  const validateBeforeSubmit = () => {
     if (!uniteTechnique) {
        setNotification({message: "La cellule est obligatoire.", type: 'error'});
-       return scrollToElement("uniteTechnique");
+       scrollToElement("uniteTechnique");
+       return false;
     }
     if (!typeDemande) {
        setNotification({message: "Le type de besoin est obligatoire.", type: 'error'});
-       return scrollToElement("typeDemande");
+       scrollToElement("typeDemande");
+       return false;
     }
     if (!categorieBesoin) {
        setNotification({message: "La catégorie de besoin est obligatoire.", type: 'error'});
-       return scrollToElement("categorieBesoin");
+       scrollToElement("categorieBesoin");
+       return false;
     }
     if (!priorite) {
        setNotification({message: "La priorité est obligatoire.", type: 'error'});
-       return scrollToElement("priorite");
+       scrollToElement("priorite");
+       return false;
     }
     if (!serviceBeneficiaire.trim()) {
        setNotification({message: "Le service bénéficiaire final est obligatoire.", type: 'error'});
-       return scrollToElement("serviceBeneficiaire");
+       scrollToElement("serviceBeneficiaire");
+       return false;
     }
     if (!lienPtba.trim()) {
        setNotification({message: "La référence au PTBA est obligatoire.", type: 'error'});
-       return scrollToElement("lienPtba");
+       scrollToElement("lienPtba");
+       return false;
     }
-    if (!objet) {
+    if (!objet.trim()) {
        setNotification({message: "L'objet de l'état de besoins est obligatoire.", type: 'error'});
-       return scrollToElement("objet");
+       scrollToElement("objet");
+       return false;
     }
-    if (!justification) {
+    if (!justification.trim()) {
        setNotification({message: "La justification est obligatoire.", type: 'error'});
-       return scrollToElement("justification");
+       scrollToElement("justification");
+       return false;
     }
     if (lignes.length === 0) {
        setNotification({message: "Veuillez ajouter au moins une ligne de besoin.", type: 'error'});
-       return scrollToElement("lignesSection");
+       scrollToElement("lignesSection");
+       return false;
     }
 
-    const hasIncompleteDocumentType = documents.some((doc) => doc.fichier && !doc.type_document);
-    if (hasIncompleteDocumentType) {
-       setNotification({message: "Choisissez un type pour chaque document ajouté.", type: 'error'});
-       return scrollToElement("documentsSection");
-    }
-    
+    return true;
+  };
+
+  const submitDemandeFlow = async (choice: ServiceRoutingChoice) => {
     setSaving(true);
+    let createdDemandeId: number | null = null;
     try {
       const res = await createDemandeAchat({
         unite_technique: uniteTechnique, 
@@ -526,33 +711,69 @@ export default function NouvelleDemandePage() {
         service_beneficiaire: serviceBeneficiaire.trim(), 
         lignes_besoin: lignes.map(buildLignePayload)
       });
-      
-      if (res?.id) { 
-        // Handles Document Uploads
-        for (const doc of documents) {
-           if (doc.fichier) {
-               if (!documentTypesOptions.some((option) => option.value === doc.type_document)) {
-                  throw new Error("Le type de document selectionne est invalide.");
-               }
-
-               const fd = new FormData();
-               fd.append("fichier", doc.fichier);
-               fd.append("type_document", doc.type_document);
-               fd.append("commentaire", doc.commentaire || "");
-               await uploadDocumentDemandeAchat(res.id, fd);
-           }
-        }
-        
-        await submitDemandeAchat(res.id); 
-        setNotification({message: "État de besoins soumis avec succès !", type: 'success'}); 
-        setTimeout(() => router.push("/demande-achat/dashboard"), 2000); 
+      if (!res?.id) {
+        throw new Error("Le dossier n'a pas pu être créé.");
       }
+      createdDemandeId = res.id;
+
+      if (choice === "DIRECT_VALIDATION") {
+        await submitDemandeAchat(res.id);
+        setNotification({message: "État de besoins soumis avec succès !", type: 'success'});
+        setTimeout(() => router.push("/demande-achat/dashboard"), 1200);
+        return;
+      }
+
+      const tdrDraft = await createTdrStDraft(
+        buildTdrDraftPayloadFromDemande({
+          lignes,
+          typeDemande,
+          uniteTechnique,
+          objet,
+          lienPtba,
+        }),
+      );
+
+      const documentLabel = tdrDraft.type_document === "ST" ? "ST" : "TDR";
+      setNotification({
+        message: `Brouillon ${documentLabel} créé. Redirection vers le module TDR/ST...`,
+        type: "success",
+      });
+      setTimeout(
+        () => {
+          const targetUrl = buildTdrStRedirectUrl(tdrDraft.id, res.id);
+          if (typeof window !== "undefined") {
+            window.location.assign(targetUrl);
+            return;
+          }
+          router.push(targetUrl);
+        },
+        900,
+      );
     } catch (err: unknown) { 
-      const errorMessage = err instanceof Error ? err.message : "Erreur de connexion. Vérifiez les données.";
+      const baseErrorMessage =
+        err instanceof Error
+          ? err.message
+          : "Erreur de connexion. Vérifiez les données.";
+      const errorMessage =
+        choice === "TDR" && createdDemandeId
+          ? `L'état de besoins a été enregistré en brouillon, mais le dossier TDR/ST n'a pas pu être créé. ${baseErrorMessage}`
+          : baseErrorMessage;
       setNotification({message: errorMessage, type: 'error'}); 
     } finally { 
       setSaving(false); 
     }
+  };
+
+  const handleSubmit = async (e: FormEvent | null) => {
+    if (e) e.preventDefault();
+    if (!validateBeforeSubmit()) return;
+
+    if (typeDemande === "PETITS_SERVICES") {
+      setServiceRoutingModalOpen(true);
+      return;
+    }
+
+    await submitDemandeFlow("TDR");
   };
 
   const focusModalInput = (id: string) => {
@@ -652,6 +873,13 @@ export default function NouvelleDemandePage() {
     setLignes(p => (editingLigneIndex === null ? [...p, ligneDraft] : p.map((l, i) => i === editingLigneIndex ? ligneDraft : l))); 
     closeLigneModal();
   };
+
+  const submitButtonLabel =
+    typeDemande === "MATERIELS"
+      ? "SOUMETTRE ET OUVRIR LE MODULE TDR/ST"
+      : typeDemande === "PETITS_SERVICES"
+        ? "SOUMETTRE"
+        : "SOUMETTRE L'ÉTAT DE BESOINS";
 
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_10%_0%,#f6faf8_0%,transparent_25%),linear-gradient(180deg,#f8fafc_0%,#f1f5f9_100%)] text-slate-800 pb-24 font-sans antialiased selection:bg-emerald-200">
@@ -830,81 +1058,11 @@ export default function NouvelleDemandePage() {
              </div>
           </div>
 
-          {/* SECTION 4: PIECES JOINTES */}
-          <div className="group relative overflow-hidden rounded-3xl border border-white/40 bg-white/70 shadow-[0_8px_32px_rgba(0,0,0,0.05)] backdrop-blur-md transition-all duration-500 hover:shadow-[0_12px_48px_rgba(0,0,0,0.08)]">
-             <div className="absolute top-0 left-0 h-1.5 w-full bg-gradient-to-r from-emerald-500 via-amber-400 to-emerald-500 bg-[length:200%_100%] animate-gradient"></div>
-             <div className="p-6">
-                <div id="documentsSection" className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-                   <h2 className="flex items-center gap-3 text-[11px] font-black uppercase tracking-widest text-slate-800">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100/80 text-amber-600 shadow-sm backdrop-blur-sm transition-transform duration-300 group-hover:scale-110">
-                         <FolderArchive className="h-5 w-5" />
-                      </div>
-                      4. Documents justificatifs
-                   </h2>
-                   <button type="button" onClick={() => setDocuments([...documents, { type_document: "", commentaire: "", fichier: null }])} className="flex items-center gap-2 rounded-xl bg-white border border-slate-200 px-5 py-2.5 text-[10px] font-black uppercase tracking-widest text-slate-600 shadow-sm transition-all hover:bg-slate-50 hover:border-slate-300 active:scale-95">
-                      <Plus className="h-4 w-4" /> Ajouter un fichier
-                   </button>
-                </div>
-
-                <div className="mb-4 rounded-xl border border-sky-100 bg-sky-50/50 p-3 shadow-sm">
-                   <p className="mb-2 flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-sky-800"><AlertCircle className="w-3.5 h-3.5"/> Guide des documents (PDF uniquement) :</p>
-                   <div className="flex flex-wrap gap-2 text-[10px]">
-                      <span className="flex items-center gap-1.5 rounded-md bg-white px-2 py-1 border border-sky-100"><strong className="text-slate-700">Spécifications tech.</strong> <span className="text-sky-600 font-semibold">(Si matériels complexes)</span></span>
-                      <span className="flex items-center gap-1.5 rounded-md bg-white px-2 py-1 border border-sky-100"><strong className="text-slate-700">TDR</strong> <span className="text-sky-600 font-semibold">(Si petits services)</span></span>
-                      <span className="flex items-center gap-1.5 rounded-md bg-white px-2 py-1 border border-sky-100"><strong className="text-slate-700">Devis estimatif</strong> <span className="text-sky-600 font-semibold">(Si montant &gt; seuil)</span></span>
-                      <span className="flex items-center gap-1.5 rounded-md bg-white px-2 py-1 border border-sky-100"><strong className="text-slate-700">Bon sortie stock</strong> <span className="text-sky-600 font-semibold">(Si réapprovisionnement)</span></span>
-                   </div>
-                </div>
-                
-                {documents.length > 0 && (
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    {documents.map((d, i) => (
-                      <div key={i} className="flex flex-col sm:flex-row sm:items-center gap-4 p-4 border border-slate-200 rounded-xl bg-slate-50/50 hover:bg-slate-50 transition-colors relative">
-                         <div className="flex-1 space-y-3 min-w-0">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-white rounded-lg shadow-sm w-10 h-10 flex items-center justify-center shrink-0 border border-slate-100">
-                                   <UploadCloud className={`h-5 w-5 ${d.fichier ? 'text-emerald-500' : 'text-slate-400 animate-pulse'}`} />
-                                </div>
-                                <div className="flex-1 relative overflow-hidden">
-                                   <input title="Upload" type="file" accept=".pdf" onChange={(e) => {
-                                       const file = e.target.files?.[0];
-                                       if (file && file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
-                                          setNotification({ message: "Seuls les fichiers PDF sont acceptés.", type: "error" });
-                                          e.target.value = '';
-                                          return;
-                                       }
-                                       setDocuments(p => p.map((item, idx) => idx === i ? {...item, fichier: file || null} : item));
-                                   }} className="opacity-0 absolute inset-0 z-10 cursor-pointer w-full h-full" />
-                                   <div className={`p-2 border-2 border-dashed rounded-lg flex items-center justify-center text-[13px] font-bold truncate transition-colors cursor-pointer ${d.fichier ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-slate-300 hover:border-emerald-400 hover:bg-white text-slate-500 bg-slate-100/50'}`}>
-                                      {d.fichier ? <span className="truncate w-full text-center">{d.fichier.name}</span> : "Cliquez ou glissez un fichier..."}
-                                   </div>
-                                </div>
-                            </div>
-                         </div>
-                         <div className="flex-1 min-w-[200px]">
-                             <PurchaseSelect
-                               value={d.type_document}
-                               onChange={(value) => setDocuments(p => p.map((item, idx) => idx === i ? {...item, type_document: value} : item))}
-                               options={[...documentTypesOptions]}
-                               placeholder="Sélectionner..."
-                               className={fieldClass}
-                             />
-                         </div>
-                         <button type="button" onClick={() => setDocuments(p => p.filter((_, idx) => idx !== i))} className="absolute -top-2 -right-2 sm:static sm:w-auto p-2 bg-white text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full sm:rounded-lg shadow-sm border border-slate-200 transition-colors">
-                           <Trash2 className="h-4 w-4" />
-                         </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-             </div>
-          </div>
-
           {/* SUBMIT BUTTON SECTION */}
           <div className="flex items-center justify-end pt-5 pb-12 w-full">
              <button type="submit" disabled={saving} className="w-full md:w-auto lg:w-1/3 bg-gradient-to-r from-emerald-600 to-teal-500 text-white px-12 py-4 rounded-xl text-[16px] font-black uppercase tracking-wider shadow-[0_10px_30px_rgba(5,150,105,0.4)] hover:shadow-[0_15px_40px_rgba(5,150,105,0.5)] hover:-translate-y-1 transition-all disabled:opacity-70 disabled:pointer-events-none disabled:-translate-y-0 disabled:shadow-none flex items-center justify-center gap-3">
                 {saving && <div className="h-5 w-5 border-3 border-white/30 border-t-white rounded-full animate-spin"></div>}
-                {saving ? "SOUMISSION EN COURS..." : "SOUMETTRE L'ÉTAT DE BESOINS"}
+                {saving ? "TRAITEMENT EN COURS..." : submitButtonLabel}
                 {!saving && <ChevronRight className="h-5 w-5" />}
              </button>
           </div>
@@ -924,6 +1082,15 @@ export default function NouvelleDemandePage() {
         onClose={closeLigneModal}
         onChange={handleLigneDraftChange}
         onSave={handleSaveLigne}
+      />
+      <ServiceRoutingModal
+        open={serviceRoutingModalOpen}
+        saving={saving}
+        onClose={() => setServiceRoutingModalOpen(false)}
+        onChoose={(choice) => {
+          setServiceRoutingModalOpen(false);
+          void submitDemandeFlow(choice);
+        }}
       />
     </main>
   );

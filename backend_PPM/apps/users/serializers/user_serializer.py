@@ -1,15 +1,21 @@
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
+from apps.users.services.permissions import get_user_role
+
 User = get_user_model()
 
 
 class UserSerializer(serializers.ModelSerializer):
+    role = serializers.SerializerMethodField()
     groups = serializers.SlugRelatedField(
         many=True,
         read_only=True,
         slug_field="name",
     )
+
+    def get_role(self, obj):
+        return get_user_role(obj)
 
     class Meta:
         model = User
@@ -21,6 +27,7 @@ class UserSerializer(serializers.ModelSerializer):
             "last_name",
             "is_active",
             "is_staff",
+            "role",
             "groups",
         ]
 

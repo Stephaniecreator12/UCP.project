@@ -5,10 +5,9 @@ import {
 } from "@/services/achats";
 import {
   UserProfile,
+  getValidatorStep,
   isAgentAchatUser,
   isAgentMarcheUser,
-  isFinanceUser,
-  isValidatorUser,
   isLogistiqueUser,
 } from "@/services/auth";
 import { formatFrenchDate, formatFrenchDateTime } from "@/lib/date";
@@ -16,7 +15,7 @@ import { formatFrenchDate, formatFrenchDateTime } from "@/lib/date";
 export const statusLabels: Record<string, string> = {
   BROUILLON: "Brouillon",
   SOUMISE: "Soumise",
-  A_COMPLETER: "À revoir",
+  A_COMPLETER: "À corriger",
   VALIDEE: "Validée",
   VALIDEE_BUDGETAIRE: "Validée pour passation",
   EN_COMMANDE: "En commande",
@@ -266,8 +265,8 @@ const currentOwnerLabels: Record<string, string> = {
 };
 
 export const getDemandeTrackingStageLabel = (demande: DemandeAchat) => {
-  if (demande.statut === "BROUILLON") return "Préparation";
-  if (demande.statut === "A_COMPLETER") return "À revoir";
+  if (demande.statut === "BROUILLON") return "En préparation";
+  if (demande.statut === "A_COMPLETER") return "À corriger";
   if (demande.statut === "VALIDEE_BUDGETAIRE") return "Passation";
   if (["EN_COMMANDE", "EN_LIVRAISON"].includes(demande.statut)) {
     return "Livraison";
@@ -279,7 +278,7 @@ export const getDemandeTrackingStageLabel = (demande: DemandeAchat) => {
     return "Clôture";
   }
   if (demande.statut === "CLOTUREE" || demande.statut === "REJETEE") {
-    return "Archive";
+    return "Archives";
   }
   if (["SOUMISE", "VALIDEE"].includes(demande.statut)) {
     return stepLabels[demande.etape_validation_actuelle] ?? "Validation";
@@ -427,16 +426,6 @@ export const buildLifecycleTimeline = (demande: DemandeAchat): TimelineItem[] =>
         demande.statut,
       ),
   );
-  const budgetHistory = [...(demande.historiques ?? [])]
-    .reverse()
-    .find((item) => item.action === "BUDGET_VALIDE");
-  const hasBudget = Boolean(
-    demande.numero_engagement_budgetaire ||
-      ["VALIDEE_BUDGETAIRE", "EN_COMMANDE", "EN_LIVRAISON", "LIVREE", "CLOTUREE"].includes(
-        demande.statut,
-      ),
-  );
-  const isBudgetCurrent = demande.statut === "VALIDEE";
   const isDeliveryCurrent = ["EN_COMMANDE", "EN_LIVRAISON"].includes(
     demande.statut,
   );
@@ -529,7 +518,14 @@ export const getDemandePrimaryAction = (
   demande: DemandeAchat,
   user: UserProfile | null,
 ): DemandePrimaryAction | null => {
-  if (isValidatorUser(user) || isFinanceUser(user)) {
+  const isOwner = !!user && demande.demandeur === user.id;
+  const validatorStep = getValidatorStep(user);
+
+  if (
+    validatorStep &&
+    demande.statut === "SOUMISE" &&
+    demande.etape_validation_actuelle === validatorStep
+  ) {
     return {
       href: `/demande-achat/${demande.id}/validation`,
       label: "Valider",
@@ -578,7 +574,7 @@ export const getDemandePrimaryAction = (
   }
 
   // Normal user (Demandeur) sees closure
-  if (needsClosureAction(demande)) {
+  if (needsClosureAction(demande) && isOwner) {
     return {
       href: `/demande-achat/${demande.id}/cloture`,
       label: "Clôturer",
@@ -586,7 +582,7 @@ export const getDemandePrimaryAction = (
     };
   }
 
-  if (demande.statut === "A_COMPLETER") {
+  if (demande.statut === "A_COMPLETER" && isOwner) {
     return {
       href: `/demande-achat/corriger/${demande.id}`,
       label: "Modifier",

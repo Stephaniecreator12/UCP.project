@@ -123,6 +123,8 @@ class HistoriqueDemandeSerializer(serializers.ModelSerializer):
 
 
 class DemandeAchatSerializer(serializers.ModelSerializer):
+    # The nested serializers keep the API payload close to the screen structure:
+    # one demande, many lignes, optional supporting documents.
     lignes_besoin = LigneBesoinSerializer(many=True, required=False)
     documents = DocumentDemandeSerializer(many=True, required=False)
     validations = ValidationDemandeReadSerializer(many=True, read_only=True)
@@ -197,6 +199,7 @@ class DemandeAchatSerializer(serializers.ModelSerializer):
             "id",
             "numero_demande",
             "version",
+            # demandeur is assigned from request.user in the service layer.
             "demandeur",
             "demandeur_nom",
             "demandeur_group",

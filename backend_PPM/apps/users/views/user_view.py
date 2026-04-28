@@ -16,7 +16,9 @@ User = get_user_model()
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def me(request):
-
+    # Central profile endpoint consumed by the frontend after login.
+    # It is the place where UI routing can read shared identity data
+    # such as email, username and groups.
     serializer = UserSerializer(request.user)
 
     return Response(serializer.data)

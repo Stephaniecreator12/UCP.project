@@ -468,14 +468,42 @@ class DashboardScopeApiTests(TestCase):
         defaults.update(overrides)
         return DemandeAchat.objects.create(**defaults)
 
-    def test_scope_all_is_forbidden_for_standard_user(self):
+    def test_scope_all_is_available_for_standard_user(self):
         demandeur = self._create_user("simple", "simple@example.com")
+        autre = self._create_user("autre", "autre@example.com")
+        visible = self._create_demande(
+            autre,
+            statut=DemandeAchat.STATUT_SOUMISE,
+            etape_validation_actuelle=DemandeAchat.ETAPE_HIERARCHIQUE,
+        )
+        self._create_demande(
+            autre,
+            statut=DemandeAchat.STATUT_BROUILLON,
+            etape_validation_actuelle=DemandeAchat.ETAPE_HIERARCHIQUE,
+        )
         self.client.force_authenticate(demandeur)
 
         response = self.client.get("/api/achats/demandes/?scope=all")
 
-        self.assertEqual(response.status_code, 403)
-        self.assertIn("Accès réservé", response.json()["detail"])
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(len(payload), 1)
+        self.assertEqual(payload[0]["numero_demande"], visible.numero_demande)
+
+    def test_standard_user_can_view_other_demande_detail(self):
+        demandeur = self._create_user("simpledetail", "simpledetail@example.com")
+        autre = self._create_user("voisin", "voisin@example.com")
+        demande = self._create_demande(
+            autre,
+            statut=DemandeAchat.STATUT_SOUMISE,
+            etape_validation_actuelle=DemandeAchat.ETAPE_HIERARCHIQUE,
+        )
+        self.client.force_authenticate(demandeur)
+
+        response = self.client.get(f"/api/achats/demandes/{demande.id}/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["numero_demande"], demande.numero_demande)
 
     def test_scope_all_returns_global_non_draft_dossiers_for_finance(self):
         finance = self._create_user("finance", "finance@example.com", groups=["FINANCE"])

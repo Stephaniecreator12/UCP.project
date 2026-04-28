@@ -75,6 +75,7 @@ INSTALLED_APPS = [
     'apps.users',
     'apps.ppm',
     'apps.achats',
+    'apps.TdrSt',
 ]
 
 MIDDLEWARE = [
@@ -164,6 +165,8 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
 
 #autoriser acces a front
 
@@ -218,3 +221,4 @@ ACHATS_EMAIL_SUBJECT_PREFIX = os.getenv(
 )
 ACHATS_NOTIFICATION_REPLY_TO = env_list("ACHATS_NOTIFICATION_REPLY_TO")
 FRONTEND_APP_URL = os.getenv("FRONTEND_APP_URL", "http://localhost:3000")
+FRONTEND_URL = FRONTEND_APP_URL

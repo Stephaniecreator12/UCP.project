@@ -26,15 +26,15 @@ export default function TopHeader() {
   return (
     <div className="sticky top-0 z-50">
       <header
-        className="relative h-[1.8cm] overflow-hidden border-b border-[var(--line)] bg-[var(--surface)] shadow-[0_1px_3px_rgba(0,0,0,0.02)]"
+        className="relative h-[1.8cm] overflow-hidden border-b border-[var(--line)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.96))] shadow-[0_1px_3px_rgba(0,0,0,0.02)]"
       >
         {/* Ligne de couleur en haut */}
         <div
-          className="h-[3px] bg-emerald-500"
+          className="h-[3px] bg-gradient-to-r from-emerald-500 via-teal-400 to-sky-400"
           aria-hidden="true"
         />
 
-        <div className="relative z-10 mx-auto flex h-[calc(1.8cm-3px)] max-w-[1480px] items-center justify-between gap-3 px-6">
+        <div className="relative z-10 flex h-[calc(1.8cm-3px)] w-full items-center justify-between gap-3 px-3 sm:px-4 lg:px-5">
           {/* Logo & Brand */}
           <Link
             href={showAuthenticatedActions ? "/formulaire" : "/login"}
@@ -45,26 +45,26 @@ export default function TopHeader() {
               alt="Logo UCP"
               width={48}
               height={48}
-              className="rounded-md border border-slate-200 bg-white object-contain"
+              className="rounded-md border border-emerald-100 bg-white object-contain shadow-sm"
               priority
             />
             <div className="grid min-w-0 gap-0">
-              <strong className="truncate text-[0.85rem] font-black uppercase tracking-widest text-[var(--text)]">
+              <strong className="truncate text-[0.85rem] font-black uppercase tracking-widest text-slate-900">
                 unité de coordination des projets
               </strong>
-              <span className="hidden text-[0.7rem] font-bold uppercase tracking-widest text-[var(--muted)] sm:block">
+              <span className="hidden text-[0.7rem] font-bold uppercase tracking-widest text-teal-700 sm:block">
                 e-Procurement Platform
               </span>
             </div>
           </Link>
 
           {/* Actions - Déconnexion */}
-          <div className="shrink-0 flex items-center gap-4">
+          <div className="flex shrink-0 items-center gap-4">
             {showAuthenticatedActions && (
               <button
                 type="button"
                 onClick={handleLogout}
-                className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-2 text-[11px] font-black uppercase tracking-widest text-[var(--text)] shadow-sm transition-all hover:bg-[var(--panel)] hover:border-[var(--line-strong)]"
+                className="rounded-xl border border-emerald-100 bg-white px-4 py-2 text-[11px] font-black uppercase tracking-widest text-slate-700 shadow-sm transition-all hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700"
               >
                 Déconnexion
               </button>
@@ -75,7 +75,7 @@ export default function TopHeader() {
 
       {showAuthenticatedActions && (
         <div className="-mt-px">
-          <div className="mx-auto max-w-[1480px] px-4 py-1 sm:px-6">
+          <div className="w-full px-3 py-1 sm:px-4 lg:px-5">
             <div className="inline-flex max-w-full">
               <Menu key={pathname} />
             </div>

@@ -51,21 +51,6 @@ def demande_list_create_view(request):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        can_view_all = any(
-            [
-                request.user.is_staff,
-                is_agent_achat(request.user),
-                is_finance(request.user),
-                is_agent_marche(request.user),
-                bool(get_user_validation_step(request.user)),
-            ]
-        )
-        if scope == "all" and not can_view_all:
-            return Response(
-                {"detail": "Accès réservé aux profils globaux."},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
         demandes = list_mes_demandes(request.user, scope=scope)
         serializer = DemandeAchatSerializer(demandes, many=True)
         return Response(serializer.data)
@@ -73,6 +58,8 @@ def demande_list_create_view(request):
     serializer = DemandeAchatSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
 
+    # request.user is passed to the service so the backend, not the frontend,
+    # decides who becomes the demandeur of the dossier.
     demande = create_demande(serializer.validated_data, request.user)
 
     return Response(
@@ -102,18 +89,19 @@ def demande_detail_view(request, demande_id):
     
     demande = get_object_or_404(demande_qs, id=demande_id)
     
-    # Check permissions
-    is_owner = demande.demandeur == request.user
-    role_check = is_agent_achat(request.user) or is_finance(request.user) or is_agent_marche(request.user) or get_user_validation_step(request.user)
-    
-    if not (is_owner or role_check):
-        return Response({"detail": "Non autorisé."}, status=status.HTTP_403_FORBIDDEN)
-
     if request.method == "GET":
+        if (
+            demande.statut == DemandeAchat.STATUT_BROUILLON
+            and demande.demandeur != request.user
+        ):
+            return Response({"detail": "Non autorisé."}, status=status.HTTP_403_FORBIDDEN)
         serializer = DemandeAchatSerializer(demande)
         return Response(serializer.data)
         
     elif request.method == "PATCH":
+        # Draft editing remains attached to the original demandeur only.
+        if demande.demandeur != request.user:
+            return Response({"detail": "Non autorisé."}, status=status.HTTP_403_FORBIDDEN)
         serializer = DemandeAchatSerializer(data=request.data, partial=False)
         serializer.is_valid(raise_exception=True)
         demande = update_demande(demande, serializer.validated_data, request.user)

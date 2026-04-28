@@ -7,6 +7,9 @@ type CompactDocumentRowProps = {
   versionNumber: number;
   isHistorical?: boolean;
   onClick: () => void;
+  onDetailClick: () => void;
+  onActionClick?: () => void;
+  actionButtonLabel?: string;
   isSelected: boolean;
   role?: string | null;
 };
@@ -16,6 +19,9 @@ export function CompactDocumentRow({
   versionNumber,
   isHistorical,
   onClick,
+  onDetailClick,
+  onActionClick,
+  actionButtonLabel,
   isSelected,
   role,
 }: CompactDocumentRowProps) {
@@ -48,7 +54,7 @@ export function CompactDocumentRow({
                 Version {versionNumber}
               </span>
             )}
-            {role === "initiateur" && !isHistorical && document.version > 1 && (
+            {role === "demandeur" && !isHistorical && document.version > 1 && (
               <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
                 v{document.version}
               </span>
@@ -75,17 +81,35 @@ export function CompactDocumentRow({
           </div>
         </div>
 
-        {/* Right side - Date and expand indicator */}
-        <div className="flex items-center gap-4 text-xs text-slate-400">
-          <span>{formattedDate}</span>
-          <svg
-            className={`h-4 w-4 transition-transform group-hover:translate-x-0.5 ${isSelected ? "translate-x-0.5 text-emerald-600" : "text-slate-400"}`}
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>
+        {/* Right side - Buttons and date */}
+        <div className="flex items-center gap-3">
+          <div className="text-right text-xs text-slate-400 hidden sm:block">
+            {formattedDate}
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDetailClick();
+              }}
+              className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-600 transition-colors hover:bg-slate-50"
+            >
+              Détail
+            </button>
+            
+            {actionButtonLabel && onActionClick && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onActionClick();
+                }}
+                className="rounded-lg bg-emerald-600 px-5 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white transition-colors hover:bg-emerald-700"
+              >
+                {actionButtonLabel}
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

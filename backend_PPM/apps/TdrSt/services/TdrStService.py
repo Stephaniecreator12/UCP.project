@@ -75,7 +75,7 @@ def _build_numero_document(doc: TdrStDocument) -> str:
 
 @transaction.atomic
 def create_document(validated_data: dict, user) -> TdrStDocument:
-    doc = TdrStDocument.objects.create(initiateur=user, **validated_data)
+    doc = TdrStDocument.objects.create(demandeur=user, **validated_data)
     doc.numero_document = _build_numero_document(doc)
     doc.save(update_fields=["numero_document"])
 
@@ -84,8 +84,8 @@ def create_document(validated_data: dict, user) -> TdrStDocument:
 
 @transaction.atomic
 def update_document(doc: TdrStDocument, validated_data: dict, user) -> TdrStDocument:
-    if getattr(doc, "initiateur_id", None) != getattr(user, "id", None):
-        raise ValidationError({"detail": "Seul l'initiateur peut modifier ce document."})
+    if getattr(doc, "demandeur_id", None) != getattr(user, "id", None):
+        raise ValidationError({"detail": "Seul le demandeur peut modifier ce document."})
     if doc.statut not in (TdrStDocument.Statut.BROUILLON, TdrStDocument.Statut.A_REVOIR):
         raise ValidationError({"statut": "Modification autorisée uniquement en brouillon/à revoir."})
 
@@ -97,13 +97,13 @@ def update_document(doc: TdrStDocument, validated_data: dict, user) -> TdrStDocu
 
 
 def list_my_documents(user):
-    return TdrStDocument.objects.filter(initiateur=user).select_related("fichier_courant")
+    return TdrStDocument.objects.filter(demandeur=user).select_related("fichier_courant")
 
 
 def list_pending_tech():
     return (
         TdrStDocument.objects.filter(statut=TdrStDocument.Statut.SOUMIS)
-        .select_related("initiateur", "fichier_courant")
+        .select_related("demandeur", "fichier_courant")
         .order_by("-created_at")
     )
 
@@ -121,7 +121,7 @@ def _list_role_documents_with_history(*, pending_qs, treated_etape: str, user=No
     return (
         (pending_qs | treated)
         .distinct()
-        .select_related("initiateur", "fichier_courant")
+        .select_related("demandeur", "fichier_courant")
         .order_by("-updated_at")
     )
 
@@ -148,14 +148,14 @@ def list_tech_documents(user):
     )
 
     return (pending | treated | resubmitted).distinct().select_related(
-        "initiateur", "fichier_courant"
+        "demandeur", "fichier_courant"
     ).order_by("-updated_at")
 
 
 def list_pending_final():
     return (
         TdrStDocument.objects.filter(statut=TdrStDocument.Statut.EN_VALIDATION)
-        .select_related("initiateur", "fichier_courant")
+        .select_related("demandeur", "fichier_courant")
         .order_by("-created_at")
     )
 
@@ -189,7 +189,7 @@ def list_auditeur_documents():
                 TdrStDocument.Statut.SUSPENDU,
             )
         )
-        .select_related("initiateur", "fichier_courant")
+        .select_related("demandeur", "fichier_courant")
         .prefetch_related("actions_validation__acteur")  # Section G — traçabilité complète
         .order_by("-updated_at")
     )
@@ -197,8 +197,8 @@ def list_auditeur_documents():
 
 @transaction.atomic
 def submit_document(doc: TdrStDocument, user) -> TdrStDocument:
-    if getattr(doc, "initiateur_id", None) != getattr(user, "id", None):
-        raise ValidationError({"detail": "Seul l'initiateur peut soumettre ce document."})
+    if getattr(doc, "demandeur_id", None) != getattr(user, "id", None):
+        raise ValidationError({"detail": "Seul le demandeur peut soumettre ce document."})
     
     # Autoriser la soumission depuis BROUILLON ou A_REVOIR
     if doc.statut not in (TdrStDocument.Statut.BROUILLON, TdrStDocument.Statut.A_REVOIR):
@@ -247,7 +247,7 @@ def tech_decide(doc: TdrStDocument, user, decision: str, observations: str = "")
     doc.statut = next_statut
     doc.save(update_fields=["statut", "updated_at"])
     
-    # Envoyer l'email à l'initiateur
+    # Envoyer l'email au demandeur
     send_tech_decision_email(doc, decision, observations)
     
     # Si le document passe en validation finale, notifier les approbateurs
@@ -283,7 +283,7 @@ def final_decide(doc: TdrStDocument, user, decision: str, observations: str = ""
     
     # ENVOI DES EMAILS SELON LE CAS
     if decision == TdrStValidationAction.Decision.APPROUVE:
-        print(f"[EMAIL] Envoi email à l'initiateur pour décision finale - document {doc.numero_document}")
+        print(f"[EMAIL] Envoi email au demandeur pour décision finale - document {doc.numero_document}")
         send_final_decision_email(doc, decision, observations)
     
     return doc
@@ -323,16 +323,16 @@ def suspendre_document(doc: TdrStDocument, user, observations: str = "") -> TdrS
         meta={"action": "SUSPEND"},
     )
     
-    # ENVOI EMAIL À L'INITIATEUR POUR SUSPENSION
-    print(f"[EMAIL] Envoi email à l'initiateur pour suspension - document {doc.numero_document}")
+    # ENVOI EMAIL AU DEMANDEUR POUR SUSPENSION
+    print(f"[EMAIL] Envoi email au demandeur pour suspension - document {doc.numero_document}")
     send_document_suspended_email(doc, observations)
 
     return doc
 
 @transaction.atomic
 def add_new_file_version(doc: TdrStDocument, uploaded_file, user) -> TdrStDocumentFileVersion:
-    if getattr(doc, "initiateur_id", None) != getattr(user, "id", None):
-        raise ValidationError({"detail": "Seul l'initiateur peut téléverser une version."})
+    if getattr(doc, "demandeur_id", None) != getattr(user, "id", None):
+        raise ValidationError({"detail": "Seul le demandeur peut téléverser une version."})
     if doc.statut not in (TdrStDocument.Statut.BROUILLON, TdrStDocument.Statut.A_REVOIR):
         raise ValidationError({"statut": "Téléversement autorisé uniquement en brouillon/à revoir."})
     

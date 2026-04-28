@@ -4,7 +4,7 @@ from django.db import models
 
 class UserProfile(models.Model):
     class Role(models.TextChoices):
-        INITIATEUR = "initiateur", "Initiateur"
+        DEMANDEUR = "demandeur", "Demandeur"
         VERIFICATEUR_TECHNIQUE = "verificateur_technique", "Vérificateur technique"
         APPROBATEUR_FINAL = "approbateur_final", "Approbateur final"
         AUDITEUR = "auditeur", "Auditeur"
@@ -19,7 +19,7 @@ class UserProfile(models.Model):
     role = models.CharField(
         max_length=32,
         choices=Role.choices,
-        default=Role.INITIATEUR,
+        default=Role.DEMANDEUR,
         db_index=True,
     )
 

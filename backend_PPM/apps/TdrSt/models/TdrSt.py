@@ -52,7 +52,7 @@ class TdrStDocument(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    initiateur = models.ForeignKey(
+    demandeur = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
         related_name="tdr_st_documents",
@@ -180,5 +180,4 @@ class TdrStValidationAction(models.Model):
     class Meta:
         db_table = "tdr_st_validation_action"
         ordering = ["-horodatage"] 
-
 

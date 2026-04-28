@@ -1,25 +1,22 @@
 ﻿"use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Activity } from "lucide-react";
-
+import { TdrStFilterBar, useTdrStFilters } from "./components/FinancementFilter";
 import TopHeader from "@/app/components/TopHeader";
 import { getToken } from "@/services/auth";
 import { StatusStepper } from "./components/StatusStepper";
 import { AccordionSection } from "./components/AccordionSection";
-import { DashboardFilterBar } from "./components/DashboardFilterBar";
+import DocumentDetailModal from "./components/DocumentDetailModal";
 import { 
   useTdrStData, 
-  type Statut, 
-  type FundingSource, 
   type TdrStDocument, 
-  type UserRole,
-  STATUT_LABEL
+  type UserRole
 } from "./hooks/useTdrStData";
 
 const ROLE_LABEL: Record<UserRole, string> = {
-  initiateur: "Initiateur (Cadre technique)",
+  demandeur: "Demandeur (Cadre technique)",
   verificateur_technique: "Vérificateur technique (Chef de projet / Point focal)",
   approbateur_final: "Approbateur final (Coordonnateur UCP)",
   auditeur: "Auditeur (Consultation seule)",
@@ -29,24 +26,24 @@ export default function TdRStPage() {
   const router = useRouter();
   const {
     role,
-    currentUsername,
     documents,
-    setDocuments,
     loading,
-    setLoading,
     error,
     success,
-    setNotification,
-    refreshDocs,
     loadUserAndDocs,
-    fetchJson,
   } = useTdrStData();
 
   // UI state
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [fundingFilter, setFundingFilter] = useState<FundingSource | "TOUS">("TOUS");
-  const [statusFilter, setStatusFilter] = useState<string>("TOUS");
+
+  // Nouveaux filtres pour auditeur
+  const { filteredDocuments: financeFilteredDocs, filterProps: tdrFilterProps } = useTdrStFilters({
+    documents,
+    getSourceFinancement: (doc) => doc.sources_financement,
+    getLigneBudgetaire: (doc) => doc.ligne_budgetaire,
+    getNumeroSubvention: (doc) => doc.numero_subvention,
+  });
 
   // Load user and documents on mount
   useEffect(() => {
@@ -58,36 +55,10 @@ export default function TdRStPage() {
     loadUserAndDocs();
   }, [loadUserAndDocs, router]);
 
-  // Get funding options for filter
-  const fundingOptions = useMemo(() => {
-    if (role !== "auditeur") return [];
-    const set = new Set<FundingSource>();
-    documents.forEach((doc) => {
-      let sources: string[] = [];
-      if (typeof doc.sources_financement === "string") {
-        sources = [doc.sources_financement];
-      } else if (Array.isArray(doc.sources_financement)) {
-        sources = doc.sources_financement as string[];
-      }
-      sources.forEach((source) => {
-        if (source === "Fonds mondial" || source === "Banque mondiale" || source === "Alliance GAVI") {
-          set.add(source as FundingSource);
-        }
-      });
-    });
-    return Array.from(set);
-  }, [documents, role]);
-
-  // Get status options for filter
-  const statusOptions = useMemo(() => {
-    if (role !== "auditeur") return [];
-    return ["VALIDE", "REJETE", "SUSPENDU"];
-  }, [role]);
-
-  // Filter documents for auditeur
-  const filteredDocuments = useMemo(() => {
+  // Filtre par recherche textuelle
+  const filteredBySearch = useMemo(() => {
     if (role !== "auditeur") return documents;
-
+    
     const normalize = (value: unknown) =>
       String(value ?? "")
         .normalize("NFD")
@@ -95,22 +66,9 @@ export default function TdRStPage() {
         .toLowerCase();
 
     const query = normalize(searchQuery).trim();
+    if (!query) return financeFilteredDocs;
 
-    return documents.filter((doc) => {
-      if (fundingFilter !== "TOUS") {
-        let sources: string[] = [];
-        if (typeof doc.sources_financement === "string") {
-          sources = [doc.sources_financement];
-        } else if (Array.isArray(doc.sources_financement)) {
-          sources = doc.sources_financement as string[];
-        }
-        if (!sources.includes(fundingFilter)) return false;
-      }
-
-      if (statusFilter !== "TOUS" && doc.statut !== statusFilter) return false;
-
-      if (!query) return true;
-
+    return financeFilteredDocs.filter((doc) => {
       const haystack = normalize([
         doc.numero_document,
         doc.intitule,
@@ -118,14 +76,15 @@ export default function TdRStPage() {
         doc.unite_technique,
         doc.reference_ptba,
       ].join(" "));
-
       return haystack.includes(query);
     });
-  }, [documents, role, fundingFilter, statusFilter, searchQuery]);
+  }, [documents, role, financeFilteredDocs, searchQuery]);
+
+  const finalDocuments = role === "auditeur" ? filteredBySearch : documents;
 
   // Group documents by section
   const sections = useMemo(() => {
-    const docs = role === "auditeur" ? filteredDocuments : documents;
+    const docs = finalDocuments;
 
     // Pour l'auditeur: tous les documents sont dans l'archive
     if (role === "auditeur") {
@@ -139,8 +98,8 @@ export default function TdRStPage() {
       };
     }
 
-    // Pour initiateur
-    if (role === "initiateur") {
+    // Pour demandeur
+    if (role === "demandeur") {
       return {
         draft: docs.filter((d) => d.statut === "BROUILLON"),
         pending: docs.filter((d) => d.statut === "SOUMIS"),
@@ -183,21 +142,44 @@ export default function TdRStPage() {
       all: [],
       archive: [],
     };
-  }, [documents, filteredDocuments, role]);
+  }, [finalDocuments, role]);
 
   const selectedDocument = useMemo(
     () => documents.find((d) => d.id === selectedId) || null,
     [documents, selectedId]
   );
 
-  const resetFilters = () => {
+  const resetSearch = () => {
     setSearchQuery("");
-    setFundingFilter("TOUS");
-    setStatusFilter("TOUS");
   };
 
-  const hasActiveFilters = searchQuery || fundingFilter !== "TOUS" || statusFilter !== "TOUS";
-  const totalDocuments = role === "auditeur" ? filteredDocuments.length : documents.length;
+  const hasActiveFilters = searchQuery !== "" || 
+    tdrFilterProps.selectedFinancements.length > 0 || tdrFilterProps.selectedStatuses.length > 0;
+
+  const totalDocuments = finalDocuments.length;
+
+  const [selectedDetailDoc, setSelectedDetailDoc] = useState<TdrStDocument | null>(null);
+
+  const getActionButtonLabel = (doc: TdrStDocument): string | null => {
+    if (role === "demandeur" && (doc.statut === "BROUILLON" || doc.statut === "A_REVOIR")) {
+      return "Modifier";
+    }
+    return null;
+  };
+
+  const handleActionClick = (doc: TdrStDocument) => {
+    setSelectedId(doc.id);
+    setSelectedDetailDoc(doc);
+  };
+
+  const handleDetailClick = (doc: TdrStDocument) => {
+    setSelectedDetailDoc(doc);
+    setSelectedId(doc.id);
+  };
+
+  const handleCloseDetailModal = () => {
+    setSelectedDetailDoc(null);
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -230,8 +212,18 @@ export default function TdRStPage() {
                   placeholder="Rechercher un numéro, un objet..."
                   className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-10 text-[13px] font-medium outline-none shadow-sm focus:border-emerald-300 focus:outline-none focus:ring-4 focus:ring-emerald-500/10"
                 />
+                {searchQuery && (
+                  <button
+                    onClick={resetSearch}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
               </div>
-              {role === "initiateur" && (
+              {role === "demandeur" && (
                 <button
                   onClick={() => router.push("/TdrSt/new")}
                   className="inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-slate-900 px-5 py-2.5 text-[13px] font-semibold text-white transition-colors hover:bg-slate-800"
@@ -243,29 +235,22 @@ export default function TdRStPage() {
           </div>
         </div>
 
-        {/* Filter bar for auditeur */}
-        <DashboardFilterBar
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          fundingFilter={fundingFilter}
-          setFundingFilter={setFundingFilter}
-          fundingOptions={fundingOptions}
-          statusFilter={statusFilter}
-          setStatusFilter={setStatusFilter}
-          statusOptions={statusOptions}
-          onReset={resetFilters}
-          isAuditeur={role === "auditeur"}
-        />
+        <TdrStFilterBar filterProps={tdrFilterProps} compact={false} />
+        
 
         {/* Active filters indicator */}
         {hasActiveFilters && role === "auditeur" && (
           <div className="mb-4 flex items-center gap-2 text-sm text-slate-500">
             <span>Filtres actifs:</span>
             <button
-              onClick={resetFilters}
+              onClick={() => {
+                resetSearch();
+                tdrFilterProps.setSelectedFinancements([]);
+                tdrFilterProps.setSelectedStatuses([]);
+              }}
               className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-200"
             >
-              Réinitialiser
+              Tout réinitialiser
             </button>
           </div>
         )}
@@ -287,27 +272,35 @@ export default function TdRStPage() {
         {/* Sections */}
         {!loading && (
           <div className="space-y-4">
-            {/* INITIE - Brouillons (visible seulement pour initiateur) */}
-            {role === "initiateur" && sections.draft.length > 0 && (
+            {/* INITIE - Brouillons (visible seulement pour demandeur) */}
+            {role === "demandeur" && sections.draft.length > 0 && (
               <AccordionSection
                 sectionKey="draft"
                 title="Initie"
                 documents={sections.draft}
                 selectedId={selectedId}
                 onSelectDocument={(id) => setSelectedId(id)}
+                onDetailClick={handleDetailClick}
+                onActionClick={handleActionClick}
+                getActionButtonLabel={getActionButtonLabel}
                 role={role ?? undefined}
+                defaultOpen={false}
               />
             )}
 
             {/* EN ATTENTE DE DECISION - Pour verificateur technique */}
-            {(role === "verificateur_technique" || role === "initiateur") && sections.pending.length > 0 && (
+            {(role === "verificateur_technique" || role === "demandeur") && sections.pending.length > 0 && (
               <AccordionSection
                 sectionKey="pending"
                 title="En attente de décision"
                 documents={sections.pending}
                 selectedId={selectedId}
                 onSelectDocument={(id) => setSelectedId(id)}
-                role={role}
+                onDetailClick={handleDetailClick}
+                onActionClick={handleActionClick}
+                getActionButtonLabel={getActionButtonLabel}
+                role={role ?? undefined}
+                defaultOpen={false}
               />
             )}
 
@@ -319,19 +312,27 @@ export default function TdRStPage() {
                 documents={sections.correction}
                 selectedId={selectedId}
                 onSelectDocument={(id) => setSelectedId(id)}
+                onDetailClick={handleDetailClick}
+                onActionClick={handleActionClick}
+                getActionButtonLabel={getActionButtonLabel}
                 role={role ?? undefined}
+                defaultOpen={false}
               />
             )}
 
             {/* A VALIDER - Pour approbateur final */}
-            {(role === "approbateur_final" || role === "initiateur" || role === "verificateur_technique") && sections.validation.length > 0 && (
+            {(role === "approbateur_final" || role === "demandeur" || role === "verificateur_technique") && sections.validation.length > 0 && (
               <AccordionSection
                 sectionKey="validation"
                 title="À valider"
                 documents={sections.validation}
                 selectedId={selectedId}
                 onSelectDocument={(id) => setSelectedId(id)}
-                role={role}
+                onDetailClick={handleDetailClick}
+                onActionClick={handleActionClick}
+                getActionButtonLabel={getActionButtonLabel}
+                role={role ?? undefined}
+                defaultOpen={false}
               />
             )}
 
@@ -343,7 +344,11 @@ export default function TdRStPage() {
                 documents={sections.all}
                 selectedId={selectedId}
                 onSelectDocument={(id) => setSelectedId(id)}
+                onDetailClick={handleDetailClick}
+                onActionClick={handleActionClick}
+                getActionButtonLabel={getActionButtonLabel}
                 role={role ?? undefined}
+                defaultOpen={false}
               />
             )}
 
@@ -355,7 +360,11 @@ export default function TdRStPage() {
                 documents={sections.archive}
                 selectedId={selectedId}
                 onSelectDocument={(id) => setSelectedId(id)}
+                onDetailClick={handleDetailClick}
+                onActionClick={handleActionClick}
+                getActionButtonLabel={getActionButtonLabel}
                 role={role ?? undefined}
+                defaultOpen={false}
               />
             )}
 
@@ -367,8 +376,10 @@ export default function TdRStPage() {
                   {role === "auditeur" ? "Aucun document archivé" : "Aucun document"}
                 </h2>
                 <p className="text-sm text-slate-500">
-                  {role === "initiateur"
+                  {role === "demandeur"
                     ? "Commencez par créer votre premier document."
+                    : role === "auditeur"
+                    ? "Aucun document ne correspond aux filtres sélectionnés."
                     : "Aucun document n'est encore disponible."}
                 </p>
               </div>
@@ -398,6 +409,14 @@ export default function TdRStPage() {
           </div>
         </div>
       )}
+      {/* Modale de détail */}
+      <DocumentDetailModal
+        document={selectedDetailDoc}
+        open={!!selectedDetailDoc}
+        onClose={handleCloseDetailModal}
+      />
     </div>
   );
 }
+
+

@@ -38,7 +38,7 @@ html, body {
 @media (min-width: 1024px) and (pointer: fine) {
   html {
     zoom: 0.8;
-  }
+  } 
 
   /* Compense le zoom pour garder la mÃªme largeur visuelle des conteneurs centrÃ©s */
   .max-w-\[1480px\] {

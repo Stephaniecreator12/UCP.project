@@ -30,8 +30,8 @@ class RolePermission(BasePermission):
         return bool(role) and role in self.allowed_roles
 
 
-class IsInitiateur(RolePermission):
-    allowed_roles = (UserProfile.Role.INITIATEUR,)
+class IsDemandeur(RolePermission):
+    allowed_roles = (UserProfile.Role.DEMANDEUR,)
 
 
 class IsVerificateurTechnique(RolePermission):
@@ -43,4 +43,3 @@ class IsApprobateurFinal(RolePermission):
 
 class IsAuditeur(RolePermission):
     allowed_roles = (UserProfile.Role.AUDITEUR,)
-

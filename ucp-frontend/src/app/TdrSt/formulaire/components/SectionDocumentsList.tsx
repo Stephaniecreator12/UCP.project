@@ -11,6 +11,9 @@ type SectionDocumentsListProps = {
   documents: TdrStDocument[];
   selectedId: number | null;
   onSelectDocument: (id: number, version?: number) => void;
+  onDetailClick: (doc: TdrStDocument) => void;
+  onActionClick?: (doc: TdrStDocument) => void;
+  getActionButtonLabel?: (doc: TdrStDocument) => string | null;
   role?: string | null;
   title?: string;
   emptyMessage?: string;
@@ -20,6 +23,9 @@ export function SectionDocumentsList({
   documents,
   selectedId,
   onSelectDocument,
+  onDetailClick,
+  onActionClick,
+  getActionButtonLabel,
   role,
   title,
   emptyMessage = "Aucun document",
@@ -56,6 +62,9 @@ export function SectionDocumentsList({
             document={doc}
             versionNumber={doc.version || 1}
             onClick={() => onSelectDocument(doc.id)}
+            onDetailClick={() => onDetailClick(doc)}
+            onActionClick={onActionClick ? () => onActionClick(doc) : undefined}
+            actionButtonLabel={getActionButtonLabel ? getActionButtonLabel(doc) ?? undefined : undefined}
             isSelected={selectedId === doc.id}
             role={role}
           />

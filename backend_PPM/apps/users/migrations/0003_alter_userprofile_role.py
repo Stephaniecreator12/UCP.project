@@ -13,6 +13,6 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='userprofile',
             name='role',
-            field=models.CharField(choices=[('initiateur', 'Initiateur'), ('verificateur_technique', 'Vérificateur technique'), ('approbateur_final', 'Approbateur final'), ('bailleur', 'Bailleur'), ('auditeur', 'Auditeur')], db_index=True, default='initiateur', max_length=32),
+            field=models.CharField(choices=[('demandeur', 'Demandeur'), ('verificateur_technique', 'Vérificateur technique'), ('approbateur_final', 'Approbateur final'), ('bailleur', 'Bailleur'), ('auditeur', 'Auditeur')], db_index=True, default='demandeur', max_length=32),
         ),
     ]

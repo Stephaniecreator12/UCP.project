@@ -1,6 +1,6 @@
 "use client";
 
-import { TdrStDocument, TdrStFormState, makeEmptyForm } from "../hooks/useTdrStData";
+import { TdrStDocument, TdrStFormState } from "../hooks/useTdrStData";
 
 type DocumentFormModalProps = {
   isOpen: boolean;

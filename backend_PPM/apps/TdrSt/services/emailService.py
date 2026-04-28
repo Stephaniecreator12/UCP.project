@@ -30,7 +30,7 @@ def send_document_submitted_email(document: TdrStDocument) -> None:
         "numero": document.numero_document,
         "intitule": document.intitule,
         "unite": document.unite_technique,
-        "initiateur": document.initiateur.get_full_name() or document.initiateur.username,
+        "demandeur": document.demandeur.get_full_name() or document.demandeur.username,
         "url": f"{settings.FRONTEND_URL}/TdrSt/verification/{document.id}",
         "logo_url": f"{settings.FRONTEND_URL}/ucp-sante-logo-color.png",
     }
@@ -52,7 +52,7 @@ def send_document_submitted_email(document: TdrStDocument) -> None:
 
 
 def send_tech_decision_email(document: TdrStDocument, decision: str, observations: str) -> None:
-    """Email envoyé à l'initiateur après décision technique."""
+    """Email envoyé au demandeur après décision technique."""
     if decision == TdrStValidationAction.Decision.FAVORABLE:
         subject = f"[TdR/ST] Document validé techniquement - {document.numero_document}"
         template = "emails/tech_favorable.html"
@@ -72,13 +72,13 @@ def send_tech_decision_email(document: TdrStDocument, decision: str, observation
     html_message = render_to_string(template, context)
     plain_message = strip_tags(html_message)
     
-    if document.initiateur.email:
-        print(f"Envoi email à l'initiateur : {document.initiateur.email}")
+    if document.demandeur.email:
+        print(f"Envoi email au demandeur : {document.demandeur.email}")
         send_mail(
             subject=subject,
             message=plain_message,
             from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[document.initiateur.email],
+            recipient_list=[document.demandeur.email],
             html_message=html_message,
             fail_silently=False,
         )
@@ -102,7 +102,7 @@ def send_demande_final_approve_email(document: TdrStDocument) -> None:
         "numero": document.numero_document,
         "intitule": document.intitule,
         "unite": document.unite_technique,
-        "initiateur": document.initiateur.get_full_name() or document.initiateur.username,
+        "demandeur": document.demandeur.get_full_name() or document.demandeur.username,
         "url": f"{settings.FRONTEND_URL}/TdrSt/approbation/{document.id}",
         "logo_url": f"{settings.FRONTEND_URL}/ucp-sante-logo-color.png",
     }
@@ -124,7 +124,7 @@ def send_demande_final_approve_email(document: TdrStDocument) -> None:
 
 
 def send_final_decision_email(document: TdrStDocument, decision: str, observations: str) -> None:
-    """Email envoyé à l'initiateur après décision finale."""
+    """Email envoyé au demandeur après décision finale."""
     if decision == TdrStValidationAction.Decision.APPROUVE:
         subject = f"[TdR/ST] Document approuvé - {document.numero_document}"
         template = "emails/final_approve.html"
@@ -144,20 +144,20 @@ def send_final_decision_email(document: TdrStDocument, decision: str, observatio
     html_message = render_to_string(template, context)
     plain_message = strip_tags(html_message)
     
-    if document.initiateur.email:
-        print(f"Envoi email à l'initiateur : {document.initiateur.email}")
+    if document.demandeur.email:
+        print(f"Envoi email au demandeur : {document.demandeur.email}")
         send_mail(
             subject=subject,
             message=plain_message,
             from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[document.initiateur.email],
+            recipient_list=[document.demandeur.email],
             html_message=html_message,
             fail_silently=False,
         )
 
 
 def send_document_suspended_email(document: TdrStDocument, observations: str) -> None:
-    """Email envoyé à l'initiateur quand un document est suspendu."""
+    """Email envoyé au demandeur quand un document est suspendu."""
     subject = f"[TdR/ST] Document suspendu - {document.numero_document}"
     
     context = {
@@ -172,13 +172,13 @@ def send_document_suspended_email(document: TdrStDocument, observations: str) ->
     html_message = render_to_string("emails/document_suspended.html", context)
     plain_message = strip_tags(html_message)
     
-    if document.initiateur.email:
-        print(f"Envoi email à l'initiateur : {document.initiateur.email}")
+    if document.demandeur.email:
+        print(f"Envoi email au demandeur : {document.demandeur.email}")
         send_mail(
             subject=subject,
             message=plain_message,
             from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[document.initiateur.email],
+            recipient_list=[document.demandeur.email],
             html_message=html_message,
             fail_silently=False,
         )

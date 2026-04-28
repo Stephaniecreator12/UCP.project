@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { getToken } from "@/services/auth";
 
 export type DocumentType = "TDR" | "ST";
@@ -14,7 +14,7 @@ export type Statut =
   | "SUSPENDU";
 
 export type UserRole =
-  | "initiateur"
+  | "demandeur"
   | "verificateur_technique"
   | "approbateur_final"
   | "auditeur";
@@ -207,9 +207,9 @@ export function useTdrStData() {
   const [success, setSuccess] = useState<string | null>(null);
 
   const refreshDocs = useCallback(
-    async (r: UserRole, opts?: { keepSelectedId?: number | null }) => {
+    async (r: UserRole) => {
       const url =
-        r === "initiateur"
+        r === "demandeur"
           ? `${API_PREFIX}/documents/me/`
           : r === "verificateur_technique"
             ? `${API_PREFIX}/validations/tech/documents/`

@@ -1,18 +1,9 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { ChevronDown, Activity, Clock, CheckCircle2, Trash2, Archive, FileText } from "lucide-react";
+import { ChevronDown, Activity, Clock, Archive, FileText } from "lucide-react";
 import { TdrStDocument } from "../hooks/useTdrStData";
 import { SectionDocumentsList } from "./SectionDocumentsList";
-
-type SectionConfig = {
-  key: string;
-  title: string;
-  icon: React.ElementType;
-  iconClass: string;
-  badgeClass: string;
-  emptyText: string;
-};
 
 type AccordionSectionProps = {
   sectionKey: string;
@@ -21,7 +12,10 @@ type AccordionSectionProps = {
   documents: TdrStDocument[];
   selectedId: number | null;
   onSelectDocument: (id: number, version?: number) => void;
-  role?: string;
+  onDetailClick: (doc: TdrStDocument) => void;
+  onActionClick?: (doc: TdrStDocument) => void;
+  getActionButtonLabel?: (doc: TdrStDocument) => string | null;
+  role?: string | null;
   defaultOpen?: boolean;
 };
 
@@ -50,6 +44,9 @@ export function AccordionSection({
   documents,
   selectedId,
   onSelectDocument,
+  onDetailClick,
+  onActionClick,
+  getActionButtonLabel,
   role,
   defaultOpen = false,
 }: AccordionSectionProps) {
@@ -66,6 +63,10 @@ export function AccordionSection({
       }, 100);
     }
   }, [isOpen, hasItems]);
+
+  if (documents.length === 0 && !defaultOpen) {
+    return null;
+  }
 
   return (
     <div
@@ -116,7 +117,10 @@ export function AccordionSection({
           <SectionDocumentsList
             documents={documents}
             selectedId={selectedId}
-            onSelectDocument={(id) => onSelectDocument(id)}
+            onSelectDocument={onSelectDocument}
+            onDetailClick={onDetailClick}
+            onActionClick={onActionClick}
+            getActionButtonLabel={getActionButtonLabel}
             role={role}
           />
         </div>

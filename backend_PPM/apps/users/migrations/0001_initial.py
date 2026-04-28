@@ -21,13 +21,13 @@ class Migration(migrations.Migration):
                     "role",
                     models.CharField(
                         choices=[
-                            ("initiateur", "Initiateur"),
+                            ("demandeur", "Demandeur"),
                             ("verificateur_technique", "Vérificateur technique"),
                             ("approbateur_final", "Approbateur final"),
                             ("bailleur", "Bailleur"),
                         ],
                         db_index=True,
-                        default="initiateur",
+                        default="demandeur",
                         max_length=32,
                     ),
                 ),
@@ -44,4 +44,3 @@ class Migration(migrations.Migration):
             ],
         ),
     ]
-

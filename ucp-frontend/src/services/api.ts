@@ -4,7 +4,7 @@
  */
 
 export const API_BASE_URL =
-  "";
+  "http://127.0.0.1:8000";
 export const API_RH_URL = "http://192.168.0.168:8000"
 const SESSION_EXPIRED_MESSAGE = "Session expirée. Connecte-toi puis réessaie.";
 
@@ -12,7 +12,7 @@ const clearSessionAndRedirectToLogin = () => {
   if (typeof window === "undefined") return;
   localStorage.removeItem("access_token");
   localStorage.removeItem("refresh_token");
-  window.location.href = "/login";
+  window.location.href = "/auth/login";
 };
 
 const throwSessionExpiredError = (): never => {

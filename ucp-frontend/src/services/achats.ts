@@ -241,8 +241,12 @@ export interface CloseDemandePayload {
   date_cloture?: string;
 }
 
+// Le dashboard peut charger seulement les dossiers du demandeur
+// ou toute la file visible selon l'écran affiché.
 export type DashboardScope = "mine" | "all";
 
+// Toute perte d'authentification sur le module achats repasse ici
+// pour garder un comportement uniforme.
 const handleUnauthorized = (): never => {
   logout();
   if (typeof window !== "undefined") {
@@ -305,6 +309,8 @@ const errorFieldLabels: Record<string, string> = {
   unite_technique: "Unite technique",
 };
 
+// Le backend renvoie parfois des messages très techniques; on les traduit
+// ici en messages plus exploitables côté interface.
 const translateApiMessage = (message: string) => {
   const trimmed = message.trim();
 
@@ -407,6 +413,8 @@ const formatApiError = (data: unknown) => {
   return "Erreur API";
 };
 
+// Point d'entrée unique pour tous les appels JSON du module "état de besoins".
+// On y gère le token, les erreurs et l'uniformité des réponses.
 const apiFetch = async <T>(
   path: string,
   init: RequestInit = {},
@@ -453,6 +461,7 @@ const apiFetch = async <T>(
   return data as T;
 };
 
+// Variante dédiée aux pièces jointes et aperçus de documents.
 const apiFetchBlob = async (
   path: string,
   init: RequestInit = {},
@@ -494,6 +503,8 @@ const apiFetchBlob = async (
   return await response.blob();
 };
 
+// Le scope "all" est porté par le query param pour réutiliser
+// le même endpoint backend.
 export const listDemandesAchat = (scope: DashboardScope = "mine") => {
   const query = scope === "all" ? "?scope=all" : "";
   return apiFetch<DemandeAchat[]>(`/api/achats/demandes/${query}`, {
@@ -520,7 +531,7 @@ export const updateDemandeAchat = (id: number, payload: UpdateDemandePayload) =>
   });
 
 export const resubmitDemandeAchat = (id: number) =>
-  // Can reuse submit, or if backend expects something else, we use /submit/
+  // Une correction repart dans le même circuit que la première soumission.
   apiFetch<DemandeAchat>(`/api/achats/demandes/${id}/submit/`, {
     method: "POST",
     body: JSON.stringify({}),
@@ -542,7 +553,8 @@ export const getDemandeAchatById = (id: number) =>
     method: "GET",
   });
 
-
+// À partir d'ici, on enchaîne les actions métier du dossier:
+// soumission, validation, passation, livraison, réception et clôture.
 export const submitDemandeAchat = (id: number) =>
   apiFetch<DemandeAchat>(`/api/achats/demandes/${id}/submit/`, {
     method: "POST",

@@ -12,6 +12,8 @@ import {
 } from "@/services/auth";
 import { formatFrenchDate, formatFrenchDateTime } from "@/lib/date";
 
+// Ces dictionnaires centralisent les libellés métier du module
+// "état de besoins" pour garder la même terminologie partout.
 export const statusLabels: Record<string, string> = {
   BROUILLON: "Brouillon",
   SOUMISE: "Soumise",
@@ -141,6 +143,8 @@ export type DemandePrimaryAction = {
   tone: "emerald" | "sky" | "slate" | "amber";
 };
 
+// Une réception est considérée comme finalisée seulement si elle se trouve
+// dans l'un de ces états de sortie.
 const finalReceptionStatuses = [
   "RECEPTION_COMPLETE",
   "RECEPTION_PARTIELLE",
@@ -232,7 +236,8 @@ type DashboardDisplayDemande = DemandeAchat & {
 };
 
 export const getCompactNeedLabel = (demande: DashboardDisplayDemande) => {
-  // If we have optimized fields from DemandeAchatListSerializer
+  // Si la liste provient du serializer optimisé, on exploite directement
+  // les champs condensés envoyés par le backend.
   if (demande.first_designation !== undefined) {
     const first = demande.first_designation || demande.objet;
     const count = demande.lignes_count || 0;
@@ -264,6 +269,8 @@ const currentOwnerLabels: Record<string, string> = {
   TERMINEE: "Circuit terminé",
 };
 
+// Ce helper regroupe les statuts techniques dans une étape lisible
+// pour l'utilisateur final: validation, passation, livraison, etc.
 export const getDemandeTrackingStageLabel = (demande: DemandeAchat) => {
   if (demande.statut === "BROUILLON") return "En préparation";
   if (demande.statut === "A_COMPLETER") return "À corriger";
@@ -287,6 +294,8 @@ export const getDemandeTrackingStageLabel = (demande: DemandeAchat) => {
   return statusLabels[demande.statut] ?? demande.statut;
 };
 
+// Le "responsable courant" affiché dans le dashboard dépend à la fois
+// du statut global et de l'étape de validation réellement en cours.
 export const getDemandeCurrentOwnerLabel = (demande: DemandeAchat) => {
   if (demande.statut === "BROUILLON") return "Demandeur";
   if (demande.statut === "A_COMPLETER") return "Demandeur";
@@ -352,6 +361,8 @@ const getBusinessMsBetween = (start: Date, end: Date) => {
   return total;
 };
 
+// Les alertes de délai du dashboard sont calculées en jours ouvrés
+// pour coller au rythme réel du traitement administratif.
 export const getValidationDeadlineState = (demande: DemandeAchat) => {
   if (!["SOUMISE", "A_COMPLETER"].includes(demande.statut)) return null;
 
@@ -382,6 +393,8 @@ const getValidationForStep = (
   step: EtapeValidation,
 ) => validations.find((validation) => validation.etape === step);
 
+// On reconstruit ici la chronologie complète du dossier afin d'alimenter
+// la vue timeline affichée dans le détail.
 export const buildLifecycleTimeline = (demande: DemandeAchat): TimelineItem[] => {
   const currentValidationIndex = timelineValidationSteps.findIndex(
     (step) => step.key === demande.etape_validation_actuelle,
@@ -514,6 +527,8 @@ export const buildLifecycleTimeline = (demande: DemandeAchat): TimelineItem[] =>
   ];
 };
 
+// Point central qui décide quel bouton principal afficher selon
+// le rôle connecté et l'avancement du dossier.
 export const getDemandePrimaryAction = (
   demande: DemandeAchat,
   user: UserProfile | null,
@@ -573,7 +588,7 @@ export const getDemandePrimaryAction = (
     return null;
   }
 
-  // Normal user (Demandeur) sees closure
+  // Le demandeur reprend la main au moment de la clôture finale.
   if (needsClosureAction(demande) && isOwner) {
     return {
       href: `/demande-achat/${demande.id}/cloture`,

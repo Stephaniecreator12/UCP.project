@@ -201,6 +201,8 @@ const inferFundingSourceFromPtba = (value: string) => {
 const buildTdrStRedirectUrl = (documentId: number, demandeId: number) =>
   `/TdrSt/formulaire?id=${documentId}&source=demande-achat&demandeId=${demandeId}`;
 
+// Si la demande doit passer par TDR/ST, on transforme ici les données
+// de l'état de besoins en brouillon minimal exploitable par ce module.
 const buildTdrDraftPayloadFromDemande = ({
   lignes,
   typeDemande,
@@ -261,7 +263,7 @@ function NotificationPopup({ message, type, onClose }: { message: string, type: 
   
   const isError = type === 'error';
   
-  // Positionné en bas à droite pour être bien visible mais sans bloquer l'interface, style très clean type "Sonner"
+  // Positionné en bas à droite pour rester visible sans gêner la saisie.
   return (
     <div className={`ucp-toast ${isError ? "ucp-toast--error" : "ucp-toast--success"} animate-in slide-in-from-bottom-8 fade-in duration-300`}>
       <div className="ucp-toast__icon-shell">
@@ -549,7 +551,7 @@ function LigneBesoinModal({
 export default function NouvelleDemandePage() {
   const router = useRouter();
   
-  // Section A states
+  // États du formulaire principal.
   const [uniteTechnique, setUniteTechnique] = useState("");
   const [categorieBesoin, setCategorieBesoin] = useState("");
   const [typeDemande, setTypeDemande] = useState("");
@@ -559,14 +561,14 @@ export default function NouvelleDemandePage() {
   const [lienPtba, setLienPtba] = useState("");
   const [serviceBeneficiaire, setServiceBeneficiaire] = useState("");
   
-  // Besoins
+  // Lignes de besoins ajoutées par l'utilisateur.
   const [lignes, setLignes] = useState<LigneForm[]>([]);
   const [ligneModalOpen, setLigneModalOpen] = useState(false);
   const [editingLigneIndex, setEditingLigneIndex] = useState<number | null>(null);
   const [ligneDraft, setLigneDraft] = useState<LigneForm>(emptyLigne("MATERIELS"));
   const [ligneModalError, setLigneModalError] = useState<string | null>(null);
 
-  // UI states
+  // États d'interface: chargement, popup, annuaire, etc.
   const [saving, setSaving] = useState(false);
   const [notification, setNotification] = useState<{message: string, type: 'error' | 'success'} | null>(null);
   const [serviceRoutingModalOpen, setServiceRoutingModalOpen] = useState(false);
@@ -585,6 +587,8 @@ export default function NouvelleDemandePage() {
   useEffect(() => {
     let active = true;
 
+    // Le destinataire final peut venir d'un annuaire externe, mais
+    // la saisie manuelle reste possible si cet annuaire est indisponible.
     const loadPersonnel = async () => {
       if (!getToken()) return;
 
@@ -627,6 +631,8 @@ export default function NouvelleDemandePage() {
     }
   };
 
+  // On normalise ici la ligne de formulaire pour l'envoyer au backend
+  // avec les bons types et sans valeurs vides parasites.
   const buildLignePayload = (ligne: LigneForm) => ({
     designation: normalizeText(ligne.designation),
     marque_modele: normalizeText(ligne.marque_modele),
@@ -646,6 +652,8 @@ export default function NouvelleDemandePage() {
     nombre_beneficiaires: normalizeInteger(ligne.nombre_beneficiaires),
   });
 
+  // Toutes les validations bloquantes du formulaire passent ici afin
+  // d'avoir un seul point de contrôle avant soumission.
   const validateBeforeSubmit = () => {
     if (!uniteTechnique) {
        setNotification({message: "La cellule est obligatoire.", type: 'error'});
@@ -696,6 +704,8 @@ export default function NouvelleDemandePage() {
     return true;
   };
 
+  // Cette fonction orchestre la création du dossier puis la bifurcation:
+  // validation directe ou préparation d'un brouillon TDR/ST.
   const submitDemandeFlow = async (choice: ServiceRoutingChoice) => {
     setSaving(true);
     let createdDemandeId: number | null = null;
@@ -764,6 +774,8 @@ export default function NouvelleDemandePage() {
     }
   };
 
+  // Le bouton "soumettre" choisit d'abord le parcours métier à suivre
+  // avant de lancer le flux réel d'enregistrement.
   const handleSubmit = async (e: FormEvent | null) => {
     if (e) e.preventDefault();
     if (!validateBeforeSubmit()) return;
@@ -889,7 +901,7 @@ export default function NouvelleDemandePage() {
       <div className="zoom-content h-full">
         <div className="max-w-[1400px] mx-auto px-4 md:px-6 gap-6 mt-8 pb-12 flex flex-col animate-in slide-in-from-bottom-6 duration-700">
         
-        {/* EN-TETE HERO - MODERN, COLORFUL & REFINED */}
+        {/* En-tête principal de l'écran de création. */}
         <div className="bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 p-5 flex flex-col md:flex-row md:items-center justify-between gap-6 relative overflow-hidden group w-full">
            <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-emerald-100 to-teal-50 opacity-50 rounded-full blur-3xl -z-10 group-hover:scale-110 transition-transform duration-700"></div>
            
@@ -916,7 +928,7 @@ export default function NouvelleDemandePage() {
 
         <form onSubmit={handleSubmit} className="space-y-6 w-full">
           
-          {/* SECTION 1: INFORMATIONS ADMINISTRATIVES */}
+          {/* Section 1: informations administratives de la demande. */}
           <div className="group relative overflow-hidden rounded-3xl border border-white/40 bg-white/70 shadow-[0_8px_32px_rgba(0,0,0,0.05)] backdrop-blur-md transition-all duration-500 hover:shadow-[0_12px_48px_rgba(0,0,0,0.08)]">
              <div className="absolute top-0 left-0 h-1.5 w-full bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-500 bg-[length:200%_100%] animate-gradient"></div>
              <div className="p-6">

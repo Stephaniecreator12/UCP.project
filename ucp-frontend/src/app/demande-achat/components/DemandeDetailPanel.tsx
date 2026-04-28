@@ -39,6 +39,8 @@ type DemandeDetailPanelProps = {
   defaultShowTimeline?: boolean;
 };
 
+// Ces tables ne servent qu'à rendre les champs backend plus lisibles
+// dans la fiche détaillée d'un état de besoins.
 const uniteTechniqueLabels: Record<string, string> = {
   FONDS_PROPRES: "Fonds Propres",
   GAVI: "GAVI",
@@ -92,6 +94,8 @@ const getDocumentFileName = (value?: string | null) => {
   }
 };
 
+// Ces helpers évitent d'afficher des blocs ou des cellules vides
+// quand une information n'est pas encore renseignée.
 const hasDisplayValue = (value: ReactNode) =>
   value !== null && value !== undefined && value !== "";
 
@@ -145,6 +149,8 @@ export default function DemandeDetailPanel({
   const [documentError, setDocumentError] = useState<string | null>(null);
   const timeline = useMemo(() => buildLifecycleTimeline(demande), [demande]);
 
+  // Chaque sous-section métier du détail ne s'affiche que si le dossier
+  // contient déjà des informations utiles pour cette étape.
   const hasPassationData = Boolean(
     demande.type_procedure ||
       demande.fournisseur_retenu ||
@@ -184,6 +190,8 @@ export default function DemandeDetailPanel({
       demande.commentaires_finaux,
   );
 
+  // Les pièces jointes sont ouvertes via le backend pour conserver
+  // l'authentification et éviter d'exposer des URLs directes.
   const handleOpenDocument = async (documentId: number) => {
     setDocumentError(null);
     setOpeningDocumentId(documentId);

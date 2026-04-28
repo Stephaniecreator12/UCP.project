@@ -23,7 +23,7 @@ const readErrorMessage = async (response: Response): Promise<string> => {
 };
 
 export async function listExternalPersonnel(): Promise<PersonnelDirectoryOption[]> {
-  const response = await fetch("/api/personnel/externe", {
+  const response = await fetch("/api/users/external-personnel/", {
     method: "GET",
     cache: "no-store",
   });

@@ -340,6 +340,9 @@ export default function DashboardPage() {
   const rawScope = (searchParams.get("scope") ?? "").trim().toLowerCase();
   const dashboardScope: DashboardScope = rawScope === "all" ? "all" : "mine";
   const searchParamsString = searchParams.toString();
+
+  // On recalcule les URLs de navigation en conservant les autres paramètres
+  // (filtres, recherche...) quand on change juste le scope.
   const mineScopeHref = useMemo(() => {
     const params = new URLSearchParams(searchParamsString);
     params.delete("scope");
@@ -363,6 +366,8 @@ export default function DashboardPage() {
   const { filteredDemandes, filterProps } = useDashboardFilters(demandes);
   const { setSelectedFinancements, setSelectedTypes } = filterProps;
 
+  // Recharge rapide utilisée après les actions modales pour remettre
+  // le dashboard à jour sans recharger toute la page.
   const reloadDemandes = async () => {
     try {
       const data = await listDemandesAchat(dashboardScope);
@@ -416,6 +421,9 @@ export default function DashboardPage() {
     () => filteredDemandes.filter((d) => d.statut === "A_COMPLETER"),
     [filteredDemandes],
   );
+
+  // Les validations sont découpées par étape afin d'afficher une section
+  // distincte selon l'endroit exact où le dossier est bloqué.
   const validationDemandesBySection = useMemo(
     () =>
       filteredDemandes.reduce(
@@ -473,6 +481,8 @@ export default function DashboardPage() {
     [archiveDemandes],
   );
 
+  // "sections" sert de source de vérité à la vue par statut:
+  // titre, icône, style et liste des dossiers.
   const sections = useMemo<Record<SectionKey, SectionData>>(
     () => ({
       preparation: {
@@ -608,6 +618,7 @@ export default function DashboardPage() {
     [closedArchiveDemandes, rejectedArchiveDemandes],
   );
 
+  // On impose ici l'ordre métier de lecture du tableau de bord.
   const orderedSections = useMemo(
     () => [
       sections.preparation,
@@ -627,6 +638,9 @@ export default function DashboardPage() {
     () => (isSearching ? filterDemandesByQuery(filteredDemandes, query) : []),
     [isSearching, filteredDemandes, query],
   );
+
+  // La vue tableau et la vue recherche réutilisent la même source:
+  // soit les résultats de recherche, soit la liste filtrée normale.
   const radarDemandes = useMemo(
     () => (isSearching ? searchResults : filteredDemandes),
     [filteredDemandes, isSearching, searchResults],
@@ -908,6 +922,8 @@ export default function DashboardPage() {
         }}
       />
 
+      {/* Tous les retours de succès du dashboard passent par ce toast unique
+          pour garder le même feedback visuel dans le module. */}
       {toastMessage && (
         <div className="ucp-toast ucp-toast--success animate-in slide-in-from-bottom-8 fade-in duration-300">
           <CheckCircle2 className="h-6 w-6 shrink-0" />
@@ -1396,6 +1412,8 @@ function CompactDemandeRow({
   const currentOwner = getDemandeCurrentOwnerLabel(demande);
   const demandeurLabel = demande.demandeur_nom || "Demandeur non renseigné";
 
+  // Cette carte compacte est réutilisée dans la recherche, les sections
+  // et les archives pour conserver la même lecture partout.
   return (
     <div className="flex flex-col justify-between gap-4 rounded-xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-center">
       <div className="flex-1 min-w-0">

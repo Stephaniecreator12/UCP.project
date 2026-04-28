@@ -3,7 +3,7 @@
 import { use, useEffect, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import  {register}  from "../../../services/auth";
+import  {publicLoginOrRegister}  from "../../../services/auth";
 
 export default function RegisterPage(){
     const [full_name, setFull_name] = useState("");
@@ -36,7 +36,7 @@ export default function RegisterPage(){
         return;
       }
       try {
-        const result = await register(full_name, email, phone, type_entite, nif, password);
+        const result = await publicLoginOrRegister(full_name, email, phone, type_entite, nif, password);
         setMessage(result.message || "Action réussie");
         setIsRegisterValid(result.success);
         setIsMessage(true);
@@ -133,7 +133,7 @@ useEffect(() => {
                       {/* Email */}
                       <div>
                         <input
-                          type="text"
+                          type="email"
                           className="w-full p-3 rounded-xl text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 transition-all focus:ring-emerald-400/60 focus:border-emerald-300 border border-[#ced1d1] bg-slate-800/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}

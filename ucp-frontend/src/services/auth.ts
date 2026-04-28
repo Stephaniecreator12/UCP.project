@@ -1,12 +1,15 @@
+
 import { API_BASE_URL, API_RH_URL } from "./api";
 
 interface LoginResult {
+  status: number;
   success: boolean;
   message?: string;
 }
 interface RegisterResult {
+  status: number;
   success: boolean;
-  message?: string;
+  message: string;
 }
 
 export const login = async (
@@ -25,15 +28,23 @@ export const login = async (
     if (response.ok) {
       localStorage.setItem("access_token", data.access);
       localStorage.setItem("refresh_token", data.refresh);
-      return { success: true };
+      return {status:200, success: true };
     }
-
-    return {
+    if (response.status == 400) {
+      return {
+      status: 400,
       success: false,
-      message: "Nom d'utilisateur ou mot de passe incorrect",
+      message: "l'adresse e-mail ou mot de passe incorrect",
+    };
+    
+    }
+    return {
+      status: 404,
+      success: false,
+      message: "l'adresse e-mail est introuvable",
     };
   } catch {
-    return { success: false, message: "Erreur de connexion au serveur" };
+    return { status: 500,success: false, message: "Erreur de connexion au serveur" };
   }
 };
 
@@ -48,7 +59,46 @@ export const getToken = () => {
   return localStorage.getItem("access_token");
 };
 
-export const register = async (
+export const publicLogin = async (
+  full_name: string,
+  email: string,
+  phone: string,
+  type_entite: string,
+  nif: string,
+  password: string,
+): Promise<RegisterResult> =>{
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/public/login/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password, full_name, phone, type_entite, nif }),
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      localStorage.setItem("access_token", data.access);
+      localStorage.setItem("refresh_token", data.refresh);
+      return {status:200, success: true ,message: "Connexion réussie"};
+    }
+    if (response.status == 400) {
+      return {
+      status: 400,
+      success: false,
+      message: "l'adresse e-mail ou mot de passe incorrect",
+    };
+    
+    }
+    return {
+      status: 404,
+      success: false,
+      message: "l'adresse e-mail est introuvable",
+    };
+  } catch {
+    return {status:500, success: false, message: "Erreur de connexion au serveur" };
+  }
+}
+export const publicRegister = async (
   full_name: string,
   email: string,
   phone: string,
@@ -72,7 +122,7 @@ export const register = async (
     });
     const result = await response.json();
     if (response.ok) {
-      return { success: true , message: "Profil enregistré"};
+      return {status:201, success: true , message: "Profil enregistré"};
     }
     let errorMessage = '';
     if (result.email) {
@@ -89,16 +139,53 @@ else if (result.phone) {
   errorMessage = result.type_entite[0];
 }
     else{
-      errorMessage = "Une erreur est survenue"
+      return {
+      status:400,
+      success: false,
+      message: "Une erreur est survenue",
+    };
     }
     return {
+      status:404,
       success: false,
       message: errorMessage,
     };
   } catch {
-    return { success: false, message: "Erreur de connexion au serveur" };
+    return {status:500, success: false, message: "Erreur de connexion au serveur" };
   }
 };
+export const publicLoginOrRegister = async(full_name: string,
+  email: string,
+  phone: string,
+  type_entite: string,
+  nif: string,
+  password: string
+) : Promise<RegisterResult> =>{
+  const loginRes = await publicLogin(
+    full_name,
+    email,
+    phone,
+    type_entite,
+    nif,
+    password
+  );
+
+  if (loginRes.success) {
+    return {status:200, success: true, message: "Connexion réussie" };
+  }
+
+  if (loginRes.status === 404 || loginRes.message.includes("introuvable") ) {
+    return await publicRegister(
+    full_name,
+    email,
+    phone,
+    type_entite,
+    nif,
+    password
+    ); 
+  }
+  return loginRes;
+}
 
 export const isUCPDomain = (email: string): boolean =>{
   const domain = email.split('@')

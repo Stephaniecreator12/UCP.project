@@ -104,7 +104,7 @@ const handleLogin = async (e: React.FormEvent) => {
                   Email
                 </label>
                 <input
-                  type="text"
+                  type="email"
                   className="w-full p-3 rounded-xl text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 transition-all focus:ring-emerald-400/60 focus:border-emerald-300 border border-[#ced1d1] bg-slate-800/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}

@@ -19,6 +19,8 @@ VALIDATION_FLOW = [
     DemandeAchat.ETAPE_APPROBATION_FINALE,
 ]
 
+# Maps Django groups to the business step they are allowed to validate.
+# This is the main bridge between authentication data and the achats workflow.
 GROUP_TO_STEP = {
     "VALIDATEUR_HIERARCHIQUE": DemandeAchat.ETAPE_HIERARCHIQUE,
     "VALIDATEUR_TECHNIQUE": DemandeAchat.ETAPE_TECHNIQUE,
@@ -111,6 +113,8 @@ def _apply_budget_step_data(demande, donnees_etape):
     }
 
 def get_user_validation_step(user):
+    # A user may belong to several groups; the first matching workflow group
+    # determines the queue used by this module.
     user_group_names = set(user.groups.values_list("name", flat=True))
 
     for group_name, step in GROUP_TO_STEP.items():
@@ -193,6 +197,8 @@ def traiter_validation(demande, user, decision, commentaire="", donnees_etape=No
         donnees_etape=donnees_etape,
     )
 
+    # The request status changes first, then the next owner step is computed.
+    # This keeps the workflow state readable from the DemandeAchat row itself.
     update_fields = {"statut", "etape_validation_actuelle", "updated_at"}
 
     if decision in RETURN_FOR_CORRECTION_DECISIONS:

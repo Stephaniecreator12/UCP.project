@@ -159,14 +159,7 @@ export const isLogistiqueUser = (user: UserProfile | null) =>
   isAgentMarcheUser(user);
 
 export const canUseGlobalDashboard = (user: UserProfile | null) =>
-  !!user &&
-  (
-    user.is_staff ||
-    isValidatorUser(user) ||
-    isFinanceUser(user) ||
-    isAgentAchatUser(user) ||
-    isAgentMarcheUser(user)
-  );
+  !!user;
 
 export const getValidatorGroup = (
   user: UserProfile | null,
@@ -269,6 +262,8 @@ export const login = async (
 
       localStorage.setItem("access_token", payload.access);
       localStorage.setItem("refresh_token", payload.refresh);
+      // The profile is fetched right after token creation because the frontend
+      // routing logic depends on groups and email, not only on the JWT itself.
       await fetchCurrentUser();
       return { success: true };
     }

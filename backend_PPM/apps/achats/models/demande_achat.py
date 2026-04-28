@@ -184,6 +184,8 @@ class DemandeAchat(models.Model):
     numero_demande = models.CharField(max_length=30, unique=True, blank=True)
     version = models.PositiveIntegerField(default=1)
 
+    # Business owner of the purchase request.
+    # In normal usage this is filled from request.user when the draft is created.
     demandeur = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
@@ -198,6 +200,7 @@ class DemandeAchat(models.Model):
         choices=STATUT_CHOICES,
         default=STATUT_BROUILLON,
     )
+    # Tracks which validation role currently owns the dossier.
     etape_validation_actuelle = models.CharField(
         max_length=30,
         choices=ETAPE_VALIDATION_CHOICES,

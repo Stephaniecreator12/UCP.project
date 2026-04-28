@@ -7,6 +7,7 @@ import { Search, X, ChevronDown, Package, ClipboardList, ChevronLeft, ChevronRig
 import TopHeader from "@/app/components/TopHeader";
 import DemandeDetailModal from "@/app/demande-achat/components/DemandeDetailModal";
 import PassationModal from "@/app/demande-achat/components/PassationModal";
+import DashboardTableView from "@/app/demande-achat/components/DashboardTableView";
 import { DashboardFilterBar, useDashboardFilters } from "@/app/demande-achat/components/DashboardFilterBar";
 import {
   type DemandePrimaryAction,
@@ -30,6 +31,7 @@ import { DemandeAchat, listDemandesPassation } from "@/services/achats";
 
 type SectionKey = "passation" | "ordered";
 type DetailViewMode = "detail" | "timeline";
+type DisplayMode = "status" | "table";
 
 type SectionData = {
   key: SectionKey;
@@ -139,6 +141,7 @@ export default function PassationDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const [displayMode, setDisplayMode] = useState<DisplayMode>("status");
   const [activeSection, setActiveSection] = useState<SectionKey | null>("passation");
   const [selectedDemandeId, setSelectedDemandeId] = useState<number | null>(null);
   const [detailViewMode, setDetailViewMode] = useState<DetailViewMode>("detail");
@@ -218,8 +221,24 @@ export default function PassationDashboardPage() {
 
   const isSearching = query.trim().length > 0;
   const searchResults = useMemo(() => isSearching ? filterDemandesByQuery(filteredDemandes, query) : [], [isSearching, filteredDemandes, query]);
+  const radarDemandes = useMemo(
+    () => (isSearching ? searchResults : filteredDemandes),
+    [filteredDemandes, isSearching, searchResults],
+  );
 
   const selectedDemande = useMemo(() => demandes.find((item) => item.id === selectedDemandeId) ?? null, [demandes, selectedDemandeId]);
+
+  const handleRunTableAction = (
+    demande: DemandeAchat,
+    action: DemandePrimaryAction,
+  ) => {
+    if (action.href.endsWith("/passation")) {
+      setPassationModalDemandeId(demande.id);
+      return;
+    }
+
+    router.push(action.href);
+  };
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-800 font-sans antialiased selection:bg-sky-100 selection:text-sky-900 pb-12">
@@ -238,20 +257,47 @@ export default function PassationDashboardPage() {
               </div>
             </div>
 
-            <div className="flex items-center gap-3 w-full md:w-auto">
-              <div className="group relative flex-1 sm:w-72">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 transition-colors group-focus-within:text-sky-500" />
-                <input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Rechercher un dossier par numéro, objet..."
-                  className="w-full bg-white border border-slate-300/80 rounded-xl py-2.5 pl-9 pr-9 text-sm outline-none shadow-sm transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/10 placeholder:text-slate-400"
-                />
-                {query && (
-                  <button onClick={() => setQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-rose-500 transition-colors">
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                )}
+            <div className="flex w-full flex-col gap-3 md:w-auto md:min-w-[430px] md:items-end">
+              <div className="inline-flex items-center gap-1 self-start rounded-xl border border-slate-200 bg-white p-1 shadow-sm md:self-auto">
+                <button
+                  type="button"
+                  onClick={() => setDisplayMode("status")}
+                  className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                    displayMode === "status"
+                      ? "bg-slate-900 text-white shadow-sm"
+                      : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                  }`}
+                >
+                  Vue par statut
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDisplayMode("table")}
+                  className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                    displayMode === "table"
+                      ? "bg-slate-900 text-white shadow-sm"
+                      : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                  }`}
+                >
+                  Vue tableau
+                </button>
+              </div>
+
+              <div className="flex items-center gap-3 w-full md:w-auto">
+                <div className="group relative flex-1 sm:w-72">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 transition-colors group-focus-within:text-sky-500" />
+                  <input
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Rechercher un dossier par numéro, objet..."
+                    className="w-full bg-white border border-slate-300/80 rounded-xl py-2.5 pl-9 pr-9 text-sm outline-none shadow-sm transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/10 placeholder:text-slate-400"
+                  />
+                  {query && (
+                    <button onClick={() => setQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-rose-500 transition-colors">
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -300,6 +346,19 @@ export default function PassationDashboardPage() {
                     </button>
                   )}
                 </div>
+              ) : displayMode === "table" ? (
+                <DashboardTableView
+                  title="Radar des dossiers en passation"
+                  items={radarDemandes}
+                  query={query}
+                  currentUser={currentUser}
+                  emptyText="Aucun dossier visible dans cette vue."
+                  onOpenDetail={(id) => {
+                    setSelectedDemandeId(id);
+                    setDetailViewMode("detail");
+                  }}
+                  onRunAction={handleRunTableAction}
+                />
               ) : isSearching ? (
                 <div className="animate-in slide-in-from-top-2 fade-in duration-300">
                   <SearchResultsList
@@ -403,7 +462,7 @@ function SearchResultsList({ items, query, currentUser, router, onOpenDetail, on
       <div className="bg-slate-50 border-b border-slate-200 px-5 py-4">
         <h2 className="text-[12px] font-black uppercase tracking-widest text-slate-900">Résultats de recherche</h2>
         <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-1">
-          {items.length} correspondant à "{query}"
+          {items.length} correspondant à « {query} »
         </p>
       </div>
       

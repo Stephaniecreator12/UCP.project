@@ -20,6 +20,8 @@ export default function LoginPage() {
   useEffect(() => {
     if (getToken()) {
       const currentUser = getCurrentUser();
+      // Reuse the same landing rule after page refresh so the login page
+      // does not stay visible once a session already exists.
       router.replace(getLandingRouteForUser(currentUser));
     }
   }, [router]);
@@ -32,6 +34,7 @@ export default function LoginPage() {
 
     if (result.success) {
       const currentUser = getCurrentUser();
+      // The destination is decided from the fetched user profile.
       router.push(getLandingRouteForUser(currentUser));
     } else {
       setError(result.error || "Une erreur est survenue");

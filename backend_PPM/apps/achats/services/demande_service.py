@@ -22,6 +22,9 @@ from apps.achats.services.notification_service import (
 NUMERO_PREFIX = "UCP/DA"
 BON_COMMANDE_PREFIX = "UCP/BC"
 ENGAGEMENT_PREFIX = "ENG"
+
+# These constants define access by Django group names.
+# A user can be visible in several work queues depending on membership.
 AGENT_ACHAT_GROUP = "AGENT_ACHAT"
 LOGISTIQUE_GROUP = "LOGISTIQUE"
 AGENT_MARCHE_GROUP = "AGENT_MARCHE"
@@ -125,6 +128,7 @@ def list_mes_demandes(user, scope="mine"):
 
 
 def is_agent_achat(user):
+    # Keep group checks in helpers so the rest of the service layer stays readable.
     return user.groups.filter(name=AGENT_ACHAT_GROUP).exists()
 
 def is_agent_marche(user):
@@ -326,6 +330,8 @@ def create_demande(validated_data, user):
         try:
             demande = DemandeAchat.objects.create(
                 numero_demande=numero_demande,
+                # The connected user becomes the demandeur of the draft.
+                # This is the key link used later by permissions and history.
                 demandeur=user,
                 numero_subvention=_build_numero_subvention(
                     validated_data.get("source_financement")
@@ -423,6 +429,7 @@ def submit_demande(demande, user):
 
     demande.statut = DemandeAchat.STATUT_SOUMISE
     if was_brouillon:
+        # The workflow always starts with hierarchical validation on first submit.
         demande.etape_validation_actuelle = DemandeAchat.ETAPE_HIERARCHIQUE
     demande.submitted_at = timezone.now()
     demande.save(

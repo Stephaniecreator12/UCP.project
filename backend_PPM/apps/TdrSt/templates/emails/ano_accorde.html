@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #17212e; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #0ea85b, #078848); color: white; padding: 20px; border-radius: 10px 10px 0 0; }
+        .content { background: #f6faf8; padding: 20px; border: 1px solid #d9dee3; border-top: none; border-radius: 0 0 10px 10px; }
+        .info-box { background: white; padding: 15px; border-radius: 10px; margin: 15px 0; border: 1px solid #e2e8f0; }
+        .button { display: inline-block; background: linear-gradient(180deg, #15ba66, #078848); color: white; padding: 10px 24px; border-radius: 25px; text-decoration: none; margin-top: 15px; font-weight: bold; }
+        .footer { margin-top: 20px; font-size: 12px; color: #627080; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 15px; }
+        .badge-success { display: inline-block; background: #0ea85b; color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div style="text-align: center; margin-bottom: 12px;">
+                <img src="{{ logo_url }}" alt="Logo UCP" width="74" height="74" style="display: inline-block; border-radius: 12px; background: rgba(255,255,255,0.95); border: 1px solid rgba(255,255,255,0.6); padding: 6px; box-shadow: 0 0 18px rgba(0,0,0,0.18);" />
+            </div>
+            <h2 style="margin: 0;">✅ Avis ANO accordé</h2>
+        </div>
+        <div class="content">
+            <div class="badge-success">ANO ACCORDÉ</div>
+            <p>Bonjour,</p>
+            <p>L'avis de non-objection (ANO) a été <strong>accordé</strong> pour votre document :</p>
+            
+            <div class="info-box">
+                <p><strong>📋 Numéro :</strong> {{ numero }}</p>
+                <p><strong>🏷️ Intitulé :</strong> {{ intitule }}</p>
+            </div>
+            
+            {% if observations %}
+            <div style="background: #f0fdf4; padding: 12px; border-radius: 8px; margin: 15px 0; border-left: 3px solid #0ea85b;">
+                <p><strong>📝 Commentaires :</strong></p>
+                <p style="margin: 5px 0 0 0;">{{ observations }}</p>
+            </div>
+            {% endif %}
+            
+            <p>Le document est maintenant validé.</p>
+            
+            <a href="{{ url }}" class="button">voir document</a>
+            
+            <div class="footer">
+                <p>Ce message est automatique, merci de ne pas y répondre.</p>
+                <p>Application TdR/ST - Passation de marchés</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

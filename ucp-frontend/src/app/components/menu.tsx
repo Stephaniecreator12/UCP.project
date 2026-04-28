@@ -65,6 +65,11 @@ const VALIDATOR_LINKS: MenuLink[] = [
       pathname === "/validation" || pathname.startsWith("/validation/"),
   },
   {
+    label: "TDR",
+    href: "/TdrSt",
+    match: (pathname) => pathname === "/TdrSt" || pathname.startsWith("/TdrSt/"),
+  },
+  {
     label: "état de besoins",
     href: "/demande-achat",
     match: (pathname) =>

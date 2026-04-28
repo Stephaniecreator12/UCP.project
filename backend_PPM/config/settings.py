@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 from pathlib import Path
 import os 
 
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -45,7 +46,8 @@ INSTALLED_APPS = [
 
     'apps.users',
     'apps.ppm',
-    'apps.TdrSt'
+    'apps.TdrSt',
+    'apps.achats'
 ]
 
 MIDDLEWARE = [

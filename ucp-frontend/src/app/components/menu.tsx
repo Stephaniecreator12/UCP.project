@@ -15,7 +15,8 @@ const LINKS: MenuLink[] = [
   { label: "PPM", href: "/formulaire", match: (pathname) => pathname === "/formulaire" },
   { label: "Dashboard", href: "/dashboard", match: (pathname) => pathname === "/dashboard" },
   { label: "TdR / ST", href: "/TdrSt/formulaire", match: (pathname) => pathname === "/TdrSt/formulaire" },
-];
+  { label: "Achats", href: "/demande-achat", match: (pathname) => pathname === "/demande-achat" },
+]; 
 
 export default function Menu({ className = "" }: { className?: string }) {
   const pathname = usePathname();

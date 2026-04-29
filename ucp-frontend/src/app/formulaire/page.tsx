@@ -312,33 +312,49 @@ const handleRowSave = async (row: GridRow) => {
 
 
   return (
-    <div className="min-h-screen overflow-hidden bg-[radial-gradient(circle_at_10%_0%,#f6faf8_0%,transparent_25%),linear-gradient(180deg,#f8fafc_0%,#f1f5f9_100%)] text-slate-800 font-sans antialiased">
+    <div className="h-screen overflow-hidden bg-[radial-gradient(circle_at_10%_0%,#f6faf8_0%,transparent_25%),linear-gradient(180deg,#eceeef_0%,#e8eaed_100%)] text-[#17212e] font-sans">
       <TopHeader />
-      <div className="zoom-content h-full">
-        <div className="page-enter grid grid-cols-[auto_minmax(0,1fr)] max-[1150px]:grid-cols-1 gap-6 p-6 overflow-hidden">
+      <div className="page-enter grid grid-cols-[auto_minmax(0,1fr)] max-[1150px]:grid-cols-1 gap-2 p-2 overflow-hidden">
         <div className="page-enter-up" style={{ animationDelay: "0.08s" }}>
           <SidebarMenu activeMenu={activeMenu} onMenuSelect={setActiveMenu} />
         </div>
 
-        <main className="page-enter-up min-w-0 flex flex-col gap-6" style={{ animationDelay: "0.14s" }}>
-          <header className="page-enter-up relative group overflow-hidden rounded-3xl border border-white/40 bg-white/70 p-6 shadow-[0_8px_32px_rgba(0,0,0,0.05)] backdrop-blur-md transition-all duration-500 hover:shadow-[0_12px_48px_rgba(0,0,0,0.08)]" style={{ animationDelay: "0.2s" }}>
-            <div className="absolute top-0 left-0 h-1.5 w-full bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-500 bg-[length:200%_100%] animate-gradient"></div>
-            
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-              <div>
-                <p className="text-[11px] font-black uppercase tracking-[0.12em] text-slate-400">PPM : Plan de Passation des Marchés</p>
-                <h1 className="mt-1 text-2xl font-black tracking-tight text-emerald-800">{config.label}</h1>
+        <main
+          className="page-enter-up min-w-0 flex h-[calc(100vh-15px)] flex-col overflow-hidden rounded-[14px] border border-[#d9dee3] bg-white p-3 py-2 shadow-[0_18px_36px_-30px_rgba(34,44,52,0.5)]"
+          style={{ animationDelay: "0.14s", position: "relative" }}
+        >
+          <header
+            className="page-enter-up relative grid grid-cols-[minmax(0,1fr)_auto] gap-4 rounded-[14px] border border-[#d9dee3] bg-white px-4 pb-4 pt-[0.95rem] shadow-[0_18px_36px_-30px_rgba(34,44,52,0.5)] max-[900px]:grid-cols-1"
+            style={{ animationDelay: "0.2s" }}
+          >
+            <div
+              className="absolute inset-x-0 top-0 h-1 rounded-t-[14px] bg-gradient-to-r from-[#0ea85b] to-[#57d18d]"
+              aria-hidden="true"
+            />
+
+            <div>
+              <p className="m-0 text-[0.7rem] uppercase tracking-[0.05em] text-[#627080]">
+                Passation de marchés
+              </p>
+              <h1 className="my-[0.32rem] text-[1.3rem] font-bold tracking-[0.05em] text-[#0c7340]">
+                {config.label}
+              </h1>
+            </div>
+
+            <div className="grid grid-cols-[auto_auto] justify-end gap-[0.65rem] max-[900px]:grid-cols-1">
+              <div className="w-[138px] rounded-xl border border-[#d9dee3] bg-[#f6f7f8] px-[0.7rem] py-[5px] max-[900px]:w-full">
+                <span className="m-0 text-[0.7rem] uppercase tracking-[0.05em] text-[#627080]">
+                  Marchés
+                </span>
+                <strong className="mt-[0.06rem] block text-[#0c7340]">{rows.length}</strong>
               </div>
-              
-              <div className="flex items-center gap-4">
-                <div className="rounded-2xl border border-slate-100 bg-slate-50/50 px-5 py-2 shadow-inner backdrop-blur-sm">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Marchés</span>
-                  <strong className="block text-lg font-black text-emerald-600">{rows.length}</strong>
-                </div>
-                <div className="rounded-2xl border border-emerald-100 bg-emerald-50/50 px-5 py-2 shadow-inner backdrop-blur-sm">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-500">Total estimatif (Ar)</span>
-                  <strong className="block text-lg font-black text-emerald-700">{totalEstimatedAmountDisplay}</strong>
-                </div>
+              <div className="w-[253px] rounded-xl border border-[#d9dee3] bg-[#f6f7f8] px-[0.7rem] py-[5px] max-[900px]:w-full">
+                <span className="m-0 text-[0.7rem] uppercase tracking-[0.05em] text-[#627080]">
+                  Montant total estimatif (Ar)
+                </span>
+                <strong className="mt-[0.06rem] block text-[#0c7340]">
+                  {totalEstimatedAmountDisplay}
+                </strong>
               </div>
             </div>
           </header>
@@ -346,7 +362,7 @@ const handleRowSave = async (row: GridRow) => {
           {/* SaveMessage en bas Ã  droite, animÃ© droite -> gauche */}
           {saveMessage && (
             <div
-              className={`fixed z-[100] left-4 right-4 bottom-4 rounded-[18px] border px-5 py-4 text-[15px] font-bold leading-6 shadow-[0_24px_60px_rgba(15,23,42,0.22)] ring-1 ring-white/60 transition-opacity duration-200 animate-saveMessageSlide sm:left-auto sm:right-6 sm:bottom-[20px] sm:min-w-[320px] sm:max-w-[460px] sm:px-6 sm:py-5 sm:text-base ${
+              className={`fixed bottom-[20px] right-6 z-[100] min-w-[220px] max-w-[340px] rounded-[10px] border px-[0.8rem] py-[0.65rem] font-semibold shadow-lg transition-opacity duration-200 animate-saveMessageSlide ${
                 saveMessage.type === "success" || saveMessage.type === "warning"
                   ? "bg-[#e6f8ef] border-[#bce9cd] text-[#0c6f3d]"
                   : "bg-[#fde9e9] border-[#f6c8c8] text-[#8d2525]"
@@ -357,8 +373,11 @@ const handleRowSave = async (row: GridRow) => {
             </div>
           )}
 
-          <div className="page-enter-up relative overflow-hidden rounded-3xl border border-white/40 bg-white/70 shadow-[0_8px_32px_rgba(0,0,0,0.05)] backdrop-blur-md flex flex-col flex-1" style={{ animationDelay: "0.28s", minHeight: "60vh" }}>
-            <div className="flex-1 overflow-hidden">
+          <div
+            className="page-enter-up mt-[0.9rem] flex min-h-0 flex-1 flex-col overflow-hidden rounded-[14px] border border-[#d9dee3] bg-white shadow-[0_18px_36px_-30px_rgba(34,44,52,0.5)]"
+            style={{ animationDelay: "0.28s" }}
+          >
+            <div className="min-h-0 max-h-[80vh] flex-1 overflow-hidden">
               <GridTable
                 columns={columnsForGrid}
                 rows={rows}
@@ -370,29 +389,33 @@ const handleRowSave = async (row: GridRow) => {
                 isLoading={isLoading || isSaving}
               />
             </div>
-            
-            <div className="flex items-center justify-start p-4 border-t border-slate-200/50 bg-slate-50/30 backdrop-blur-sm max-[900px]:hidden">
+
+            <div className="relative z-50 flex min-h-[58px] items-center justify-start border-t border-[rgba(171,187,177,0.7)] bg-[linear-gradient(180deg,rgba(246,250,248,0.98),rgba(236,243,239,0.98))] px-[14px] py-[10px] max-[900px]:hidden">
               <button
                 type="button"
-                className="group relative flex items-center gap-3 overflow-hidden rounded-2xl bg-emerald-600 px-8 py-3 text-[14px] font-black uppercase tracking-wider text-white shadow-[0_10px_20px_rgba(5,150,105,0.2)] transition-all hover:bg-emerald-700 hover:shadow-[0_15px_30px_rgba(5,150,105,0.3)] hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:translate-y-0 disabled:shadow-none"
+                className="inline-flex items-center gap-[0.44rem] rounded-full border border-[#76cba0] bg-[linear-gradient(180deg,#15ba66,#078848)] px-4 py-[0.52rem] font-bold text-white transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-55"
                 onClick={handleAddRow}
                 disabled={isLoading || isSaving || hasUnsavedRow}
               >
-                <Plus className="h-5 w-5" />
+                <Plus className="h-4 w-4" />
                 <span>Ajouter une ligne</span>
               </button>
             </div>
           </div>
 
           {/* Bouton Flottant Ajouter une ligne Mobile */}
-          <div className="page-enter-up hidden max-[900px]:block fixed right-4 bottom-4 z-50" style={{ animationDelay: "0.34s" }} aria-hidden="false">
+          <div
+            className="page-enter-up fixed right-4 bottom-4 z-50 hidden max-[900px]:block"
+            style={{ animationDelay: "0.34s" }}
+            aria-hidden="false"
+          >
             <button
               type="button"
-              className="inline-flex items-center gap-[0.44rem] py-[0.52rem] px-4 rounded-full font-bold transition-all duration-200 border border-[#76cba0] bg-[linear-gradient(180deg,#15ba66,#078848)] text-white shadow-lg disabled:opacity-55 disabled:cursor-not-allowed"
+              className="inline-flex items-center gap-[0.44rem] rounded-full border border-[#76cba0] bg-[linear-gradient(180deg,#15ba66,#078848)] px-4 py-[0.52rem] font-bold text-white shadow-lg transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-55"
               onClick={handleAddRow}
               disabled={isLoading || isSaving || hasUnsavedRow}
             >
-              <span className="text-[1rem] leading-none" aria-hidden="true">+</span>
+              <Plus className="h-4 w-4" />
               <span>Ajouter une ligne</span>
             </button>
           </div>
@@ -467,6 +490,5 @@ const handleRowSave = async (row: GridRow) => {
         </main>
       </div>
     </div>
-  </div>
-);
+  );
 }

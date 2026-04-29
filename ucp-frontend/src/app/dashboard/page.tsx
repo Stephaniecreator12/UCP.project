@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import TopHeader from "@/app/components/TopHeader";
 import { getAllProcurements, Procurement } from "@/services/api";
 import { getToken } from "@/services/auth";
-import { Cell, Pie, PieChart, ResponsiveContainer } from "recharts";
+import { DonutPieChart } from "@/app/dashboard/components/donut";
 
 type ProcurementType = "Travaux" | "Biens" | "Consultance";
 
@@ -30,7 +30,16 @@ type DonutSegment = DistributionItem & {
 
 const RADIAN = Math.PI / 180;
 
-function renderPercentLabel(props: any) {
+type PercentLabelProps = {
+  cx?: number;
+  cy?: number;
+  midAngle?: number;
+  innerRadius?: number;
+  outerRadius?: number;
+  percent?: number;
+};
+
+function renderPercentLabel(props: PercentLabelProps) {
   const { cx, cy, midAngle, innerRadius, outerRadius, percent } = props ?? {};
   if (typeof percent !== "number" || percent < 0.05) return null;
 
@@ -105,10 +114,7 @@ function normalizeKey(value: unknown) {
     .replace(/[\u0300-\u036f]/g, "");
 }
 
-function buildDistribution(
-  items: Procurement[],
-  getValue: (item: Procurement) => unknown,
-) {
+function buildDistribution(items: Procurement[], getValue: (item: Procurement) => unknown) {
   const counts = new Map<string, number>();
 
   items.forEach((item) => {
@@ -136,8 +142,6 @@ function mapStatusCategory(status: unknown): string | null {
 
   const isNonDemarre = key.includes("non demarre");
   const isEnCours = key.includes("en cours");
-  const isInTime =
-    key.includes("dans les temps") || key.includes("dans le temps");
   const isLate = key.includes("retard") || key.includes("en retard");
 
   if (isNonDemarre) {
@@ -157,7 +161,7 @@ function buildStatusDistribution(items: Procurement[]) {
   const counts = new Map<string, number>();
 
   items.forEach((item) => {
-    const category = mapStatusCategory((item as any)?.status);
+    const category = mapStatusCategory(item.status);
     if (!category) return;
     counts.set(category, (counts.get(category) ?? 0) + 1);
   });
@@ -167,11 +171,7 @@ function buildStatusDistribution(items: Procurement[]) {
     .sort((a, b) => b.value - a.value);
 }
 
-function getSegments(
-  items: DistributionItem[],
-  colors: Record<string, string>,
-  fallbackColor: string,
-): (DonutSegment & { angle: number })[] {
+function getSegments(items: DistributionItem[], colors: Record<string, string>, fallbackColor: string): (DonutSegment & { angle: number })[] {
   const total = items.reduce((sum, item) => sum + item.value, 0);
   let currentAngle = 0;
 
@@ -198,11 +198,7 @@ function formatLabel(label: string) {
     .join(" ");
 }
 
-function useCountAnimation(
-  end: number,
-  duration: number = 1500,
-  startDelay: number = 0,
-) {
+function useCountAnimation(end: number, duration: number = 1500, startDelay: number = 0) {
   const [count, setCount] = useState(0);
 
   useEffect(() => {
@@ -238,17 +234,7 @@ function useCountAnimation(
   return count;
 }
 
-function AnimatedNumber({
-  value,
-  duration = 1500,
-  delay = 0,
-  formatter,
-}: {
-  value: number;
-  duration?: number;
-  delay?: number;
-  formatter?: (value: number) => string;
-}) {
+function AnimatedNumber({ value, duration = 1500, delay = 0, formatter }: { value: number; duration?: number; delay?: number; formatter?: (value: number) => string }) {
   const count = useCountAnimation(value, duration, delay);
   if (formatter) return <>{formatter(count)}</>;
   return <>{count.toLocaleString("fr-FR")}</>;
@@ -291,7 +277,7 @@ export default function DashboardPage() {
 
       dist[type].count += 1;
       const amountValue = parseFloat(String(p.estimated_amount || 0));
-      dist[type].amount += Number.isNaN(amountValue) ? 0 : amountValue;
+      dist[type].amount += isNaN(amountValue) ? 0 : amountValue;
     });
 
     (Object.keys(dist) as ProcurementType[]).forEach((type) => {
@@ -307,29 +293,21 @@ export default function DashboardPage() {
   const totalMontant = useMemo(() => {
     return procurements.reduce((sum, p) => {
       const val = parseFloat(String(p.estimated_amount || 0));
-      return sum + (Number.isNaN(val) ? 0 : val);
+      return sum + (isNaN(val) ? 0 : val);
     }, 0);
   }, [procurements]);
 
-  if (loading) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-slate-50 text-slate-500">
-        Chargement du tableau de bord...
-      </div>
-    );
-  }
+  if (loading) return <div className="flex h-screen items-center justify-center bg-slate-50 text-slate-500">Chargement du tableau de bord...</div>;
 
   return (
-    <div
-      className="min-h-screen bg-[#eceeef] text-[#17212e]"
-      style={{ fontFamily: "var(--font-ui), Segoe UI, Arial, sans-serif" }}
-    >
+    <div className="min-h-screen bg-[#eceeef] text-[#17212e]" style={{ fontFamily: "var(--font-ui), Segoe UI, Arial, sans-serif" }}>
       <style>{`
         @keyframes dashFadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes dashIntroSlide {
           from { opacity: 0; transform: translateY(10px); filter: blur(4px); }
           to { opacity: 1; transform: translateY(0); filter: blur(0); }
         }
+        @keyframes donutGrow { from { stroke-dasharray: 0 100; opacity: 0.35; } }
         @keyframes countPop {
           0% { transform: scale(1); }
           50% { transform: scale(1.05); color: #0ea85b; }
@@ -342,77 +320,57 @@ export default function DashboardPage() {
 
       <TopHeader />
 
-      <main className="mx-auto max-w-[1400px] animate-[dashFadeIn_0.4s_ease-out] p-4 md:px-8 md:pb-8 md:pt-4">
-        <header className="mb-6 flex flex-col justify-between gap-2 md:flex-row md:items-end">
+      <main className="max-w-[1480px] mx-auto p-4 md:pt-4 md:px-8 md:pb-8 animate-[dashFadeIn_0.4s_ease-out]">
+        <header className="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-2">
           <div className="animate-[dashIntroSlide_0.5s_ease-out_forwards]">
-            <h1 className="mb-1 text-[1.6rem] font-extrabold tracking-tight text-[#17212e]">
+            <h1 className="text-[1.6rem] font-extrabold tracking-tight text-[#17212e] mb-1">
               Tableau de Bord <span className="text-[#0ea85b]">UCP</span>
             </h1>
-            <p className="text-[0.85rem] font-medium text-slate-500">
-              Suivi en temps réel des passations de marchés
-            </p>
+            <p className="text-slate-500 text-[0.85rem] font-medium">Suivi en temps réel des passations de marchés</p>
           </div>
 
           <div className="flex gap-3 animate-[dashIntroSlide_0.6s_ease-out_forwards]">
-            <div className="flex items-center gap-3 rounded-2xl border border-[#d9dee3] bg-white px-5 py-3 shadow-sm">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
-                <svg
-                  className="h-6 w-6"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                  />
+            {/* Card Nombre total de marchés */}
+            <div className="bg-white px-5 py-3 rounded-2xl border border-[#d9dee3] shadow-sm flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
               </div>
               <div>
-                <div className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                  Total Marchés
-                </div>
-                <div className="count-animate text-[1.3rem] font-black text-slate-800">
+                <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Marchés</div>
+                <div className="text-[1.3rem] font-black text-slate-800 count-animate">
                   <AnimatedNumber value={totalMarches} duration={900} />
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-3 rounded-2xl border border-[#d9dee3] bg-white px-5 py-3 shadow-sm">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
-                <svg
-                  className="h-6 w-6"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M11 15h2a2 2 0 1 0 0-4h-3c-.6 0-1.1.2-1.4.6L3 17" />
-                  <path d="m7 21 1.6-1.4c.3-.4.8-.6 1.4-.6h4c1.1 0 2.1-.4 2.8-1.2l4.6-5.4a2 2 0 0 0-3-2.7L15 13" />
-                  <path d="M5 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" />
-                  <path d="M11 5h2a2 2 0 1 0 0-4h-2a2 2 0 1 0 0 4Z" />
-                </svg>
-              </div>
+            {/* Card Montant total */}
+            <div className="bg-white px-5 py-3 rounded-2xl border border-[#d9dee3] shadow-sm flex items-center gap-3">
+             <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600">
+              <svg
+                className="w-6 h-6"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M11 15h2a2 2 0 1 0 0-4h-3c-.6 0-1.1.2-1.4.6L3 17" />
+                <path d="m7 21 1.6-1.4c.3-.4.8-.6 1.4-.6h4c1.1 0 2.1-.4 2.8-1.2l4.6-5.4a2 2 0 0 0-3-2.7L15 13" />
+                <path d="M5 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" />
+                <path d="M11 5h2a2 2 0 1 0 0-4h-2a2 2 0 1 0 0 4Z" />
+              </svg>
+            </div>
               <div>
-                <div className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                  Montant Total
-                </div>
-                <div className="count-animate text-[1.3rem] font-black text-slate-800">
+                <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Montant Total</div>
+                <div className="text-[1.3rem] font-black text-slate-800 count-animate">
                   <AnimatedNumber
                     value={totalMontant}
                     duration={900}
                     delay={200}
-                    formatter={(val) =>
-                      new Intl.NumberFormat("fr-FR", {
-                        style: "currency",
-                        currency: "MGA",
-                        maximumFractionDigits: 0,
-                      }).format(val)
-                    }
+                    formatter={(val) => new Intl.NumberFormat("fr-FR", { style: "currency", currency: "MGA", maximumFractionDigits: 0 }).format(val)}
                   />
                 </div>
               </div>
@@ -420,176 +378,60 @@ export default function DashboardPage() {
           </div>
         </header>
 
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {(Object.keys(stats) as ProcurementType[]).map((type, index) => {
-            const methodSegments = getSegments(
-              stats[type].methods,
-              METHOD_COLORS,
-              FALLBACK_METHOD_COLOR,
-            );
-            const statusSegments = getSegments(
-              stats[type].status,
-              STATUS_DONUT_COLORS,
-              FALLBACK_STATUS_COLOR,
-            );
+            const methodSegments = getSegments(stats[type].methods, METHOD_COLORS, FALLBACK_METHOD_COLOR);
+            const statusSegments = getSegments(stats[type].status, STATUS_DONUT_COLORS, FALLBACK_STATUS_COLOR);
 
             return (
               <article
                 key={type}
-                className="overflow-hidden rounded-[1.5rem] border border-[#d9dee3] bg-white shadow-[0_18px_36px_-30px_rgba(34,44,52,0.5)] transition-all hover:shadow-lg animate-[dashIntroSlide_0.7s_ease-out_forwards]"
+                className="bg-white rounded-[1.5rem] border border-[#d9dee3] shadow-[0_18px_36px_-30px_rgba(34,44,52,0.5)] overflow-hidden transition-all hover:shadow-lg animate-[dashIntroSlide_0.7s_ease-out_forwards]"
                 style={{ animationDelay: `${index * 0.1}s` }}
               >
-                <div className="flex items-center justify-between border-b border-slate-100 p-6">
-                  <h2
-                    className="font-black uppercase tracking-tight text-slate-800"
-                    style={{ color: TYPE_COLORS[type] }}
-                  >
-                    {type}
-                  </h2>
+                <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+                  <h2 className=" font-black text-slate-800 uppercase tracking-tight" style={{ color: TYPE_COLORS[type] }}>{type}</h2>
                 </div>
-                <div className="space-y-8 p-6">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="flex flex-col items-center gap-3">
-                      <span className="text-[0.8rem] font-bold uppercase text-slate-500">
-                        Méthode
-                      </span>
-                      <div className="relative flex h-40 w-40 items-center justify-center">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <PieChart>
-                            <Pie
-                              data={[{ name: "bg", value: 1 }]}
-                              dataKey="value"
-                              cx="50%"
-                              cy="50%"
-                              innerRadius={45}
-                              outerRadius={70}
-                              isAnimationActive={false}
-                              stroke="none"
-                            >
-                              <Cell fill="#f1f5f9" />
-                            </Pie>
-                            <Pie
-                              data={methodSegments.map((segment) => ({
-                                name: segment.label,
-                                value: segment.value,
-                                color: segment.color,
-                              }))}
-                              dataKey="value"
-                              cx="50%"
-                              cy="50%"
-                              innerRadius={45}
-                              outerRadius={70}
-                              paddingAngle={5}
-                              isAnimationActive
-                              animationDuration={900}
-                              animationEasing="ease-out"
-                              startAngle={90}
-                              endAngle={-270}
-                              labelLine={false}
-                              label={renderPercentLabel}
-                            >
-                              {methodSegments.map((segment) => (
-                                <Cell key={segment.label} fill={segment.color} />
-                              ))}
-                            </Pie>
-                          </PieChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </div>
+                <div className="p-6 space-y-8">
 
-                    <div className="flex flex-col items-center gap-3">
-                      <span className="text-[0.8rem] font-bold uppercase text-slate-500">
-                        Statut
-                      </span>
-                      <div className="relative flex h-40 w-40 items-center justify-center">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <PieChart>
-                            <Pie
-                              data={[{ name: "bg", value: 1 }]}
-                              dataKey="value"
-                              cx="50%"
-                              cy="50%"
-                              innerRadius={45}
-                              outerRadius={70}
-                              isAnimationActive={false}
-                              stroke="none"
-                            >
-                              <Cell fill="#f1f5f9" />
-                            </Pie>
-                            <Pie
-                              data={statusSegments.map((segment) => ({
-                                name: segment.label,
-                                value: segment.value,
-                                color: segment.color,
-                              }))}
-                              dataKey="value"
-                              cx="50%"
-                              cy="50%"
-                              innerRadius={45}
-                              outerRadius={70}
-                              paddingAngle={5}
-                              isAnimationActive
-                              animationDuration={900}
-                              animationEasing="ease-out"
-                              startAngle={90}
-                              endAngle={-270}
-                              labelLine={false}
-                              label={renderPercentLabel}
-                            >
-                              {statusSegments.map((segment) => (
-                                <Cell key={segment.label} fill={segment.color} />
-                              ))}
-                            </Pie>
-                          </PieChart>
-                        </ResponsiveContainer>
-                      </div>
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Méthode */}
+                  <div className="flex flex-col items-center gap-3">
+                    <span className="text-[0.8rem] font-bold text-slate-500 uppercase">Méthode</span>
+                    <div className="relative w-40 h-40 flex items-center justify-center">
+                      <DonutPieChart segments={methodSegments} label={renderPercentLabel} />
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4 border-t border-slate-50 pt-4">
+                  {/* Statut */}
+                  <div className="flex flex-col items-center gap-3">
+                    <span className="text-[0.8rem] font-bold text-slate-500 uppercase">Statut</span>
+                    <div className="relative w-40 h-40 flex items-center justify-center">
+                      <DonutPieChart segments={statusSegments} label={renderPercentLabel} />
+                    </div>
+                  </div>
+                </div>
+
+                  <div className="pt-4 border-t border-slate-50 grid grid-cols-2 gap-4">
                     <ul className="space-y-2">
-                      {methodSegments.length > 0 ? (
-                        methodSegments.map((segment) => (
-                          <li
-                            key={segment.label}
-                            className="flex items-center justify-between gap-3 text-xs"
-                          >
-                            <div className="flex min-w-0 items-center gap-2">
-                              <span
-                                className="h-2 w-2 shrink-0 rounded-full"
-                                style={{ backgroundColor: segment.color }}
-                              />
-                              <span className="truncate font-medium uppercase text-slate-600">
-                                {formatLabel(segment.label)}
-                              </span>
-                            </div>
-                          </li>
-                        ))
-                      ) : (
-                        <li className="text-xs text-slate-400">Aucune méthode</li>
-                      )}
+                      {methodSegments.length > 0 ? methodSegments.map((segment) => (
+                        <li key={segment.label} className="flex items-center justify-between text-xs gap-3">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: segment.color }} />
+                            <span className="font-medium text-slate-600 truncate uppercase">{formatLabel(segment.label)}</span>
+                          </div>
+                        </li>
+                      )) : <li className="text-xs text-slate-400">Aucune méthode</li>}
                     </ul>
                     <ul className="space-y-2">
-                      {statusSegments.length > 0 ? (
-                        statusSegments.map((segment) => (
-                          <li
-                            key={segment.label}
-                            className="flex items-center justify-between gap-3 text-xs"
-                          >
-                            <div className="flex min-w-0 items-center gap-2">
-                              <span
-                                className="h-2 w-2 shrink-0 rounded-full"
-                                style={{ backgroundColor: segment.color }}
-                              />
-                              <span className="truncate font-medium text-slate-600">
-                                {formatLabel(segment.label)}
-                              </span>
-                            </div>
-                          </li>
-                        ))
-                      ) : (
-                        <li className="text-xs text-slate-400">Aucun statut</li>
-                      )}
+                      {statusSegments.length > 0 ? statusSegments.map((segment) => (
+                        <li key={segment.label} className="flex items-center justify-between text-xs gap-3">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: segment.color }} />
+                            <span className="font-medium text-slate-600 truncate">{formatLabel(segment.label)}</span>
+                          </div>
+                        </li>
+                      )) : <li className="text-xs text-slate-400">Aucun statut</li>}
                     </ul>
                   </div>
                 </div>

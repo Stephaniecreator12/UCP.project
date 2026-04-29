@@ -426,14 +426,7 @@ const getLatestDriverDates = (row: GridRow) => {
   return latestValues;
 };
 
-  const parseDateValue = (value: unknown): number | null => {
-    const raw = String(value ?? "").trim();
-    if (!raw) return null;
-    const timestamp = Date.parse(raw);
-    return Number.isNaN(timestamp) ? null : timestamp;
-  };
-
-  const getStatusToneClass = (value: unknown, row: GridRow): string => {
+  const getStatusToneClass = (value: unknown): string => {
     const normalized = String(value ?? "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     
     if (normalized.includes("retard")) return "bg-[#fde8e8] text-[#a63131]";
@@ -698,7 +691,7 @@ const handleCalculate = async (row: GridRow) => {
                             const cellValue = getCellValue(row, column);
                             
                             const statusDisplayValue = cellValue; 
-                            const statusToneClass = isStatusColumn ? getStatusToneClass(statusDisplayValue, row) : "";
+                            const statusToneClass = isStatusColumn ? getStatusToneClass(statusDisplayValue) : "";
                         return (
                     <td
                       key={`${row._id}-${column.key}`}
@@ -731,8 +724,8 @@ const handleCalculate = async (row: GridRow) => {
                               const switchBlockedReason = isActual ? getBottomSwitchBlockReason(row, controllerKey, isPricing ? "Temps passé" : "Réel", isPricing ? "Forfait" : "Prévu") : null;
                               
                               const buttonStyle = isRowStopped ? { backgroundColor: "rgba(235, 226, 214, 0.45)", color: "#7b6d5b", border: "1px solid rgba(162, 142, 117, 0.35)", boxShadow: "none", transform: "none" }
-                                : isActive ? { background: "linear-gradient(145deg, #7d6a54 0%, #6a5947 100%)", color: "#fdf7ee", border: "1px solid rgba(117, 96, 73, 0.9)", boxShadow: "0 8px 14px -10px rgba(79, 60, 39, 0.9)", transform: "translateY(-1px)" }
-                                : { background: "linear-gradient(180deg, rgba(245, 235, 220, 0.95), rgba(234, 220, 200, 0.95))", color: "#6d5e4c", border: "1px solid rgba(170, 150, 124, 0.6)" };
+                                : isActive ? { background: "linear-gradient(145deg,rgb(63, 134, 90) 0%,rgb(54, 156, 71) 100%)", color: "#fdf7ee", border: "1px solid rgba(231, 225, 217, 0.9)", boxShadow: "0 8px 14px -10px rgba(79, 60, 39, 0.9)", transform: "translateY(-1px)" }
+                                : { background: "linear-gradient(180deg, rgba(225, 245, 220, 0.95), rgba(200, 234, 202, 0.95))", color: "green", border: "1px solid rgba(137, 238, 146, 0.6)" };
 
                               return (
                                 <div
@@ -771,7 +764,7 @@ const handleCalculate = async (row: GridRow) => {
                           onClick={() => { if (column.type === "action_button" && column.key === "action_calculation") handleCalculate(row); }}
                         >
                           {column.type === "action_button" ? (
-                            <button className="w-full box-border py-[6px] px-2 rounded-[9px] bg-[linear-gradient(145deg,#7d6a54_0%,#6a5947_100%)] text-[#fdf7ee] border border-[rgba(117,96,73,0.9)] shadow-[0_8px_14px_-10px_rgba(79,60,39,0.9)] font-['var(--font-ui),Segoe_UI,Arial,sans-serif'] text-[0.78rem] font-bold whitespace-nowrap text-center tracking-[0.01em] leading-[1.05]" onClick={(e) => { e.stopPropagation(); handleCalculate(row); }}>
+                            <button className="w-full box-border py-[6px] px-2 rounded-[9px] bg-gradient-to-r from-emerald-600 to-emerald-700 text-white border border-emerald-500 shadow-[0_8px_14px_-10px_rgba(5,150,105,0.4)] font-['ManRope Fallback'] text-[0.89rem] font-bold whitespace-nowrap text-center tracking-[0.01em] leading-[1.05] hover:from-emerald-700 hover:to-emerald-800 transition-all" onClick={(e) => { e.stopPropagation(); handleCalculate(row); }}>
                               Planifier
                             </button>
                           ) : isColumnEditableForRow && !isStatusColumn ? (

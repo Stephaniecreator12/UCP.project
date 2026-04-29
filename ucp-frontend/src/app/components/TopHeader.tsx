@@ -3,12 +3,14 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useRef, type MouseEvent } from "react";
 import { logout } from "@/services/auth";
 import Menu from "@/app/components/menu";
 
 export default function TopHeader() {
   const pathname = usePathname();
   const router = useRouter();
+  const headerRef = useRef<HTMLElement | null>(null);
 
   const handleLogout = () => {
     logout();
@@ -23,48 +25,65 @@ export default function TopHeader() {
 
   const showAuthenticatedActions = pathname !== "/login";
 
+  const handleHeaderMove = (event: MouseEvent<HTMLElement>) => {
+    const header = headerRef.current;
+    if (!header) return;
+    const rect = header.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    header.style.setProperty("--mx", `${x}px`);
+    header.style.setProperty("--my", `${y}px`);
+  };
+
+  const resetHeaderGlow = () => {
+    const header = headerRef.current;
+    if (!header) return;
+    header.style.setProperty("--mx", "50%");
+    header.style.setProperty("--my", "50%");
+  };
+
   return (
-    <div className="sticky top-0 z-50">
+    <div className="sticky top-0 z-40">
       <header
-        className="relative h-[1.8cm] overflow-hidden border-b border-[var(--line)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.96))] shadow-[0_1px_3px_rgba(0,0,0,0.02)]"
+        ref={headerRef}
+        onMouseMove={handleHeaderMove}
+        onMouseLeave={resetHeaderGlow}
+        style={{ "--mx": "50%", "--my": "50%" } as React.CSSProperties}
+        className="relative h-[2cm] overflow-hidden border-b border-slate-200/60 bg-white/90 backdrop-blur-md before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(420px_circle_at_var(--mx)_var(--my),rgba(34,197,94,0.16),transparent_60%)]"
       >
         {/* Ligne de couleur en haut */}
-        <div
-          className="h-[3px] bg-gradient-to-r from-emerald-500 via-teal-400 to-sky-400"
-          aria-hidden="true"
-        />
+        <div className="h-[3px] bg-gradient-to-r from-[#22c55e] via-[#1fcf78] to-[#22c55e]" aria-hidden="true" />
 
-        <div className="relative z-10 flex h-[calc(1.8cm-3px)] w-full items-center justify-between gap-3 px-3 sm:px-4 lg:px-5">
+        {/* Orbes décoratives */}
+        <div className="pointer-events-none absolute -top-[52px] -left-[34px] h-[130px] w-[130px] rounded-full bg-[#22c55e]/35 opacity-45 blur-[28px]" aria-hidden="true" />
+        <div className="pointer-events-none absolute -top-[68px] -right-[42px] h-[150px] w-[150px] rounded-full bg-[#7ed7ff]/30 opacity-45 blur-[28px]" aria-hidden="true" />
+
+        <div className="relative z-10 mx-auto grid h-[calc(2cm-3px)] max-w-[1480px] grid-cols-1 items-center gap-4 px-4 py-0 md:grid-cols-[auto_1fr_auto]">
           {/* Logo & Brand */}
-          <Link
-            href={showAuthenticatedActions ? "/formulaire" : "/login"}
-            className="inline-flex min-w-0 items-center gap-3 no-underline text-inherit"
-          >
+          <Link href={showAuthenticatedActions ? "/formulaire" : "/login"} className="inline-flex items-center gap-3 no-underline text-inherit">
             <Image
               src="/ucp-sante-logo-color.png"
               alt="Logo UCP"
               width={48}
               height={48}
-              className="rounded-md border border-emerald-100 bg-white object-contain shadow-sm"
+              className="rounded-xl border border-slate-200 bg-white object-contain"
               priority
             />
-            <div className="grid min-w-0 gap-0">
-              <strong className="truncate text-[0.85rem] font-black uppercase tracking-widest text-slate-900">
+            <div className="grid gap-0.5">
+              <strong className="text-[0.96rem] font-bold uppercase tracking-[0.04em] text-slate-800">
                 unité de coordination des projets
               </strong>
-              <span className="hidden text-[0.7rem] font-bold uppercase tracking-widest text-teal-700 sm:block">
-                e-Procurement Platform
-              </span>
+              <span className="text-[0.74rem] text-slate-500 tracking-[0.03em]">e-Procurement</span>
             </div>
           </Link>
 
           {/* Actions - Déconnexion */}
-          <div className="flex shrink-0 items-center gap-4">
+          <div className="justify-self-end">
             {showAuthenticatedActions && (
               <button
                 type="button"
                 onClick={handleLogout}
-                className="rounded-xl border border-emerald-100 bg-white px-4 py-2 text-[11px] font-black uppercase tracking-widest text-slate-700 shadow-sm transition-all hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700"
+                className="rounded-full border border-slate-300 bg-white px-[0.95rem] py-[0.46rem] text-[0.8rem] font-bold text-[#2f3d4c] shadow-[0_10px_20px_-16px_rgba(6,20,34,0.65)] transition-all hover:bg-slate-50"
               >
                 Déconnexion
               </button>
@@ -75,8 +94,8 @@ export default function TopHeader() {
 
       {showAuthenticatedActions && (
         <div className="-mt-px">
-          <div className="w-full px-3 py-1 sm:px-4 lg:px-5">
-            <div className="inline-flex max-w-full">
+          <div className="mx-auto max-w-[1480px] px-1 py-1">
+            <div className="inline-flex">
               <Menu key={pathname} />
             </div>
           </div>

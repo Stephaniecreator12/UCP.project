@@ -34,6 +34,22 @@ html, body {
   font-family: var(--font-ui), ui-sans-serif, system-ui, sans-serif;
 }
 
+input[type="date"] {
+  color-scheme: light;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.42;
+  transform: scale(0.82);
+  filter: saturate(0.72) brightness(1.04);
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 0.68;
+  filter: saturate(0.92) brightness(1.08);
+}
+
 /* Réduction d'affichage "type zoom 80%" (écran PC) */
 @media (min-width: 1024px) and (pointer: fine) {
   html {

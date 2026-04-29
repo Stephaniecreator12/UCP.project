@@ -71,8 +71,11 @@ def list_mes_demandes(user, scope="mine"):
     qs = DemandeAchat.objects.all()
 
     if scope == "all":
-        # Global dashboard view should focus on dossiers already in the circuit.
-        qs = qs.exclude(statut=DemandeAchat.STATUT_BROUILLON)
+        # The global dashboard must still keep the connected user's drafts visible,
+        # while never exposing drafts that belong to other users.
+        qs = qs.filter(
+            ~Q(statut=DemandeAchat.STATUT_BROUILLON) | Q(demandeur=user)
+        )
     else:
         filters = Q(demandeur=user)
 

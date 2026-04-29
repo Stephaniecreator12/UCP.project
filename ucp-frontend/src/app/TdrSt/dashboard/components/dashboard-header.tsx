@@ -1,7 +1,7 @@
 "use client"
 
 import { FileText, RefreshCw } from "lucide-react"
-import { Button } from "@/app/TdrSt/dashboard/ui/button"
+import { Button } from "@/TdrSt/dashboard/ui/button"
 
 export function DashboardHeader() {
   return (

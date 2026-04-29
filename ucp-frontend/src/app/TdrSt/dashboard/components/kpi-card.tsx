@@ -1,6 +1,6 @@
 "use client"
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/app/TdrSt/dashboard/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/TdrSt/dashboard/ui/card"
 import { cn } from "@/lib/utils"
 import { Clock, TrendingDown, TrendingUp } from "lucide-react"
 

@@ -69,7 +69,7 @@ class TdrStValidationActionSerializer(serializers.ModelSerializer):
 
 
 class TdrStDocumentReadSerializer(serializers.ModelSerializer):
-    initiateur_username = serializers.CharField(source="initiateur.username", read_only=True)
+    demandeur_username = serializers.CharField(source="demandeur.username", read_only=True)
     versions_fichier = TdrStDocumentFileVersionSerializer(many=True, read_only=True)
     fichier_courant = TdrStDocumentFileVersionSerializer(read_only=True)
     actions_validation = serializers.SerializerMethodField()
@@ -93,8 +93,8 @@ class TdrStDocumentReadSerializer(serializers.ModelSerializer):
             "version",
             "created_at",
             "updated_at",
-            "initiateur",
-            "initiateur_username",
+            "demandeur",
+            "demandeur_username",
             "unite_technique",
             "statut",
             "type_document",

@@ -54,7 +54,7 @@ def document_detail_view(request, id: int):
     if request.method == "GET":
         return Response(TdrStDocumentReadSerializer(doc).data)
 
-    # PATCH: only initiateur can edit in BROUILLON / A_REVOIR (enforced in service).
+    # PATCH: only demandeur can edit in BROUILLON / A_REVOIR (enforced in service).
     serializer = TdrStDocumentWriteSerializer(doc, data=request.data, partial=True)
     serializer.is_valid(raise_exception=True)
     doc = update_document(doc, serializer.validated_data, request.user)
@@ -65,9 +65,9 @@ def document_detail_view(request, id: int):
 @permission_classes([IsAuthenticated])
 def submit_document_view(request, id: int):
     doc = get_object_or_404(TdrStDocument, id=id)
-    # Vérifier que l'utilisateur est l'initiateur
-    if doc.initiateur != request.user:
-        return Response({"detail": "Seul l'initiateur peut soumettre ce document."}, 
+    # Vérifier que l'utilisateur est le demandeur
+    if doc.demandeur != request.user:
+        return Response({"detail": "Seul le demandeur peut soumettre ce document."}, 
                        status=status.HTTP_403_FORBIDDEN)
     # Vérifier le statut (BROUILLON ou A_REVOIR)
     if doc.statut not in (TdrStDocument.Statut.BROUILLON, TdrStDocument.Statut.A_REVOIR):

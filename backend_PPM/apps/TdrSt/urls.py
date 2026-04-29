@@ -9,9 +9,6 @@ from apps.TdrSt.views.document_view import (
     upload_pdf_view,
 )
 from apps.TdrSt.views.validation_view import (
-    bailleur_documents_view,
-    bailleur_documents_all_view,
-    bailleur_decision_view,
     final_decision_view,
     final_documents_view,
     final_pending_view,
@@ -36,10 +33,7 @@ urlpatterns = [
     path("validations/final/pending/", final_pending_view),
     path("validations/final/documents/", final_documents_view),
     path("validations/final/<int:id>/decision/", final_decision_view),
-    path("bailleur/documents/", bailleur_documents_view),
-    path("bailleur/documents/all/", bailleur_documents_all_view),
     path("auditeur/documents/", auditeur_documents_view),
-    path("bailleur/<int:id>/decision/", bailleur_decision_view),
 
     # Dashboard
     path("dashboard/", DashboardAPIView.as_view()),

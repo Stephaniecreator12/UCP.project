@@ -2,10 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import TopHeader from "@/app/components/TopHeader";
-import { DocumentsBarChart } from "@/app/TdrSt/dashboard/components/documents-bar-chart";
-import { DocumentsPieChart } from "@/app/TdrSt/dashboard/components/documents-pie-chart";
-import { DocumentsRadialChart } from "@/app/TdrSt/dashboard/components/documents-radial-chart";
-import { KPICard } from "@/app/TdrSt/dashboard/components/kpi-card";
+import { DocumentsBarChart } from "@/TdrSt/dashboard/components/documents-bar-chart";
+import { DocumentsPieChart } from "@/TdrSt/dashboard/components/documents-pie-chart";
+import { DocumentsRadialChart } from "@/TdrSt/dashboard/components/documents-radial-chart";
+import { KPICard } from "@/TdrSt/dashboard/components/kpi-card";
 import { AlertTriangle, CheckCircle, Clock, FileText } from "lucide-react";
 import Link from "next/link";
 

@@ -74,7 +74,7 @@ def demande_detail_view(request, demande_id):
     from django.db.models import Prefetch
     from apps.achats.models import ValidationDemande, HistoriqueDemande
 
-    demande_qs = DemandeAchat.objects.prefetch_related(
+    demande_qs = DemandeAchat.objects.select_related("tdr_st_document").prefetch_related(
         "lignes_besoin",
         "documents",
         Prefetch(

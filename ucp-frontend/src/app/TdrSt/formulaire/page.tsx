@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Activity } from "lucide-react";
+import { Activity } from "lucide-react";
 import { TdrStFilterBar, useTdrStFilters } from "./components/FinancementFilter";
 import TopHeader from "@/app/components/TopHeader";
 import { getToken } from "@/services/auth";
@@ -30,12 +30,17 @@ export default function TdRStPage() {
     loading,
     error,
     success,
+    setNotification,
+    refreshDocs,
+    fetchJson,
     loadUserAndDocs,
   } = useTdrStData();
 
   // UI state
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [decisionObs, setDecisionObs] = useState("");
+  const [actionLoading, setActionLoading] = useState(false);
 
   // Nouveaux filtres pour auditeur
   const { filteredDocuments: financeFilteredDocs, filterProps: tdrFilterProps } = useTdrStFilters({
@@ -178,7 +183,141 @@ export default function TdRStPage() {
 
   const handleCloseDetailModal = () => {
     setSelectedDetailDoc(null);
+    setDecisionObs("");
   }
+
+  const refreshAndKeepSelection = async (documentId: number) => {
+    if (!role) return;
+    const refreshedDocs = await refreshDocs(role);
+    const nextDoc = refreshedDocs.find((doc) => doc.id === documentId) || null;
+    setSelectedDetailDoc(nextDoc);
+    setSelectedId(documentId);
+  };
+
+  const handleSubmitDocument = async () => {
+    if (!selectedDetailDoc || role !== "demandeur") return;
+    setActionLoading(true);
+    try {
+      const updated = await fetchJson<TdrStDocument>(`/api/TdrSt/documents/${selectedDetailDoc.id}/submit/`, {
+        method: "POST",
+      });
+      await refreshAndKeepSelection(updated.id);
+      setNotification("success", "Le TDR/ST a été soumis dans son circuit de validation.");
+    } catch (e: unknown) {
+      setNotification("error", e instanceof Error ? e.message : String(e));
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDecision = async (decision: "FAVORABLE" | "A_REVOIR" | "APPROUVE" | "REJETE") => {
+    if (!selectedDetailDoc || !role) return;
+    const url =
+      role === "verificateur_technique"
+        ? `/api/TdrSt/validations/tech/${selectedDetailDoc.id}/decision/`
+        : `/api/TdrSt/validations/final/${selectedDetailDoc.id}/decision/`;
+
+    setActionLoading(true);
+    try {
+      const updated = await fetchJson<TdrStDocument>(url, {
+        method: "POST",
+        body: JSON.stringify({ decision, observations: decisionObs }),
+      });
+      await refreshAndKeepSelection(updated.id);
+      setDecisionObs("");
+      setNotification("success", "La décision TDR/ST a été enregistrée.");
+    } catch (e: unknown) {
+      setNotification("error", e instanceof Error ? e.message : String(e));
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const detailActionSlot =
+    role === "demandeur" &&
+    selectedDetailDoc &&
+    (selectedDetailDoc.statut === "BROUILLON" || selectedDetailDoc.statut === "A_REVOIR") ? (
+      <button
+        type="button"
+        onClick={() => router.push(`/TdrSt/new?id=${selectedDetailDoc.id}`)}
+        className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100"
+      >
+        Modifier
+      </button>
+    ) : null;
+
+  const detailFooterSlot =
+    selectedDetailDoc && role === "demandeur" && (selectedDetailDoc.statut === "BROUILLON" || selectedDetailDoc.statut === "A_REVOIR") ? (
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-slate-600">
+          Une fois soumis, le dossier partira dans les validations TDR/ST puis reviendra dans le circuit hiérarchique si la validation finale est favorable.
+        </p>
+        <button
+          type="button"
+          onClick={() => void handleSubmitDocument()}
+          disabled={actionLoading}
+          className="rounded-full bg-emerald-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+        >
+          Soumettre le TDR/ST
+        </button>
+      </div>
+    ) : selectedDetailDoc && role === "verificateur_technique" && selectedDetailDoc.statut === "SOUMIS" ? (
+      <div className="space-y-3">
+        <textarea
+          value={decisionObs}
+          onChange={(e) => setDecisionObs(e.target.value)}
+          rows={3}
+          placeholder="Observations techniques éventuelles..."
+          className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm focus:border-emerald-300 focus:outline-none focus:ring-4 focus:ring-emerald-500/10"
+        />
+        <div className="flex flex-wrap justify-end gap-3">
+          <button
+            type="button"
+            onClick={() => void handleDecision("A_REVOIR")}
+            disabled={actionLoading}
+            className="rounded-full border border-amber-200 bg-amber-50 px-5 py-2 text-sm font-semibold text-amber-800 transition hover:bg-amber-100 disabled:opacity-60"
+          >
+            À revoir
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleDecision("FAVORABLE")}
+            disabled={actionLoading}
+            className="rounded-full bg-emerald-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+          >
+            Favorable
+          </button>
+        </div>
+      </div>
+    ) : selectedDetailDoc && role === "approbateur_final" && selectedDetailDoc.statut === "EN_VALIDATION" ? (
+      <div className="space-y-3">
+        <textarea
+          value={decisionObs}
+          onChange={(e) => setDecisionObs(e.target.value)}
+          rows={3}
+          placeholder="Observations finales éventuelles..."
+          className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm focus:border-emerald-300 focus:outline-none focus:ring-4 focus:ring-emerald-500/10"
+        />
+        <div className="flex flex-wrap justify-end gap-3">
+          <button
+            type="button"
+            onClick={() => void handleDecision("REJETE")}
+            disabled={actionLoading}
+            className="rounded-full border border-rose-200 bg-rose-50 px-5 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 disabled:opacity-60"
+          >
+            Rejeter
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleDecision("APPROUVE")}
+            disabled={actionLoading}
+            className="rounded-full bg-emerald-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+          >
+            Approuver
+          </button>
+        </div>
+      </div>
+    ) : null;
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -222,14 +361,6 @@ export default function TdRStPage() {
                   </button>
                 )}
               </div>
-              {role === "demandeur" && (
-                <button
-                  onClick={() => router.push("/TdrSt/new")}
-                  className="inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-slate-900 px-5 py-2.5 text-[13px] font-semibold text-white transition-colors hover:bg-slate-800"
-                >
-                  <Plus className="h-4 w-4" /> Nouvel état
-                </button>
-              )}
             </div>
           </div>
         </div>
@@ -376,7 +507,7 @@ export default function TdRStPage() {
                 </h2>
                 <p className="text-sm text-slate-500">
                   {role === "demandeur"
-                    ? "Commencez par créer votre premier document."
+                    ? "Les TDR/ST se créent désormais depuis un dossier état de besoin."
                     : role === "auditeur"
                     ? "Aucun document ne correspond aux filtres sélectionnés."
                     : "Aucun document n'est encore disponible."}
@@ -413,6 +544,8 @@ export default function TdRStPage() {
         document={selectedDetailDoc}
         open={!!selectedDetailDoc}
         onClose={handleCloseDetailModal}
+        actionSlot={detailActionSlot}
+        footerSlot={detailFooterSlot}
       />
     </div>
   );

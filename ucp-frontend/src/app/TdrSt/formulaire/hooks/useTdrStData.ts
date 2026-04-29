@@ -47,6 +47,70 @@ export type ValidationAction = {
   meta: Record<string, unknown>;
 };
 
+export const TDR_FINANCE_CATALOG = [
+  {
+    value: "SRPS_CS7_FM",
+    family: "FM",
+    sourceLabel: "SRPS / CS7 / Fonds Mondial",
+    budgetLabel: "SRPS",
+    subvention: "MDG-S-MOH-4041",
+  },
+  {
+    value: "RSS3_GAVI",
+    family: "GAVI",
+    sourceLabel: "RSS3 / Alliance GAVI",
+    budgetLabel: "RSS3",
+    subvention: "MDG-HSS-3",
+  },
+  {
+    value: "FAE_GAVI",
+    family: "GAVI",
+    sourceLabel: "FAE / Alliance GAVI",
+    budgetLabel: "FAE",
+    subvention: "MDG-FAE",
+  },
+  {
+    value: "CDS_GAVI",
+    family: "GAVI",
+    sourceLabel: "CDS / Alliance GAVI",
+    budgetLabel: "CDS",
+    subvention: "MDG-COVID19-CDS",
+  },
+  {
+    value: "VAR_GAVI",
+    family: "GAVI",
+    sourceLabel: "VAR / Alliance GAVI",
+    budgetLabel: "VAR",
+    subvention: "MDG-VAR Camp",
+  },
+  {
+    value: "PARN2_BM",
+    family: "BM",
+    sourceLabel: "PARN2 / Banque Mondiale",
+    budgetLabel: "PARN2",
+    subvention: "P175110",
+  },
+  {
+    value: "PPSB_BM",
+    family: "BM",
+    sourceLabel: "PPSB / Banque Mondiale",
+    budgetLabel: "PPSB",
+    subvention: "P174903",
+  },
+] as const;
+
+export const TDR_FINANCE_FAMILY_OPTIONS = [
+  { value: "FM", label: "Fonds mondial" },
+  { value: "GAVI", label: "Alliance GAVI" },
+  { value: "BM", label: "Banque mondiale" },
+] as const;
+
+export const getFinanceCatalogByValue = (value?: string | null) =>
+  TDR_FINANCE_CATALOG.find((item) => item.value === (value || "").trim()) ?? null;
+
+export const getFinanceCatalogByFamily = (family?: string | null) =>
+  TDR_FINANCE_CATALOG.filter((item) => item.family === (family || "").trim());
+
 export type DocumentVersion = {
   id: number;
   version: number;
@@ -66,7 +130,7 @@ export type DocumentVersion = {
     periode_fin?: string;
     duree_estimee_valeur?: number;
     duree_estimee_unite?: DureeUnite;
-    sources_financement?: string;
+    sources_financement?: string | string[];
     numero_subvention?: string;
     ligne_budgetaire?: string;
     montant_estime_usd?: string;
@@ -81,6 +145,8 @@ export type TdrStDocument = {
   version: number;
   created_at: string;
   updated_at: string;
+  demande_achat_id?: number | null;
+  demande_achat_numero?: string;
   unite_technique: string;
   statut: Statut;
   type_document: DocumentType;
@@ -91,7 +157,7 @@ export type TdrStDocument = {
   periode_fin: string;
   duree_estimee_valeur: number;
   duree_estimee_unite: DureeUnite;
-  sources_financement: string;
+  sources_financement: string | string[];
   numero_subvention: string;
   ligne_budgetaire: string;
   montant_estime_usd: string;

@@ -10,6 +10,7 @@ import {
   formatDateForRow,
   formatAmountForRow,
 } from "../hooks/useTdrStData";
+import { getFinancementLabel } from "./FinancementFilter";
 
 type DocumentDetailModalProps = {
   document: TdrStDocument | null;
@@ -21,6 +22,9 @@ type DocumentDetailModalProps = {
 };
 
 const formatDisplayValue = (value: unknown): string => {
+  if (Array.isArray(value) && value.length === 1 && typeof value[0] === "string") {
+    return getFinancementLabel(value[0]);
+  }
   if (Array.isArray(value)) {
     return value.filter(Boolean).join(", ") || "-";
   }

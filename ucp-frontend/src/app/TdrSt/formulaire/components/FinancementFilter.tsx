@@ -147,12 +147,16 @@ export const financementColors: Record<string, string> = {
 };
 
 const buildFinancementFilterValue = (
-  source: string | null | undefined,
-  ligneBudgetaire: string | null | undefined,
-  numeroSubvention: string | null | undefined
+  source: unknown,
+  ligneBudgetaire: unknown,
+  numeroSubvention: unknown
 ) => {
   // Safe trim function that handles non-string values
   const safeTrim = (value: unknown): string => {
+    if (Array.isArray(value)) {
+      const first = value.find((item) => typeof item === "string" && item.trim());
+      return typeof first === "string" ? first.trim() : "";
+    }
     if (typeof value === "string") return value.trim();
     return "";
   };
@@ -343,12 +347,12 @@ function FilterDropdown({
 
 type UseTdrStFiltersProps<TDocument> = {
   documents: TDocument[];
-  getSourceFinancement: (doc: TDocument) => string | null | undefined;
-  getLigneBudgetaire: (doc: TDocument) => string | null | undefined;
-  getNumeroSubvention: (doc: TDocument) => string | null | undefined;
+  getSourceFinancement: (doc: TDocument) => unknown;
+  getLigneBudgetaire: (doc: TDocument) => unknown;
+  getNumeroSubvention: (doc: TDocument) => unknown;
 };
 
-export function useTdrStFilters<TDocument>({
+export function useTdrStFilters<TDocument extends { statut?: string }>({
   documents,
   getSourceFinancement,
   getLigneBudgetaire,
@@ -400,7 +404,7 @@ export function useTdrStFilters<TDocument>({
     }
 
     if (selectedStatuses.length > 0) {
-      result = result.filter((doc) => selectedStatuses.includes(doc.statut));
+      result = result.filter((doc) => selectedStatuses.includes(doc.statut ?? ""));
     }
 
     return result;

@@ -131,6 +131,10 @@ class DemandeAchatSerializer(serializers.ModelSerializer):
     historiques = HistoriqueDemandeSerializer(many=True, read_only=True)
     demandeur_nom = serializers.SerializerMethodField()
     demandeur_group = serializers.SerializerMethodField()
+    requires_tdr = serializers.SerializerMethodField()
+    tdr_document_id = serializers.SerializerMethodField()
+    tdr_document_statut = serializers.SerializerMethodField()
+    tdr_document_numero = serializers.SerializerMethodField()
 
     class Meta:
         model = DemandeAchat
@@ -141,6 +145,10 @@ class DemandeAchatSerializer(serializers.ModelSerializer):
             "demandeur",
             "demandeur_nom",
             "demandeur_group",
+            "requires_tdr",
+            "tdr_document_id",
+            "tdr_document_statut",
+            "tdr_document_numero",
             "unite_technique",
             "statut",
             "etape_validation_actuelle",
@@ -237,6 +245,27 @@ class DemandeAchatSerializer(serializers.ModelSerializer):
         groups = list(obj.demandeur.groups.all())
         group = groups[0] if groups else None
         return group.name if group else "Utilisateur"
+
+    def _get_tdr_document(self, obj):
+        try:
+            return obj.tdr_st_document
+        except Exception:
+            return None
+
+    def get_requires_tdr(self, obj):
+        return bool(self._get_tdr_document(obj))
+
+    def get_tdr_document_id(self, obj):
+        document = self._get_tdr_document(obj)
+        return getattr(document, "id", None)
+
+    def get_tdr_document_statut(self, obj):
+        document = self._get_tdr_document(obj)
+        return getattr(document, "statut", "")
+
+    def get_tdr_document_numero(self, obj):
+        document = self._get_tdr_document(obj)
+        return getattr(document, "numero_document", "")
 
     def validate(self, attrs):
         type_demande = attrs.get("type_demande")

@@ -189,17 +189,8 @@ const getDurationInDays = (start: string, end: string) => {
   return Math.max(1, Math.round(diff / (1000 * 60 * 60 * 24)) + 1);
 };
 
-const inferFundingSourceFromPtba = (value: string) => {
-  const normalized = value.trim().toLowerCase();
-  if (normalized.includes("gavi")) return ["Alliance GAVI"];
-  if (normalized.includes("bm") || normalized.includes("banque mondiale")) {
-    return ["Banque mondiale"];
-  }
-  return ["Fonds mondial"];
-};
-
 const buildTdrStRedirectUrl = (documentId: number, demandeId: number) =>
-  `/TdrSt/formulaire?id=${documentId}&source=demande-achat&demandeId=${demandeId}`;
+  `/TdrSt/new?id=${documentId}&source=demande-achat&demandeId=${demandeId}`;
 
 // Si la demande doit passer par TDR/ST, on transforme ici les données
 // de l'état de besoins en brouillon minimal exploitable par ce module.
@@ -209,12 +200,14 @@ const buildTdrDraftPayloadFromDemande = ({
   uniteTechnique,
   objet,
   lienPtba,
+  demandeId,
 }: {
   lignes: LigneForm[];
   typeDemande: string;
   uniteTechnique: string;
   objet: string;
   lienPtba: string;
+  demandeId: number;
 }): CreateTdrStDraftPayload => {
   const serviceRequest = typeDemande === "PETITS_SERVICES";
   const totalEstimate = lignes.reduce(
@@ -238,6 +231,7 @@ const buildTdrDraftPayloadFromDemande = ({
   const typeDocument: TdrStDocumentType = typeDemande === "MATERIELS" ? "ST" : "TDR";
 
   return {
+    demande_achat_id: demandeId,
     unite_technique: getUniteTechniqueLabel(uniteTechnique),
     type_document: typeDocument,
     categorie_activite: typeDemande === "MATERIELS" ? "BIENS" : "ENTREPRISE",
@@ -247,9 +241,9 @@ const buildTdrDraftPayloadFromDemande = ({
     periode_fin: endDate,
     duree_estimee_valeur: getDurationInDays(startDate, endDate),
     duree_estimee_unite: "JOURS",
-    sources_financement: inferFundingSourceFromPtba(lienPtba),
+    sources_financement: [],
     numero_subvention: "",
-    ligne_budgetaire: lienPtba.trim(),
+    ligne_budgetaire: "",
     montant_estime_usd: totalEstimate.toFixed(2),
     procedure_envisagee: "DC",
   };
@@ -740,6 +734,7 @@ export default function NouvelleDemandePage() {
           uniteTechnique,
           objet,
           lienPtba,
+          demandeId: res.id,
         }),
       );
 

@@ -92,6 +92,10 @@ export interface DemandeAchat {
   demandeur: number;
   demandeur_nom?: string;
   demandeur_group?: string;
+  requires_tdr?: boolean;
+  tdr_document_id?: number | null;
+  tdr_document_statut?: string;
+  tdr_document_numero?: string;
   unite_technique: string;
   statut: StatutDemande;
   etape_validation_actuelle: EtapeValidation;

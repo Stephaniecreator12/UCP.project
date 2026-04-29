@@ -149,7 +149,7 @@ def list_demandes_a_valider(user):
             statut=DemandeAchat.STATUT_SOUMISE,
             etape_validation_actuelle=user_step,
         )
-        .select_related("demandeur")
+        .select_related("demandeur", "tdr_st_document")
         .prefetch_related(
             "demandeur__groups",
             "lignes_besoin",

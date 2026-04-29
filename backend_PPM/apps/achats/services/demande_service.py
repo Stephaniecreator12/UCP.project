@@ -112,7 +112,7 @@ def list_mes_demandes(user, scope="mine"):
     from apps.achats.models import ValidationDemande, HistoriqueDemande
 
     return (
-        qs.select_related("demandeur")
+        qs.select_related("demandeur", "tdr_st_document")
         .prefetch_related(
             "demandeur__groups",
             "lignes_besoin",
@@ -162,7 +162,7 @@ def list_demandes_a_commander(user):
                 DemandeAchat.STATUT_EN_LIVRAISON,
             ]
         )
-        .select_related("demandeur")
+        .select_related("demandeur", "tdr_st_document")
         .prefetch_related(
             "demandeur__groups",
             "lignes_besoin",
@@ -192,7 +192,7 @@ def list_demandes_budgetaires(user):
             statut=DemandeAchat.STATUT_SOUMISE,
             etape_validation_actuelle=DemandeAchat.ETAPE_BUDGETAIRE,
         )
-        .select_related("demandeur")
+        .select_related("demandeur", "tdr_st_document")
         .prefetch_related(
             "demandeur__groups",
             "lignes_besoin",

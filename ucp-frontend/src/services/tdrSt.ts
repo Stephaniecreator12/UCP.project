@@ -20,6 +20,7 @@ export type TdrStCategorieActivite =
   | "INFRASTRUCTURE";
 
 export interface CreateTdrStDraftPayload {
+  demande_achat_id?: number;
   unite_technique: string;
   type_document: TdrStDocumentType;
   categorie_activite: TdrStCategorieActivite;

@@ -8,7 +8,10 @@ import TopHeader from "@/app/components/TopHeader";
 import { getToken } from "@/services/auth";
 import {
   fetchJson,
+  getFinanceCatalogByFamily,
+  getFinanceCatalogByValue,
   makeEmptyForm,
+  TDR_FINANCE_FAMILY_OPTIONS,
   type TdrStDocument,
   type TdrStFormState,
 } from "../formulaire/hooks/useTdrStData";
@@ -37,12 +40,6 @@ const PROCEDURE_OPTIONS = [
   ["AOI", "AOI"],
   ["AON", "AON"],
   ["GRE_A_GRE", "Gré à gré"],
-] as const;
-
-const FUNDING_OPTIONS = [
-  "Fonds mondial",
-  "Banque mondiale",
-  "Alliance GAVI",
 ] as const;
 
 const EDITABLE_STATUSES = new Set(["BROUILLON", "A_REVOIR"]);
@@ -93,6 +90,16 @@ export default function TdrStNewPage() {
   const [role, setRole] = useState<string | null>(null);
 
   const isEditable = !activeDoc || EDITABLE_STATUSES.has(activeDoc.statut);
+  const isLinkedToDemande = Boolean(activeDoc?.demande_achat_id);
+  const selectedFinanceCatalog = useMemo(
+    () => getFinanceCatalogByValue(form.sources_financement || form.ligne_budgetaire),
+    [form.ligne_budgetaire, form.sources_financement],
+  );
+  const selectedFundingFamily = selectedFinanceCatalog?.family || "";
+  const financeLineOptions = useMemo(
+    () => getFinanceCatalogByFamily(selectedFundingFamily),
+    [selectedFundingFamily],
+  );
 
   useEffect(() => {
     const token = getToken();
@@ -113,11 +120,7 @@ export default function TdrStNewPage() {
           throw new Error("Seul le demandeur peut créer ou modifier un brouillon TDR/ST.");
         }
 
-        if (!documentId) {
-          setActiveDoc(null);
-          setForm(makeEmptyForm());
-          return;
-        }
+        if (!documentId) throw new Error("Le TDR/ST doit être ouvert depuis un dossier état de besoin.");
 
         const doc = await fetchJson<TdrStDocument>(`/api/TdrSt/documents/${documentId}/`, {
           method: "GET",
@@ -147,10 +150,8 @@ export default function TdrStNewPage() {
     if (!form.unite_technique.trim()) return "Le champ unité technique est obligatoire.";
     if (!form.intitule.trim()) return "Le champ intitulé est obligatoire.";
     if (!form.reference_ptba.trim()) return "Le champ référence PTBA est obligatoire.";
-    if (!form.ligne_budgetaire.trim()) return "Le champ ligne budgétaire est obligatoire.";
     if (!form.periode_debut) return "La date de début est obligatoire.";
     if (!form.periode_fin) return "La date de fin est obligatoire.";
-    if (!form.sources_financement.trim()) return "Choisis une source de financement.";
     if (!form.montant_estime_usd.trim()) return "Le montant estimé est obligatoire.";
     return null;
   };
@@ -175,11 +176,11 @@ export default function TdrStNewPage() {
         unite_technique: form.unite_technique.trim(),
         intitule: form.intitule.trim(),
         reference_ptba: form.reference_ptba.trim(),
-        ligne_budgetaire: form.ligne_budgetaire.trim(),
+        ligne_budgetaire: (form.ligne_budgetaire || form.sources_financement).trim(),
         numero_subvention: form.numero_subvention.trim(),
         montant_estime_usd: form.montant_estime_usd.trim(),
         duree_estimee_valeur: Number(form.duree_estimee_valeur) || 1,
-        sources_financement: [form.sources_financement],
+        sources_financement: form.sources_financement ? [form.sources_financement] : [],
       };
 
       const savedDoc = await fetchJson<TdrStDocument>(
@@ -254,6 +255,13 @@ export default function TdrStNewPage() {
               </div>
             ) : null}
 
+            {isLinkedToDemande ? (
+              <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
+                Ce TDR/ST est lié au dossier <strong>{activeDoc?.demande_achat_numero || "état de besoin"}</strong>.
+                Les champs issus du dossier initial restent automatiques et grisés.
+              </div>
+            ) : null}
+
             <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-7">
               <div className="mb-5 flex items-center justify-between gap-3">
                 <div>
@@ -272,7 +280,7 @@ export default function TdrStNewPage() {
                   <input
                     value={form.unite_technique}
                     onChange={(e) => handleChange("unite_technique", e.target.value)}
-                    disabled={saving || !isEditable}
+                    disabled={saving || !isEditable || isLinkedToDemande}
                     className={inputClassName}
                   />
                 </Field>
@@ -281,7 +289,7 @@ export default function TdrStNewPage() {
                   <select
                     value={form.type_document}
                     onChange={(e) => handleChange("type_document", e.target.value as TdrStFormState["type_document"])}
-                    disabled={saving || !isEditable}
+                    disabled={saving || !isEditable || isLinkedToDemande}
                     className={inputClassName}
                   >
                     <option value="TDR">TDR</option>
@@ -295,7 +303,7 @@ export default function TdrStNewPage() {
                     onChange={(e) =>
                       handleChange("categorie_activite", e.target.value as TdrStFormState["categorie_activite"])
                     }
-                    disabled={saving || !isEditable}
+                    disabled={saving || !isEditable || isLinkedToDemande}
                     className={inputClassName}
                   >
                     {CATEGORY_OPTIONS.map(([value, label]) => (
@@ -332,7 +340,7 @@ export default function TdrStNewPage() {
                     rows={4}
                     value={form.intitule}
                     onChange={(e) => handleChange("intitule", e.target.value)}
-                    disabled={saving || !isEditable}
+                    disabled={saving || !isEditable || isLinkedToDemande}
                     className={`${inputClassName} min-h-[110px] resize-y`}
                   />
                 </Field>
@@ -343,18 +351,30 @@ export default function TdrStNewPage() {
                   <input
                     value={form.reference_ptba}
                     onChange={(e) => handleChange("reference_ptba", e.target.value)}
-                    disabled={saving || !isEditable}
+                    disabled={saving || !isEditable || isLinkedToDemande}
                     className={inputClassName}
                   />
                 </Field>
 
-                <Field label="Ligne budgétaire *">
-                  <input
+                <Field label="Ligne budgétaire">
+                  <select
                     value={form.ligne_budgetaire}
-                    onChange={(e) => handleChange("ligne_budgetaire", e.target.value)}
-                    disabled={saving || !isEditable}
+                    onChange={(e) => {
+                      const nextCatalog = getFinanceCatalogByValue(e.target.value);
+                      handleChange("ligne_budgetaire", e.target.value);
+                      handleChange("sources_financement", e.target.value);
+                      handleChange("numero_subvention", nextCatalog?.subvention || "");
+                    }}
+                    disabled={saving || !isEditable || !selectedFundingFamily}
                     className={inputClassName}
-                  />
+                  >
+                    <option value="">Sélectionner une ligne</option>
+                    {financeLineOptions.map((item) => (
+                      <option key={item.value} value={item.value}>
+                        {item.budgetLabel}
+                      </option>
+                    ))}
+                  </select>
                 </Field>
               </div>
             </section>
@@ -417,7 +437,7 @@ export default function TdrStNewPage() {
                     step="0.01"
                     value={form.montant_estime_usd}
                     onChange={(e) => handleChange("montant_estime_usd", e.target.value)}
-                    disabled={saving || !isEditable}
+                    disabled={saving || !isEditable || isLinkedToDemande}
                     className={inputClassName}
                   />
                 </Field>
@@ -432,21 +452,45 @@ export default function TdrStNewPage() {
                 </Field>
               </div>
 
-              <Field label="Source de financement *" className="mt-5">
-                <div className="flex flex-wrap gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  {FUNDING_OPTIONS.map((source) => (
-                    <label key={source} className="inline-flex items-center gap-2 text-sm text-slate-700">
-                      <input
-                        type="radio"
-                        name="sources_financement"
-                        checked={form.sources_financement === source}
-                        onChange={() => handleChange("sources_financement", source)}
-                        disabled={saving || !isEditable}
-                        className="h-4 w-4 accent-emerald-600"
-                      />
-                      {source}
-                    </label>
-                  ))}
+              <Field label="Source de financement" className="mt-5">
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <span className="mb-2 block text-sm font-medium text-slate-700">Famille de financement</span>
+                    <select
+                      value={selectedFundingFamily}
+                      onChange={(e) => {
+                        handleChange("sources_financement", "");
+                        handleChange("ligne_budgetaire", "");
+                        handleChange("numero_subvention", "");
+                        const family = e.target.value;
+                        const firstOption = getFinanceCatalogByFamily(family)[0];
+                        if (firstOption) {
+                          handleChange("sources_financement", firstOption.value);
+                          handleChange("ligne_budgetaire", firstOption.value);
+                          handleChange("numero_subvention", firstOption.subvention);
+                        }
+                      }}
+                      disabled={saving || !isEditable}
+                      className={inputClassName}
+                    >
+                      <option value="">Sélectionner une source</option>
+                      {TDR_FINANCE_FAMILY_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <span className="mb-2 block text-sm font-medium text-slate-700">Code / subvention</span>
+                    <input
+                      value={form.numero_subvention}
+                      onChange={(e) => handleChange("numero_subvention", e.target.value)}
+                      disabled={saving || !isEditable}
+                      className={inputClassName}
+                    />
+                  </div>
                 </div>
               </Field>
             </section>

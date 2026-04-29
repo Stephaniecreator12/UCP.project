@@ -261,6 +261,7 @@ export default function ValidationModal({
     () => getCatalogForFundingSource(form.source_financement),
     [form.source_financement],
   );
+  const budgetFieldsLockedByTdr = demande?.tdr_document_statut === "VALIDE";
   const estimatedCost = useMemo(() => Number(demande?.cout_total_estime ?? 0), [demande?.cout_total_estime]);
   const availableBalance = useMemo(() => parseAmount(form.solde_disponible_ligne_budgetaire), [form.solde_disponible_ligne_budgetaire]);
   const remainingBalance = useMemo(() => availableBalance - estimatedCost, [availableBalance, estimatedCost]);
@@ -514,6 +515,11 @@ export default function ValidationModal({
                     <div className="h-2 w-2 rounded-full bg-emerald-500" />
                     <p className="text-sm font-semibold text-slate-900">Choix budgetaire</p>
                   </div>
+                  {budgetFieldsLockedByTdr && (
+                    <p className="mb-3 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800">
+                      Source, ligne et code de subvention proviennent du TDR/ST validé et sont repris automatiquement.
+                    </p>
+                  )}
                   <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
                     <div className="flex flex-col gap-1.5">
                       <label className="text-xs font-semibold text-slate-700">Source de financement</label>
@@ -527,6 +533,7 @@ export default function ValidationModal({
                             numero_subvention: "",
                           }));
                         }}
+                        disabled={budgetFieldsLockedByTdr}
                         options={[...fundingSourceOptions]}
                         className="w-full rounded-[14px] border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm"
                       />
@@ -543,6 +550,7 @@ export default function ValidationModal({
                             numero_subvention: next.subvention,
                           }));
                         }}
+                        disabled={budgetFieldsLockedByTdr}
                         options={budgetLineCatalog.map((item) => ({ value: item.value, label: item.budgetLabel }))}
                         className="w-full rounded-[14px] border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm"
                       />

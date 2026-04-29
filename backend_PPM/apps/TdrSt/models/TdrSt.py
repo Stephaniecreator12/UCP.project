@@ -56,6 +56,7 @@ class TdrStDocument(models.Model):
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
         related_name="tdr_st_documents",
+        db_column="initiateur_id",
     )
     unite_technique = models.CharField(max_length=255)
 
@@ -180,4 +181,3 @@ class TdrStValidationAction(models.Model):
     class Meta:
         db_table = "tdr_st_validation_action"
         ordering = ["-horodatage"] 
-

@@ -168,8 +168,7 @@ export default function TdRStPage() {
   };
 
   const handleActionClick = (doc: TdrStDocument) => {
-    setSelectedId(doc.id);
-    setSelectedDetailDoc(doc);
+    router.push(`/TdrSt/new?id=${doc.id}`);
   };
 
   const handleDetailClick = (doc: TdrStDocument) => {
@@ -225,7 +224,7 @@ export default function TdRStPage() {
               </div>
               {role === "demandeur" && (
                 <button
-                  onClick={() => router.push("/TdrSt/formulaire")}
+                  onClick={() => router.push("/TdrSt/new")}
                   className="inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-slate-900 px-5 py-2.5 text-[13px] font-semibold text-white transition-colors hover:bg-slate-800"
                 >
                   <Plus className="h-4 w-4" /> Nouvel état
@@ -418,4 +417,3 @@ export default function TdRStPage() {
     </div>
   );
 }
-

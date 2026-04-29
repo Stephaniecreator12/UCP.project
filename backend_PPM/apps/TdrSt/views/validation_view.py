@@ -6,15 +6,12 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.TdrSt.models.TdrSt import TdrStDocument
-from apps.TdrSt.permissions import CanBailleurRead, CanFinalApprove, CanTechValidate, CanReadDocument, CanAuditeurRead
-from apps.TdrSt.serializers.decision_serializer import AnoDecisionSerializer, FinalDecisionSerializer, TechDecisionSerializer
+from apps.TdrSt.permissions import  CanFinalApprove, CanTechValidate, CanReadDocument, CanAuditeurRead
+from apps.TdrSt.serializers.decision_serializer import FinalDecisionSerializer, TechDecisionSerializer
 from apps.TdrSt.serializers.document_serializer import TdrStDocumentReadSerializer
 from apps.TdrSt.services.TdrStService import (
-    bailleur_decide,
     final_decide,
-    list_bailleur_documents_all,
     list_final_documents,
-    list_bailleur_documents,
     list_pending_final,
     list_pending_tech,
     list_tech_documents,
@@ -88,38 +85,6 @@ def final_decision_view(request, id: int):
     )
     return Response(TdrStDocumentReadSerializer(doc).data)
 
-
-@api_view(["GET"])
-@permission_classes([IsAuthenticated, CanBailleurRead])
-def bailleur_documents_view(request):
-    docs = list_bailleur_documents()
-    return Response(TdrStDocumentReadSerializer(docs, many=True).data)
-
-@api_view(["GET"])
-@permission_classes([IsAuthenticated, CanBailleurRead])
-def bailleur_documents_all_view(request):
-    docs = list_bailleur_documents_all(request.user)
-    return Response(TdrStDocumentReadSerializer(docs, many=True).data)
-
-
-@api_view(["POST"])
-@permission_classes([IsAuthenticated, CanBailleurRead])
-def bailleur_decision_view(request, id: int):
-    doc = get_object_or_404(TdrStDocument, id=id)
-    perm = CanReadDocument()
-    if not perm.has_object_permission(request, None, doc):
-        return Response({"detail": "Accès refusé."}, status=status.HTTP_403_FORBIDDEN)
-
-    serializer = AnoDecisionSerializer(data=request.data)
-    serializer.is_valid(raise_exception=True)
-
-    doc = bailleur_decide(
-        doc,
-        request.user,
-        decision=serializer.validated_data["decision"],
-        observations=serializer.validated_data.get("observations", "") or "",
-    )
-    return Response(TdrStDocumentReadSerializer(doc).data)
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated, CanAuditeurRead])

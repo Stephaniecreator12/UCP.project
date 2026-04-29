@@ -3,7 +3,8 @@ from __future__ import annotations
 from rest_framework.permissions import BasePermission
 
 from apps.TdrSt.models.TdrSt import TdrStDocument
-from apps.users.services.permissions import TdrStRole, get_user_role
+from apps.users.models import UserProfile
+from apps.users.services.permissions import get_user_role
 
 # Statuts finaux consultables par l'Auditeur (a posteriori uniquement)
 AUDITEUR_VISIBLE_STATUTS = (
@@ -15,20 +16,20 @@ AUDITEUR_VISIBLE_STATUTS = (
 
 class CanCreateDocument(BasePermission):
     def has_permission(self, request, view) -> bool:
-        return get_user_role(request.user) == TdrStRole.INITIATEUR
+        return get_user_role(request.user) == UserProfile.Role.DEMANDEUR
 
 
 class CanListMyDocuments(BasePermission):
     def has_permission(self, request, view) -> bool:
-        return get_user_role(request.user) == TdrStRole.INITIATEUR
+        return get_user_role(request.user) == UserProfile.Role.DEMANDEUR
 
 
 class CanSubmitOrUploadOwnDocument(BasePermission):
     def has_permission(self, request, view) -> bool:
-        return get_user_role(request.user) == TdrStRole.INITIATEUR
+        return get_user_role(request.user) == UserProfile.Role.DEMANDEUR
 
     def has_object_permission(self, request, view, obj: TdrStDocument) -> bool:
-        return obj.initiateur_id == getattr(request.user, "id", None)
+        return obj.demandeur_id == getattr(request.user, "id", None)
 
 
 class CanReadDocument(BasePermission):
@@ -37,17 +38,11 @@ class CanReadDocument(BasePermission):
 
     def has_object_permission(self, request, view, obj: TdrStDocument) -> bool:
         role = get_user_role(request.user)
-        if role == TdrStRole.INITIATEUR:
-            return obj.initiateur_id == getattr(request.user, "id", None)
-        if role in (TdrStRole.VERIFICATEUR_TECHNIQUE, TdrStRole.APPROBATEUR_FINAL):
+        if role == UserProfile.Role.DEMANDEUR:
+            return obj.demandeur_id == getattr(request.user, "id", None)
+        if role in (UserProfile.Role.VERIFICATEUR_TECHNIQUE, UserProfile.Role.APPROBATEUR_FINAL):
             return True
-        if role == TdrStRole.BAILLEUR:
-            if obj.statut == TdrStDocument.Statut.EN_ATTENTE_ANO:
-                return True
-            # Autoriser la consultation de l'historique des documents passes par l'etape ANO
-            # (cas seuil depasse / etape bailleur), meme s'ils ne sont plus EN_ATTENTE_ANO.
-            return obj.actions_validation.filter(etape="ANO").exists()
-        if role == TdrStRole.AUDITEUR:
+        if role == UserProfile.Role.AUDITEUR:
             # L'auditeur ne voit que les documents à statut final (Validé, Rejeté, Suspendu)
             return obj.statut in AUDITEUR_VISIBLE_STATUTS
         return False
@@ -55,17 +50,12 @@ class CanReadDocument(BasePermission):
 
 class CanTechValidate(BasePermission):
     def has_permission(self, request, view) -> bool:
-        return get_user_role(request.user) == TdrStRole.VERIFICATEUR_TECHNIQUE
+        return get_user_role(request.user) == UserProfile.Role.VERIFICATEUR_TECHNIQUE
 
 
 class CanFinalApprove(BasePermission):
     def has_permission(self, request, view) -> bool:
-        return get_user_role(request.user) == TdrStRole.APPROBATEUR_FINAL
-
-
-class CanBailleurRead(BasePermission):
-    def has_permission(self, request, view) -> bool:
-        return get_user_role(request.user) == TdrStRole.BAILLEUR
+        return get_user_role(request.user) == UserProfile.Role.APPROBATEUR_FINAL
 
 
 class CanAuditeurRead(BasePermission):
@@ -77,7 +67,7 @@ class CanAuditeurRead(BasePermission):
     """
 
     def has_permission(self, request, view) -> bool:
-        return get_user_role(request.user) == TdrStRole.AUDITEUR
+        return get_user_role(request.user) == UserProfile.Role.AUDITEUR
 
     def has_object_permission(self, request, view, obj: TdrStDocument) -> bool:
         return obj.statut in AUDITEUR_VISIBLE_STATUTS

@@ -1,39 +1,70 @@
 from __future__ import annotations
 
 from django.contrib.auth import get_user_model
+from django.db.models import Q
+
+from apps.users.models import UserProfile
 
 
 class TdrStRole:
-    INITIATEUR = "initiateur"
-    VERIFICATEUR_TECHNIQUE = "verificateur_technique"
-    APPROBATEUR_FINAL = "approbateur_final"
-    BAILLEUR = "bailleur"
-    AUDITEUR = "auditeur"
+    DEMANDEUR = UserProfile.Role.DEMANDEUR
+    INITIATEUR = UserProfile.Role.DEMANDEUR
+    VERIFICATEUR_TECHNIQUE = UserProfile.Role.VERIFICATEUR_TECHNIQUE
+    APPROBATEUR_FINAL = UserProfile.Role.APPROBATEUR_FINAL
+    AUDITEUR = UserProfile.Role.AUDITEUR
 
 
 ROLE_GROUPS: dict[str, tuple[str, ...]] = {
-    TdrStRole.VERIFICATEUR_TECHNIQUE: ("VALIDATEUR_TECHNIQUE",),
-    TdrStRole.APPROBATEUR_FINAL: ("APPROBATEUR_NATIONAL",),
-    TdrStRole.BAILLEUR: ("BAILLEUR",),
-    TdrStRole.AUDITEUR: ("AUDITEUR",),
+    UserProfile.Role.VERIFICATEUR_TECHNIQUE: ("VALIDATEUR_TECHNIQUE",),
+    UserProfile.Role.APPROBATEUR_FINAL: ("APPROBATEUR_NATIONAL",),
+    UserProfile.Role.AUDITEUR: ("AUDITEUR",),
 }
+
+ALL_TDR_GROUPS = tuple(
+    group_name
+    for groups in ROLE_GROUPS.values()
+    for group_name in groups
+)
+
+
+def _group_mapped_role(user) -> str | None:
+    group_names = set(user.groups.values_list("name", flat=True))
+    for role, groups in ROLE_GROUPS.items():
+        if group_names.intersection(groups):
+            return role
+    return None
 
 
 def get_user_role(user) -> str | None:
     if not user or not getattr(user, "is_authenticated", False):
         return None
 
-    group_names = set(user.groups.values_list("name", flat=True))
-    for role, groups in ROLE_GROUPS.items():
-        if group_names.intersection(groups):
-            return role
+    try:
+        profile_role = user.profile.role
+    except Exception:
+        profile_role = None
 
-    return TdrStRole.INITIATEUR
+    if profile_role and profile_role != UserProfile.Role.DEMANDEUR:
+        return profile_role
+
+    mapped_role = _group_mapped_role(user)
+    if mapped_role:
+        return mapped_role
+
+    return profile_role or UserProfile.Role.DEMANDEUR
 
 
 def get_users_for_role(role: str):
     User = get_user_model()
+    queryset = User.objects.filter(is_active=True)
+
+    profile_filter = Q(profile__role=role)
     groups = ROLE_GROUPS.get(role, ())
-    if not groups:
-        return User.objects.none()
-    return User.objects.filter(is_active=True, groups__name__in=groups).distinct()
+
+    if groups:
+        return queryset.filter(profile_filter | Q(groups__name__in=groups)).distinct()
+
+    if role == UserProfile.Role.DEMANDEUR:
+        return queryset.filter(profile_filter).distinct()
+
+    return queryset.none()

@@ -71,7 +71,7 @@ const VALIDATOR_LINKS: MenuLink[] = [
   },
   {
     label: "état de besoins",
-    href: "/demande-achat",
+    href: "/demande-achat?scope=all",
     match: (pathname) =>
       pathname === "/demande-achat" || pathname.startsWith("/demande-achat/"),
   },
@@ -86,7 +86,7 @@ const AGENT_ACHAT_LINKS: MenuLink[] = [
   },
   {
     label: "état de besoins",
-    href: "/demande-achat",
+    href: "/demande-achat?scope=all",
     match: (pathname) =>
       pathname === "/demande-achat" || pathname.startsWith("/demande-achat/"),
   },
@@ -104,7 +104,7 @@ const MARKET_LINKS: MenuLink[] = [
   },
   {
     label: "état de besoins",
-    href: "/demande-achat",
+    href: "/demande-achat?scope=all",
     match: (pathname) =>
       pathname === "/demande-achat" || pathname.startsWith("/demande-achat/"),
   },

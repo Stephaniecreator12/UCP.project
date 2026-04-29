@@ -86,7 +86,17 @@ def _build_label(record: dict[str, Any]) -> str:
     if combined:
         return combined
 
-    return _read_string(record, ["username", "login", "email", "matricule", "code"])
+    return _read_string(
+        record,
+        [
+            "username",
+            "login",
+            "email",
+            "emailPersonnel",
+            "matricule",
+            "code",
+        ],
+    )
 
 
 def _normalize_personnel_item(item: Any) -> dict[str, str] | None:
@@ -115,6 +125,8 @@ def _normalize_personnel_item(item: Any) -> dict[str, str] | None:
         item,
         [
             "service",
+            "service_actuel",
+            "serviceActuel",
             "service_name",
             "department",
             "department_name",
@@ -124,6 +136,7 @@ def _normalize_personnel_item(item: Any) -> dict[str, str] | None:
             "fonction",
             "job_title",
             "email",
+            "emailPersonnel",
         ],
     )
 

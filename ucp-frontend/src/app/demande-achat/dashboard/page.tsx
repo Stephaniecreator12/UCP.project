@@ -30,8 +30,12 @@ import {
   typeLabels,
 } from "@/app/demande-achat/components/demandeAchatShared";
 import {
+  isAgentAchatUser,
+  isAgentMarcheUser,
   getCurrentUser,
   getToken,
+  isFinanceUser,
+  isValidatorUser,
   type UserProfile,
 } from "@/services/auth";
 import {
@@ -338,7 +342,22 @@ export default function DashboardPage() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const canAccessGlobalDashboard = true;
   const rawScope = (searchParams.get("scope") ?? "").trim().toLowerCase();
-  const dashboardScope: DashboardScope = rawScope === "all" ? "all" : "mine";
+  const shouldDefaultToGlobalScope =
+    !!currentUser &&
+    (
+      isValidatorUser(currentUser) ||
+      isFinanceUser(currentUser) ||
+      isAgentAchatUser(currentUser) ||
+      isAgentMarcheUser(currentUser)
+    );
+  const dashboardScope: DashboardScope =
+    rawScope === "all"
+      ? "all"
+      : rawScope === "mine"
+        ? "mine"
+        : shouldDefaultToGlobalScope
+          ? "all"
+          : "mine";
   const searchParamsString = searchParams.toString();
 
   // On recalcule les URLs de navigation en conservant les autres paramètres

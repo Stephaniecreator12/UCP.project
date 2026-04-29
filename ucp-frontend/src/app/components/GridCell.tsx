@@ -161,15 +161,16 @@ export default function GridCell({
             onBlur();
           }}
         onKeyDown={onKeyDown}
-        className={`${baseInputClasses} text-slate-700 pr-8 appearance-none`}
+        className={`${baseInputClasses} text-slate-700 pr-7 appearance-none`}
       />
       <button
         type="button"
-        className="absolute right-2 text-slate-400 hover:text-emerald-600"
+        className="absolute right-1.5 inline-flex h-6 w-6 items-center justify-center rounded-md text-slate-300 transition-colors hover:bg-emerald-50 hover:text-emerald-500"
         onClick={() => (inputRef.current as HTMLInputElement)?.showPicker?.()}
+        aria-label="Ouvrir le calendrier"
       >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.7" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
           </button>
         </div>
@@ -204,4 +205,3 @@ export default function GridCell({
     />
   );
 }
-

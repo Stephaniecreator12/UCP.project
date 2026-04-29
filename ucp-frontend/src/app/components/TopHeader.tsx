@@ -58,7 +58,7 @@ export default function TopHeader() {
         <div className="pointer-events-none absolute -top-[52px] -left-[34px] h-[130px] w-[130px] rounded-full bg-[#22c55e]/35 opacity-45 blur-[28px]" aria-hidden="true" />
         <div className="pointer-events-none absolute -top-[68px] -right-[42px] h-[150px] w-[150px] rounded-full bg-[#7ed7ff]/30 opacity-45 blur-[28px]" aria-hidden="true" />
 
-        <div className="relative z-10 mx-auto grid h-[calc(2cm-3px)] max-w-[1480px] grid-cols-1 items-center gap-4 px-4 py-0 md:grid-cols-[auto_1fr_auto]">
+        <div className="relative z-10 grid h-[calc(2cm-3px)] w-full grid-cols-1 items-center gap-4 px-4 py-0 md:grid-cols-[auto_1fr_auto]">
           {/* Logo & Brand */}
           <Link href={showAuthenticatedActions ? "/formulaire" : "/login"} className="inline-flex items-center gap-3 no-underline text-inherit">
             <Image
@@ -94,7 +94,7 @@ export default function TopHeader() {
 
       {showAuthenticatedActions && (
         <div className="-mt-px">
-          <div className="mx-auto max-w-[1480px] px-1 py-1">
+          <div className="w-full px-1 py-1">
             <div className="inline-flex">
               <Menu key={pathname} />
             </div>

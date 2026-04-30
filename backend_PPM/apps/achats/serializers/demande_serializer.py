@@ -8,6 +8,7 @@ from apps.achats.models import (
     LigneBesoin,
     ValidationDemande,
 )
+from apps.achats.services.tdr_link_compat import has_tdr_demande_link_column
 
 
 class LigneBesoinSerializer(serializers.ModelSerializer):
@@ -131,7 +132,6 @@ class DemandeAchatSerializer(serializers.ModelSerializer):
     historiques = HistoriqueDemandeSerializer(many=True, read_only=True)
     demandeur_nom = serializers.SerializerMethodField()
     demandeur_group = serializers.SerializerMethodField()
-    requires_tdr = serializers.SerializerMethodField()
     tdr_document_id = serializers.SerializerMethodField()
     tdr_document_statut = serializers.SerializerMethodField()
     tdr_document_numero = serializers.SerializerMethodField()
@@ -247,13 +247,13 @@ class DemandeAchatSerializer(serializers.ModelSerializer):
         return group.name if group else "Utilisateur"
 
     def _get_tdr_document(self, obj):
+        if not has_tdr_demande_link_column():
+            return None
+
         try:
             return obj.tdr_st_document
         except Exception:
             return None
-
-    def get_requires_tdr(self, obj):
-        return bool(self._get_tdr_document(obj))
 
     def get_tdr_document_id(self, obj):
         document = self._get_tdr_document(obj)

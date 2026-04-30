@@ -265,6 +265,9 @@ const getSectionContextLine = (demande: DemandeAchat, sectionKey?: SectionKey | 
     return "État rejeté";
   }
   if (sectionKey === "preparation" || demande.statut === "BROUILLON") {
+    if (demande.requires_tdr && !demande.tdr_document_id) {
+      return `TDR/ST à préparer depuis le ${formatDate(demande.updated_at ?? demande.created_at)}`;
+    }
     return `Préparation en cours depuis le ${formatDate(demande.updated_at ?? demande.created_at)}`;
   }
   if (sectionKey === "correction" || demande.statut === "A_COMPLETER") {

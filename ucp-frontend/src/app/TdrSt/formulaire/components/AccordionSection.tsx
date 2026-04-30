@@ -17,6 +17,7 @@ type AccordionSectionProps = {
   getActionButtonLabel?: (doc: TdrStDocument) => string | null;
   role?: string | null;
   defaultOpen?: boolean;
+  countBadgeClassName?: string;
 };
 
 const defaultIconMap: Record<string, React.ElementType> = {
@@ -37,6 +38,15 @@ const iconClassMap: Record<string, string> = {
   archive: "border-slate-200 bg-slate-50 text-slate-600",
 };
 
+const countBadgeClassMap: Record<string, string> = {
+  draft: "border-slate-300 bg-slate-100 text-slate-700",
+  pending: "border-amber-200 bg-amber-500 text-white",
+  correction: "border-rose-200 bg-rose-500 text-white",
+  validation: "border-emerald-200 bg-emerald-500 text-white",
+  all: "border-teal-200 bg-teal-500 text-white",
+  archive: "border-slate-300 bg-slate-100 text-slate-700",
+};
+
 export function AccordionSection({
   sectionKey,
   title,
@@ -49,11 +59,14 @@ export function AccordionSection({
   getActionButtonLabel,
   role,
   defaultOpen = false,
+  countBadgeClassName,
 }: AccordionSectionProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const sectionRef = useRef<HTMLDivElement>(null);
   const Icon = customIcon || defaultIconMap[sectionKey] || FileText;
   const iconClass = iconClassMap[sectionKey] || "border-slate-200 bg-slate-50 text-slate-600";
+  const countBadgeClass =
+    countBadgeClassName || countBadgeClassMap[sectionKey] || "border-slate-300 bg-slate-100 text-slate-700";
   const hasItems = documents.length > 0;
 
   useEffect(() => {
@@ -93,7 +106,7 @@ export function AccordionSection({
           <span className="text-base font-semibold text-slate-900">{title}</span>
           <span
             className={`ml-1 rounded-full border px-3 py-1 text-xs font-semibold ${
-              hasItems ? "border-slate-200 bg-white text-slate-700" : "border-slate-200 bg-slate-100 text-slate-400"
+              hasItems ? countBadgeClass : "border-slate-200 bg-slate-100 text-slate-400"
             }`}
           >
             {documents.length}

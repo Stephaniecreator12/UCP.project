@@ -9,6 +9,10 @@ from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
 from apps.TdrSt.models.TdrSt import TdrStDocument, TdrStDocumentFileVersion, TdrStValidationAction
+from apps.TdrSt.services.schema_compat import (
+    MISSING_TDR_LINK_MIGRATION_MESSAGE,
+    has_tdr_demande_link_column,
+)
 
 # IMPORTS POUR LES EMAILS
 from apps.TdrSt.services.emailService import (
@@ -21,8 +25,6 @@ from apps.TdrSt.services.emailService import (
 
 LOCKED_DEMANDE_FIELDS = {
     "unite_technique",
-    "type_document",
-    "categorie_activite",
     "intitule",
     "reference_ptba",
     "montant_estime_usd",
@@ -86,6 +88,9 @@ def _build_numero_document(doc: TdrStDocument) -> str:
 def create_document(validated_data: dict, user) -> TdrStDocument:
     demande_achat_id = validated_data.pop("demande_achat_id", None)
     demande_achat = None
+
+    if not has_tdr_demande_link_column():
+        raise ValidationError({"detail": MISSING_TDR_LINK_MIGRATION_MESSAGE})
 
     if demande_achat_id:
         from apps.achats.models import DemandeAchat

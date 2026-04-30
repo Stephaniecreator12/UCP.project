@@ -23,7 +23,7 @@ export interface CreateTdrStDraftPayload {
   demande_achat_id?: number;
   unite_technique: string;
   type_document: TdrStDocumentType;
-  categorie_activite: TdrStCategorieActivite;
+  categorie_activite: TdrStCategorieActivite | "";
   intitule: string;
   reference_ptba: string;
   periode_debut: string;
@@ -51,6 +51,11 @@ const redirectToLogin = () => {
   window.location.href = "/login";
 };
 
+const extractHtmlTitle = (value: string) => {
+  const match = value.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  return match?.[1]?.replace(/\s+/g, " ").trim() ?? "";
+};
+
 const parseApiError = async (response: Response) => {
   const text = await response.text().catch(() => "");
   if (!text.trim()) {
@@ -65,6 +70,17 @@ const parseApiError = async (response: Response) => {
     }
   } catch {
     // ignore JSON parse failure
+  }
+
+  const htmlTitle = extractHtmlTitle(text);
+  if (htmlTitle) {
+    return htmlTitle;
+  }
+
+  if (/<[a-z][\s\S]*>/i.test(text)) {
+    return response.status >= 500
+      ? `Erreur serveur (${response.status}). Vérifie le backend ou applique les migrations.`
+      : `Erreur HTTP ${response.status}.`;
   }
 
   return text.slice(0, 400);

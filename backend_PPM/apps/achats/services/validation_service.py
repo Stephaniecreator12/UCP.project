@@ -10,6 +10,7 @@ from apps.achats.services.demande_service import (
     _build_numero_subvention,
     _build_numero_engagement_budgetaire,
 )
+from apps.achats.services.tdr_link_compat import with_optional_tdr_select_related
 
 VALIDATION_FLOW = [
     DemandeAchat.ETAPE_HIERARCHIQUE,
@@ -144,12 +145,16 @@ def list_demandes_a_valider(user):
 
     from django.db.models import Prefetch
 
-    return (
+    qs = with_optional_tdr_select_related(
         DemandeAchat.objects.filter(
             statut=DemandeAchat.STATUT_SOUMISE,
             etape_validation_actuelle=user_step,
-        )
-        .select_related("demandeur", "tdr_st_document")
+        ),
+        "demandeur",
+    )
+
+    return (
+        qs
         .prefetch_related(
             "demandeur__groups",
             "lignes_besoin",

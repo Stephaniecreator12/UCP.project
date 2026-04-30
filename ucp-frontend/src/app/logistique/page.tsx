@@ -30,7 +30,11 @@ import {
   isLogistiqueUser,
   type UserProfile,
 } from "@/services/auth";
-import { DemandeAchat, listMesDemandesAchat } from "@/services/achats";
+import {
+  type DashboardScope,
+  DemandeAchat,
+  listDemandesAchat,
+} from "@/services/achats";
 
 type SectionKey = "all" | "action";
 type DetailViewMode = "detail" | "timeline";
@@ -134,6 +138,7 @@ export default function MarcheDashboardPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const filterParam = searchParams.get("filtre");
+  const rawScope = (searchParams.get("scope") ?? "").trim().toLowerCase();
   const [currentUser] = useState(() => getCurrentUser());
   const marketRoleLabel = getMarketRoleLabel(currentUser);
   const [demandes, setDemandes] = useState<DemandeAchat[]>([]);
@@ -147,6 +152,22 @@ export default function MarcheDashboardPage() {
   const [receptionModalDemandeId, setReceptionModalDemandeId] = useState<number | null>(null);
   const [resolveIssueModalDemandeId, setResolveIssueModalDemandeId] = useState<number | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const dashboardScope: DashboardScope = rawScope === "mine" ? "mine" : "all";
+  const searchParamsString = searchParams.toString();
+
+  const mineScopeHref = useMemo(() => {
+    const params = new URLSearchParams(searchParamsString);
+    params.delete("scope");
+    const queryString = params.toString();
+    return queryString ? `/logistique?${queryString}` : "/logistique";
+  }, [searchParamsString]);
+
+  const allScopeHref = useMemo(() => {
+    const params = new URLSearchParams(searchParamsString);
+    params.set("scope", "all");
+    const queryString = params.toString();
+    return `/logistique?${queryString}`;
+  }, [searchParamsString]);
 
   const showToast = (message: string) => {
     setToastMessage(message);
@@ -155,7 +176,7 @@ export default function MarcheDashboardPage() {
 
   const reloadDemandes = async () => {
     try {
-      const data = await listMesDemandesAchat();
+      const data = await listDemandesAchat(dashboardScope);
       setDemandes(data);
     } catch {}
   };
@@ -171,8 +192,9 @@ export default function MarcheDashboardPage() {
     }
 
     const load = async () => {
+      setLoading(true);
       try {
-        const data = await listMesDemandesAchat();
+        const data = await listDemandesAchat(dashboardScope);
         setDemandes(data);
         setError(null);
       } catch (err) {
@@ -182,20 +204,24 @@ export default function MarcheDashboardPage() {
       }
     };
     void load();
-  }, [currentUser, router]);
+  }, [currentUser, dashboardScope, router]);
 
   useEffect(() => {
     if (filterParam === "toutes") setActiveSection("all");
     else setActiveSection("action");
   }, [filterParam]);
 
-  const { filteredDemandes, filterProps } = useDashboardFilters(demandes);
+  const marketBaseDemandes = useMemo(
+    () =>
+      demandes.filter((demande) =>
+        ["EN_COMMANDE", "EN_LIVRAISON", "LIVREE", "CLOTUREE"].includes(demande.statut),
+      ),
+    [demandes],
+  );
+  const { filteredDemandes, filterProps } = useDashboardFilters(marketBaseDemandes);
 
   const marketDemandes = useMemo(
-    () =>
-      filteredDemandes.filter((d) =>
-        ["EN_COMMANDE", "EN_LIVRAISON", "LIVREE", "CLOTUREE"].includes(d.statut),
-      ),
+    () => filteredDemandes,
     [filteredDemandes],
   );
   const actionDemandes = useMemo(
@@ -277,29 +303,56 @@ export default function MarcheDashboardPage() {
             </div>
 
             <div className="flex w-full flex-col gap-3 md:w-auto md:min-w-[420px] md:items-end">
-              <div className="inline-flex items-center gap-1 self-start rounded-xl border border-slate-200 bg-white p-1 shadow-sm md:self-auto">
-                <button
-                  type="button"
-                  onClick={() => setDisplayMode("status")}
-                  className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
-                    displayMode === "status"
-                      ? "bg-slate-900 text-white shadow-sm"
-                      : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                  }`}
-                >
-                  Vue par statut
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDisplayMode("table")}
-                  className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
-                    displayMode === "table"
-                      ? "bg-slate-900 text-white shadow-sm"
-                      : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                  }`}
-                >
-                  Vue tableau
-                </button>
+              <div className="flex w-full flex-wrap items-center gap-2 self-start md:w-auto md:justify-end md:self-auto">
+                <div className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+                  <button
+                    type="button"
+                    onClick={() => router.replace(mineScopeHref)}
+                    className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                      dashboardScope === "mine"
+                        ? "bg-slate-900 text-white shadow-sm"
+                        : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                    }`}
+                  >
+                    Mes dossiers
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => router.replace(allScopeHref)}
+                    className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                      dashboardScope === "all"
+                        ? "bg-slate-900 text-white shadow-sm"
+                        : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                    }`}
+                  >
+                    Tous les dossiers
+                  </button>
+                </div>
+
+                <div className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+                  <button
+                    type="button"
+                    onClick={() => setDisplayMode("status")}
+                    className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                      displayMode === "status"
+                        ? "bg-slate-900 text-white shadow-sm"
+                        : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                    }`}
+                  >
+                    Vue par statut
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDisplayMode("table")}
+                    className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                      displayMode === "table"
+                        ? "bg-slate-900 text-white shadow-sm"
+                        : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                    }`}
+                  >
+                    Vue tableau
+                  </button>
+                </div>
               </div>
 
               <div className="flex items-center gap-3 w-full md:w-auto">
@@ -348,7 +401,11 @@ export default function MarcheDashboardPage() {
           <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center shadow-sm">
             <Activity className="mx-auto h-12 w-12 text-slate-300 mb-4" />
             <h2 className="text-lg font-bold text-slate-900 mb-2">Aucun dossier Marché</h2>
-            <p className="text-sm text-slate-500 mb-6">Aucune expédition ou réception à traiter.</p>
+            <p className="text-sm text-slate-500 mb-6">
+              {dashboardScope === "mine"
+                ? "Aucun de vos dossiers n'est actuellement au stade logistique."
+                : "Aucune expédition ou réception à traiter."}
+            </p>
           </div>
         ) : displayMode === "table" ? (
           <DashboardTableView

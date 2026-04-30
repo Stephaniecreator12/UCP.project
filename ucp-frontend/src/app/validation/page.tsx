@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Search, X, ChevronDown, Clock, FileCheck, ChevronLeft, ChevronRight as ChevronRightIcon, CheckCircle } from "lucide-react";
 
 import TopHeader from "@/app/components/TopHeader";
@@ -24,12 +24,18 @@ import {
   getFinanceRoleLabel,
   getLandingRouteForUser,
   getToken,
+  getValidatorStep,
   getValidatorRoleLabel,
   isFinanceUser,
   isValidatorUser,
   type UserProfile,
 } from "@/services/auth";
-import { DemandeAchat, listDemandesEnAttenteValidation, getDemandeAchatById } from "@/services/achats";
+import {
+  type DashboardScope,
+  DemandeAchat,
+  getDemandeAchatById,
+  listDemandesAchat,
+} from "@/services/achats";
 
 type SectionKey = "pending";
 type DetailViewMode = "detail" | "timeline";
@@ -117,10 +123,12 @@ const filterDemandesByQuery = (items: DemandeAchat[], query: string) => {
 
 export default function ValidationDashboardPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [isHydrated, setIsHydrated] = useState(false);
   const validationRoleLabel =
     getValidatorRoleLabel(currentUser) || getFinanceRoleLabel(currentUser);
+  const validationStep = getValidatorStep(currentUser) as DemandeAchat["etape_validation_actuelle"] | null;
   const [demandes, setDemandes] = useState<DemandeAchat[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -131,6 +139,23 @@ export default function ValidationDashboardPage() {
   const [detailViewMode, setDetailViewMode] = useState<DetailViewMode>("detail");
   const [selectedValidationId, setSelectedValidationId] = useState<number | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const rawScope = (searchParams.get("scope") ?? "").trim().toLowerCase();
+  const dashboardScope: DashboardScope = rawScope === "mine" ? "mine" : "all";
+  const searchParamsString = searchParams.toString();
+
+  const mineScopeHref = useMemo(() => {
+    const params = new URLSearchParams(searchParamsString);
+    params.delete("scope");
+    const queryString = params.toString();
+    return queryString ? `/validation?${queryString}` : "/validation";
+  }, [searchParamsString]);
+
+  const allScopeHref = useMemo(() => {
+    const params = new URLSearchParams(searchParamsString);
+    params.set("scope", "all");
+    const queryString = params.toString();
+    return `/validation?${queryString}`;
+  }, [searchParamsString]);
 
   useEffect(() => {
     setCurrentUser(getCurrentUser());
@@ -158,8 +183,9 @@ export default function ValidationDashboardPage() {
     }
 
     const load = async () => {
+      setLoading(true);
       try {
-        const data = await listDemandesEnAttenteValidation();
+        const data = await listDemandesAchat(dashboardScope);
         setDemandes(data);
         setError(null);
       } catch (err) {
@@ -169,9 +195,18 @@ export default function ValidationDashboardPage() {
       }
     };
     void load();
-  }, [currentUser, isHydrated, router]);
+  }, [currentUser, dashboardScope, isHydrated, router]);
 
-  const { filteredDemandes, filterProps } = useDashboardFilters(demandes);
+  const validationBaseDemandes = useMemo(
+    () =>
+      demandes.filter(
+        (demande) =>
+          demande.statut === "SOUMISE" &&
+          (!validationStep || demande.etape_validation_actuelle === validationStep),
+      ),
+    [demandes, validationStep],
+  );
+  const { filteredDemandes, filterProps } = useDashboardFilters(validationBaseDemandes);
   const orderedDemandes = useMemo(() => filteredDemandes, [filteredDemandes]);
 
   const sections = useMemo<Record<SectionKey, SectionData>>(() => ({
@@ -203,7 +238,7 @@ export default function ValidationDashboardPage() {
   const handleValidationSuccess = async () => {
     setSelectedValidationId(null);
     try {
-      const data = await listDemandesEnAttenteValidation();
+      const data = await listDemandesAchat(dashboardScope);
       setDemandes(data);
       showToast("Validation effectuée avec succès !");
     } catch {
@@ -260,29 +295,56 @@ export default function ValidationDashboardPage() {
             </div>
 
             <div className="flex w-full flex-col gap-3 md:w-auto md:min-w-[420px] md:items-end">
-              <div className="inline-flex items-center gap-1 self-start rounded-xl border border-slate-200 bg-white p-1 shadow-sm md:self-auto">
-                <button
-                  type="button"
-                  onClick={() => setDisplayMode("status")}
-                  className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
-                    displayMode === "status"
-                      ? "bg-slate-900 text-white shadow-sm"
-                      : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                  }`}
-                >
-                  Vue par statut
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDisplayMode("table")}
-                  className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
-                    displayMode === "table"
-                      ? "bg-slate-900 text-white shadow-sm"
-                      : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                  }`}
-                >
-                  Vue tableau
-                </button>
+              <div className="flex w-full flex-wrap items-center gap-2 self-start md:w-auto md:justify-end md:self-auto">
+                <div className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+                  <button
+                    type="button"
+                    onClick={() => router.replace(mineScopeHref)}
+                    className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                      dashboardScope === "mine"
+                        ? "bg-slate-900 text-white shadow-sm"
+                        : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                    }`}
+                  >
+                    Mes dossiers
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => router.replace(allScopeHref)}
+                    className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                      dashboardScope === "all"
+                        ? "bg-slate-900 text-white shadow-sm"
+                        : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                    }`}
+                  >
+                    Tous les dossiers
+                  </button>
+                </div>
+
+                <div className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+                  <button
+                    type="button"
+                    onClick={() => setDisplayMode("status")}
+                    className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                      displayMode === "status"
+                        ? "bg-slate-900 text-white shadow-sm"
+                        : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                    }`}
+                  >
+                    Vue par statut
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDisplayMode("table")}
+                    className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                      displayMode === "table"
+                        ? "bg-slate-900 text-white shadow-sm"
+                        : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                    }`}
+                  >
+                    Vue tableau
+                  </button>
+                </div>
               </div>
 
               <div className="flex items-center gap-3 w-full md:w-auto">
@@ -338,7 +400,9 @@ export default function ValidationDashboardPage() {
             </div>
             <h2 className="text-lg font-bold text-slate-900 mb-2">Aucun dossier en attente</h2>
             <p className="text-sm text-slate-500">
-              Votre file de traitement est vide. Vous recevrez une notification lorsqu&apos;un nouvel état de besoins nécessitera votre attention.
+              {dashboardScope === "mine"
+                ? "Aucun de vos dossiers n'est actuellement à cette étape de validation."
+                : "Votre file de traitement est vide. Vous recevrez une notification lorsqu'un nouvel état de besoins nécessitera votre attention."}
             </p>
           </div>
         ) : displayMode === "table" ? (

@@ -18,6 +18,7 @@ from apps.achats.services.notification_service import (
     notify_reception_issue_resolved,
     notify_reception_recorded,
 )
+from apps.achats.services.tdr_link_compat import with_optional_tdr_select_related
 
 NUMERO_PREFIX = "UCP/DA"
 BON_COMMANDE_PREFIX = "UCP/BC"
@@ -57,11 +58,11 @@ DEFAULT_BUDGET_BALANCE_BY_SOURCE = {
 }
 
 SUBVENTION_BY_SOURCE = {
-    DemandeAchat.SOURCE_SRPS_CS7_FM: "MDG - S MOH 4041",
-    DemandeAchat.SOURCE_RSS3_GAVI: "MDG - HSS - 3",
-    DemandeAchat.SOURCE_FAE_GAVI: "MDG - FAE",
-    DemandeAchat.SOURCE_CDS_GAVI: "MDG - COVID19 - CDS",
-    DemandeAchat.SOURCE_VAR_GAVI: "MDG - VAR Camp",
+    DemandeAchat.SOURCE_SRPS_CS7_FM: "MDG-S MOH 4041",
+    DemandeAchat.SOURCE_RSS3_GAVI: "MDG-HSS-3",
+    DemandeAchat.SOURCE_FAE_GAVI: "MDG-FAE",
+    DemandeAchat.SOURCE_CDS_GAVI: "MDG-COVID19-CDS",
+    DemandeAchat.SOURCE_VAR_GAVI: "MDG-VAR Camp",
     DemandeAchat.SOURCE_PARN2_BM: "P175110, PAD 4924",
     DemandeAchat.SOURCE_PPSB_BM: "P174903",
 }
@@ -112,7 +113,7 @@ def list_mes_demandes(user, scope="mine"):
     from apps.achats.models import ValidationDemande, HistoriqueDemande
 
     return (
-        qs.select_related("demandeur", "tdr_st_document")
+        with_optional_tdr_select_related(qs, "demandeur")
         .prefetch_related(
             "demandeur__groups",
             "lignes_besoin",
@@ -154,15 +155,19 @@ def list_demandes_a_commander(user):
     from django.db.models import Prefetch
     from apps.achats.models import ValidationDemande, HistoriqueDemande
 
-    return (
+    qs = with_optional_tdr_select_related(
         DemandeAchat.objects.filter(
             statut__in=[
                 DemandeAchat.STATUT_VALIDEE_BUDGETAIRE,
                 DemandeAchat.STATUT_EN_COMMANDE,
                 DemandeAchat.STATUT_EN_LIVRAISON,
             ]
-        )
-        .select_related("demandeur", "tdr_st_document")
+        ),
+        "demandeur",
+    )
+
+    return (
+        qs
         .prefetch_related(
             "demandeur__groups",
             "lignes_besoin",
@@ -187,12 +192,16 @@ def list_demandes_budgetaires(user):
     from django.db.models import Prefetch
     from apps.achats.models import ValidationDemande, HistoriqueDemande
 
-    return (
+    qs = with_optional_tdr_select_related(
         DemandeAchat.objects.filter(
             statut=DemandeAchat.STATUT_SOUMISE,
             etape_validation_actuelle=DemandeAchat.ETAPE_BUDGETAIRE,
-        )
-        .select_related("demandeur", "tdr_st_document")
+        ),
+        "demandeur",
+    )
+
+    return (
+        qs
         .prefetch_related(
             "demandeur__groups",
             "lignes_besoin",

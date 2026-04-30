@@ -151,6 +151,7 @@ export interface DemandeAchat {
 }
 
 export interface CreateDemandePayload {
+  requires_tdr?: boolean;
   unite_technique: string;
   categorie_besoin: string;
   type_demande: string;
@@ -417,6 +418,38 @@ const formatApiError = (data: unknown) => {
   return "Erreur API";
 };
 
+const extractHtmlTitle = (value: string) => {
+  const match = value.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  return match?.[1]?.replace(/\s+/g, " ").trim() ?? "";
+};
+
+const parseApiResponsePayload = async (response: Response) => {
+  const raw = await response.text();
+  const trimmed = raw.trim();
+
+  if (!trimmed) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(trimmed) as unknown;
+  } catch {
+    const htmlTitle = extractHtmlTitle(trimmed);
+
+    if (htmlTitle) {
+      return htmlTitle;
+    }
+
+    if (/<[a-z][\s\S]*>/i.test(trimmed)) {
+      return response.status >= 500
+        ? `Erreur serveur (${response.status}). Vérifie le backend ou applique les migrations.`
+        : `Erreur HTTP ${response.status}.`;
+    }
+
+    return trimmed;
+  }
+};
+
 // Point d'entrée unique pour tous les appels JSON du module "état de besoins".
 // On y gère le token, les erreurs et l'uniformité des réponses.
 const apiFetch = async <T>(
@@ -454,7 +487,7 @@ const apiFetch = async <T>(
     handleUnauthorized();
   }
 
-  const data = await response.json().catch(() => ({}));
+  const data = await parseApiResponsePayload(response);
 
   if (!response.ok) {
     const detail = formatApiError(data);
@@ -496,10 +529,7 @@ const apiFetchBlob = async (
   }
 
   if (!response.ok) {
-    const errorPayload = await response
-      .clone()
-      .json()
-      .catch(async () => await response.text().catch(() => ""));
+    const errorPayload = await parseApiResponsePayload(response.clone());
 
     throw new Error(String(formatApiError(errorPayload)));
   }

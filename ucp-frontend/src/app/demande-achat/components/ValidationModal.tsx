@@ -4,6 +4,13 @@ import { useEffect, useMemo, useState } from "react";
 import { Activity, ExternalLink, X } from "lucide-react";
 import PurchaseSelect from "@/app/demande-achat/components/PurchaseSelect";
 import {
+  FINANCE_FAMILY_OPTIONS,
+  findFinanceCatalogEntry,
+  getFinanceCatalogByFamily,
+  getFinanceCatalogByOptionKey,
+  getFinanceCatalogByValue,
+} from "@/lib/financeCatalog";
+import {
   formatMoney,
   getCompactNeedLabel,
   typeLabels,
@@ -88,66 +95,6 @@ const respectSeuilsOptions = [
   { value: "PROCEDURE_ADAPTEE", label: "Procedure adaptee" },
 ] as const;
 
-const fundingSourceOptions = [
-  { value: "FM", label: "Fonds mondial" },
-  { value: "GAVI", label: "Alliance GAVI" },
-  { value: "BM", label: "Banque mondiale" },
-] as const;
-
-const financeCatalog = [
-  {
-    value: "SRPS_CS7_FM",
-    family: "FM",
-    sourceLabel: "SRPS / CS7 / Fonds Mondial",
-    budgetLabel: "SRPS",
-    subvention: "MDG-S-MOH-4041",
-  },
-  {
-    value: "RSS3_GAVI",
-    family: "GAVI",
-    sourceLabel: "RSS3 - MDG-HSS-3",
-    budgetLabel: "RSS3",
-    subvention: "MDG-HSS-3",
-  },
-  {
-    value: "FAE_GAVI",
-    family: "GAVI",
-    sourceLabel: "FAE - MDG-FAE",
-    budgetLabel: "FAE",
-    subvention: "MDG-FAE",
-  },
-  {
-    value: "CDS_GAVI",
-    family: "GAVI",
-    sourceLabel: "CDS - MDG-COVID19-CDS",
-    budgetLabel: "CDS",
-    subvention: "MDG-COVID19-CDS",
-  },
-  {
-    value: "VAR_GAVI",
-    family: "GAVI",
-    sourceLabel: "VAR - MDG-VAR Camp",
-    budgetLabel: "VAR",
-    subvention: "MDG-VAR Camp",
-  },
-  {
-    value: "PARN2_BM",
-    family: "BM",
-    sourceLabel: "PARN2 - P175110",
-    budgetLabel: "PARN2",
-    subvention: "P175110",
-  },
-  {
-    value: "PPSB_BM",
-    family: "BM",
-    sourceLabel: "PPSB - P174903",
-    budgetLabel: "PPSB",
-    subvention: "P174903",
-  },
-] as const;
-
-const DEFAULT_FINANCE = financeCatalog[0];
-
 const parseAmount = (value: string) => {
   const normalized = value.replace(/\s/g, "").replace(",", ".");
   const parsed = Number(normalized);
@@ -159,15 +106,6 @@ const formatAmountInput = (value: number) =>
 
 const buildEngagementNumber = (demande: DemandeAchat | null) =>
   `ENG-${new Date().getFullYear()}-${String(demande?.id ?? 1).padStart(4, "0")}`;
-
-const getCatalogByValue = (value: string) =>
-  financeCatalog.find((item) => item.value === value) ?? DEFAULT_FINANCE;
-
-const findCatalog = (value: string) =>
-  financeCatalog.find((item) => item.value === value || item.family === value) ?? null;
-
-const getCatalogForFundingSource = (family: string) =>
-  financeCatalog.filter((item) => item.family === family);
 
 const createInitialForm = (step: EtapeValidation | null): ValidationFormState => {
   const base: ValidationFormState = {
@@ -222,7 +160,6 @@ const buildValidationPayload = (
   }
 
   if (step === "BUDGETAIRE") {
-    const selectedBudgetLine = getCatalogByValue(form.ligne_budgetaire);
     return {
       ...base,
       donnees_etape: {
@@ -230,7 +167,7 @@ const buildValidationPayload = (
         conformite_financiere: form.conformite_financiere,
         respect_seuils: form.respect_seuils,
         ligne_budgetaire: form.ligne_budgetaire,
-        source_financement: selectedBudgetLine.value,
+        source_financement: form.source_financement,
         numero_subvention: form.numero_subvention,
         numero_engagement_budgetaire: form.numero_engagement_budgetaire,
         solde_disponible_ligne_budgetaire: form.solde_disponible_ligne_budgetaire,
@@ -254,12 +191,17 @@ export default function ValidationModal({
   const [form, setForm] = useState<ValidationFormState>(() => createInitialForm(validatorStep));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedSourceFamily, setSelectedSourceFamily] = useState("");
 
   const selectedStep = (demande?.etape_validation_actuelle ?? validatorStep) as EtapeValidation | null;
   const decisionOptions = useMemo(() => getDecisionOptions(selectedStep), [selectedStep]);
-  const budgetLineCatalog = useMemo(
-    () => getCatalogForFundingSource(form.source_financement),
-    [form.source_financement],
+  const selectedFundingEntry = useMemo(
+    () => getFinanceCatalogByValue(form.source_financement, form.numero_subvention, form.ligne_budgetaire),
+    [form.ligne_budgetaire, form.numero_subvention, form.source_financement],
+  );
+  const financeLineOptions = useMemo(
+    () => getFinanceCatalogByFamily(selectedSourceFamily),
+    [selectedSourceFamily],
   );
   const budgetFieldsLockedByTdr = demande?.tdr_document_statut === "VALIDE";
   const estimatedCost = useMemo(() => Number(demande?.cout_total_estime ?? 0), [demande?.cout_total_estime]);
@@ -270,15 +212,17 @@ export default function ValidationModal({
     if (!open) return;
 
     const initial = createInitialForm(selectedStep);
-    const currentCatalog = findCatalog(
-      (demande?.source_financement as string) || (demande?.ligne_budgetaire as string) || "",
+    const currentCatalog = findFinanceCatalogEntry(
+      (demande?.source_financement as string) || "",
+      demande?.numero_subvention || "",
+      demande?.ligne_budgetaire || "",
     );
 
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setForm({
       ...initial,
-      source_financement: currentCatalog?.family || "",
-      ligne_budgetaire: currentCatalog?.value || "",
+      source_financement: currentCatalog?.value || (demande?.source_financement as string) || "",
+      ligne_budgetaire: demande?.ligne_budgetaire || "",
       numero_subvention: demande?.numero_subvention || currentCatalog?.subvention || "",
       solde_disponible_ligne_budgetaire: demande?.solde_disponible_ligne_budgetaire
         ? String(demande.solde_disponible_ligne_budgetaire)
@@ -289,6 +233,7 @@ export default function ValidationModal({
       numero_engagement_budgetaire:
         demande?.numero_engagement_budgetaire || "",
     });
+    setSelectedSourceFamily(currentCatalog?.family || "");
     setError(null);
     setSaving(false);
   }, [open, selectedStep, demande]);
@@ -314,9 +259,6 @@ export default function ValidationModal({
 
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setForm((prev) => {
-      const selectedBudgetLine = prev.ligne_budgetaire
-        ? getCatalogByValue(prev.ligne_budgetaire)
-        : null;
       const forcedAvailability =
         remainingBalance < 0
           ? "NON_DISPONIBLE"
@@ -334,7 +276,7 @@ export default function ValidationModal({
         ...prev,
         disponibilite_budgetaire: forcedAvailability,
         decision: forcedDecision,
-        numero_subvention: selectedBudgetLine?.subvention ?? prev.numero_subvention,
+        numero_subvention: selectedFundingEntry?.subvention ?? prev.numero_subvention,
         solde_apres_engagement: String(remainingBalance),
         numero_engagement_budgetaire:
           forcedDecision === "FAVORABLE"
@@ -344,7 +286,7 @@ export default function ValidationModal({
             : prev.numero_engagement_budgetaire,
       };
     });
-  }, [open, selectedStep, remainingBalance, demande]);
+  }, [open, selectedStep, remainingBalance, demande, selectedFundingEntry]);
 
   if (!open || !demande) return null;
 
@@ -517,41 +459,55 @@ export default function ValidationModal({
                   </div>
                   {budgetFieldsLockedByTdr && (
                     <p className="mb-3 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800">
-                      Source, ligne et code de subvention proviennent du TDR/ST validé et sont repris automatiquement.
+                      Source de financement, ligne budgétaire et subvention reprises automatiquement depuis le TDR/ST validé.
                     </p>
                   )}
                   <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
                     <div className="flex flex-col gap-1.5">
                       <label className="text-xs font-semibold text-slate-700">Source de financement</label>
                       <PurchaseSelect
-                        value={form.source_financement}
+                        value={selectedSourceFamily}
                         onChange={(value) => {
+                          setSelectedSourceFamily(value);
                           setForm((prev) => ({
                             ...prev,
-                            source_financement: value,
+                            source_financement: "",
                             ligne_budgetaire: "",
                             numero_subvention: "",
                           }));
                         }}
                         disabled={budgetFieldsLockedByTdr}
-                        options={[...fundingSourceOptions]}
+                        options={[...FINANCE_FAMILY_OPTIONS]}
+                        placeholder="Choisir une source de financement"
                         className="w-full rounded-[14px] border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm"
                       />
                     </div>
                     <div className="flex flex-col gap-1.5">
                       <label className="text-xs font-semibold text-slate-700">Ligne budgetaire</label>
                       <PurchaseSelect
-                        value={form.ligne_budgetaire}
+                        value={selectedFundingEntry?.optionKey || ""}
                         onChange={(value) => {
-                          const next = getCatalogByValue(value);
+                          const next = getFinanceCatalogByOptionKey(value);
                           setForm((prev) => ({
                             ...prev,
-                            ligne_budgetaire: next.value,
-                            numero_subvention: next.subvention,
+                            source_financement: next?.value || "",
+                            ligne_budgetaire: next?.budgetLabel || "",
+                            numero_subvention: next?.subvention || "",
                           }));
                         }}
-                        disabled={budgetFieldsLockedByTdr}
-                        options={budgetLineCatalog.map((item) => ({ value: item.value, label: item.budgetLabel }))}
+                        disabled={budgetFieldsLockedByTdr || !selectedSourceFamily}
+                        options={financeLineOptions.map((item) => ({
+                          value: item.optionKey,
+                          label:
+                            financeLineOptions.filter((line) => line.budgetLabel === item.budgetLabel).length > 1
+                              ? `${item.budgetLabel} - ${item.subvention}`
+                              : item.budgetLabel,
+                        }))}
+                        placeholder={
+                          selectedSourceFamily
+                            ? "Choisir une ligne budgétaire"
+                            : "Choisissez d'abord la source de financement"
+                        }
                         className="w-full rounded-[14px] border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm"
                       />
                     </div>

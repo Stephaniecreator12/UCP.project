@@ -225,6 +225,7 @@ class DemandeAchat(models.Model):
     justification = models.TextField()
     lien_ptba = models.CharField(max_length=255)
     service_beneficiaire = models.CharField(max_length=255)
+    requires_tdr = models.BooleanField(default=False)
 
     ligne_budgetaire = models.CharField(max_length=100, blank=True)
     source_financement = models.CharField(

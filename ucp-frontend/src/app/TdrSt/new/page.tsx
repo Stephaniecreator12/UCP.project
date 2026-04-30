@@ -2,16 +2,21 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, FilePlus2, Loader2, Save } from "lucide-react";
+import { ArrowLeft, FilePlus2, Loader2, Save, SendHorizontal } from "lucide-react";
 
 import TopHeader from "@/app/components/TopHeader";
+import {
+  FINANCE_FAMILY_OPTIONS,
+  findFinanceCatalogEntry,
+  getFinanceCatalogByFamily,
+  getFinanceCatalogByOptionKey,
+} from "@/lib/financeCatalog";
+import { buildTdrDraftPayloadFromDemande } from "@/lib/tdrDraftFromDemande";
 import { getToken } from "@/services/auth";
+import { getDemandeAchat, type DemandeAchat } from "@/services/achats";
 import {
   fetchJson,
-  getFinanceCatalogByFamily,
-  getFinanceCatalogByValue,
   makeEmptyForm,
-  TDR_FINANCE_FAMILY_OPTIONS,
   type TdrStDocument,
   type TdrStFormState,
 } from "../formulaire/hooks/useTdrStData";
@@ -80,25 +85,42 @@ export default function TdrStNewPage() {
     const parsed = Number(raw);
     return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
   }, [searchParams]);
+  const demandeId = useMemo(() => {
+    const raw = searchParams.get("demandeId");
+    if (!raw) return null;
+    const parsed = Number(raw);
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+  }, [searchParams]);
+  const requestedDocumentType = useMemo(() => {
+    const raw = (searchParams.get("docType") || "").trim().toUpperCase();
+    return raw === "ST" || raw === "TDR" ? raw : null;
+  }, [searchParams]);
 
   const isEditMode = documentId !== null;
   const [form, setForm] = useState<TdrStFormState>(() => makeEmptyForm());
   const [activeDoc, setActiveDoc] = useState<TdrStDocument | null>(null);
+  const [linkedDemande, setLinkedDemande] = useState<DemandeAchat | null>(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [savingAction, setSavingAction] = useState<"draft" | "submit" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [role, setRole] = useState<string | null>(null);
+  const [selectedSourceFamily, setSelectedSourceFamily] = useState("");
+  const saving = savingAction !== null;
 
   const isEditable = !activeDoc || EDITABLE_STATUSES.has(activeDoc.statut);
-  const isLinkedToDemande = Boolean(activeDoc?.demande_achat_id);
+  const isLinkedToDemande = Boolean(activeDoc?.demande_achat_id || linkedDemande?.id || demandeId);
   const selectedFinanceCatalog = useMemo(
-    () => getFinanceCatalogByValue(form.sources_financement || form.ligne_budgetaire),
-    [form.ligne_budgetaire, form.sources_financement],
+    () =>
+      findFinanceCatalogEntry(
+        form.sources_financement,
+        form.numero_subvention,
+        form.ligne_budgetaire,
+      ),
+    [form.ligne_budgetaire, form.numero_subvention, form.sources_financement],
   );
-  const selectedFundingFamily = selectedFinanceCatalog?.family || "";
   const financeLineOptions = useMemo(
-    () => getFinanceCatalogByFamily(selectedFundingFamily),
-    [selectedFundingFamily],
+    () => getFinanceCatalogByFamily(selectedSourceFamily),
+    [selectedSourceFamily],
   );
 
   useEffect(() => {
@@ -120,14 +142,71 @@ export default function TdrStNewPage() {
           throw new Error("Seul le demandeur peut créer ou modifier un brouillon TDR/ST.");
         }
 
-        if (!documentId) throw new Error("Le TDR/ST doit être ouvert depuis un dossier état de besoin.");
+        if (documentId) {
+          const doc = await fetchJson<TdrStDocument>(`/api/TdrSt/documents/${documentId}/`, {
+            method: "GET",
+            cache: "no-store",
+          });
+          setActiveDoc(doc);
+          setForm(toFormState(doc));
+          setSelectedSourceFamily(
+            findFinanceCatalogEntry(
+              normalizeFundingSource(doc.sources_financement),
+              doc.numero_subvention || "",
+              doc.ligne_budgetaire || "",
+            )?.family || "",
+          );
+          return;
+        }
 
-        const doc = await fetchJson<TdrStDocument>(`/api/TdrSt/documents/${documentId}/`, {
-          method: "GET",
-          cache: "no-store",
+        if (!demandeId) throw new Error("Le TDR/ST doit être ouvert depuis un dossier état de besoin.");
+
+        const demande = await getDemandeAchat(demandeId);
+        setLinkedDemande(demande);
+
+        if (demande.tdr_document_id) {
+          const existingDoc = await fetchJson<TdrStDocument>(`/api/TdrSt/documents/${demande.tdr_document_id}/`, {
+            method: "GET",
+            cache: "no-store",
+          });
+          setActiveDoc(existingDoc);
+          setForm(toFormState(existingDoc));
+          setSelectedSourceFamily(
+            findFinanceCatalogEntry(
+              normalizeFundingSource(existingDoc.sources_financement),
+              existingDoc.numero_subvention || "",
+              existingDoc.ligne_budgetaire || "",
+            )?.family || "",
+          );
+          setError("Un brouillon TDR/ST existe déjà pour ce dossier. Tu peux le reprendre ci-dessous.");
+          return;
+        }
+
+        const draftPayload = buildTdrDraftPayloadFromDemande(demande);
+        setForm({
+          unite_technique: draftPayload.unite_technique,
+          type_document:
+            (requestedDocumentType as TdrStFormState["type_document"] | null) || draftPayload.type_document,
+          categorie_activite: draftPayload.categorie_activite,
+          intitule: draftPayload.intitule,
+          reference_ptba: draftPayload.reference_ptba,
+          periode_debut: draftPayload.periode_debut,
+          periode_fin: draftPayload.periode_fin,
+          duree_estimee_valeur: draftPayload.duree_estimee_valeur,
+          duree_estimee_unite: draftPayload.duree_estimee_unite,
+          sources_financement: draftPayload.sources_financement[0] ?? "",
+          numero_subvention: draftPayload.numero_subvention ?? "",
+          ligne_budgetaire: draftPayload.ligne_budgetaire,
+          montant_estime_usd: draftPayload.montant_estime_usd,
+          procedure_envisagee: draftPayload.procedure_envisagee,
         });
-        setActiveDoc(doc);
-        setForm(toFormState(doc));
+        setSelectedSourceFamily(
+          findFinanceCatalogEntry(
+            draftPayload.sources_financement[0] ?? "",
+            draftPayload.numero_subvention ?? "",
+            draftPayload.ligne_budgetaire,
+          )?.family || "",
+        );
       } catch (e: unknown) {
         setError(e instanceof Error ? e.message : String(e));
       } finally {
@@ -136,7 +215,7 @@ export default function TdrStNewPage() {
     };
 
     void loadPage();
-  }, [documentId, router]);
+  }, [demandeId, documentId, requestedDocumentType, router]);
 
   const handleBack = () => {
     router.push("/TdrSt/formulaire");
@@ -146,18 +225,22 @@ export default function TdrStNewPage() {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
-  const validateForm = () => {
+  const validateForm = (mode: "draft" | "submit") => {
     if (!form.unite_technique.trim()) return "Le champ unité technique est obligatoire.";
+    if (!form.type_document) return "Le type de document est obligatoire.";
+    if (!form.categorie_activite) return "Choisissez la catégorie d'activité.";
     if (!form.intitule.trim()) return "Le champ intitulé est obligatoire.";
     if (!form.reference_ptba.trim()) return "Le champ référence PTBA est obligatoire.";
     if (!form.periode_debut) return "La date de début est obligatoire.";
     if (!form.periode_fin) return "La date de fin est obligatoire.";
+    if (mode === "submit" && !form.sources_financement.trim()) return "La source de financement est obligatoire.";
+    if (mode === "submit" && !form.ligne_budgetaire.trim()) return "La ligne budgétaire est obligatoire.";
     if (!form.montant_estime_usd.trim()) return "Le montant estimé est obligatoire.";
     return null;
   };
 
-  const handleSave = async () => {
-    const validationError = validateForm();
+  const handleSave = async (mode: "draft" | "submit") => {
+    const validationError = validateForm(mode);
     if (validationError) {
       setError(validationError);
       return;
@@ -168,15 +251,16 @@ export default function TdrStNewPage() {
       return;
     }
 
-    setSaving(true);
+    setSavingAction(mode);
     setError(null);
     try {
       const payload = {
         ...form,
+        demande_achat_id: activeDoc?.demande_achat_id ?? linkedDemande?.id ?? undefined,
         unite_technique: form.unite_technique.trim(),
         intitule: form.intitule.trim(),
         reference_ptba: form.reference_ptba.trim(),
-        ligne_budgetaire: (form.ligne_budgetaire || form.sources_financement).trim(),
+        ligne_budgetaire: form.ligne_budgetaire.trim(),
         numero_subvention: form.numero_subvention.trim(),
         montant_estime_usd: form.montant_estime_usd.trim(),
         duree_estimee_valeur: Number(form.duree_estimee_valeur) || 1,
@@ -191,18 +275,25 @@ export default function TdrStNewPage() {
         },
       );
 
-      router.replace(`/TdrSt/formulaire?focus=${savedDoc.id}`);
+      const finalDoc =
+        mode === "submit"
+          ? await fetchJson<TdrStDocument>(`/api/TdrSt/documents/${savedDoc.id}/submit/`, {
+              method: "POST",
+            })
+          : savedDoc;
+
+      router.replace(`/TdrSt/formulaire?focus=${finalDoc.id}`);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
-      setSaving(false);
+      setSavingAction(null);
     }
   };
 
   return (
     <div className="min-h-screen bg-slate-50">
       <TopHeader />
-      <main className="mx-auto max-w-[1100px] px-4 py-6 md:px-6 md:py-8">
+      <main className="mx-auto max-w-[1560px] px-4 py-6 sm:px-6 lg:px-10">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
           <div className="space-y-3">
             <button
@@ -219,13 +310,9 @@ export default function TdrStNewPage() {
               </div>
               <div>
                 <h1 className="text-[1.9rem] font-bold tracking-tight text-slate-900">
-                  {isEditMode ? "Modifier le brouillon TDR/ST" : "Créer un brouillon TDR/ST"}
+                  {isEditMode ? "Modifier le document TDR/ST" : "Nouveau document TDR/ST"}
                 </h1>
-                <p className="text-sm text-slate-500">
-                  {isEditMode
-                    ? "Mets à jour ton brouillon avant de le soumettre."
-                    : "Renseigne les informations du nouveau TDR/ST."}
-                </p>
+                <p className="text-sm text-slate-500">Complétez le document puis enregistrez-le en brouillon ou envoyez-le en validation.</p>
               </div>
             </div>
           </div>
@@ -257,8 +344,8 @@ export default function TdrStNewPage() {
 
             {isLinkedToDemande ? (
               <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
-                Ce TDR/ST est lié au dossier <strong>{activeDoc?.demande_achat_numero || "état de besoin"}</strong>.
-                Les champs issus du dossier initial restent automatiques et grisés.
+                Document lié au dossier <strong>{activeDoc?.demande_achat_numero || linkedDemande?.numero_demande || "état de besoin"}</strong>.
+                Les informations administratives reprises du dossier restent préremplies.
               </div>
             ) : null}
 
@@ -289,7 +376,7 @@ export default function TdrStNewPage() {
                   <select
                     value={form.type_document}
                     onChange={(e) => handleChange("type_document", e.target.value as TdrStFormState["type_document"])}
-                    disabled={saving || !isEditable || isLinkedToDemande}
+                    disabled={saving || !isEditable}
                     className={inputClassName}
                   >
                     <option value="TDR">TDR</option>
@@ -303,9 +390,12 @@ export default function TdrStNewPage() {
                     onChange={(e) =>
                       handleChange("categorie_activite", e.target.value as TdrStFormState["categorie_activite"])
                     }
-                    disabled={saving || !isEditable || isLinkedToDemande}
+                    disabled={saving || !isEditable}
                     className={inputClassName}
                   >
+                    <option value="" disabled>
+                      Sélectionner une catégorie
+                    </option>
                     {CATEGORY_OPTIONS.map(([value, label]) => (
                       <option key={value} value={value}>
                         {label}
@@ -335,7 +425,7 @@ export default function TdrStNewPage() {
 
             <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-7">
               <div className="grid grid-cols-1 gap-5">
-                <Field label="Intitulé *">
+                <Field label="Intitulé du document *">
                   <textarea
                     rows={4}
                     value={form.intitule}
@@ -343,6 +433,11 @@ export default function TdrStNewPage() {
                     disabled={saving || !isEditable || isLinkedToDemande}
                     className={`${inputClassName} min-h-[110px] resize-y`}
                   />
+                  {isLinkedToDemande ? (
+                    <p className="mt-2 text-xs text-slate-500">
+                      Repris automatiquement de l&apos;objet de l&apos;état de besoins.
+                    </p>
+                  ) : null}
                 </Field>
               </div>
 
@@ -354,27 +449,6 @@ export default function TdrStNewPage() {
                     disabled={saving || !isEditable || isLinkedToDemande}
                     className={inputClassName}
                   />
-                </Field>
-
-                <Field label="Ligne budgétaire">
-                  <select
-                    value={form.ligne_budgetaire}
-                    onChange={(e) => {
-                      const nextCatalog = getFinanceCatalogByValue(e.target.value);
-                      handleChange("ligne_budgetaire", e.target.value);
-                      handleChange("sources_financement", e.target.value);
-                      handleChange("numero_subvention", nextCatalog?.subvention || "");
-                    }}
-                    disabled={saving || !isEditable || !selectedFundingFamily}
-                    className={inputClassName}
-                  >
-                    <option value="">Sélectionner une ligne</option>
-                    {financeLineOptions.map((item) => (
-                      <option key={item.value} value={item.value}>
-                        {item.budgetLabel}
-                      </option>
-                    ))}
-                  </select>
                 </Field>
               </div>
             </section>
@@ -430,6 +504,59 @@ export default function TdrStNewPage() {
 
             <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-7">
               <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                <Field label="Source de financement *">
+                  <select
+                    value={selectedSourceFamily}
+                    onChange={(e) => {
+                      setSelectedSourceFamily(e.target.value);
+                      handleChange("sources_financement", "");
+                      handleChange("ligne_budgetaire", "");
+                      handleChange("numero_subvention", "");
+                    }}
+                    disabled={saving || !isEditable}
+                    className={inputClassName}
+                  >
+                    <option value="" disabled>
+                      Sélectionner une source de financement
+                    </option>
+                    {FINANCE_FAMILY_OPTIONS.map((item) => (
+                      <option key={item.value} value={item.value}>
+                        {item.label}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+
+                <Field label="Ligne budgétaire *">
+                  <select
+                    value={selectedFinanceCatalog?.optionKey || ""}
+                    onChange={(e) => {
+                      const nextCatalog = getFinanceCatalogByOptionKey(e.target.value);
+                      handleChange("sources_financement", nextCatalog?.value || "");
+                      handleChange("ligne_budgetaire", nextCatalog?.budgetLabel || "");
+                      handleChange("numero_subvention", nextCatalog?.subvention || "");
+                    }}
+                    disabled={saving || !isEditable || !selectedSourceFamily}
+                    className={inputClassName}
+                  >
+                    <option value="" disabled>
+                      {selectedSourceFamily
+                        ? "Sélectionner une ligne budgétaire"
+                        : "Choisissez d'abord la source de financement"}
+                    </option>
+                    {financeLineOptions.map((item) => (
+                      <option key={item.optionKey} value={item.optionKey}>
+                        {item.budgetLabel}
+                        {financeLineOptions.filter((line) => line.budgetLabel === item.budgetLabel).length > 1
+                          ? ` - ${item.subvention}`
+                          : ""}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              </div>
+
+              <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">
                 <Field label="Montant estimé (USD) *">
                   <input
                     type="number"
@@ -445,54 +572,12 @@ export default function TdrStNewPage() {
                 <Field label="Numéro de subvention">
                   <input
                     value={form.numero_subvention}
-                    onChange={(e) => handleChange("numero_subvention", e.target.value)}
-                    disabled={saving || !isEditable}
+                    readOnly
+                    disabled
                     className={inputClassName}
                   />
                 </Field>
               </div>
-
-              <Field label="Source de financement" className="mt-5">
-                <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <span className="mb-2 block text-sm font-medium text-slate-700">Famille de financement</span>
-                    <select
-                      value={selectedFundingFamily}
-                      onChange={(e) => {
-                        handleChange("sources_financement", "");
-                        handleChange("ligne_budgetaire", "");
-                        handleChange("numero_subvention", "");
-                        const family = e.target.value;
-                        const firstOption = getFinanceCatalogByFamily(family)[0];
-                        if (firstOption) {
-                          handleChange("sources_financement", firstOption.value);
-                          handleChange("ligne_budgetaire", firstOption.value);
-                          handleChange("numero_subvention", firstOption.subvention);
-                        }
-                      }}
-                      disabled={saving || !isEditable}
-                      className={inputClassName}
-                    >
-                      <option value="">Sélectionner une source</option>
-                      {TDR_FINANCE_FAMILY_OPTIONS.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <span className="mb-2 block text-sm font-medium text-slate-700">Code / subvention</span>
-                    <input
-                      value={form.numero_subvention}
-                      onChange={(e) => handleChange("numero_subvention", e.target.value)}
-                      disabled={saving || !isEditable}
-                      className={inputClassName}
-                    />
-                  </div>
-                </div>
-              </Field>
             </section>
 
             <div className="flex flex-wrap justify-end gap-3">
@@ -505,12 +590,25 @@ export default function TdrStNewPage() {
               </button>
               <button
                 type="button"
-                onClick={() => void handleSave()}
+                onClick={() => void handleSave("draft")}
+                disabled={saving || loading || !isEditable}
+                className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-6 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {savingAction === "draft" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                {isEditMode ? "Enregistrer le brouillon" : "Créer le brouillon"}
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleSave("submit")}
                 disabled={saving || loading || !isEditable}
                 className="inline-flex items-center gap-2 rounded-full bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white shadow transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                {isEditMode ? "Enregistrer les modifications" : "Créer le brouillon"}
+                {savingAction === "submit" ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <SendHorizontal className="h-4 w-4" />
+                )}
+                Enregistrer et envoyer
               </button>
             </div>
           </div>

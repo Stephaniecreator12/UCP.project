@@ -1,6 +1,12 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
+export {
+  FINANCE_CATALOG as TDR_FINANCE_CATALOG,
+  FINANCE_FAMILY_OPTIONS as TDR_FINANCE_FAMILY_OPTIONS,
+  getFinanceCatalogByFamily,
+  getFinanceCatalogByValue,
+} from "@/lib/financeCatalog";
 import { getToken } from "@/services/auth";
 
 export type DocumentType = "TDR" | "ST";
@@ -46,70 +52,6 @@ export type ValidationAction = {
   horodatage: string;
   meta: Record<string, unknown>;
 };
-
-export const TDR_FINANCE_CATALOG = [
-  {
-    value: "SRPS_CS7_FM",
-    family: "FM",
-    sourceLabel: "SRPS / CS7 / Fonds Mondial",
-    budgetLabel: "SRPS",
-    subvention: "MDG-S-MOH-4041",
-  },
-  {
-    value: "RSS3_GAVI",
-    family: "GAVI",
-    sourceLabel: "RSS3 / Alliance GAVI",
-    budgetLabel: "RSS3",
-    subvention: "MDG-HSS-3",
-  },
-  {
-    value: "FAE_GAVI",
-    family: "GAVI",
-    sourceLabel: "FAE / Alliance GAVI",
-    budgetLabel: "FAE",
-    subvention: "MDG-FAE",
-  },
-  {
-    value: "CDS_GAVI",
-    family: "GAVI",
-    sourceLabel: "CDS / Alliance GAVI",
-    budgetLabel: "CDS",
-    subvention: "MDG-COVID19-CDS",
-  },
-  {
-    value: "VAR_GAVI",
-    family: "GAVI",
-    sourceLabel: "VAR / Alliance GAVI",
-    budgetLabel: "VAR",
-    subvention: "MDG-VAR Camp",
-  },
-  {
-    value: "PARN2_BM",
-    family: "BM",
-    sourceLabel: "PARN2 / Banque Mondiale",
-    budgetLabel: "PARN2",
-    subvention: "P175110",
-  },
-  {
-    value: "PPSB_BM",
-    family: "BM",
-    sourceLabel: "PPSB / Banque Mondiale",
-    budgetLabel: "PPSB",
-    subvention: "P174903",
-  },
-] as const;
-
-export const TDR_FINANCE_FAMILY_OPTIONS = [
-  { value: "FM", label: "Fonds mondial" },
-  { value: "GAVI", label: "Alliance GAVI" },
-  { value: "BM", label: "Banque mondiale" },
-] as const;
-
-export const getFinanceCatalogByValue = (value?: string | null) =>
-  TDR_FINANCE_CATALOG.find((item) => item.value === (value || "").trim()) ?? null;
-
-export const getFinanceCatalogByFamily = (family?: string | null) =>
-  TDR_FINANCE_CATALOG.filter((item) => item.family === (family || "").trim());
 
 export type DocumentVersion = {
   id: number;
@@ -182,7 +124,7 @@ export type DocumentRow = {
 export type TdrStFormState = {
   unite_technique: string;
   type_document: DocumentType;
-  categorie_activite: CategorieActivite;
+  categorie_activite: CategorieActivite | "";
   intitule: string;
   reference_ptba: string;
   periode_debut: string;
@@ -248,6 +190,16 @@ const toErrorMessage = async (res: Response): Promise<string> => {
   } catch {
     // ignore
   }
+
+  const htmlTitle = text.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]?.replace(/\s+/g, " ").trim();
+  if (htmlTitle) return htmlTitle;
+
+  if (/<[a-z][\s\S]*>/i.test(text)) {
+    return res.status >= 500
+      ? `Erreur serveur (${res.status}). Vérifie le backend ou applique les migrations.`
+      : `Erreur HTTP ${res.status}.`;
+  }
+
   return text.slice(0, 300);
 };
 
@@ -271,6 +223,15 @@ export function useTdrStData() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const notificationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (notificationTimeoutRef.current) {
+        clearTimeout(notificationTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const refreshDocs = useCallback(
     async (r: UserRole) => {
@@ -296,6 +257,8 @@ export function useTdrStData() {
     const token = getToken();
     if (!token) return null;
 
+    setLoading(true);
+    setError(null);
     try {
       const me = await fetchJson<{ role?: UserRole; username?: string }>(`/api/users/me/`, { method: "GET" });
       const r = me.role ?? null;
@@ -308,17 +271,30 @@ export function useTdrStData() {
       const msg = e instanceof Error ? e.message : String(e);
       setError(msg);
       return null;
+    } finally {
+      setLoading(false);
     }
   }, [refreshDocs]);
 
-  const setNotification = (type: "error" | "success", message: string) => {
-    if (type === "error") setError(message);
-    else setSuccess(message);
-    setTimeout(() => {
+  const setNotification = useCallback((type: "error" | "success", message: string) => {
+    if (notificationTimeoutRef.current) {
+      clearTimeout(notificationTimeoutRef.current);
+    }
+
+    if (type === "error") {
+      setError(message);
+      setSuccess(null);
+    } else {
+      setSuccess(message);
+      setError(null);
+    }
+
+    notificationTimeoutRef.current = setTimeout(() => {
       setError(null);
       setSuccess(null);
+      notificationTimeoutRef.current = null;
     }, 3000);
-  };
+  }, []);
 
   return {
     role,
@@ -341,7 +317,7 @@ export function useTdrStData() {
 export const makeEmptyForm = (): TdrStFormState => ({
   unite_technique: "",
   type_document: "TDR",
-  categorie_activite: "FORMATION",
+  categorie_activite: "",
   intitule: "",
   reference_ptba: "",
   periode_debut: "",

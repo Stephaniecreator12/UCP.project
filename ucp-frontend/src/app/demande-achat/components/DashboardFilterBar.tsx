@@ -274,9 +274,20 @@ type FilterDropdownProps = {
   compact?: boolean;
 };
 
+const getDropdownSummaryLabel = (
+  title: string,
+  selected: string[],
+  getLabel: (value: string) => string,
+) => {
+  if (selected.length === 0) return title;
+  if (selected.length === 1) return getLabel(selected[0]);
+  return `${getLabel(selected[0])} +${selected.length - 1}`;
+};
+
 function FilterDropdown({ title, options, selected, onChange, getLabel, dotColorClass, compact = false }: FilterDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const summaryLabel = getDropdownSummaryLabel(title, selected, getLabel);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -298,7 +309,9 @@ function FilterDropdown({ title, options, selected, onChange, getLabel, dotColor
       >
         <div className={`flex items-center min-w-0 ${compact ? "gap-1.5" : "gap-2"}`}>
           <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${dotColorClass}`}></div>
-          <span className={`${compact ? "text-[11px]" : "text-[12px]"} font-semibold text-slate-600 truncate`}>{title}</span>
+          <span className={`${compact ? "text-[11px]" : "text-[12px]"} font-semibold text-slate-600 truncate`} title={selected.length > 0 ? selected.map(getLabel).join(", ") : title}>
+            {summaryLabel}
+          </span>
           {selected.length > 0 && (
             <span className={`ml-1.5 rounded-full border border-slate-200 bg-slate-50 font-semibold text-slate-600 ${compact ? "px-1.5 py-0.5 text-[9px]" : "px-2 py-0.5 text-[10px]"}`}>
               {selected.length}
@@ -378,6 +391,14 @@ export function useDashboardFilters(demandes: DemandeAchat[], options: { sortRec
 export function DashboardFilterBar({ filterProps, compact = false }: { filterProps: DashboardFilterState; compact?: boolean }) {
   const { allFinancements, allTypes, selectedFinancements, setSelectedFinancements, selectedTypes, setSelectedTypes } = filterProps;
   const activeFiltersCount = selectedFinancements.length + selectedTypes.length;
+  const selectedTypeLabels = selectedTypes.map((type) => ({
+    value: type,
+    label: typeLabels[type] ?? toDisplayLabel(type),
+  }));
+  const selectedFinancementLabels = selectedFinancements.map((financement) => ({
+    value: financement,
+    label: getFinancementLabel(financement),
+  }));
 
   return (
     <div className={`flex flex-col ${compact ? "gap-3 mb-6" : "gap-4 mb-8"}`}>
@@ -440,6 +461,43 @@ export function DashboardFilterBar({ filterProps, compact = false }: { filterPro
           </div>
         </div>
       </div>
+
+      {activeFiltersCount > 0 && (
+        <div className={`flex flex-wrap items-center gap-2 ${compact ? "-mt-1" : "-mt-2"}`}>
+          {selectedFinancementLabels.map((item) => (
+            <button
+              key={`financement-${item.value}`}
+              type="button"
+              onClick={() =>
+                setSelectedFinancements((previous) =>
+                  previous.filter((value) => value !== item.value),
+                )
+              }
+              className={`inline-flex max-w-full items-center gap-2 rounded-full border border-amber-200 bg-amber-50 text-amber-900 transition-colors hover:border-amber-300 hover:bg-amber-100 ${compact ? "px-2.5 py-1 text-[10px]" : "px-3 py-1.5 text-[11px]"}`}
+              title={item.label}
+            >
+              <span className="truncate">{item.label}</span>
+              <X className="h-3 w-3 shrink-0" />
+            </button>
+          ))}
+          {selectedTypeLabels.map((item) => (
+            <button
+              key={`type-${item.value}`}
+              type="button"
+              onClick={() =>
+                setSelectedTypes((previous) =>
+                  previous.filter((value) => value !== item.value),
+                )
+              }
+              className={`inline-flex max-w-full items-center gap-2 rounded-full border border-sky-200 bg-sky-50 text-sky-900 transition-colors hover:border-sky-300 hover:bg-sky-100 ${compact ? "px-2.5 py-1 text-[10px]" : "px-3 py-1.5 text-[11px]"}`}
+              title={item.label}
+            >
+              <span className="truncate">{item.label}</span>
+              <X className="h-3 w-3 shrink-0" />
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

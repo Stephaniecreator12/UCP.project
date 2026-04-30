@@ -203,7 +203,14 @@ export default function ValidationModal({
     () => getFinanceCatalogByFamily(selectedSourceFamily),
     [selectedSourceFamily],
   );
-  const budgetFieldsLockedByTdr = demande?.tdr_document_statut === "VALIDE";
+  const budgetFieldsLockedByTdr = Boolean(
+    demande?.tdr_document_id &&
+      [
+        demande?.source_financement,
+        demande?.ligne_budgetaire,
+        demande?.numero_subvention,
+      ].some((value) => typeof value === "string" && value.trim()),
+  );
   const estimatedCost = useMemo(() => Number(demande?.cout_total_estime ?? 0), [demande?.cout_total_estime]);
   const availableBalance = useMemo(() => parseAmount(form.solde_disponible_ligne_budgetaire), [form.solde_disponible_ligne_budgetaire]);
   const remainingBalance = useMemo(() => availableBalance - estimatedCost, [availableBalance, estimatedCost]);
@@ -459,57 +466,72 @@ export default function ValidationModal({
                   </div>
                   {budgetFieldsLockedByTdr && (
                     <p className="mb-3 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800">
-                      Source de financement, ligne budgétaire et subvention reprises automatiquement depuis le TDR/ST validé.
+                      Source de financement, ligne budgétaire et subvention reprises automatiquement depuis le TDR/ST déjà renseigné.
                     </p>
                   )}
                   <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
                     <div className="flex flex-col gap-1.5">
                       <label className="text-xs font-semibold text-slate-700">Source de financement</label>
-                      <PurchaseSelect
-                        value={selectedSourceFamily}
-                        onChange={(value) => {
-                          setSelectedSourceFamily(value);
-                          setForm((prev) => ({
-                            ...prev,
-                            source_financement: "",
-                            ligne_budgetaire: "",
-                            numero_subvention: "",
-                          }));
-                        }}
-                        disabled={budgetFieldsLockedByTdr}
-                        options={[...FINANCE_FAMILY_OPTIONS]}
-                        placeholder="Choisir une source de financement"
-                        className="w-full rounded-[14px] border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm"
-                      />
+                      {budgetFieldsLockedByTdr ? (
+                        <input
+                          readOnly
+                          value={selectedFundingEntry?.familyLabel || form.source_financement || "Non renseignée"}
+                          className="w-full rounded-[14px] border border-slate-200 bg-slate-100 px-3 py-2 text-sm font-medium text-slate-600"
+                        />
+                      ) : (
+                        <PurchaseSelect
+                          value={selectedSourceFamily}
+                          onChange={(value) => {
+                            setSelectedSourceFamily(value);
+                            setForm((prev) => ({
+                              ...prev,
+                              source_financement: "",
+                              ligne_budgetaire: "",
+                              numero_subvention: "",
+                            }));
+                          }}
+                          options={[...FINANCE_FAMILY_OPTIONS]}
+                          placeholder="Choisir une source de financement"
+                          className="w-full rounded-[14px] border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm"
+                        />
+                      )}
                     </div>
                     <div className="flex flex-col gap-1.5">
                       <label className="text-xs font-semibold text-slate-700">Ligne budgetaire</label>
-                      <PurchaseSelect
-                        value={selectedFundingEntry?.optionKey || ""}
-                        onChange={(value) => {
-                          const next = getFinanceCatalogByOptionKey(value);
-                          setForm((prev) => ({
-                            ...prev,
-                            source_financement: next?.value || "",
-                            ligne_budgetaire: next?.budgetLabel || "",
-                            numero_subvention: next?.subvention || "",
-                          }));
-                        }}
-                        disabled={budgetFieldsLockedByTdr || !selectedSourceFamily}
-                        options={financeLineOptions.map((item) => ({
-                          value: item.optionKey,
-                          label:
-                            financeLineOptions.filter((line) => line.budgetLabel === item.budgetLabel).length > 1
-                              ? `${item.budgetLabel} - ${item.subvention}`
-                              : item.budgetLabel,
-                        }))}
-                        placeholder={
-                          selectedSourceFamily
-                            ? "Choisir une ligne budgétaire"
-                            : "Choisissez d'abord la source de financement"
-                        }
-                        className="w-full rounded-[14px] border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm"
-                      />
+                      {budgetFieldsLockedByTdr ? (
+                        <input
+                          readOnly
+                          value={form.ligne_budgetaire || "Non renseignée"}
+                          className="w-full rounded-[14px] border border-slate-200 bg-slate-100 px-3 py-2 text-sm font-medium text-slate-600"
+                        />
+                      ) : (
+                        <PurchaseSelect
+                          value={selectedFundingEntry?.optionKey || ""}
+                          onChange={(value) => {
+                            const next = getFinanceCatalogByOptionKey(value);
+                            setForm((prev) => ({
+                              ...prev,
+                              source_financement: next?.value || "",
+                              ligne_budgetaire: next?.budgetLabel || "",
+                              numero_subvention: next?.subvention || "",
+                            }));
+                          }}
+                          disabled={!selectedSourceFamily}
+                          options={financeLineOptions.map((item) => ({
+                            value: item.optionKey,
+                            label:
+                              financeLineOptions.filter((line) => line.budgetLabel === item.budgetLabel).length > 1
+                                ? `${item.budgetLabel} - ${item.subvention}`
+                                : item.budgetLabel,
+                          }))}
+                          placeholder={
+                            selectedSourceFamily
+                              ? "Choisir une ligne budgétaire"
+                              : "Choisissez d'abord la source de financement"
+                          }
+                          className="w-full rounded-[14px] border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm"
+                        />
+                      )}
                     </div>
                     <div className="flex flex-col gap-1.5">
                       <label className="text-xs font-semibold text-slate-700">Numero subvention</label>

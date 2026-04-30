@@ -78,36 +78,9 @@ def list_mes_demandes(user, scope="mine"):
             ~Q(statut=DemandeAchat.STATUT_BROUILLON) | Q(demandeur=user)
         )
     else:
-        filters = Q(demandeur=user)
-
-        if is_agent_marche(user):
-            # Marche needs to see everything that is ordered, shipped or received.
-            filters |= Q(statut__in=[
-                DemandeAchat.STATUT_EN_COMMANDE,
-                DemandeAchat.STATUT_EN_LIVRAISON,
-                DemandeAchat.STATUT_LIVREE,
-                DemandeAchat.STATUT_CLOTUREE
-            ])
-
-        if is_agent_achat(user):
-            filters |= Q(statut__in=[
-                DemandeAchat.STATUT_VALIDEE_BUDGETAIRE,
-                DemandeAchat.STATUT_EN_COMMANDE,
-                DemandeAchat.STATUT_EN_LIVRAISON,
-            ])
-
-        if is_finance(user):
-            filters |= Q(statut__in=[
-                DemandeAchat.STATUT_SOUMISE,
-                DemandeAchat.STATUT_VALIDEE,
-                DemandeAchat.STATUT_VALIDEE_BUDGETAIRE,
-                DemandeAchat.STATUT_EN_COMMANDE,
-                DemandeAchat.STATUT_EN_LIVRAISON,
-                DemandeAchat.STATUT_LIVREE,
-                DemandeAchat.STATUT_CLOTUREE,
-            ])
-
-        qs = qs.filter(filters)
+        # "mine" must keep the same meaning for every role: dossiers created
+        # by the connected user only.
+        qs = qs.filter(demandeur=user)
 
     from django.db.models import Prefetch
     from apps.achats.models import ValidationDemande, HistoriqueDemande

@@ -284,7 +284,7 @@ export default function ReceptionModal({
 
   return (
     <div
-      className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-950/60 p-4"
+      className="fixed inset-0 z-[110] flex items-start justify-center overflow-y-auto bg-slate-950/60 px-3 py-3 backdrop-blur-sm sm:px-4 sm:py-6"
       role="dialog"
       aria-modal="true"
       onMouseDown={(e) => {
@@ -292,11 +292,10 @@ export default function ReceptionModal({
       }}
     >
       <div 
-        className="flex w-[96vw] max-h-[95vh] w-full max-w-5xl flex-col overflow-hidden rounded-[32px] bg-white shadow-2xl"
-        style={{ zoom: 0.9 }}
+        className="my-auto flex w-full max-w-5xl flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl max-h-[calc(100vh-1.5rem)] sm:max-h-[calc(100vh-3rem)]"
       >
         {/* HEADER */}
-        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3 shrink-0">
+        <div className="sticky top-0 z-20 flex items-center justify-between border-b border-slate-100 bg-white/95 px-5 py-3 backdrop-blur shrink-0">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600">
               <ClipboardCheck className="h-5 w-5" />
@@ -320,7 +319,7 @@ export default function ReceptionModal({
         </div>
 
         {/* CONTENU PRINCIPAL */}
-        <form onSubmit={handleSubmit} className="flex flex-col p-4 md:p-5 gap-4 overflow-hidden">
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 md:p-5">
           
           {/* BLOC 1 - EXPÉDITION (compact) */}
           <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm shrink-0">

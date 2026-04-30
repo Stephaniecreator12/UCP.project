@@ -138,6 +138,26 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   }
 }
 
+@keyframes loginFloatSoft {
+  0%, 100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -10px, 0);
+  }
+}
+
+@keyframes loginLineGlow {
+  0%, 100% {
+    opacity: 0.62;
+    transform: scaleX(0.96);
+  }
+  50% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+
 .page-enter {
   animation: dashFadeIn 0.4s ease-out both;
 }
@@ -170,6 +190,17 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 /* On garde les classes de zoom spécifiques si besoin pour compatibilité */
 .zoom-content {
   width: 100%;
+}
+
+.login-float-soft {
+  animation: loginFloatSoft 9s ease-in-out infinite;
+  will-change: transform;
+}
+
+.login-line-glow {
+  animation: loginLineGlow 4.6s ease-in-out infinite;
+  transform-origin: center;
+  will-change: opacity, transform;
 }
 
 .max-w-\[1440px\] {

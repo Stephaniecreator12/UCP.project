@@ -17,6 +17,10 @@ from apps.TdrSt.serializers.document_serializer import (
     TdrStDocumentReadSerializer,
     TdrStDocumentWriteSerializer,
 )
+from apps.TdrSt.services.schema_compat import (
+    MISSING_TDR_LINK_MIGRATION_MESSAGE,
+    has_tdr_demande_link_column,
+)
 from apps.TdrSt.services.TdrStService import (
     create_document,
     list_my_documents,
@@ -26,9 +30,19 @@ from apps.TdrSt.services.TdrStService import (
 )
 
 
+def _missing_link_response():
+    return Response(
+        {"detail": MISSING_TDR_LINK_MIGRATION_MESSAGE},
+        status=status.HTTP_503_SERVICE_UNAVAILABLE,
+    )
+
+
 @api_view(["POST"])
 @permission_classes([IsAuthenticated, CanCreateDocument])
 def create_document_view(request):
+    if not has_tdr_demande_link_column():
+        return _missing_link_response()
+
     serializer = TdrStDocumentWriteSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
 
@@ -39,6 +53,9 @@ def create_document_view(request):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated, CanListMyDocuments])
 def my_documents_view(request):
+    if not has_tdr_demande_link_column():
+        return _missing_link_response()
+
     docs = list_my_documents(request.user)
     return Response(TdrStDocumentReadSerializer(docs, many=True).data)
 
@@ -46,6 +63,9 @@ def my_documents_view(request):
 @api_view(["GET", "PATCH"])
 @permission_classes([IsAuthenticated])
 def document_detail_view(request, id: int):
+    if not has_tdr_demande_link_column():
+        return _missing_link_response()
+
     doc = get_object_or_404(TdrStDocument, id=id)
     perm = CanReadDocument()
     if not perm.has_object_permission(request, None, doc):
@@ -64,6 +84,9 @@ def document_detail_view(request, id: int):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def submit_document_view(request, id: int):
+    if not has_tdr_demande_link_column():
+        return _missing_link_response()
+
     doc = get_object_or_404(TdrStDocument, id=id)
     # Vérifier que l'utilisateur est le demandeur
     if doc.demandeur != request.user:
@@ -80,6 +103,9 @@ def submit_document_view(request, id: int):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated, CanSubmitOrUploadOwnDocument])
 def suspend_document_view(request, id: int):
+    if not has_tdr_demande_link_column():
+        return _missing_link_response()
+
     doc = get_object_or_404(TdrStDocument, id=id)
     perm = CanSubmitOrUploadOwnDocument()
     if not perm.has_object_permission(request, None, doc):
@@ -94,6 +120,9 @@ def suspend_document_view(request, id: int):
 @parser_classes([MultiPartParser])
 def upload_pdf_view(request, id: int):
     from apps.TdrSt.services.TdrStService import add_new_file_version
+
+    if not has_tdr_demande_link_column():
+        return _missing_link_response()
 
     doc = get_object_or_404(TdrStDocument, id=id)
     perm = CanSubmitOrUploadOwnDocument()

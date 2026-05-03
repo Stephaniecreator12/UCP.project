@@ -39,7 +39,7 @@ class Migration(migrations.Migration):
                 ('montant_estime_usd', models.DecimalField(decimal_places=2, max_digits=14)),
                 ('seuil_passation', models.DecimalField(blank=True, decimal_places=2, max_digits=14, null=True)),
                 ('procedure_envisagee', models.CharField(choices=[('DC', 'DC'), ('AOI', 'AOI'), ('AON', 'AON'), ('GRE_A_GRE', 'Gré à gré')], max_length=20)),
-                ('demandeur', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='tdr_st_documents', to=settings.AUTH_USER_MODEL)),
+                ('demandeur', models.ForeignKey(db_column='initiateur_id', on_delete=django.db.models.deletion.PROTECT, related_name='tdr_st_documents', to=settings.AUTH_USER_MODEL)),
             ],
             options={
                 'db_table': 'tdr_st_document',

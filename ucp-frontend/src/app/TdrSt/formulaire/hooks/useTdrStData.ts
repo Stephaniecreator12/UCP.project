@@ -1,6 +1,12 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
+export {
+  FINANCE_CATALOG as TDR_FINANCE_CATALOG,
+  FINANCE_FAMILY_OPTIONS as TDR_FINANCE_FAMILY_OPTIONS,
+  getFinanceCatalogByFamily,
+  getFinanceCatalogByValue,
+} from "@/lib/financeCatalog";
 import { getToken } from "@/services/auth";
 
 export type DocumentType = "TDR" | "ST";
@@ -66,7 +72,7 @@ export type DocumentVersion = {
     periode_fin?: string;
     duree_estimee_valeur?: number;
     duree_estimee_unite?: DureeUnite;
-    sources_financement?: string;
+    sources_financement?: string | string[];
     numero_subvention?: string;
     ligne_budgetaire?: string;
     montant_estime_usd?: string;
@@ -81,6 +87,8 @@ export type TdrStDocument = {
   version: number;
   created_at: string;
   updated_at: string;
+  demande_achat_id?: number | null;
+  demande_achat_numero?: string;
   unite_technique: string;
   statut: Statut;
   type_document: DocumentType;
@@ -91,7 +99,7 @@ export type TdrStDocument = {
   periode_fin: string;
   duree_estimee_valeur: number;
   duree_estimee_unite: DureeUnite;
-  sources_financement: string;
+  sources_financement: string | string[];
   numero_subvention: string;
   ligne_budgetaire: string;
   montant_estime_usd: string;
@@ -116,7 +124,7 @@ export type DocumentRow = {
 export type TdrStFormState = {
   unite_technique: string;
   type_document: DocumentType;
-  categorie_activite: CategorieActivite;
+  categorie_activite: CategorieActivite | "";
   intitule: string;
   reference_ptba: string;
   periode_debut: string;
@@ -182,6 +190,16 @@ const toErrorMessage = async (res: Response): Promise<string> => {
   } catch {
     // ignore
   }
+
+  const htmlTitle = text.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]?.replace(/\s+/g, " ").trim();
+  if (htmlTitle) return htmlTitle;
+
+  if (/<[a-z][\s\S]*>/i.test(text)) {
+    return res.status >= 500
+      ? `Erreur serveur (${res.status}). Vérifie le backend ou applique les migrations.`
+      : `Erreur HTTP ${res.status}.`;
+  }
+
   return text.slice(0, 300);
 };
 
@@ -205,6 +223,15 @@ export function useTdrStData() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const notificationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (notificationTimeoutRef.current) {
+        clearTimeout(notificationTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const refreshDocs = useCallback(
     async (r: UserRole) => {
@@ -230,6 +257,8 @@ export function useTdrStData() {
     const token = getToken();
     if (!token) return null;
 
+    setLoading(true);
+    setError(null);
     try {
       const me = await fetchJson<{ role?: UserRole; username?: string }>(`/api/users/me/`, { method: "GET" });
       const r = me.role ?? null;
@@ -242,17 +271,30 @@ export function useTdrStData() {
       const msg = e instanceof Error ? e.message : String(e);
       setError(msg);
       return null;
+    } finally {
+      setLoading(false);
     }
   }, [refreshDocs]);
 
-  const setNotification = (type: "error" | "success", message: string) => {
-    if (type === "error") setError(message);
-    else setSuccess(message);
-    setTimeout(() => {
+  const setNotification = useCallback((type: "error" | "success", message: string) => {
+    if (notificationTimeoutRef.current) {
+      clearTimeout(notificationTimeoutRef.current);
+    }
+
+    if (type === "error") {
+      setError(message);
+      setSuccess(null);
+    } else {
+      setSuccess(message);
+      setError(null);
+    }
+
+    notificationTimeoutRef.current = setTimeout(() => {
       setError(null);
       setSuccess(null);
+      notificationTimeoutRef.current = null;
     }, 3000);
-  };
+  }, []);
 
   return {
     role,
@@ -275,7 +317,7 @@ export function useTdrStData() {
 export const makeEmptyForm = (): TdrStFormState => ({
   unite_technique: "",
   type_document: "TDR",
-  categorie_activite: "FORMATION",
+  categorie_activite: "",
   intitule: "",
   reference_ptba: "",
   periode_debut: "",

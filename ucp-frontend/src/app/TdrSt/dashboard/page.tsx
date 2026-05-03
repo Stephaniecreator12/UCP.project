@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import TopHeader from "@/app/components/TopHeader";
 import { DocumentsBarChart } from "@/TdrSt/dashboard/components/documents-bar-chart";
 import { DocumentsPieChart } from "@/TdrSt/dashboard/components/documents-pie-chart";
@@ -31,10 +31,6 @@ export default function DashboardPage() {
 
   const asTrend = (value: number) => ({ value, isPositive: value >= 0 });
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
-
   const getAccessToken = () => {
     // JWT access token est stocké ici
     return localStorage.getItem("access_token");
@@ -64,7 +60,7 @@ export default function DashboardPage() {
     return null;
   };
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -119,7 +115,11 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    void fetchDashboardData();
+  }, [fetchDashboardData]);
 
   if (loading) {
     return (

@@ -2,8 +2,23 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { createPortal } from "react-dom";
+import {
+  fetchCurrentUser,
+  getCurrentUser,
+  isAgentAchatUser,
+  isAgentMarcheUser,
+  isFinanceUser,
+  isValidatorUser,
+} from "@/services/auth";
 
 type MenuLink = {
   label: string;
@@ -11,12 +26,89 @@ type MenuLink = {
   match: (pathname: string) => boolean;
 };
 
-const LINKS: MenuLink[] = [
-  { label: "PPM", href: "/formulaire", match: (pathname) => pathname === "/formulaire" },
-  { label: "Dashboard", href: "/dashboard", match: (pathname) => pathname === "/dashboard" },
-  { label: "TdR / ST", href: "/TdrSt/formulaire", match: (pathname) => pathname === "/TdrSt/formulaire" },
-  { label: "Achats", href: "/demande-achat", match: (pathname) => pathname === "/demande-achat" },
-]; 
+const getUserMode = (user: ReturnType<typeof getCurrentUser>) => {
+  if (isFinanceUser(user)) return "finance" as const;
+  if (isValidatorUser(user)) return "validator" as const;
+  if (isAgentAchatUser(user)) return "agent" as const;
+  if (isAgentMarcheUser(user)) return "marche" as const;
+  return "default" as const;
+};
+
+const DEFAULT_LINKS: MenuLink[] = [
+  {
+    label: "PPM",
+    href: "/formulaire",
+    match: (pathname) => pathname === "/formulaire",
+  },
+  {
+    label: "dashboard",
+    href: "/dashboard",
+    match: (pathname) => pathname === "/dashboard",
+  },
+  {
+    label: "état de besoins",
+    href: "/demande-achat",
+    match: (pathname) => pathname === "/demande-achat" || pathname.startsWith("/demande-achat/"),
+  },
+  {
+    label: "TDR",
+    href: "/TdrSt",
+    match: (pathname) => pathname === "/TdrSt" || pathname.startsWith("/TdrSt/"),
+  },
+];
+
+const VALIDATOR_LINKS: MenuLink[] = [
+  {
+    label: "validation",
+    href: "/validation",
+    match: (pathname) =>
+      pathname === "/validation" || pathname.startsWith("/validation/"),
+  },
+  {
+    label: "TDR",
+    href: "/TdrSt",
+    match: (pathname) => pathname === "/TdrSt" || pathname.startsWith("/TdrSt/"),
+  },
+  {
+    label: "état de besoins",
+    href: "/demande-achat?scope=all",
+    match: (pathname) =>
+      pathname === "/demande-achat" || pathname.startsWith("/demande-achat/"),
+  },
+];
+
+
+const AGENT_ACHAT_LINKS: MenuLink[] = [
+  {
+    label: "passation",
+    href: "/passation",
+    match: (pathname) => pathname === "/passation" || pathname.startsWith("/passation/"),
+  },
+  {
+    label: "état de besoins",
+    href: "/demande-achat?scope=all",
+    match: (pathname) =>
+      pathname === "/demande-achat" || pathname.startsWith("/demande-achat/"),
+  },
+];
+
+const MARKET_LINKS: MenuLink[] = [
+  {
+    label: "marché",
+    href: "/marche",
+    match: (pathname) =>
+      pathname === "/marche" ||
+      pathname.startsWith("/marche/") ||
+      pathname === "/logistique" ||
+      pathname.startsWith("/logistique/"),
+  },
+  {
+    label: "état de besoins",
+    href: "/demande-achat?scope=all",
+    match: (pathname) =>
+      pathname === "/demande-achat" || pathname.startsWith("/demande-achat/"),
+  },
+];
 
 export default function Menu({ className = "" }: { className?: string }) {
   const pathname = usePathname();
@@ -27,8 +119,13 @@ export default function Menu({ className = "" }: { className?: string }) {
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const [open, setOpen] = useState(false);
-  const [menuPos, setMenuPos] = useState<{ left: number; top: number } | null>(null);
+  const [menuPos, setMenuPos] = useState<{ left: number; top: number } | null>(
+    null,
+  );
   const [hoverTimeout, setHoverTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [userMode, setUserMode] = useState<"default" | "validator" | "finance" | "agent" | "marche">(
+    () => getUserMode(getCurrentUser()),
+  );
 
   const showAuthenticatedActions = pathname !== "/login";
   const canPortal = typeof document !== "undefined";
@@ -47,6 +144,17 @@ export default function Menu({ className = "" }: { className?: string }) {
     if (!open) return;
     measureMenuPosition();
   }, [open, measureMenuPosition]);
+
+  useEffect(() => {
+    if (!showAuthenticatedActions) return;
+
+    const currentUser = getCurrentUser();
+    if (currentUser) return;
+
+    void fetchCurrentUser()
+      .then((user) => setUserMode(getUserMode(user)))
+      .catch(() => setUserMode("default"));
+  }, [showAuthenticatedActions]);
 
   useEffect(() => {
     if (!open) return;
@@ -71,12 +179,23 @@ export default function Menu({ className = "" }: { className?: string }) {
     window.addEventListener("resize", onReposition);
     window.addEventListener("scroll", onReposition, true);
     return () => {
-      document.removeEventListener("pointerdown", onPointerDown, { capture: true });
+      document.removeEventListener("pointerdown", onPointerDown, {
+        capture: true,
+      });
       document.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("resize", onReposition);
       window.removeEventListener("scroll", onReposition, true);
     };
   }, [open, measureMenuPosition]);
+
+  const links =
+    userMode === "finance" || userMode === "validator"
+      ? VALIDATOR_LINKS
+      : userMode === "agent"
+        ? AGENT_ACHAT_LINKS
+        : userMode === "marche"
+          ? MARKET_LINKS
+          : DEFAULT_LINKS;
 
   const handleMouseEnter = () => {
     if (hoverTimeout) clearTimeout(hoverTimeout);
@@ -101,8 +220,8 @@ export default function Menu({ className = "" }: { className?: string }) {
   if (!showAuthenticatedActions) return null;
 
   return (
-    <div 
-      ref={rootRef} 
+    <div
+      ref={rootRef}
       className={`relative inline-flex ${className}`}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
@@ -114,72 +233,61 @@ export default function Menu({ className = "" }: { className?: string }) {
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={menuId}
-        className="group relative inline-flex h-[36px] items-center justify-start bg-transparent px-2 text-[0.8rem] font-bold uppercase tracking-[0.22em] text-slate-400 transition-colors hover:text-slate-500 font-['Gadugi'] "
+        className="group relative inline-flex h-[32px] items-center justify-start bg-transparent px-0 text-[11px] font-black uppercase tracking-widest text-[var(--muted)] transition-all hover:text-[var(--text)]"
       >
-        <span className="relative z-10 leading-none flex items-center gap-2.5 ">
+        <span className="relative z-10 leading-none flex items-center gap-2">
           Menu
-          <svg 
-            className={`w-3 h-3 text-slate-400 transition-transform duration-200 ${open ? "" : "rotate-180"}`}
-            viewBox="0 0 24 24" 
-            fill="none" 
-            stroke="currentColor" 
-            strokeWidth="2.5" 
-            strokeLinecap="round" 
+          <svg
+            className={`w-3 h-3 text-[var(--muted)] transition-transform duration-300 ${open ? "" : "rotate-180"}`}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="3"
+            strokeLinecap="round"
             strokeLinejoin="round"
           >
             <polyline points="6 9 12 15 18 9"></polyline>
           </svg>
         </span>
-
-        {/* Decoration */}
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute left-0 top-[30px] h-px w-[80px] bg-slate-300/80"
-        />
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute left-[105px] top-[2px] h-px w-[35px] origin-left rotate-[130deg] bg-slate-300/80"
-        />
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute left-0 top-[1px] h-px w-[105px] bg-slate-300/80"
-        />
       </button>
 
-      {open && canPortal && menuPos && createPortal(
-        <div
-          id={menuId}
-          ref={menuRef}
-          role="menu"
-          aria-labelledby={buttonId}
-          onMouseEnter={handleMenuMouseEnter}
-          onMouseLeave={handleMenuMouseLeave}
-          className="fixed  w-[200px] overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg animate-in fade-in slide-in-from-top-2 duration-200"
-          style={{ left: menuPos.left, top: menuPos.top + 8 }}
-        >
-          <div className="py-1">
-            {LINKS.map((item) => {
-              const isActive = item.match(pathname);
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  role="menuitem"
-                  className={`block px-4 py-2.5 text-sm transition-colors ${
-                    isActive
-                      ? "bg-gray-100 text-gray-900 font-medium"
-                      : "text-gray-700 hover:bg-gray-200 hover:text-gray-900"
-                  }`}
-                  onClick={() => setOpen(false)}
-                >
-                  {item.label}
-                </Link>
-              );
-            })}
-          </div>
-        </div>,
-        document.body
-      )}
+      {open &&
+        canPortal &&
+        menuPos &&
+        createPortal(
+          <div
+            id={menuId}
+            ref={menuRef}
+            role="menu"
+            aria-labelledby={buttonId}
+            onMouseEnter={handleMenuMouseEnter}
+            onMouseLeave={handleMenuMouseLeave}
+            className="fixed w-[200px] overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg animate-in fade-in slide-in-from-top-2 duration-200"
+            style={{ left: menuPos.left, top: menuPos.top + 8 }}
+          >
+            <div className="py-1">
+              {links.map((item) => {
+                const isActive = item.match(pathname);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    role="menuitem"
+                    className={`block px-5 py-2.5 text-[11px] font-black uppercase tracking-widest transition-all ${
+                      isActive
+                        ? "bg-[var(--panel)] text-[var(--text)]"
+                        : "text-[var(--muted)] hover:bg-[var(--panel)] hover:text-[var(--text)]"
+                    }`}
+                    onClick={() => setOpen(false)}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

@@ -34,15 +34,31 @@ html, body {
   font-family: var(--font-ui), ui-sans-serif, system-ui, sans-serif;
 }
 
+input[type="date"] {
+  color-scheme: light;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.42;
+  transform: scale(0.82);
+  filter: saturate(0.72) brightness(1.04);
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 0.68;
+  filter: saturate(0.92) brightness(1.08);
+}
+
 /* Réduction d'affichage "type zoom 80%" (écran PC) */
 @media (min-width: 1024px) and (pointer: fine) {
   html {
     zoom: 0.8;
-  } 
+  }
 
-  /* Compense le zoom pour garder la mÃªme largeur visuelle des conteneurs centrÃ©s */
+  /* Compense le zoom pour garder la même largeur visuelle des conteneurs centrés */
   .max-w-\[1480px\] {
-    max-width: 1850px;
+    max-width: 1550px;
   }
 
   /* compense le zoom pour garder la hauteur visuelle des éléments à 100vh */
@@ -122,6 +138,26 @@ html, body {
   }
 }
 
+@keyframes loginFloatSoft {
+  0%, 100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -10px, 0);
+  }
+}
+
+@keyframes loginLineGlow {
+  0%, 100% {
+    opacity: 0.62;
+    transform: scaleX(0.96);
+  }
+  50% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+
 .page-enter {
   animation: dashFadeIn 0.4s ease-out both;
 }
@@ -149,4 +185,133 @@ html, body {
   animation-duration: 2.5s;
   animation-timing-function: cubic-bezier(0.22, 0.61, 0.36, 1);
   animation-fill-mode: both;
+}
+
+/* On garde les classes de zoom spécifiques si besoin pour compatibilité */
+.zoom-content {
+  width: 100%;
+}
+
+.login-float-soft {
+  animation: loginFloatSoft 9s ease-in-out infinite;
+  will-change: transform;
+}
+
+.login-line-glow {
+  animation: loginLineGlow 4.6s ease-in-out infinite;
+  transform-origin: center;
+  will-change: opacity, transform;
+}
+
+.max-w-\[1440px\] {
+  max-width: 1440px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.ucp-toast {
+  position: fixed;
+  left: 1rem;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 9999;
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  border-radius: 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  padding: 1rem 1.25rem;
+  color: #ffffff;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.3);
+  backdrop-filter: blur(14px);
+}
+
+@media (min-width: 640px) {
+  .ucp-toast {
+    left: auto;
+    right: 1.5rem;
+    bottom: 1.5rem;
+    min-width: 26rem;
+    max-width: 36rem;
+    padding: 1.125rem 1.5rem;
+  }
+}
+
+.ucp-toast--success {
+  background: rgba(5, 150, 105, 0.96);
+  border-color: rgba(16, 185, 129, 0.92);
+}
+
+.ucp-toast--error {
+  background: rgba(225, 29, 72, 0.96);
+  border-color: rgba(251, 113, 133, 0.9);
+}
+
+.ucp-toast__icon-shell {
+  flex-shrink: 0;
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.18);
+  padding: 0.75rem;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.18);
+}
+
+.ucp-toast__title {
+  margin-bottom: 0.25rem;
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+}
+
+.ucp-toast__message {
+  font-size: 0.98rem;
+  line-height: 1.55;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.96);
+}
+
+.ucp-toast__close {
+  margin-left: 0.25rem;
+  border: 0;
+  border-radius: 0.9rem;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  padding: 0.65rem;
+  transition: background-color 0.2s ease;
+}
+
+.ucp-toast__close:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.ucp-inline-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  border-radius: 1rem;
+  border: 1px solid;
+  padding: 0.95rem 1rem;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  font-weight: 600;
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.08);
+}
+
+@media (min-width: 640px) {
+  .ucp-inline-notice {
+    padding: 1rem 1.1rem;
+    font-size: 0.98rem;
+  }
+}
+
+.ucp-inline-notice--error {
+  background: #fff1f2;
+  border-color: #fecdd3;
+  color: #be123c;
+}
+
+.ucp-inline-notice--success {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+  color: #047857;
 }

@@ -10,7 +10,7 @@ from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 from rest_framework.test import APIClient
 
-from apps.achats.models import DemandeAchat, ValidationDemande
+from apps.achats.models import DemandeAchat, Fournisseur, ValidationDemande
 from apps.achats.services.demande_service import (
     close_demande,
     complete_budget_estimation,
@@ -159,7 +159,7 @@ class AchatsNotificationTests(TestCase):
         self.assertTrue(demande.numero_engagement_budgetaire)
         self.assertEqual(len(mail.outbox), 1)
         self.assertEqual(mail.outbox[0].to, ["programme@example.com"])
-        self.assertIn("A votre tour de valider", mail.outbox[0].subject)
+        self.assertIn("À votre tour de valider", mail.outbox[0].subject)
 
     def test_final_validation_sends_email_to_demandeur_and_agent_achat(self):
         demandeur = self._create_user("fatou", "fatou@example.com")
@@ -232,6 +232,10 @@ class AchatsNotificationTests(TestCase):
             "agent@example.com",
             groups=["AGENT_ACHAT"],
         )
+        fournisseur = Fournisseur.objects.create(
+            nom="Office Plus",
+            email="contact@officeplus.test",
+        )
         demande = self._create_demande(
             demandeur,
             statut=DemandeAchat.STATUT_VALIDEE_BUDGETAIRE,
@@ -243,8 +247,8 @@ class AchatsNotificationTests(TestCase):
                 demande,
                 {
                     "type_procedure": DemandeAchat.PROCEDURE_BON_DIRECT,
-                    "fournisseur_retenu": "Office Plus",
-                    "email_fournisseur": "contact@officeplus.test",
+                    "fournisseur": fournisseur,
+                    "email_fournisseur": fournisseur.email,
                     "montant_commande": Decimal("280000"),
                     "delai_livraison_contractuel": 5,
                     "conditions_livraison": "Site central",
@@ -489,6 +493,36 @@ class DashboardScopeApiTests(TestCase):
         payload = response.json()
         self.assertEqual(len(payload), 1)
         self.assertEqual(payload[0]["numero_demande"], visible.numero_demande)
+
+    def test_scope_all_keeps_own_drafts_visible_but_hides_other_drafts(self):
+        demandeur = self._create_user("simpleall", "simpleall@example.com")
+        autre = self._create_user("autreglobal", "autreglobal@example.com")
+        own_draft = self._create_demande(
+            demandeur,
+            statut=DemandeAchat.STATUT_BROUILLON,
+            etape_validation_actuelle=DemandeAchat.ETAPE_HIERARCHIQUE,
+        )
+        visible = self._create_demande(
+            autre,
+            statut=DemandeAchat.STATUT_SOUMISE,
+            etape_validation_actuelle=DemandeAchat.ETAPE_HIERARCHIQUE,
+        )
+        self._create_demande(
+            autre,
+            statut=DemandeAchat.STATUT_BROUILLON,
+            etape_validation_actuelle=DemandeAchat.ETAPE_HIERARCHIQUE,
+        )
+        self.client.force_authenticate(demandeur)
+
+        response = self.client.get("/api/achats/demandes/?scope=all")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(len(payload), 2)
+        self.assertCountEqual(
+            [item["numero_demande"] for item in payload],
+            [own_draft.numero_demande, visible.numero_demande],
+        )
 
     def test_standard_user_can_view_other_demande_detail(self):
         demandeur = self._create_user("simpledetail", "simpledetail@example.com")

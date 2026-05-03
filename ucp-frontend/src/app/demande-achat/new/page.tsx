@@ -23,11 +23,6 @@ import {
   listExternalPersonnel,
   type PersonnelDirectoryOption,
 } from "@/services/personnel";
-import {
-  createTdrStDraft,
-  type CreateTdrStDraftPayload,
-  type TdrStDocumentType,
-} from "@/services/tdrSt";
 
 type LigneForm = {
   designation: string;
@@ -62,7 +57,7 @@ type LigneModalProps = {
   onSave: () => void;
 };
 
-type ServiceRoutingChoice = "DIRECT_VALIDATION" | "TDR";
+type ServiceRoutingChoice = "DIRECT_VALIDATION" | "PREPARE_TDR" | "PREPARE_ST";
 
 type ServiceRoutingModalProps = {
   open: boolean;
@@ -167,93 +162,8 @@ const formatFrenchDateRange = (start: string, end: string) => {
   return "Dates non définies";
 };
 
-const getUniteTechniqueLabel = (value: string) =>
-  uniteTechniqueOptions.find((option) => option.value === value)?.label ?? value;
-
-const addDaysToIsoDate = (value: string, days: number) => {
-  const baseDate = new Date(`${value}T00:00:00`);
-  if (Number.isNaN(baseDate.getTime())) {
-    return value;
-  }
-  baseDate.setDate(baseDate.getDate() + days);
-  return baseDate.toISOString().split("T")[0];
-};
-
-const getDurationInDays = (start: string, end: string) => {
-  const startDate = new Date(`${start}T00:00:00`);
-  const endDate = new Date(`${end}T00:00:00`);
-  if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
-    return 30;
-  }
-  const diff = endDate.getTime() - startDate.getTime();
-  return Math.max(1, Math.round(diff / (1000 * 60 * 60 * 24)) + 1);
-};
-
-const inferFundingSourceFromPtba = (value: string) => {
-  const normalized = value.trim().toLowerCase();
-  if (normalized.includes("gavi")) return ["Alliance GAVI"];
-  if (normalized.includes("bm") || normalized.includes("banque mondiale")) {
-    return ["Banque mondiale"];
-  }
-  return ["Fonds mondial"];
-};
-
-const buildTdrStRedirectUrl = (documentId: number, demandeId: number) =>
-  `/TdrSt/formulaire?id=${documentId}&source=demande-achat&demandeId=${demandeId}`;
-
-// Si la demande doit passer par TDR/ST, on transforme ici les données
-// de l'état de besoins en brouillon minimal exploitable par ce module.
-const buildTdrDraftPayloadFromDemande = ({
-  lignes,
-  typeDemande,
-  uniteTechnique,
-  objet,
-  lienPtba,
-}: {
-  lignes: LigneForm[];
-  typeDemande: string;
-  uniteTechnique: string;
-  objet: string;
-  lienPtba: string;
-}): CreateTdrStDraftPayload => {
-  const serviceRequest = typeDemande === "PETITS_SERVICES";
-  const totalEstimate = lignes.reduce(
-    (sum, ligne) => sum + getLigneTotal(ligne, serviceRequest),
-    0,
-  );
-
-  const startDate = serviceRequest
-    ? lignes
-        .map((ligne) => ligne.date_debut)
-        .filter(Boolean)
-        .sort()[0] || getTodayDate()
-    : getTodayDate();
-  const endDate = serviceRequest
-    ? lignes
-        .map((ligne) => ligne.date_fin)
-        .filter(Boolean)
-        .sort()
-        .at(-1) || addDaysToIsoDate(startDate, 30)
-    : addDaysToIsoDate(startDate, 30);
-  const typeDocument: TdrStDocumentType = typeDemande === "MATERIELS" ? "ST" : "TDR";
-
-  return {
-    unite_technique: getUniteTechniqueLabel(uniteTechnique),
-    type_document: typeDocument,
-    categorie_activite: typeDemande === "MATERIELS" ? "BIENS" : "ENTREPRISE",
-    intitule: objet.trim(),
-    reference_ptba: lienPtba.trim(),
-    periode_debut: startDate,
-    periode_fin: endDate,
-    duree_estimee_valeur: getDurationInDays(startDate, endDate),
-    duree_estimee_unite: "JOURS",
-    sources_financement: inferFundingSourceFromPtba(lienPtba),
-    numero_subvention: "",
-    ligne_budgetaire: lienPtba.trim(),
-    montant_estime_usd: totalEstimate.toFixed(2),
-    procedure_envisagee: "DC",
-  };
-};
+const buildTdrStRedirectUrl = (demandeId: number, docType: "TDR" | "ST") =>
+  `/TdrSt/new?demandeId=${demandeId}&source=demande-achat&docType=${docType}`;
 
 function NotificationPopup({ message, type, onClose }: { message: string, type: 'error' | 'success', onClose: () => void }) {
   useEffect(() => {
@@ -304,21 +214,17 @@ function ServiceRoutingModal({
         if (event.target === event.currentTarget && !saving) onClose();
       }}
     >
-      <div className="w-full max-w-3xl overflow-hidden rounded-[28px] border border-white/50 bg-white shadow-[0_28px_80px_rgba(15,23,42,0.24)] animate-in zoom-in-95 slide-in-from-bottom-8 duration-300">
-        <div className="relative overflow-hidden border-b border-slate-100 bg-[linear-gradient(135deg,rgba(16,185,129,0.12),rgba(20,184,166,0.06),rgba(255,255,255,0.96))] px-6 py-5">
-          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-500 via-teal-400 to-sky-400" />
+      <div className="w-full max-w-2xl overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-[0_24px_60px_rgba(15,23,42,0.18)] animate-in zoom-in-95 slide-in-from-bottom-8 duration-300">
+        <div className="border-b border-slate-200 bg-slate-50 px-6 py-5">
           <div className="flex items-start justify-between gap-4">
-            <div className="flex items-start gap-3.5">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/20">
+            <div className="flex items-start gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-900 text-white">
                 <Wrench className="h-5 w-5" />
               </div>
               <div>
-                <h2 className="text-xl font-black tracking-tight text-slate-900">
-                  Choisir le parcours du dossier
-                </h2>
+                <h2 className="text-lg font-bold tracking-tight text-slate-900">Choisir le document à produire</h2>
                 <p className="mt-1 text-sm text-slate-600">
-                  Pour un petit service, on décide ici si le dossier part
-                  directement en validation ou s&apos;il passe d&apos;abord par un TDR.
+                  Pour un petit service, choisissez le document à préparer ou envoyez directement le dossier en validation.
                 </p>
               </div>
             </div>
@@ -326,49 +232,63 @@ function ServiceRoutingModal({
               type="button"
               onClick={onClose}
               disabled={saving}
-              className="rounded-2xl border border-slate-200 bg-white p-2.5 text-slate-500 shadow-sm transition-colors hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-2xl border border-slate-200 bg-white p-2.5 text-slate-500 transition-colors hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <X className="h-4 w-4" />
             </button>
           </div>
         </div>
 
-        <div className="grid gap-4 p-6 md:grid-cols-2">
+        <div className="space-y-3 p-6">
           <button
             type="button"
             disabled={saving}
             onClick={() => onChoose("DIRECT_VALIDATION")}
-            className="group rounded-[24px] border border-emerald-100 bg-[linear-gradient(180deg,#ffffff_0%,#f0fdf4_100%)] p-5 text-left shadow-sm transition-all hover:-translate-y-1 hover:border-emerald-300 hover:shadow-[0_18px_40px_rgba(16,185,129,0.12)] disabled:cursor-not-allowed disabled:opacity-60"
+            className="flex w-full items-start gap-4 rounded-[20px] border border-slate-200 bg-white p-4 text-left transition-colors hover:border-emerald-300 hover:bg-emerald-50/40 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700 transition-transform group-hover:scale-105">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
               <ShieldCheck className="h-5 w-5" />
             </div>
-            <p className="text-base font-black text-slate-900">Validation directe</p>
-            <p className="mt-2 text-sm leading-6 text-slate-600">
-              L&apos;état de besoins est soumis immédiatement au circuit hiérarchique.
-            </p>
-            <span className="mt-4 inline-flex rounded-full border border-emerald-200 bg-white px-3 py-1 text-xs font-semibold text-emerald-700">
-              Pas de TDR requis
-            </span>
+            <div className="min-w-0">
+              <p className="text-base font-semibold text-slate-900">Validation directe</p>
+              <p className="mt-1 text-sm text-slate-600">
+                Le dossier est soumis immédiatement au circuit de validation de l&apos;état de besoins.
+              </p>
+            </div>
           </button>
 
           <button
             type="button"
             disabled={saving}
-            onClick={() => onChoose("TDR")}
-            className="group rounded-[24px] border border-sky-100 bg-[linear-gradient(180deg,#ffffff_0%,#eff6ff_100%)] p-5 text-left shadow-sm transition-all hover:-translate-y-1 hover:border-sky-300 hover:shadow-[0_18px_40px_rgba(14,165,233,0.12)] disabled:cursor-not-allowed disabled:opacity-60"
+            onClick={() => onChoose("PREPARE_TDR")}
+            className="flex w-full items-start gap-4 rounded-[20px] border border-slate-200 bg-white p-4 text-left transition-colors hover:border-sky-300 hover:bg-sky-50/40 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-sky-100 text-sky-700 transition-transform group-hover:scale-105">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-sky-100 text-sky-700">
               <FileText className="h-5 w-5" />
             </div>
-            <p className="text-base font-black text-slate-900">Passer par un TDR</p>
-            <p className="mt-2 text-sm leading-6 text-slate-600">
-              On crée un brouillon TDR, puis on vous redirige vers le module TDR/ST
-              pour finaliser le document.
-            </p>
-            <span className="mt-4 inline-flex rounded-full border border-sky-200 bg-white px-3 py-1 text-xs font-semibold text-sky-700">
-              Préparation documentaire requise
-            </span>
+            <div className="min-w-0">
+              <p className="text-base font-semibold text-slate-900">Préparer un TDR</p>
+              <p className="mt-1 text-sm text-slate-600">
+                Le dossier est enregistré puis vous êtes redirigé vers le formulaire TDR/ST avec le type TDR.
+              </p>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() => onChoose("PREPARE_ST")}
+            className="flex w-full items-start gap-4 rounded-[20px] border border-slate-200 bg-white p-4 text-left transition-colors hover:border-violet-300 hover:bg-violet-50/40 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-violet-100 text-violet-700">
+              <FileText className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-base font-semibold text-slate-900">Préparer une ST</p>
+              <p className="mt-1 text-sm text-slate-600">
+                Le dossier est enregistré puis vous êtes redirigé vers le formulaire TDR/ST avec le type ST.
+              </p>
+            </div>
           </button>
         </div>
       </div>
@@ -708,9 +628,9 @@ export default function NouvelleDemandePage() {
   // validation directe ou préparation d'un brouillon TDR/ST.
   const submitDemandeFlow = async (choice: ServiceRoutingChoice) => {
     setSaving(true);
-    let createdDemandeId: number | null = null;
     try {
       const res = await createDemandeAchat({
+        requires_tdr: choice !== "DIRECT_VALIDATION",
         unite_technique: uniteTechnique, 
         categorie_besoin: categorieBesoin,
         type_demande: typeDemande,
@@ -724,7 +644,6 @@ export default function NouvelleDemandePage() {
       if (!res?.id) {
         throw new Error("Le dossier n'a pas pu être créé.");
       }
-      createdDemandeId = res.id;
 
       if (choice === "DIRECT_VALIDATION") {
         await submitDemandeAchat(res.id);
@@ -733,24 +652,16 @@ export default function NouvelleDemandePage() {
         return;
       }
 
-      const tdrDraft = await createTdrStDraft(
-        buildTdrDraftPayloadFromDemande({
-          lignes,
-          typeDemande,
-          uniteTechnique,
-          objet,
-          lienPtba,
-        }),
-      );
+      const targetDocType = choice === "PREPARE_ST" ? "ST" : "TDR";
+      const targetDocLabel = targetDocType === "ST" ? "spécification technique" : "TDR";
 
-      const documentLabel = tdrDraft.type_document === "ST" ? "ST" : "TDR";
       setNotification({
-        message: `Brouillon ${documentLabel} créé. Redirection vers le module TDR/ST...`,
+        message: `Redirection vers le formulaire ${targetDocLabel}.`,
         type: "success",
       });
       setTimeout(
         () => {
-          const targetUrl = buildTdrStRedirectUrl(tdrDraft.id, res.id);
+          const targetUrl = buildTdrStRedirectUrl(res.id, targetDocType);
           if (typeof window !== "undefined") {
             window.location.assign(targetUrl);
             return;
@@ -760,14 +671,10 @@ export default function NouvelleDemandePage() {
         900,
       );
     } catch (err: unknown) { 
-      const baseErrorMessage =
+      const errorMessage =
         err instanceof Error
           ? err.message
           : "Erreur de connexion. Vérifiez les données.";
-      const errorMessage =
-        choice === "TDR" && createdDemandeId
-          ? `L'état de besoins a été enregistré en brouillon, mais le dossier TDR/ST n'a pas pu être créé. ${baseErrorMessage}`
-          : baseErrorMessage;
       setNotification({message: errorMessage, type: 'error'}); 
     } finally { 
       setSaving(false); 
@@ -785,7 +692,7 @@ export default function NouvelleDemandePage() {
       return;
     }
 
-    await submitDemandeFlow("TDR");
+    await submitDemandeFlow("PREPARE_TDR");
   };
 
   const focusModalInput = (id: string) => {
@@ -888,9 +795,9 @@ export default function NouvelleDemandePage() {
 
   const submitButtonLabel =
     typeDemande === "MATERIELS"
-      ? "SOUMETTRE ET OUVRIR LE MODULE TDR/ST"
+      ? "SOUMETTRE ET PREPARER LE TDR"
       : typeDemande === "PETITS_SERVICES"
-        ? "SOUMETTRE"
+        ? "SOUMETTRE ET CHOISIR LE PARCOURS"
         : "SOUMETTRE L'ÉTAT DE BESOINS";
 
   return (

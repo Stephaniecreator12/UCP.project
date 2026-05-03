@@ -4,6 +4,3 @@ __pycache__/
 db.sqlite3
 .env
 .vscode/
-# Node
-node_modules/
-**/node_modules/

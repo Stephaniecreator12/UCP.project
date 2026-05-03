@@ -12,10 +12,38 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 from pathlib import Path
 import os 
-
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load environment variables from .env file
+load_dotenv(os.path.join(BASE_DIR.parent, '.env'))
+
+def env_bool(name, default=False):
+    value = os.getenv(name)
+    if value is None:
+        return default
+
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def env_int(name, default):
+    value = os.getenv(name)
+    if value in [None, ""]:
+        return default
+
+    try:
+        return int(value)
+    except ValueError:
+        return default
+
+
+def env_list(name, default=""):
+    raw = os.getenv(name, default)
+    return [item.strip() for item in raw.split(",") if item.strip()]
+
+# Build paths inside the project like this: BASE_DIR / 'subdir'.
 
 
 # Quick-start development settings - unsuitable for production
@@ -46,8 +74,8 @@ INSTALLED_APPS = [
 
     'apps.users',
     'apps.ppm',
+    'apps.achats',
     'apps.TdrSt',
-    'apps.achats'
 ]
 
 MIDDLEWARE = [
@@ -137,8 +165,6 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
-
-# Media (uploads) - nécessaire pour servir les PDF téléversés en développement
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
@@ -146,12 +172,6 @@ MEDIA_ROOT = BASE_DIR / "media"
 
 CORS_ALLOWED_ORIGINS = [
 "http://localhost:3000",
-"http://127.0.0.1:3000",
-]
-
-CSRF_TRUSTED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
 ]
 
 REST_FRAMEWORK = {
@@ -173,14 +193,53 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
-# Email configuration
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'  # ou ton serveur SMTP
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'oriahrakotomavo90@gmail.com'
-EMAIL_HOST_PASSWORD = 'cxemjjxllooxtons'
-DEFAULT_FROM_EMAIL = 'TDR/ST <oriahrakotomavo90@gmail.com>'
 
-# Frontend URL pour les liens
-FRONTEND_URL = 'http://localhost:3000'  # À adapter en production
+EMAIL_BACKEND = os.getenv(
+    "EMAIL_BACKEND",
+    "django.core.mail.backends.console.EmailBackend",
+)
+EMAIL_HOST = os.getenv("EMAIL_HOST", "localhost")
+EMAIL_PORT = env_int("EMAIL_PORT", 587)
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = env_bool(
+    "EMAIL_USE_TLS",
+    EMAIL_BACKEND == "django.core.mail.backends.smtp.EmailBackend",
+)
+EMAIL_USE_SSL = env_bool("EMAIL_USE_SSL", False)
+EMAIL_TIMEOUT = env_int("EMAIL_TIMEOUT", 10)
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "noreply@ucp.local")
+SERVER_EMAIL = os.getenv("SERVER_EMAIL", DEFAULT_FROM_EMAIL)
+
+ACHATS_NOTIFICATION_EMAILS_ENABLED = env_bool(
+    "ACHATS_NOTIFICATION_EMAILS_ENABLED",
+    True,
+)
+ACHATS_EMAIL_SUBJECT_PREFIX = os.getenv(
+    "ACHATS_EMAIL_SUBJECT_PREFIX",
+    "[UCP Achats] ",
+)
+ACHATS_NOTIFICATION_REPLY_TO = env_list("ACHATS_NOTIFICATION_REPLY_TO")
+TDRST_NOTIFICATION_EMAILS_ENABLED = env_bool(
+    "TDRST_NOTIFICATION_EMAILS_ENABLED",
+    True,
+)
+TDRST_EMAIL_SUBJECT_PREFIX = os.getenv(
+    "TDRST_EMAIL_SUBJECT_PREFIX",
+    "[UCP TDR/ST] ",
+)
+TDRST_NOTIFICATION_REPLY_TO = env_list("TDRST_NOTIFICATION_REPLY_TO")
+FRONTEND_APP_URL = os.getenv("FRONTEND_APP_URL", "http://localhost:3000")
+FRONTEND_URL = FRONTEND_APP_URL
+
+EXTERNAL_PERSONNEL_API_URL = os.getenv("EXTERNAL_PERSONNEL_API_URL", "")
+EXTERNAL_PERSONNEL_API_TOKEN = os.getenv("EXTERNAL_PERSONNEL_API_TOKEN", "")
+EXTERNAL_PERSONNEL_API_AUTH_HEADER = os.getenv(
+    "EXTERNAL_PERSONNEL_API_AUTH_HEADER",
+    "Authorization",
+)
+EXTERNAL_PERSONNEL_API_AUTH_SCHEME = os.getenv(
+    "EXTERNAL_PERSONNEL_API_AUTH_SCHEME",
+    "Bearer",
+)
+EXTERNAL_PERSONNEL_API_TIMEOUT = env_int("EXTERNAL_PERSONNEL_API_TIMEOUT", 15)

@@ -1,0 +1,313 @@
+/* Importation de Tailwind v4 */
+@import "tailwindcss";
+
+:root {
+  --bg: #eceeef;
+  --surface: #ffffff;
+  --panel: #f6f7f8;
+  --line: #d9dee3;
+  --line-strong: #bfc8d0;
+  --text: #17212e;
+  --muted: #627080;
+  --green: #0ea85b;
+  --green-strong: #078848;
+  --green-soft: #e8f8ef;
+  --danger: #bf3c3c;
+  --radius: 14px;
+  --shadow: 0 18px 36px -30px rgba(34, 44, 52, 0.5);
+}
+
+@theme {
+  /* Optionnel : si tu veux lier tes variables CSS au moteur Tailwind */
+  --color-ucp-green: var(--green);
+  --radius-ucp: var(--radius);
+  --font-sans: var(--font-ui), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-code), ui-monospace, monospace;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui), ui-sans-serif, system-ui, sans-serif;
+  line-height: 1.5;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+input,
+textarea,
+select,
+button {
+  font: inherit;
+}
+
+.purchase-form-stage {
+  overflow-x: clip;
+  background:
+    radial-gradient(circle at top center, rgba(16, 185, 129, 0.1), transparent 24%),
+    linear-gradient(180deg, #f4f7f6 0%, #edf2f0 100%);
+}
+
+.purchase-form-shell {
+  width: 100%;
+  padding: 1rem 0 2.25rem;
+}
+
+.purchase-form-zoom-frame {
+  width: min(1120px, calc(100vw - 32px));
+  margin-inline: auto;
+}
+
+.purchase-form-zoom {
+  width: 100%;
+}
+
+@media (min-width: 768px) {
+  .purchase-form-shell {
+    padding-top: 1.5rem;
+  }
+
+  .purchase-form-zoom-frame {
+    width: min(1120px, calc(100vw - 96px));
+  }
+}
+
+@media (min-width: 1024px) and (pointer: fine) {
+  .purchase-form-shell {
+    display: flex;
+    justify-content: center;
+  }
+
+  .purchase-form-zoom {
+    width: 100%;
+    zoom: 0.9;
+  }
+}
+
+/* Fallback pour Firefox et les navigateurs sans support du zoom CSS */
+@supports not (zoom: 1) {
+  @media (min-width: 1024px) and (pointer: fine) {
+    .purchase-form-zoom {
+      width: 100%;
+      transform: scale(0.9);
+      transform-origin: top center;
+      margin-bottom: calc(-10% + 8px);
+    }
+  }
+}
+
+.achat-dashboard-shell {
+  width: 100%;
+  padding: 0.85rem 0 2rem;
+}
+
+.achat-dashboard-zoom-frame {
+  width: min(1220px, calc(100vw - 24px));
+  margin-inline: auto;
+}
+
+.achat-dashboard-zoom {
+  width: 100%;
+}
+
+@media (min-width: 768px) {
+  .achat-dashboard-shell {
+    padding-top: 1.1rem;
+  }
+
+  .achat-dashboard-zoom-frame {
+    width: min(1220px, calc(100vw - 72px));
+  }
+}
+
+@media (min-width: 1024px) and (pointer: fine) {
+  .achat-dashboard-shell {
+    display: flex;
+    justify-content: center;
+  }
+
+  .achat-dashboard-zoom {
+    width: 133.3334%;
+    zoom: 0.75;
+  }
+}
+
+@supports not (zoom: 1) {
+  @media (min-width: 1024px) and (pointer: fine) {
+    .achat-dashboard-zoom {
+      width: 133.3334%;
+      transform: scale(0.75);
+      transform-origin: top center;
+      margin-bottom: calc(-25% + 12px);
+    }
+  }
+}
+
+/* NOUVELLES CLASSES POUR LE ZOOM HAUTE DENSITÉ */
+.zoom-content {
+  width: 100%;
+}
+
+@media (min-width: 1024px) and (pointer: fine) {
+  .zoom-content {
+    zoom: 0.9;
+  }
+}
+
+/* Fallback non-zoom pour Firefox */
+@supports not (zoom: 1) {
+  @media (min-width: 1024px) and (pointer: fine) {
+    .zoom-content {
+      transform: scale(0.9);
+      transform-origin: top center;
+      width: 111.1111%; /* 1/0.9 */
+    }
+  }
+}
+
+.max-w-5xl-zoomed {
+  max-width: 64rem; /* 1024px (5xl) / 0.9 = 1137px */
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.max-w-7xl-zoomed {
+  max-width: 89rem; /* 1280px (7xl) / 0.9 = 1422px */
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* En Tailwind v4, on définit les composants personnalisés 
+   directement après l'import sans forcément utiliser @layer 
+*/
+.btn-ucp-gradient {
+  @apply bg-emerald-600 text-white shadow-sm transition-all;
+  background-image: linear-gradient(180deg, #15ba66, var(--green-strong));
+  border: 1px solid rgba(5, 150, 105, 0.2);
+}
+
+.btn-ucp-gradient:hover {
+  @apply brightness-105;
+}
+
+.btn-ucp-gradient:active {
+  @apply scale-95;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes dashFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes dashIntroSlide {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes saveMessageSlide {
+  from {
+    opacity: 0;
+    transform: translateX(120px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.page-enter {
+  animation: dashFadeIn 0.4s ease-out both;
+}
+
+.page-enter-up {
+  animation: dashIntroSlide 0.55s ease-out both;
+}
+
+.animate-saveMessageSlide {
+  animation-name: saveMessageSlide;
+  animation-duration: 0.5s;
+  animation-timing-function: cubic-bezier(0.22, 0.61, 0.36, 1);
+  animation-fill-mode: both;
+}
+
+.field {
+  width: 100%;
+  border-radius: 16px;
+  border: 1px solid #dbe4ee;
+  background: linear-gradient(180deg, #ffffff 0%, #fcfdff 100%);
+  padding: 0.9rem 1rem;
+  color: #0f172a;
+  outline: none;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+.field:hover {
+  border-color: #c4d5e7;
+}
+
+.field:focus {
+  border-color: #10b981;
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.12);
+  transform: translateY(-1px);
+}
+
+.field::placeholder {
+  color: #94a3b8;
+}
+
+.field[readonly],
+.field:disabled {
+  border-color: #dbe3e8;
+  background: linear-gradient(180deg, #f8fafc 0%, #f2f6f8 100%);
+  color: #475569;
+  box-shadow: none;
+  cursor: default;
+}
+
+.field[readonly]:focus,
+.field:disabled:focus {
+  border-color: #dbe3e8;
+  box-shadow: none;
+  transform: none;
+}

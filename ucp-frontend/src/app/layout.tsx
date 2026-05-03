@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { JetBrains_Mono, Manrope, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 
@@ -15,8 +16,6 @@ const jetbrainsMono = JetBrains_Mono({
   variable: "--font-code",
   subsets: ["latin"],
 });
-
-import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "UCP - Passation de marchés",
@@ -37,4 +36,3 @@ export default function RootLayout({
     </html>
   );
 }
-

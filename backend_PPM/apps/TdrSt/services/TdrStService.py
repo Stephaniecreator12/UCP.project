@@ -9,6 +9,10 @@ from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
 from apps.TdrSt.models.TdrSt import TdrStDocument, TdrStDocumentFileVersion, TdrStValidationAction
+from apps.TdrSt.services.schema_compat import (
+    MISSING_TDR_LINK_MIGRATION_MESSAGE,
+    has_tdr_demande_link_column,
+)
 
 # IMPORTS POUR LES EMAILS
 from apps.TdrSt.services.emailService import (
@@ -18,6 +22,13 @@ from apps.TdrSt.services.emailService import (
     send_final_decision_email,
     send_document_suspended_email,
 )
+
+LOCKED_DEMANDE_FIELDS = {
+    "unite_technique",
+    "intitule",
+    "reference_ptba",
+    "montant_estime_usd",
+}
 
 
 def _default_seuil_passation_usd() -> Decimal:
@@ -75,7 +86,31 @@ def _build_numero_document(doc: TdrStDocument) -> str:
 
 @transaction.atomic
 def create_document(validated_data: dict, user) -> TdrStDocument:
-    doc = TdrStDocument.objects.create(demandeur=user, **validated_data)
+    demande_achat_id = validated_data.pop("demande_achat_id", None)
+    demande_achat = None
+
+    if not has_tdr_demande_link_column():
+        raise ValidationError({"detail": MISSING_TDR_LINK_MIGRATION_MESSAGE})
+
+    if demande_achat_id:
+        from apps.achats.models import DemandeAchat
+
+        demande_achat = DemandeAchat.objects.select_related("demandeur").filter(
+            id=demande_achat_id
+        ).first()
+        if not demande_achat:
+            raise ValidationError({"demande_achat_id": "Le dossier état de besoin est introuvable."})
+        if getattr(demande_achat, "demandeur_id", None) != getattr(user, "id", None):
+            raise ValidationError({"detail": "Seul le demandeur du dossier peut créer son TDR/ST lié."})
+
+        try:
+            existing_document = demande_achat.tdr_st_document
+        except Exception:
+            existing_document = None
+        if existing_document is not None:
+            return existing_document
+
+    doc = TdrStDocument.objects.create(demandeur=user, demande_achat=demande_achat, **validated_data)
     doc.numero_document = _build_numero_document(doc)
     doc.save(update_fields=["numero_document"])
 
@@ -89,6 +124,11 @@ def update_document(doc: TdrStDocument, validated_data: dict, user) -> TdrStDocu
     if doc.statut not in (TdrStDocument.Statut.BROUILLON, TdrStDocument.Statut.A_REVOIR):
         raise ValidationError({"statut": "Modification autorisée uniquement en brouillon/à revoir."})
 
+    if doc.demande_achat_id:
+        for locked_field in LOCKED_DEMANDE_FIELDS:
+            if locked_field in validated_data:
+                validated_data[locked_field] = getattr(doc, locked_field)
+
     for key, value in validated_data.items():
         setattr(doc, key, value)
     doc.save()
@@ -96,14 +136,28 @@ def update_document(doc: TdrStDocument, validated_data: dict, user) -> TdrStDocu
     return doc
 
 
+def _validate_document_ready_for_submission(doc: TdrStDocument) -> None:
+    errors: dict[str, str] = {}
+
+    if not doc.sources_financement:
+        errors["sources_financement"] = "La source de financement doit être renseignée avant soumission."
+    if not (doc.ligne_budgetaire or "").strip():
+        errors["ligne_budgetaire"] = "La ligne budgétaire doit être renseignée avant soumission."
+    if not (doc.numero_subvention or "").strip():
+        errors["numero_subvention"] = "Le numéro de subvention doit être renseigné avant soumission."
+
+    if errors:
+        raise ValidationError(errors)
+
+
 def list_my_documents(user):
-    return TdrStDocument.objects.filter(demandeur=user).select_related("fichier_courant")
+    return TdrStDocument.objects.filter(demandeur=user).select_related("fichier_courant", "demande_achat")
 
 
 def list_pending_tech():
     return (
         TdrStDocument.objects.filter(statut=TdrStDocument.Statut.SOUMIS)
-        .select_related("demandeur", "fichier_courant")
+        .select_related("demandeur", "fichier_courant", "demande_achat")
         .order_by("-created_at")
     )
 
@@ -121,7 +175,7 @@ def _list_role_documents_with_history(*, pending_qs, treated_etape: str, user=No
     return (
         (pending_qs | treated)
         .distinct()
-        .select_related("demandeur", "fichier_courant")
+        .select_related("demandeur", "fichier_courant", "demande_achat")
         .order_by("-updated_at")
     )
 
@@ -148,14 +202,14 @@ def list_tech_documents(user):
     )
 
     return (pending | treated | resubmitted).distinct().select_related(
-        "demandeur", "fichier_courant"
+        "demandeur", "fichier_courant", "demande_achat"
     ).order_by("-updated_at")
 
 
 def list_pending_final():
     return (
         TdrStDocument.objects.filter(statut=TdrStDocument.Statut.EN_VALIDATION)
-        .select_related("demandeur", "fichier_courant")
+        .select_related("demandeur", "fichier_courant", "demande_achat")
         .order_by("-created_at")
     )
 
@@ -189,7 +243,7 @@ def list_auditeur_documents():
                 TdrStDocument.Statut.SUSPENDU,
             )
         )
-        .select_related("demandeur", "fichier_courant")
+        .select_related("demandeur", "fichier_courant", "demande_achat")
         .prefetch_related("actions_validation__acteur")  # Section G — traçabilité complète
         .order_by("-updated_at")
     )
@@ -203,6 +257,8 @@ def submit_document(doc: TdrStDocument, user) -> TdrStDocument:
     # Autoriser la soumission depuis BROUILLON ou A_REVOIR
     if doc.statut not in (TdrStDocument.Statut.BROUILLON, TdrStDocument.Statut.A_REVOIR):
         raise ValidationError({"statut": "Seuls les brouillons/à revoir peuvent être soumis."})
+
+    _validate_document_ready_for_submission(doc)
     
     # Passer en SOUMIS (même si c'était A_REVOIR)
     doc.statut = TdrStDocument.Statut.SOUMIS
@@ -285,6 +341,33 @@ def final_decide(doc: TdrStDocument, user, decision: str, observations: str = ""
     if decision == TdrStValidationAction.Decision.APPROUVE:
         print(f"[EMAIL] Envoi email au demandeur pour décision finale - document {doc.numero_document}")
         send_final_decision_email(doc, decision, observations)
+        if doc.demande_achat_id:
+            from apps.achats.services.demande_service import submit_demande
+
+            demande = doc.demande_achat
+            funding_code = ""
+            if isinstance(doc.sources_financement, list) and doc.sources_financement:
+                funding_code = str(doc.sources_financement[0] or "").strip()
+            if not funding_code:
+                funding_code = (doc.ligne_budgetaire or "").strip()
+
+            demande.source_financement = funding_code
+            demande.ligne_budgetaire = (doc.ligne_budgetaire or funding_code or "").strip()
+            demande.numero_subvention = (doc.numero_subvention or "").strip()
+            demande.save(
+                update_fields=[
+                    "source_financement",
+                    "ligne_budgetaire",
+                    "numero_subvention",
+                    "updated_at",
+                ]
+            )
+
+            if demande.demandeur and demande.statut in (
+                demande.STATUT_BROUILLON,
+                demande.STATUT_A_COMPLETER,
+            ):
+                submit_demande(demande, demande.demandeur)
     
     return doc
 

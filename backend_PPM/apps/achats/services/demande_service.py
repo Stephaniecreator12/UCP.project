@@ -18,6 +18,7 @@ from apps.achats.services.notification_service import (
     notify_reception_issue_resolved,
     notify_reception_recorded,
 )
+from apps.achats.services.tdr_link_compat import with_optional_tdr_select_related
 
 NUMERO_PREFIX = "UCP/DA"
 BON_COMMANDE_PREFIX = "UCP/BC"
@@ -57,11 +58,11 @@ DEFAULT_BUDGET_BALANCE_BY_SOURCE = {
 }
 
 SUBVENTION_BY_SOURCE = {
-    DemandeAchat.SOURCE_SRPS_CS7_FM: "MDG - S MOH 4041",
-    DemandeAchat.SOURCE_RSS3_GAVI: "MDG - HSS - 3",
-    DemandeAchat.SOURCE_FAE_GAVI: "MDG - FAE",
-    DemandeAchat.SOURCE_CDS_GAVI: "MDG - COVID19 - CDS",
-    DemandeAchat.SOURCE_VAR_GAVI: "MDG - VAR Camp",
+    DemandeAchat.SOURCE_SRPS_CS7_FM: "MDG-S MOH 4041",
+    DemandeAchat.SOURCE_RSS3_GAVI: "MDG-HSS-3",
+    DemandeAchat.SOURCE_FAE_GAVI: "MDG-FAE",
+    DemandeAchat.SOURCE_CDS_GAVI: "MDG-COVID19-CDS",
+    DemandeAchat.SOURCE_VAR_GAVI: "MDG-VAR Camp",
     DemandeAchat.SOURCE_PARN2_BM: "P175110, PAD 4924",
     DemandeAchat.SOURCE_PPSB_BM: "P174903",
 }
@@ -71,45 +72,21 @@ def list_mes_demandes(user, scope="mine"):
     qs = DemandeAchat.objects.all()
 
     if scope == "all":
-        # Global dashboard view should focus on dossiers already in the circuit.
-        qs = qs.exclude(statut=DemandeAchat.STATUT_BROUILLON)
+        # The global dashboard must still keep the connected user's drafts visible,
+        # while never exposing drafts that belong to other users.
+        qs = qs.filter(
+            ~Q(statut=DemandeAchat.STATUT_BROUILLON) | Q(demandeur=user)
+        )
     else:
-        filters = Q(demandeur=user)
-
-        if is_agent_marche(user):
-            # Marche needs to see everything that is ordered, shipped or received.
-            filters |= Q(statut__in=[
-                DemandeAchat.STATUT_EN_COMMANDE,
-                DemandeAchat.STATUT_EN_LIVRAISON,
-                DemandeAchat.STATUT_LIVREE,
-                DemandeAchat.STATUT_CLOTUREE
-            ])
-
-        if is_agent_achat(user):
-            filters |= Q(statut__in=[
-                DemandeAchat.STATUT_VALIDEE_BUDGETAIRE,
-                DemandeAchat.STATUT_EN_COMMANDE,
-                DemandeAchat.STATUT_EN_LIVRAISON,
-            ])
-
-        if is_finance(user):
-            filters |= Q(statut__in=[
-                DemandeAchat.STATUT_SOUMISE,
-                DemandeAchat.STATUT_VALIDEE,
-                DemandeAchat.STATUT_VALIDEE_BUDGETAIRE,
-                DemandeAchat.STATUT_EN_COMMANDE,
-                DemandeAchat.STATUT_EN_LIVRAISON,
-                DemandeAchat.STATUT_LIVREE,
-                DemandeAchat.STATUT_CLOTUREE,
-            ])
-
-        qs = qs.filter(filters)
+        # "mine" must keep the same meaning for every role: dossiers created
+        # by the connected user only.
+        qs = qs.filter(demandeur=user)
 
     from django.db.models import Prefetch
     from apps.achats.models import ValidationDemande, HistoriqueDemande
 
     return (
-        qs.select_related("demandeur")
+        with_optional_tdr_select_related(qs, "demandeur")
         .prefetch_related(
             "demandeur__groups",
             "lignes_besoin",
@@ -151,15 +128,19 @@ def list_demandes_a_commander(user):
     from django.db.models import Prefetch
     from apps.achats.models import ValidationDemande, HistoriqueDemande
 
-    return (
+    qs = with_optional_tdr_select_related(
         DemandeAchat.objects.filter(
             statut__in=[
                 DemandeAchat.STATUT_VALIDEE_BUDGETAIRE,
                 DemandeAchat.STATUT_EN_COMMANDE,
                 DemandeAchat.STATUT_EN_LIVRAISON,
             ]
-        )
-        .select_related("demandeur")
+        ),
+        "demandeur",
+    )
+
+    return (
+        qs
         .prefetch_related(
             "demandeur__groups",
             "lignes_besoin",
@@ -184,12 +165,16 @@ def list_demandes_budgetaires(user):
     from django.db.models import Prefetch
     from apps.achats.models import ValidationDemande, HistoriqueDemande
 
-    return (
+    qs = with_optional_tdr_select_related(
         DemandeAchat.objects.filter(
             statut=DemandeAchat.STATUT_SOUMISE,
             etape_validation_actuelle=DemandeAchat.ETAPE_BUDGETAIRE,
-        )
-        .select_related("demandeur")
+        ),
+        "demandeur",
+    )
+
+    return (
+        qs
         .prefetch_related(
             "demandeur__groups",
             "lignes_besoin",

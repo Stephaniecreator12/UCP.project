@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Search, X, ChevronDown, Package, ClipboardList, ChevronLeft, ChevronRight as ChevronRightIcon, CheckCircle } from "lucide-react";
 
 import TopHeader from "@/app/components/TopHeader";
@@ -27,7 +27,11 @@ import {
   isAgentAchatUser,
   type UserProfile,
 } from "@/services/auth";
-import { DemandeAchat, listDemandesPassation } from "@/services/achats";
+import {
+  type DashboardScope,
+  DemandeAchat,
+  listDemandesAchat,
+} from "@/services/achats";
 
 type SectionKey = "passation" | "ordered";
 type DetailViewMode = "detail" | "timeline";
@@ -135,6 +139,7 @@ const filterDemandesByQuery = (items: DemandeAchat[], query: string) => {
 
 export default function PassationDashboardPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [currentUser] = useState(() => getCurrentUser());
   const agentRoleLabel = getAgentAchatRoleLabel(currentUser);
   const [demandes, setDemandes] = useState<DemandeAchat[]>([]);
@@ -147,6 +152,23 @@ export default function PassationDashboardPage() {
   const [detailViewMode, setDetailViewMode] = useState<DetailViewMode>("detail");
   const [passationModalDemandeId, setPassationModalDemandeId] = useState<number | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const rawScope = (searchParams.get("scope") ?? "").trim().toLowerCase();
+  const dashboardScope: DashboardScope = rawScope === "mine" ? "mine" : "all";
+  const searchParamsString = searchParams.toString();
+
+  const mineScopeHref = useMemo(() => {
+    const params = new URLSearchParams(searchParamsString);
+    params.delete("scope");
+    const queryString = params.toString();
+    return queryString ? `/passation?${queryString}` : "/passation";
+  }, [searchParamsString]);
+
+  const allScopeHref = useMemo(() => {
+    const params = new URLSearchParams(searchParamsString);
+    params.set("scope", "all");
+    const queryString = params.toString();
+    return `/passation?${queryString}`;
+  }, [searchParamsString]);
 
   const showToast = (message: string) => {
     setToastMessage(message);
@@ -155,7 +177,7 @@ export default function PassationDashboardPage() {
 
   const reloadDemandes = async () => {
     try {
-      const data = await listDemandesPassation();
+      const data = await listDemandesAchat(dashboardScope);
       setDemandes(data);
     } catch {}
   };
@@ -172,8 +194,9 @@ export default function PassationDashboardPage() {
     }
 
     const load = async () => {
+      setLoading(true);
       try {
-        const data = await listDemandesPassation();
+        const data = await listDemandesAchat(dashboardScope);
         setDemandes(data);
         setError(null);
       } catch (err) {
@@ -183,9 +206,13 @@ export default function PassationDashboardPage() {
       }
     };
     void load();
-  }, [currentUser, router]);
+  }, [currentUser, dashboardScope, router]);
 
-  const { filteredDemandes, filterProps } = useDashboardFilters(demandes, { typeField: "categorie_besoin" });
+  const passationBaseDemandes = useMemo(
+    () => demandes.filter((demande) => isPassationCandidate(demande) || isOrderedCandidate(demande)),
+    [demandes],
+  );
+  const { filteredDemandes, filterProps } = useDashboardFilters(passationBaseDemandes, { typeField: "categorie_besoin" });
 
   const passationDemandes = useMemo(() => filteredDemandes.filter(isPassationCandidate), [filteredDemandes]);
   const orderedSectionDemandes = useMemo(() => filteredDemandes.filter(isOrderedCandidate), [filteredDemandes]);
@@ -258,29 +285,56 @@ export default function PassationDashboardPage() {
             </div>
 
             <div className="flex w-full flex-col gap-3 md:w-auto md:min-w-[430px] md:items-end">
-              <div className="inline-flex items-center gap-1 self-start rounded-xl border border-slate-200 bg-white p-1 shadow-sm md:self-auto">
-                <button
-                  type="button"
-                  onClick={() => setDisplayMode("status")}
-                  className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
-                    displayMode === "status"
-                      ? "bg-slate-900 text-white shadow-sm"
-                      : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                  }`}
-                >
-                  Vue par statut
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDisplayMode("table")}
-                  className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
-                    displayMode === "table"
-                      ? "bg-slate-900 text-white shadow-sm"
-                      : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                  }`}
-                >
-                  Vue tableau
-                </button>
+              <div className="flex w-full flex-wrap items-center gap-2 self-start md:w-auto md:justify-end md:self-auto">
+                <div className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+                  <button
+                    type="button"
+                    onClick={() => router.replace(mineScopeHref)}
+                    className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                      dashboardScope === "mine"
+                        ? "bg-slate-900 text-white shadow-sm"
+                        : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                    }`}
+                  >
+                    Mes dossiers
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => router.replace(allScopeHref)}
+                    className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                      dashboardScope === "all"
+                        ? "bg-slate-900 text-white shadow-sm"
+                        : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                    }`}
+                  >
+                    Tous les dossiers
+                  </button>
+                </div>
+
+                <div className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+                  <button
+                    type="button"
+                    onClick={() => setDisplayMode("status")}
+                    className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                      displayMode === "status"
+                        ? "bg-slate-900 text-white shadow-sm"
+                        : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                    }`}
+                  >
+                    Vue par statut
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDisplayMode("table")}
+                    className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                      displayMode === "table"
+                        ? "bg-slate-900 text-white shadow-sm"
+                        : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                    }`}
+                  >
+                    Vue tableau
+                  </button>
+                </div>
               </div>
 
               <div className="flex items-center gap-3 w-full md:w-auto">
@@ -335,7 +389,11 @@ export default function PassationDashboardPage() {
                   </div>
                   <h2 className="text-lg font-bold text-slate-900 mb-2">Aucun dossier</h2>
                   <p className="text-sm text-slate-500">
-                    {demandes.length > 0 ? "Aucun dossier ne correspond à vos filtres." : "Votre file de traitement est actuellement vide."}
+                    {demandes.length > 0
+                      ? "Aucun dossier ne correspond à vos filtres."
+                      : dashboardScope === "mine"
+                        ? "Aucun de vos dossiers n'est actuellement en passation ou déjà transmis au Marché."
+                        : "Votre file de traitement est actuellement vide."}
                   </p>
                   {(filterProps.selectedFinancements.length > 0 || filterProps.selectedTypes.length > 0) && (
                     <button 

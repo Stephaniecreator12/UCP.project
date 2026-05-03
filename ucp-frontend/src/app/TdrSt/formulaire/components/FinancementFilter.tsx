@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useRef, useEffect } from "react";
 import { ChevronDown } from "lucide-react";
+import { FINANCE_CATALOG, findFinanceCatalogEntry } from "@/lib/financeCatalog";
 
 type FinancementTone = "UNKNOWN" | "FM" | "GAVI" | "BM" | "INTERNE" | "AUTRE";
 
@@ -13,58 +14,6 @@ type SerializedFinancementFilter = {
   tone: FinancementTone;
   colorKey: string;
 };
-
-const financementCatalog = [
-  {
-    value: "SRPS_CS7_FM",
-    family: "FM" as FinancementTone,
-    sourceLabel: "SRPS / CS7 / Fonds Mondial",
-    budgetLabel: "SRPS",
-    subvention: "MDG-S-MOH-4041",
-  },
-  {
-    value: "RSS3_GAVI",
-    family: "GAVI" as FinancementTone,
-    sourceLabel: "RSS3 / Alliance GAVI",
-    budgetLabel: "RSS3",
-    subvention: "MDG-HSS-3",
-  },
-  {
-    value: "FAE_GAVI",
-    family: "GAVI" as FinancementTone,
-    sourceLabel: "FAE / Alliance GAVI",
-    budgetLabel: "FAE",
-    subvention: "MDG-FAE",
-  },
-  {
-    value: "CDS_GAVI",
-    family: "GAVI" as FinancementTone,
-    sourceLabel: "CDS / Alliance GAVI",
-    budgetLabel: "CDS",
-    subvention: "MDG-COVID19-CDS",
-  },
-  {
-    value: "VAR_GAVI",
-    family: "GAVI" as FinancementTone,
-    sourceLabel: "VAR / Alliance GAVI",
-    budgetLabel: "VAR",
-    subvention: "MDG-VAR Camp",
-  },
-  {
-    value: "PARN2_BM",
-    family: "BM" as FinancementTone,
-    sourceLabel: "PARN2 / Banque Mondiale",
-    budgetLabel: "PARN2",
-    subvention: "P175110",
-  },
-  {
-    value: "PPSB_BM",
-    family: "BM" as FinancementTone,
-    sourceLabel: "PPSB / Banque Mondiale",
-    budgetLabel: "PPSB",
-    subvention: "P174903",
-  },
-];
 
 const genericFinancementLabels: Record<string, string> = {
   BM: "Banque Mondiale",
@@ -147,12 +96,16 @@ export const financementColors: Record<string, string> = {
 };
 
 const buildFinancementFilterValue = (
-  source: string | null | undefined,
-  ligneBudgetaire: string | null | undefined,
-  numeroSubvention: string | null | undefined
+  source: unknown,
+  ligneBudgetaire: unknown,
+  numeroSubvention: unknown
 ) => {
   // Safe trim function that handles non-string values
   const safeTrim = (value: unknown): string => {
+    if (Array.isArray(value)) {
+      const first = value.find((item) => typeof item === "string" && item.trim());
+      return typeof first === "string" ? first.trim() : "";
+    }
     if (typeof value === "string") return value.trim();
     return "";
   };
@@ -166,16 +119,10 @@ const buildFinancementFilterValue = (
   }
 
   const normalizedSource = normalizeFinancementToken(rawSource);
-  const catalogEntry = financementCatalog.find((entry) => {
-    const aliases = [
-      entry.value,
-      entry.family,
-      entry.sourceLabel,
-      entry.budgetLabel,
-      entry.subvention,
-    ].map(normalizeFinancementToken);
-    return aliases.some((alias) => normalizedSource === alias);
-  });
+  const catalogEntry =
+    findFinanceCatalogEntry(rawSource) ||
+    FINANCE_CATALOG.find((entry) => normalizeFinancementToken(entry.family) === normalizedSource) ||
+    null;
 
   const tone: FinancementTone =
     catalogEntry?.family ?? getFinancementToneFromValue(rawSource || rawLine || rawCode);
@@ -183,8 +130,8 @@ const buildFinancementFilterValue = (
   const details: SerializedFinancementFilter = {
     source: catalogEntry?.value ?? (rawSource || "SOURCE_INCONNUE"),
     sourceLabel: catalogEntry?.sourceLabel ?? (rawSource || "Source non précisée"),
-    line: catalogEntry?.budgetLabel ?? (rawLine || "Non précisée"),
-    code: catalogEntry?.subvention ?? (rawCode || "Non précisé"),
+    line: rawLine || catalogEntry?.budgetLabel || "Non précisée",
+    code: rawCode || catalogEntry?.subvention || "Non précisé",
     tone: tone,
     colorKey:
       catalogEntry?.value ??
@@ -343,19 +290,22 @@ function FilterDropdown({
 
 type UseTdrStFiltersProps<TDocument> = {
   documents: TDocument[];
-  getSourceFinancement: (doc: TDocument) => string | null | undefined;
-  getLigneBudgetaire: (doc: TDocument) => string | null | undefined;
-  getNumeroSubvention: (doc: TDocument) => string | null | undefined;
+  getSourceFinancement: (doc: TDocument) => unknown;
+  getLigneBudgetaire: (doc: TDocument) => unknown;
+  getNumeroSubvention: (doc: TDocument) => unknown;
+  getDocumentType: (doc: TDocument) => unknown;
 };
 
-export function useTdrStFilters<TDocument>({
+export function useTdrStFilters<TDocument extends { statut?: string }>({
   documents,
   getSourceFinancement,
   getLigneBudgetaire,
   getNumeroSubvention,
+  getDocumentType,
 }: UseTdrStFiltersProps<TDocument>) {
   const [selectedFinancements, setSelectedFinancements] = useState<string[]>([]);
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
+  const [selectedDocumentTypes, setSelectedDocumentTypes] = useState<string[]>([]);
 
   const allFinancements = useMemo(() => {
     const processed = documents.map((doc) =>
@@ -376,6 +326,18 @@ export function useTdrStFilters<TDocument>({
     return ["VALIDE", "REJETE", "SUSPENDU"];
   }, []);
 
+  const documentTypeOptions = useMemo(() => {
+    const processed = documents
+      .map((doc) => String(getDocumentType(doc) ?? "").trim())
+      .filter(Boolean);
+    const unique = Array.from(new Set(processed));
+    return unique.sort((a, b) => {
+      if (a === "TDR") return -1;
+      if (b === "TDR") return 1;
+      return a.localeCompare(b, "fr");
+    });
+  }, [documents, getDocumentType]);
+
   const getStatusLabel = (status: string) => {
     const labels: Record<string, string> = {
       VALIDE: "Validé",
@@ -383,6 +345,14 @@ export function useTdrStFilters<TDocument>({
       SUSPENDU: "Suspendu",
     };
     return labels[status] ?? status;
+  };
+
+  const getDocumentTypeLabel = (type: string) => {
+    const labels: Record<string, string> = {
+      TDR: "TDR",
+      ST: "ST",
+    };
+    return labels[type] ?? type;
   };
 
   const filteredDocuments = useMemo(() => {
@@ -400,7 +370,13 @@ export function useTdrStFilters<TDocument>({
     }
 
     if (selectedStatuses.length > 0) {
-      result = result.filter((doc) => selectedStatuses.includes(doc.statut));
+      result = result.filter((doc) => selectedStatuses.includes(doc.statut ?? ""));
+    }
+
+    if (selectedDocumentTypes.length > 0) {
+      result = result.filter((doc) =>
+        selectedDocumentTypes.includes(String(getDocumentType(doc) ?? "").trim()),
+      );
     }
 
     return result;
@@ -408,9 +384,11 @@ export function useTdrStFilters<TDocument>({
     documents,
     selectedFinancements,
     selectedStatuses,
+    selectedDocumentTypes,
     getSourceFinancement,
     getLigneBudgetaire,
     getNumeroSubvention,
+    getDocumentType,
   ]);
 
   return {
@@ -418,11 +396,15 @@ export function useTdrStFilters<TDocument>({
     filterProps: {
       allFinancements,
       statusOptions,
+      documentTypeOptions,
       selectedFinancements,
       setSelectedFinancements,
       selectedStatuses,
       setSelectedStatuses,
+      selectedDocumentTypes,
+      setSelectedDocumentTypes,
       getStatusLabel,
+      getDocumentTypeLabel,
     },
   };
 }
@@ -434,25 +416,34 @@ export function TdrStFilterBar({
   filterProps: {
     allFinancements: string[];
     statusOptions: string[];
+    documentTypeOptions: string[];
     selectedFinancements: string[];
     setSelectedFinancements: (value: string[]) => void;
     selectedStatuses: string[];
     setSelectedStatuses: (value: string[]) => void;
+    selectedDocumentTypes: string[];
+    setSelectedDocumentTypes: (value: string[]) => void;
     getStatusLabel: (status: string) => string;
+    getDocumentTypeLabel: (type: string) => string;
   };
   compact?: boolean;
 }) {
   const {
     allFinancements,
     statusOptions,
+    documentTypeOptions,
     selectedFinancements,
     setSelectedFinancements,
     selectedStatuses,
     setSelectedStatuses,
+    selectedDocumentTypes,
+    setSelectedDocumentTypes,
     getStatusLabel,
+    getDocumentTypeLabel,
   } = filterProps;
 
-  const activeFiltersCount = selectedFinancements.length + selectedStatuses.length;
+  const activeFiltersCount =
+    selectedFinancements.length + selectedStatuses.length + selectedDocumentTypes.length;
 
   const getFinancementDotColor = () => {
     if (selectedFinancements.length === 1) {
@@ -529,7 +520,7 @@ export function TdrStFilterBar({
           >
             <div className="relative z-20 flex-1">
               <FilterDropdown
-                title="Financement"
+                title="Source / ligne / subvention"
                 options={allFinancements}
                 selected={selectedFinancements}
                 onChange={setSelectedFinancements}
@@ -549,6 +540,17 @@ export function TdrStFilterBar({
                 compact={compact}
               />
             </div>
+            <div className="relative z-[5] flex-1">
+              <FilterDropdown
+                title="Type de document"
+                options={documentTypeOptions}
+                selected={selectedDocumentTypes}
+                onChange={setSelectedDocumentTypes}
+                getLabel={getDocumentTypeLabel}
+                dotColorClass="bg-violet-400"
+                compact={compact}
+              />
+            </div>
           </div>
 
           <div className={`flex items-center gap-2 ${compact ? "pl-1" : "pl-2"}`}>
@@ -557,6 +559,7 @@ export function TdrStFilterBar({
                 onClick={() => {
                   setSelectedFinancements([]);
                   setSelectedStatuses([]);
+                  setSelectedDocumentTypes([]);
                 }}
                 className={`flex items-center gap-2 rounded-lg border border-slate-200 bg-white font-semibold text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900 ${
                   compact ? "px-2.5 py-1.5 text-[11px]" : "px-3 py-2 text-[12px]"

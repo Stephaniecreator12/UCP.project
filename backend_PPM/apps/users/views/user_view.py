@@ -9,6 +9,10 @@ from apps.users.serializers.user_serializer import (
     UserSerializer,
     UserCreateSerializer,
 )
+from apps.users.services.external_personnel import (
+    ExternalPersonnelApiError,
+    fetch_external_personnel_directory,
+)
 
 User = get_user_model()
 
@@ -16,10 +20,26 @@ User = get_user_model()
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def me(request):
-
+    # Central profile endpoint consumed by the frontend after login.
+    # It is the place where UI routing can read shared identity data
+    # such as email, username and groups.
     serializer = UserSerializer(request.user)
 
     return Response(serializer.data)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def external_personnel(request):
+    try:
+        personnel = fetch_external_personnel_directory()
+    except ExternalPersonnelApiError as exc:
+        payload = {"error": exc.message}
+        if exc.detail:
+            payload["detail"] = exc.detail
+        return Response(payload, status=exc.status_code)
+
+    return Response(personnel)
 
 
 @api_view(["GET"])

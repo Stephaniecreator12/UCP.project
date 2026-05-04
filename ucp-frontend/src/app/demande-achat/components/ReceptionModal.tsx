@@ -370,7 +370,7 @@ export default function ReceptionModal({
           </div>
 
           {/* BLOC 2 - ARTICLES (Tableau scrollable) */}
-          <div className="flex flex-col rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden flex-1 min-h-0">
+          <div className="flex shrink-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
             {/* Haut de Bloc 2: Infos Base (Ultra compact sur 1 ligne) */}
             <div className="flex flex-wrap items-center gap-4 border-b border-slate-100 px-4 py-2 bg-slate-50/50 rounded-t-xl">
               <div className="flex items-center gap-2 flex-1">
@@ -382,7 +382,7 @@ export default function ReceptionModal({
             </div>
 
             {/* Tableau compact avec scroll */}
-            <div className="overflow-y-auto overflow-x-hidden border-t border-slate-100">
+            <div className="border-t border-slate-100">
               <table className="w-full text-left text-sm">
                 <thead className="bg-slate-50 text-[13px] font-bold text-slate-500 sticky top-0 z-10 shadow-sm">
                   <tr>
@@ -475,12 +475,6 @@ export default function ReceptionModal({
               </div>
 
             </div>
-
-            {isProblemDetected && (
-              <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-center text-xs font-bold text-amber-800 shadow-sm">
-                Un écart est détecté. Complétez le bloc de gestion des écarts ci-dessous.
-              </div>
-            )}
           </div>
           {/* BLOC 3 - ÉCART (Conditionnel) */}
           {isProblemDetected && (

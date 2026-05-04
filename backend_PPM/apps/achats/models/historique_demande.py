@@ -16,6 +16,7 @@ class HistoriqueDemande(models.Model):
     ACTION_RECEPTION_ENREGISTREE = "RECEPTION_ENREGISTREE"
     ACTION_ECART_RESOLU = "ECART_RESOLU"
     ACTION_DEMANDE_CLOTUREE = "DEMANDE_CLOTUREE"
+    ACTION_RAPPEL_VALIDATION_24H = "RAPPEL_VALIDATION_24H"
 
     ACTION_CHOICES = [
         (ACTION_DEMANDE_CREEE, "Demande créée"),
@@ -27,6 +28,7 @@ class HistoriqueDemande(models.Model):
         (ACTION_RECEPTION_ENREGISTREE, "Réception enregistrée"),
         (ACTION_ECART_RESOLU, "Écart résolu"),
         (ACTION_DEMANDE_CLOTUREE, "Demande clôturée"),
+        (ACTION_RAPPEL_VALIDATION_24H, "Rappel validation 24h"),
     ]
 
     demande = models.ForeignKey(

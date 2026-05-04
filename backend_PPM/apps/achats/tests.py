@@ -1,5 +1,6 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
@@ -10,7 +11,7 @@ from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 from rest_framework.test import APIClient
 
-from apps.achats.models import DemandeAchat, Fournisseur, ValidationDemande
+from apps.achats.models import DemandeAchat, Fournisseur, HistoriqueDemande, ValidationDemande
 from apps.achats.services.demande_service import (
     close_demande,
     complete_budget_estimation,
@@ -374,20 +375,113 @@ class AchatsNotificationTests(TestCase):
             "chefretard@example.com",
             groups=["VALIDATEUR_HIERARCHIQUE"],
         )
+        fixed_now = timezone.make_aware(datetime(2026, 5, 6, 10, 0, 0))
         demande = self._create_demande(
             demandeur,
             statut=DemandeAchat.STATUT_SOUMISE,
             etape_validation_actuelle=DemandeAchat.ETAPE_HIERARCHIQUE,
+            priorite=DemandeAchat.PRIORITE_URGENT,
         )
         DemandeAchat.objects.filter(pk=demande.pk).update(
-            updated_at=timezone.now() - timedelta(hours=25),
+            updated_at=fixed_now - timedelta(hours=25),
         )
 
-        call_command("check_delayed_demandes")
+        with patch(
+            "apps.achats.management.commands.check_delayed_demandes.timezone.now",
+            return_value=fixed_now,
+        ):
+            call_command("check_delayed_demandes")
 
         self.assertEqual(len(mail.outbox), 1)
         self.assertEqual(mail.outbox[0].to, ["chefretard@example.com"])
         self.assertIn("24h", mail.outbox[0].subject)
+        self.assertTrue(
+            HistoriqueDemande.objects.filter(
+                demande=demande,
+                action=HistoriqueDemande.ACTION_RAPPEL_VALIDATION_24H,
+            ).exists()
+        )
+
+    def test_check_delayed_demandes_sends_budget_reminder_to_finance(self):
+        demandeur = self._create_user("budgetlate", "budgetlate@example.com")
+        self._create_user(
+            "rafretard",
+            "rafretard@example.com",
+            groups=["FINANCE"],
+        )
+        fixed_now = timezone.make_aware(datetime(2026, 5, 6, 10, 0, 0))
+        demande = self._create_demande(
+            demandeur,
+            statut=DemandeAchat.STATUT_SOUMISE,
+            etape_validation_actuelle=DemandeAchat.ETAPE_BUDGETAIRE,
+            priorite=DemandeAchat.PRIORITE_URGENT,
+        )
+        DemandeAchat.objects.filter(pk=demande.pk).update(
+            updated_at=fixed_now - timedelta(hours=25),
+        )
+
+        with patch(
+            "apps.achats.management.commands.check_delayed_demandes.timezone.now",
+            return_value=fixed_now,
+        ):
+            call_command("check_delayed_demandes")
+
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["rafretard@example.com"])
+
+    def test_check_delayed_demandes_sends_correction_reminder_to_demandeur(self):
+        demandeur = self._create_user("correctionlate", "correctionlate@example.com")
+        self._create_user(
+            "chefcorrection",
+            "chefcorrection@example.com",
+            groups=["VALIDATEUR_HIERARCHIQUE"],
+        )
+        fixed_now = timezone.make_aware(datetime(2026, 5, 6, 10, 0, 0))
+        demande = self._create_demande(
+            demandeur,
+            statut=DemandeAchat.STATUT_A_COMPLETER,
+            etape_validation_actuelle=DemandeAchat.ETAPE_HIERARCHIQUE,
+            priorite=DemandeAchat.PRIORITE_URGENT,
+        )
+        DemandeAchat.objects.filter(pk=demande.pk).update(
+            updated_at=fixed_now - timedelta(hours=25),
+        )
+
+        with patch(
+            "apps.achats.management.commands.check_delayed_demandes.timezone.now",
+            return_value=fixed_now,
+        ):
+            call_command("check_delayed_demandes")
+
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["correctionlate@example.com"])
+
+    def test_check_delayed_demandes_does_not_resend_same_24h_reminder(self):
+        demandeur = self._create_user("onceonly", "onceonly@example.com")
+        self._create_user(
+            "chefunique",
+            "chefunique@example.com",
+            groups=["VALIDATEUR_HIERARCHIQUE"],
+        )
+        fixed_now = timezone.make_aware(datetime(2026, 5, 6, 10, 0, 0))
+        demande = self._create_demande(
+            demandeur,
+            statut=DemandeAchat.STATUT_SOUMISE,
+            etape_validation_actuelle=DemandeAchat.ETAPE_HIERARCHIQUE,
+            priorite=DemandeAchat.PRIORITE_URGENT,
+        )
+        DemandeAchat.objects.filter(pk=demande.pk).update(
+            updated_at=fixed_now - timedelta(hours=25),
+        )
+
+        with patch(
+            "apps.achats.management.commands.check_delayed_demandes.timezone.now",
+            return_value=fixed_now,
+        ):
+            call_command("check_delayed_demandes")
+            call_command("check_delayed_demandes")
+
+        self.assertEqual(len(mail.outbox), 1)
 
     def test_update_a_completer_increments_version(self):
         demandeur = self._create_user("correction", "correction@example.com")

@@ -666,43 +666,66 @@ def notify_demande_closed(demande):
             "Consulter l'archive",
         ),
     )
-def notify_validation_delay(demande, hours_delayed):
-    group_name = STEP_TO_GROUP.get(demande.etape_validation_actuelle)
-    if not group_name:
-        return 0
-
-    recipients = _emails_for_group(group_name)
-    step_label = STEP_LABELS.get(demande.etape_validation_actuelle, "validation")
-    action_url = _build_frontend_url("/validation")
+def notify_validation_delay(demande, hours_remaining):
+    if demande.statut == DemandeAchat.STATUT_A_COMPLETER:
+        recipients = _emails_for_user(demande.demandeur)
+        step_label = "Correction demandée"
+        action_url = _build_frontend_url(f"/demande-achat/corriger/{demande.id}")
+        subject = f"⏳ Plus que 24h : correction attendue ({demande.numero_demande})"
+        title = "Rappel : correction attendue"
+        action_text = "Corriger le dossier"
+        intro_body = (
+            f"IMPORTANT - Relance de correction : La demande {demande.numero_demande} "
+            f"attend votre mise à jour.\n"
+        )
+        intro_html = (
+            "La demande d'achat suivante attend vos corrections. "
+            "Passé l'échéance, elle restera signalée comme action urgente dans le radar."
+        )
+    else:
+        recipients = _emails_for_validation_step(demande.etape_validation_actuelle)
+        step_label = STEP_LABELS.get(demande.etape_validation_actuelle, "validation")
+        action_url = _build_frontend_url("/validation")
+        subject = f"⏳ Plus que 24h : rappel de validation ({demande.numero_demande})"
+        title = "Rappel : validation en attente"
+        action_text = "Traiter le dossier maintenant"
+        intro_body = (
+            f"IMPORTANT - Relance de validation : La demande {demande.numero_demande} "
+            f"attend votre validation.\n"
+        )
+        intro_html = (
+            "La demande d'achat suivante attend votre validation. "
+            "Passé l'échéance, elle sera signalée en retard sur le tableau de bord."
+        )
 
     body = (
-        f"IMPORTANT - Relance de validation : La demande {demande.numero_demande} attend votre validation depuis 24 heures.\n"
-        f"Il ne reste que 24 heures pour traiter ce dossier avant qu'il ne soit marqué comme 'EN RETARD'.\n\n"
+        f"{intro_body}"
+        f"Il reste environ {hours_remaining} heure(s) avant l'échéance.\n\n"
         f"Objet : {demande.objet}\n"
-        f"Étape : {step_label}\n\n"
+        f"Action requise : {step_label}\n\n"
         f"Lien d'accès : {action_url}\n"
     )
 
     html_content = f"""
         <p style="margin: 0 0 8px; color: #b45309; font-weight: 700;">AVERTISSEMENT : Plus que 24h restantes</p>
-        <p style="margin: 0 0 10px;">La demande d'achat suivante attend votre validation depuis 24 heures. Passé un délai total de 48 heures, elle sera signalée en retard sur le tableau de bord.</p>
+        <p style="margin: 0 0 10px;">{escape(intro_html)}</p>
         {_render_email_details([
             ("N° Demande", demande.numero_demande, "accent"),
             ("Objet", demande.objet, "default"),
             ("Action requise", step_label, "warning"),
-            ("État", "Alerte (24h restantes)", "warning"),
+            ("Échéance estimée", f"{hours_remaining}h restantes", "warning"),
         ])}
     """
 
     return send_notification_email(
-        f"⏳ Plus que 24h : Rappel de validation ({demande.numero_demande})",
+        subject,
         body,
         recipients,
         schedule_after_commit=False,
         html_body=get_html_template(
-            "Rappel : Dossier en retard",
+            title,
             html_content,
             action_url,
-            "Traiter le dossier maintenant",
+            action_text,
         ),
     )

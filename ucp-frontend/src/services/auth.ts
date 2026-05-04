@@ -1,6 +1,4 @@
-
 import { API_BASE_URL, API_RH_URL } from "./api";
-
 interface LoginResult {
   status: number;
   success: boolean;
@@ -74,25 +72,53 @@ export const publicLogin = async (
       body: JSON.stringify({ email, password, full_name, phone, type_entite, nif }),
     });
 
-    const data = await response.json();
+    const result = await response.json();
 
     if (response.ok) {
-      localStorage.setItem("access_token", data.access);
-      localStorage.setItem("refresh_token", data.refresh);
+      localStorage.setItem("access_token", result.access);
+      localStorage.setItem("refresh_token", result.refresh);
       return {status:200, success: true ,message: "Connexion réussie"};
     }
-    if (response.status == 400) {
+let errorMessage = "";
+
+if (result.message) {
+  errorMessage = result.message;
+} 
+else if (result.non_field_errors) {
+  const err = result.non_field_errors[0];
+
+  if (typeof err === "string") {
+    errorMessage = err;
+  } else if (err.message) {
+    errorMessage = err.message;
+  }
+} 
+else if (result.email) {
+  errorMessage = result.email[0];
+}
+else if (result.password) {
+  errorMessage = result.password[0];
+}
+else if (result.phone) {
+  errorMessage = result.phone[0];
+}
+else if (result.full_name) {
+  errorMessage = result.full_name[0];
+}
+else if (result.type_entite) {
+  errorMessage = result.type_entite[0];
+}
+    else{
       return {
-      status: 400,
+      status:400,
       success: false,
-      message: "l'adresse e-mail ou mot de passe incorrect",
+      message: "Une erreur est survenue",
     };
-    
     }
     return {
-      status: 404,
+      status:response.status,
       success: false,
-      message: "l'adresse e-mail est introuvable",
+      message: errorMessage,
     };
   } catch {
     return {status:500, success: false, message: "Erreur de connexion au serveur" };
@@ -125,17 +151,32 @@ export const publicRegister = async (
       return {status:201, success: true , message: "Profil enregistré"};
     }
     let errorMessage = '';
-    if (result.email) {
-  errorMessage = result.email[0];
+
+if (result.message) {
+  errorMessage = result.message;
 } 
+else if (result.non_field_errors) {
+  const err = result.non_field_errors[0];
+
+  if (typeof err === "string") {
+    errorMessage = err;
+  } else if (err.message) {
+    errorMessage = err.message;
+  }
+} 
+else if (result.email) {
+  errorMessage = result.email[0];
+}
 else if (result.password) {
   errorMessage = result.password[0];
-} 
+}
 else if (result.phone) {
   errorMessage = result.phone[0];
-}else if (result.full_name) {
+}
+else if (result.full_name) {
   errorMessage = result.full_name[0];
-}else if (result.type_entite) {
+}
+else if (result.type_entite) {
   errorMessage = result.type_entite[0];
 }
     else{
@@ -146,7 +187,7 @@ else if (result.phone) {
     };
     }
     return {
-      status:404,
+      status:response.status,
       success: false,
       message: errorMessage,
     };
@@ -174,7 +215,7 @@ export const publicLoginOrRegister = async(full_name: string,
     return {status:200, success: true, message: "Connexion réussie" };
   }
 
-  if (loginRes.status === 404 || loginRes.message.includes("introuvable") ) {
+  if (loginRes.status === 404) {
     return await publicRegister(
     full_name,
     email,
@@ -187,11 +228,8 @@ export const publicLoginOrRegister = async(full_name: string,
   return loginRes;
 }
 
-export const isUCPDomain = (email: string): boolean =>{
-  const domain = email.split('@')
-  const ucpDomain = "ucp.mg"
-  if(domain[1] == ucpDomain){
-    return true;
-  }
-  return false;
-}
+export const isUCPDomain = (email: string): boolean => {
+  if (!email || !email.includes('@')) return false;
+  const domain = email.split('@')[1].toLowerCase();
+  return domain === "ucp.mg";
+};

@@ -30,19 +30,19 @@ const handleLogin = async (e: React.FormEvent) => {
   const result = await login(email, password);
 
   if (result.success) {
-    router.push(`${DEFAULT_AFTER_LOGIN_ROUTE}`);
-  } else {
-    if (!isUCPDomain(email)) {
-      setError("Domaine non reconnu. Redirection vers l'espace public...");
-            setTimeout(() => {
-        router.push(`${DEFAULT_PUBLIC_LOGIN_ROUTE}`);
-        setLoading(false);
-      }, 2000);
-      
-      return;
-    }
-      setError(result.message || "Une erreur est survenue");
+    router.push(DEFAULT_AFTER_LOGIN_ROUTE);
+    return;
   }
+    if (!isUCPDomain(email)) {
+    setError("Domaine non reconnu. Redirection vers l'espace public...");
+    setTimeout(() => {
+      router.push(DEFAULT_PUBLIC_LOGIN_ROUTE);
+      setLoading(false);
+    }, 2000);
+    return;
+  }
+  setError(result.message || "Une erreur est survenue");
+  setLoading(false);
 };
 
   const handleRegisterRedirection = async (e: React.FormEvent) => {

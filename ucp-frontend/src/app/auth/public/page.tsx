@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import  {publicLoginOrRegister}  from "../../../services/auth";
@@ -27,6 +27,7 @@ export default function RegisterPage(){
     };
     const handleRegistration = async (e: React.FormEvent) => {
           e.preventDefault();
+          setIsMessage(false);
           setLoading(true);
 
       if(confirmPassword != password){
@@ -39,6 +40,7 @@ export default function RegisterPage(){
         const result = await publicLoginOrRegister(full_name, email, phone, type_entite, nif, password);
         setMessage(result.message || "Action réussie");
         setIsRegisterValid(result.success);
+        setLoading(false)
         setIsMessage(true);
         if (!result.success) {
             setLoading(false);

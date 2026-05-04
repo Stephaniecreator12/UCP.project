@@ -2,7 +2,6 @@ from datetime import timedelta
 from decimal import Decimal
 
 from django.db import IntegrityError, transaction
-from django.db.models import Q
 from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
@@ -71,13 +70,7 @@ SUBVENTION_BY_SOURCE = {
 def list_mes_demandes(user, scope="mine"):
     qs = DemandeAchat.objects.all()
 
-    if scope == "all":
-        # The global dashboard must still keep the connected user's drafts visible,
-        # while never exposing drafts that belong to other users.
-        qs = qs.filter(
-            ~Q(statut=DemandeAchat.STATUT_BROUILLON) | Q(demandeur=user)
-        )
-    else:
+    if scope != "all":
         # "mine" must keep the same meaning for every role: dossiers created
         # by the connected user only.
         qs = qs.filter(demandeur=user)

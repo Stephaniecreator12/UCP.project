@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   X,
   Package,
@@ -77,6 +77,7 @@ export default function ReceptionModal({
   onClose,
   onSuccess,
 }: ReceptionModalProps) {
+  const issueBlockRef = useRef<HTMLDivElement | null>(null);
   const [currentUser] = useState(() => getCurrentUser());
   const lignesBesoin = useMemo(
     () => (Array.isArray(demande?.lignes_besoin) ? demande.lignes_besoin : []),
@@ -185,6 +186,19 @@ export default function ReceptionModal({
     setError(null);
     setSaving(false);
   }, [currentUser, demande, open]);
+
+  useEffect(() => {
+    if (!open || !isProblemDetected) return;
+
+    const timeout = window.setTimeout(() => {
+      issueBlockRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+      });
+    }, 120);
+
+    return () => window.clearTimeout(timeout);
+  }, [isProblemDetected, open]);
 
   if (!open || !demande) return null;
 
@@ -356,7 +370,7 @@ export default function ReceptionModal({
           </div>
 
           {/* BLOC 2 - ARTICLES (Tableau scrollable) */}
-          <div className="flex flex-col rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden flex-1 min-h-0">
+          <div className="flex shrink-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
             {/* Haut de Bloc 2: Infos Base (Ultra compact sur 1 ligne) */}
             <div className="flex flex-wrap items-center gap-4 border-b border-slate-100 px-4 py-2 bg-slate-50/50 rounded-t-xl">
               <div className="flex items-center gap-2 flex-1">
@@ -368,7 +382,7 @@ export default function ReceptionModal({
             </div>
 
             {/* Tableau compact avec scroll */}
-            <div className="overflow-y-auto overflow-x-hidden border-t border-slate-100">
+            <div className="border-t border-slate-100">
               <table className="w-full text-left text-sm">
                 <thead className="bg-slate-50 text-[13px] font-bold text-slate-500 sticky top-0 z-10 shadow-sm">
                   <tr>
@@ -464,7 +478,10 @@ export default function ReceptionModal({
           </div>
           {/* BLOC 3 - ÉCART (Conditionnel) */}
           {isProblemDetected && (
-            <div className="flex animate-in fade-in slide-in-from-top-2 gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-3 flex-col shrink-0">
+            <div
+              ref={issueBlockRef}
+              className="flex animate-in fade-in slide-in-from-top-2 gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-3 flex-col shrink-0"
+            >
               <div className="flex items-center gap-2 mb-1">
                 <div className="rounded-full bg-rose-100 p-1.5 text-rose-600 shrink-0">
                   <AlertCircle className="h-4 w-4" />
@@ -473,13 +490,13 @@ export default function ReceptionModal({
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <PurchaseSelect
-                  value={typeEcart}
+                  value={typeEcart || " "}
                   onChange={(value) => setTypeEcart(value as ReceiveDemandePayload["type_ecart"])}
                   options={[...typeEcartOptions]}
                   className="rounded-xl border border-rose-200 bg-white px-2 py-1.5 text-sm font-semibold text-rose-900 outline-none"
                 />
                 <PurchaseSelect
-                  value={actionCorrective}
+                  value={actionCorrective || " "}
                   onChange={(value) => setActionCorrective(value as ReceiveDemandePayload["action_corrective"])}
                   options={[...actionCorrectiveOptions]}
                   className="rounded-xl border border-rose-200 bg-white px-2 py-1.5 text-sm font-semibold text-rose-900 outline-none"

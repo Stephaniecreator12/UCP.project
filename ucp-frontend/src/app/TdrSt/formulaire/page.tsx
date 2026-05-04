@@ -728,19 +728,19 @@ export default function TdRStPage() {
       </main>
 
       {/* Toast notifications */}
-      {(error || success) && (
-        <div className="fixed bottom-6 right-6 z-50">
-          <div
-            className={`rounded-xl border px-4 py-3 shadow-lg ${
-              error
-                ? "border-rose-200 bg-rose-50 text-rose-800"
-                : "border-emerald-200 bg-emerald-50 text-emerald-800"
-            }`}
-          >
-            {error || success}
+        {(error || success) && (
+          <div className="fixed bottom-[20px] right-6 z-[100] min-w-[220px] max-w-[340px] rounded-[10px] border px-[0.8rem] py-[0.65rem] font-semibold shadow-lg transition-opacity duration-200 animate-saveMessageSlide">
+            <div
+              className={`${
+                error
+                  ? "bg-[#fde9e9] border-[#f6c8c8] text-[#8d2525]"
+                  : "bg-[#e6f8ef] border-[#bce9cd] text-[#0c6f3d]"
+              }`}
+            >
+              {error || success}
+            </div>
           </div>
-        </div>
-      )}
+        )}
       {/* Modale de détail */}
       <DocumentDetailModal
         document={selectedDetailDoc}

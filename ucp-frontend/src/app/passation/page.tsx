@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useRef } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Search, X, ChevronDown, Package, ClipboardList, ChevronLeft, ChevronRight as ChevronRightIcon, CheckCircle } from "lucide-react";
 
 import TopHeader from "@/app/components/TopHeader";
@@ -28,7 +28,6 @@ import {
   type UserProfile,
 } from "@/services/auth";
 import {
-  type DashboardScope,
   DemandeAchat,
   listDemandesAchat,
 } from "@/services/achats";
@@ -139,7 +138,6 @@ const filterDemandesByQuery = (items: DemandeAchat[], query: string) => {
 
 export default function PassationDashboardPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [currentUser] = useState(() => getCurrentUser());
   const agentRoleLabel = getAgentAchatRoleLabel(currentUser);
   const [demandes, setDemandes] = useState<DemandeAchat[]>([]);
@@ -152,23 +150,8 @@ export default function PassationDashboardPage() {
   const [detailViewMode, setDetailViewMode] = useState<DetailViewMode>("detail");
   const [passationModalDemandeId, setPassationModalDemandeId] = useState<number | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const rawScope = (searchParams.get("scope") ?? "").trim().toLowerCase();
-  const dashboardScope: DashboardScope = rawScope === "mine" ? "mine" : "all";
-  const searchParamsString = searchParams.toString();
-
-  const mineScopeHref = useMemo(() => {
-    const params = new URLSearchParams(searchParamsString);
-    params.delete("scope");
-    const queryString = params.toString();
-    return queryString ? `/passation?${queryString}` : "/passation";
-  }, [searchParamsString]);
-
-  const allScopeHref = useMemo(() => {
-    const params = new URLSearchParams(searchParamsString);
-    params.set("scope", "all");
-    const queryString = params.toString();
-    return `/passation?${queryString}`;
-  }, [searchParamsString]);
+  const mineScopeHref = "/passation";
+  const allScopeHref = "/demande-achat?scope=all";
 
   const showToast = (message: string) => {
     setToastMessage(message);
@@ -177,7 +160,7 @@ export default function PassationDashboardPage() {
 
   const reloadDemandes = async () => {
     try {
-      const data = await listDemandesAchat(dashboardScope);
+      const data = await listDemandesAchat("all");
       setDemandes(data);
     } catch {}
   };
@@ -196,7 +179,7 @@ export default function PassationDashboardPage() {
     const load = async () => {
       setLoading(true);
       try {
-        const data = await listDemandesAchat(dashboardScope);
+        const data = await listDemandesAchat("all");
         setDemandes(data);
         setError(null);
       } catch (err) {
@@ -206,7 +189,7 @@ export default function PassationDashboardPage() {
       }
     };
     void load();
-  }, [currentUser, dashboardScope, router]);
+  }, [currentUser, router]);
 
   const passationBaseDemandes = useMemo(
     () => demandes.filter((demande) => isPassationCandidate(demande) || isOrderedCandidate(demande)),
@@ -290,22 +273,14 @@ export default function PassationDashboardPage() {
                   <button
                     type="button"
                     onClick={() => router.replace(mineScopeHref)}
-                    className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
-                      dashboardScope === "mine"
-                        ? "bg-slate-900 text-white shadow-sm"
-                        : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                    }`}
+                    className="rounded-md bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors"
                   >
                     Mes dossiers
                   </button>
                   <button
                     type="button"
                     onClick={() => router.replace(allScopeHref)}
-                    className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
-                      dashboardScope === "all"
-                        ? "bg-slate-900 text-white shadow-sm"
-                        : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                    }`}
+                    className="rounded-md px-3 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
                   >
                     Tous les dossiers
                   </button>
@@ -391,9 +366,7 @@ export default function PassationDashboardPage() {
                   <p className="text-sm text-slate-500">
                     {demandes.length > 0
                       ? "Aucun dossier ne correspond à vos filtres."
-                      : dashboardScope === "mine"
-                        ? "Aucun de vos dossiers n'est actuellement en passation ou déjà transmis au Marché."
-                        : "Votre file de traitement est actuellement vide."}
+                      : "Votre file de traitement est actuellement vide."}
                   </p>
                   {(filterProps.selectedFinancements.length > 0 || filterProps.selectedTypes.length > 0) && (
                     <button 

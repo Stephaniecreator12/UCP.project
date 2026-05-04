@@ -290,6 +290,18 @@ export default function TdrStNewPage() {
     }
   };
 
+  const [showError, setShowError] = useState(false);
+
+  useEffect(() => {
+    if (error) {
+      setShowError(true);
+      const timer = setTimeout(() => {
+        setShowError(false);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
+
   return (
     <div className="min-h-screen bg-slate-50">
       <TopHeader />
@@ -324,8 +336,11 @@ export default function TdrStNewPage() {
           )}
         </div>
 
-        {error && (
-          <div className="mb-5 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+        {showError && error && (
+          <div
+            className={`fixed bottom-[20px] right-6 z-[100] min-w-[220px] max-w-[340px] rounded-[10px] border px-[0.8rem] py-[0.65rem] font-semibold shadow-lg transition-opacity duration-200 animate-saveMessageSlide bg-[#fde9e9] border-[#f6c8c8] text-[#8d2525]`}
+            style={{ animationDuration: "0.5s" }}
+          >
             {error}
           </div>
         )}

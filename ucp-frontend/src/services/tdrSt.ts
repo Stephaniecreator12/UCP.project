@@ -1,3 +1,4 @@
+//Il sert a creer un brouillon TDR/ST quand la demande doit basculer vers ce module.
 "use client";
 
 import { getToken, logout } from "./auth";

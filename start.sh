@@ -23,7 +23,9 @@ echo ""
 # Charger les variables d'environnement si .env existe
 if [ -f "$ROOT_DIR/.env" ]; then
     echo "⚙️ Chargement du fichier .env"
-    export $(grep -v '^#' "$ROOT_DIR/.env" | xargs)
+    set -a
+    . "$ROOT_DIR/.env"
+    set +a
 fi
 
 # Lancer Django en arrière-plan

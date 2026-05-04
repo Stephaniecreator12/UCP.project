@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   X,
   Package,
@@ -77,6 +77,7 @@ export default function ReceptionModal({
   onClose,
   onSuccess,
 }: ReceptionModalProps) {
+  const issueBlockRef = useRef<HTMLDivElement | null>(null);
   const [currentUser] = useState(() => getCurrentUser());
   const lignesBesoin = useMemo(
     () => (Array.isArray(demande?.lignes_besoin) ? demande.lignes_besoin : []),
@@ -185,6 +186,19 @@ export default function ReceptionModal({
     setError(null);
     setSaving(false);
   }, [currentUser, demande, open]);
+
+  useEffect(() => {
+    if (!open || !isProblemDetected) return;
+
+    const timeout = window.setTimeout(() => {
+      issueBlockRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+      });
+    }, 120);
+
+    return () => window.clearTimeout(timeout);
+  }, [isProblemDetected, open]);
 
   if (!open || !demande) return null;
 
@@ -461,10 +475,19 @@ export default function ReceptionModal({
               </div>
 
             </div>
+
+            {isProblemDetected && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-center text-xs font-bold text-amber-800 shadow-sm">
+                Un écart est détecté. Complétez le bloc de gestion des écarts ci-dessous.
+              </div>
+            )}
           </div>
           {/* BLOC 3 - ÉCART (Conditionnel) */}
           {isProblemDetected && (
-            <div className="flex animate-in fade-in slide-in-from-top-2 gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-3 flex-col shrink-0">
+            <div
+              ref={issueBlockRef}
+              className="flex animate-in fade-in slide-in-from-top-2 gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-3 flex-col shrink-0"
+            >
               <div className="flex items-center gap-2 mb-1">
                 <div className="rounded-full bg-rose-100 p-1.5 text-rose-600 shrink-0">
                   <AlertCircle className="h-4 w-4" />

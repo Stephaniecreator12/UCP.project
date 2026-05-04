@@ -43,6 +43,10 @@ def env_list(name, default=""):
     raw = os.getenv(name, default)
     return [item.strip() for item in raw.split(",") if item.strip()]
 
+
+FRONTEND_APP_URL = os.getenv("FRONTEND_APP_URL", "http://localhost:3000").rstrip("/")
+FRONTEND_URL = FRONTEND_APP_URL
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 
 
@@ -50,12 +54,17 @@ def env_list(name, default=""):
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-zs0yxq36mps)t8kk85$n=qhf4uyfx5-$7&j(gz(^)ed-@u9$7r'
+SECRET_KEY = os.getenv("SECRET_KEY") or 'django-insecure-zs0yxq36mps)t8kk85$n=qhf4uyfx5-$7&j(gz(^)ed-@u9$7r'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = env_bool("DEBUG", True)
 
-ALLOWED_HOSTS = ['192.168.90.167', 'localhost', '127.0.0.1', '*']
+ALLOWED_HOSTS = env_list(
+    "ALLOWED_HOSTS",
+    "192.168.90.167,localhost,127.0.0.1",
+)
+if DEBUG and "*" not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append("*")
 
 # Application definition
 
@@ -116,12 +125,12 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'passation_db',
-        'USER': 'postgres',
-        'PASSWORD': 'passation',
-        'HOST': 'localhost',
-        'PORT': '5432',
+        'ENGINE': os.getenv("DB_ENGINE", 'django.db.backends.postgresql'),
+        'NAME': os.getenv("DB_NAME", 'passation_db'),
+        'USER': os.getenv("DB_USER", 'postgres'),
+        'PASSWORD': os.getenv("DB_PASSWORD", 'passation'),
+        'HOST': os.getenv("DB_HOST", 'localhost'),
+        'PORT': os.getenv("DB_PORT", '5432'),
         'TEST': {
             'ENGINE': 'django.db.backends.sqlite3',
             'NAME': ':memory:',
@@ -170,9 +179,22 @@ MEDIA_ROOT = BASE_DIR / "media"
 
 #autoriser acces a front
 
-CORS_ALLOWED_ORIGINS = [
-"http://localhost:3000",
-]
+DEFAULT_FRONTEND_ORIGINS = ",".join([
+    FRONTEND_APP_URL,
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:3001",
+    "http://127.0.0.1:3001",
+])
+
+CORS_ALLOWED_ORIGINS = env_list(
+    "CORS_ALLOWED_ORIGINS",
+    DEFAULT_FRONTEND_ORIGINS,
+)
+CSRF_TRUSTED_ORIGINS = env_list(
+    "CSRF_TRUSTED_ORIGINS",
+    DEFAULT_FRONTEND_ORIGINS,
+)
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
@@ -182,7 +204,7 @@ REST_FRAMEWORK = {
     ]
 }
 
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = env_bool("CORS_ALLOW_ALL_ORIGINS", DEBUG)
 
 from datetime import timedelta
 
@@ -229,8 +251,6 @@ TDRST_EMAIL_SUBJECT_PREFIX = os.getenv(
     "[UCP TDR/ST] ",
 )
 TDRST_NOTIFICATION_REPLY_TO = env_list("TDRST_NOTIFICATION_REPLY_TO")
-FRONTEND_APP_URL = os.getenv("FRONTEND_APP_URL", "http://localhost:3000")
-FRONTEND_URL = FRONTEND_APP_URL
 
 EXTERNAL_PERSONNEL_API_URL = os.getenv("EXTERNAL_PERSONNEL_API_URL", "")
 EXTERNAL_PERSONNEL_API_TOKEN = os.getenv("EXTERNAL_PERSONNEL_API_TOKEN", "")

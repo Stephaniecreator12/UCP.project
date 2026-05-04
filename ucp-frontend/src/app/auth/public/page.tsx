@@ -22,7 +22,7 @@ export default function RegisterPage(){
 
     const handleBackAction = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsMessage(true);
+    setIsMessage(false);
     router.push("/auth/login");
     };
     const handleRegistration = async (e: React.FormEvent) => {
@@ -58,7 +58,7 @@ useEffect(() => {
 
   if (isRegisterValid && isMessage) {
     timer = setTimeout(() => {
-      router.push("/auth/dao");
+      router.push("/auth/login");
     }, 1000);
   }
   return () => {clearTimeout(timer)};

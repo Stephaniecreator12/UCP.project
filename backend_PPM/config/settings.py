@@ -55,6 +55,7 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.locale.LocaleMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -109,6 +110,9 @@ AUTH_PASSWORD_VALIDATORS = [
     },
     {
         'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+    },
+    {
+        'NAME': 'apps.users.validators.userValidator.ComplexityValidator',
     },
     {
         'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
@@ -182,3 +186,10 @@ DEFAULT_FROM_EMAIL = 'TDR/ST <oriahrakotomavo90@gmail.com>'
 
 # Frontend URL pour les liens
 FRONTEND_URL = 'http://localhost:3000'  # À adapter en production
+
+LANGUAGE_CODE = 'fr-fr'
+
+TIME_ZONE = 'UTC' 
+USE_I18N = True
+USE_L10N = True
+USE_TZ = True

@@ -186,8 +186,7 @@ export const hasRecordedReception = (demande: DemandeAchat) =>
   );
 
 export const needsIssueResolutionAction = (demande: DemandeAchat) =>
-  demande.statut !== "CLOTUREE" &&
-  demande.statut_reception === "ECART_DETECTE";
+  demande.statut !== "CLOTUREE" && demande.statut_reception === "ECART_DETECTE";
 
 export const needsReceptionAction = (demande: DemandeAchat) =>
   demande.statut !== "CLOTUREE" &&
@@ -248,8 +247,13 @@ export const getCompactNeedLabel = (demande: DashboardDisplayDemande) => {
   const firstLine = demande.lignes_besoin?.[0];
   if (!firstLine) return demande.objet;
 
-  const first = firstLine.designation || firstLine.description_service || firstLine.type_service || demande.objet;
-  if (demande.lignes_besoin.length > 1) return `${first} (+${demande.lignes_besoin.length - 1})`;
+  const first =
+    firstLine.designation ||
+    firstLine.description_service ||
+    firstLine.type_service ||
+    demande.objet;
+  if (demande.lignes_besoin.length > 1)
+    return `${first} (+${demande.lignes_besoin.length - 1})`;
   return first;
 };
 
@@ -274,22 +278,22 @@ const currentOwnerLabels: Record<string, string> = {
 export const getDemandeTrackingStageLabel = (demande: DemandeAchat) => {
   if (demande.statut === "BROUILLON") return "En préparation";
   if (demande.statut === "A_COMPLETER") return "À corriger";
-  if (demande.statut === "VALIDEE_BUDGETAIRE") return "Passation";
-  if (["EN_COMMANDE", "EN_LIVRAISON"].includes(demande.statut)) {
-    return "Livraison";
+  if (["SOUMISE", "VALIDEE"].includes(demande.statut)) {
+    return stepLabels[demande.etape_validation_actuelle] ?? "Validation";
   }
-  if (needsReceptionAction(demande) || demande.statut === "LIVREE") {
+  if (demande.statut === "VALIDEE_BUDGETAIRE") return "Passation";
+  if (
+    ["EN_COMMANDE", "EN_LIVRAISON", "LIVREE"].includes(demande.statut) ||
+    needsReceptionAction(demande) ||
+    needsIssueResolutionAction(demande)
+  ) {
     return "Réception";
   }
   if (needsClosureAction(demande)) {
     return "Clôture";
   }
-  if (demande.statut === "CLOTUREE" || demande.statut === "REJETEE") {
-    return "Archives";
-  }
-  if (["SOUMISE", "VALIDEE"].includes(demande.statut)) {
-    return stepLabels[demande.etape_validation_actuelle] ?? "Validation";
-  }
+  if (demande.statut === "CLOTUREE") return "Archivé - clôturé";
+  if (demande.statut === "REJETEE") return "Archivé - rejeté";
 
   return statusLabels[demande.statut] ?? demande.statut;
 };
@@ -301,10 +305,10 @@ export const getDemandeCurrentOwnerLabel = (demande: DemandeAchat) => {
   if (demande.statut === "A_COMPLETER") return "Demandeur";
   if (demande.statut === "VALIDEE_BUDGETAIRE") return "Agent achat";
   if (["EN_COMMANDE", "EN_LIVRAISON"].includes(demande.statut)) {
-    return "Marché / logistique";
+    return "Service logistique";
   }
   if (needsReceptionAction(demande) || demande.statut === "LIVREE") {
-    return "Marché / logistique";
+    return "Service logistique";
   }
   if (needsClosureAction(demande)) {
     return "Demandeur";
@@ -314,7 +318,8 @@ export const getDemandeCurrentOwnerLabel = (demande: DemandeAchat) => {
   }
   if (["SOUMISE", "VALIDEE"].includes(demande.statut)) {
     return (
-      currentOwnerLabels[demande.etape_validation_actuelle] ?? "Validation en cours"
+      currentOwnerLabels[demande.etape_validation_actuelle] ??
+      "Validation en cours"
     );
   }
 
@@ -366,7 +371,9 @@ const getBusinessMsBetween = (start: Date, end: Date) => {
 export const getValidationDeadlineState = (demande: DemandeAchat) => {
   if (!["SOUMISE", "A_COMPLETER"].includes(demande.statut)) return null;
 
-  const referenceDate = new Date(demande.updated_at || demande.submitted_at || demande.created_at);
+  const referenceDate = new Date(
+    demande.updated_at || demande.submitted_at || demande.created_at,
+  );
   const durationDays = demande.priorite === "URGENT" ? 2 : 5;
   const deadlineDate = addBusinessDays(referenceDate, durationDays);
   const nowDate = new Date();
@@ -381,7 +388,7 @@ export const getValidationDeadlineState = (demande: DemandeAchat) => {
   }
 
   const totalHours = durationDays * 24;
-  if (diffHours <= (totalHours / 2)) {
+  if (diffHours <= totalHours / 2) {
     return { status: "ATTENTE_CRITIQUE", hours: diffHours };
   }
 
@@ -395,7 +402,9 @@ const getValidationForStep = (
 
 // On reconstruit ici la chronologie complète du dossier afin d'alimenter
 // la vue timeline affichée dans le détail.
-export const buildLifecycleTimeline = (demande: DemandeAchat): TimelineItem[] => {
+export const buildLifecycleTimeline = (
+  demande: DemandeAchat,
+): TimelineItem[] => {
   const currentValidationIndex = timelineValidationSteps.findIndex(
     (step) => step.key === demande.etape_validation_actuelle,
   );
@@ -409,7 +418,10 @@ export const buildLifecycleTimeline = (demande: DemandeAchat): TimelineItem[] =>
   ].includes(demande.statut);
 
   const validationItems = timelineValidationSteps.map((step, index) => {
-    const validation = getValidationForStep(demande.validations ?? [], step.key);
+    const validation = getValidationForStep(
+      demande.validations ?? [],
+      step.key,
+    );
     let state: TimelineState = "pending";
 
     if (validation) {
@@ -434,10 +446,10 @@ export const buildLifecycleTimeline = (demande: DemandeAchat): TimelineItem[] =>
 
   const hasOrder = Boolean(
     demande.numero_bon_commande ||
-      demande.date_bon_commande ||
-      ["EN_COMMANDE", "EN_LIVRAISON", "LIVREE", "CLOTUREE"].includes(
-        demande.statut,
-      ),
+    demande.date_bon_commande ||
+    ["EN_COMMANDE", "EN_LIVRAISON", "LIVREE", "CLOTUREE"].includes(
+      demande.statut,
+    ),
   );
   const isDeliveryCurrent = ["EN_COMMANDE", "EN_LIVRAISON"].includes(
     demande.statut,
@@ -445,18 +457,19 @@ export const buildLifecycleTimeline = (demande: DemandeAchat): TimelineItem[] =>
   const hasDelivery = ["LIVREE", "CLOTUREE"].includes(demande.statut);
   const hasReception = Boolean(
     demande.date_reception ||
-      hasRecordedReception(demande) ||
-      demande.statut_reception === "ECART_DETECTE",
+    hasRecordedReception(demande) ||
+    demande.statut_reception === "ECART_DETECTE",
   );
   const isReceptionCurrent = needsReceptionAction(demande);
   const hasIssue = Boolean(
     demande.type_ecart ||
-      demande.statut_reception === "ECART_DETECTE" ||
-      demande.statut_reception === "ECART_RESOLU",
+    demande.statut_reception === "ECART_DETECTE" ||
+    demande.statut_reception === "ECART_RESOLU",
   );
   const hasIssueResolution = demande.statut_reception === "ECART_RESOLU";
   const isIssueCurrent = needsIssueResolutionAction(demande);
-  const hasClosure = demande.statut === "CLOTUREE" || Boolean(demande.date_cloture);
+  const hasClosure =
+    demande.statut === "CLOTUREE" || Boolean(demande.date_cloture);
   const isClosureCurrent = needsClosureAction(demande);
 
   return [
@@ -482,12 +495,11 @@ export const buildLifecycleTimeline = (demande: DemandeAchat): TimelineItem[] =>
       id: "order",
       label: "Bon de commande émis",
       date: demande.date_bon_commande,
-      state:
-        hasOrder
-          ? "done"
-          : demande.statut === "VALIDEE_BUDGETAIRE"
-            ? "current"
-            : "pending",
+      state: hasOrder
+        ? "done"
+        : demande.statut === "VALIDEE_BUDGETAIRE"
+          ? "current"
+          : "pending",
       description: demande.numero_bon_commande || undefined,
     },
     {
@@ -511,11 +523,16 @@ export const buildLifecycleTimeline = (demande: DemandeAchat): TimelineItem[] =>
       id: "issue-resolution",
       label: "Résolution écart",
       date: demande.date_resolution,
-      state: hasIssueResolution ? "done" : isIssueCurrent ? "current" : hasIssue ? "pending" : "pending",
-      description:
-        hasIssue
-          ? demande.suivi_resolution || toDisplayLabel(demande.type_ecart)
-          : undefined,
+      state: hasIssueResolution
+        ? "done"
+        : isIssueCurrent
+          ? "current"
+          : hasIssue
+            ? "pending"
+            : "pending",
+      description: hasIssue
+        ? demande.suivi_resolution || toDisplayLabel(demande.type_ecart)
+        : undefined,
     },
     {
       id: "closure",

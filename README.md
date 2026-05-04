@@ -36,14 +36,22 @@ C'est un système de gestion des appels d'offres et procurements pour l'UCP (Uni
 cd /home/stephanie/UCP
 ```
 
-### **Étape 2 : Installer les dépendances Python**
+### **Étape 2 : Configurer les variables d'environnement**
+
+```bash
+cp .env.example .env
+```
+
+Puis modifiez `.env` avec vos valeurs locales si besoin.
+
+### **Étape 3 : Installer les dépendances Python**
 
 ```bash
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### **Étape 3 : Installer les dépendances JavaScript**
+### **Étape 4 : Installer les dépendances JavaScript**
 
 ```bash
 cd ucp-frontend
@@ -216,22 +224,38 @@ Next.js basculera automatiquement sur le port `3001`.
 cd ucp-frontend
 npm run build
 # Ou déployer directement sur Vercel
+# Variable a definir sur Vercel:
+# BACKEND_URL=https://api.mon-domaine.com
 ```
 
 ### Heroku/Railway (Backend Django)
 
 ```bash
-# Préparer pour la production
-export DEBUG=False
-# Configurer la base de données PostgreSQL
-# Déployer via Git
+# Exemple de variables a configurer sur le serveur / la plateforme
+DEBUG=False
+SECRET_KEY=une-cle-secrete-forte
+ALLOWED_HOSTS=api.mon-domaine.com
+DB_NAME=nom_base
+DB_USER=utilisateur
+DB_PASSWORD=mot_de_passe
+DB_HOST=hote
+DB_PORT=5432
+FRONTEND_APP_URL=https://app.mon-domaine.com
+CORS_ALLOWED_ORIGINS=https://app.mon-domaine.com
+CSRF_TRUSTED_ORIGINS=https://app.mon-domaine.com
 ```
+
+Le principe est simple :
+- ne committez pas `.env`
+- committez `.env.example`
+- en local, copiez `.env.example` vers `.env`
+- en production, saisissez les memes variables dans les "Environment Variables" de la plateforme
 
 ---
 
 ## 📝 Notes
 
-- **Base de données** : SQLite pour le développement. Passez à PostgreSQL pour la production.
+- **Base de donnees** : configurable via `DB_*` dans `.env` ou dans les variables du serveur.
 - **Authentification** : À ajouter selon vos besoins.
 - **Fichiers** : Les uploads de fichiers sont dans `procurement/` dossier.
 

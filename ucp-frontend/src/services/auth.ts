@@ -197,8 +197,12 @@ export const getFinanceRoleLabel = (user: UserProfile | null) => {
 export const getAgentAchatRoleLabel = (user: UserProfile | null) =>
   isAgentAchatUser(user) ? "Agent achat" : "";
 
-export const getMarketRoleLabel = (user: UserProfile | null) =>
-  isAgentMarcheUser(user) ? "Agent marché" : "";
+export const getMarketRoleLabel = (user: UserProfile | null) => {
+  if (user?.groups?.includes(LOGISTIQUE_GROUP)) return "Logistique";
+  if (user?.groups?.includes(AGENT_MARCHE_GROUP)) return "Agent marché";
+  if (user?.groups?.includes(MARCHES_GROUP)) return "Service marché";
+  return "";
+};
 
 export const getLandingRouteForUser = (user: UserProfile | null) => {
   if (isFinanceUser(user) || isValidatorUser(user)) return "/validation";

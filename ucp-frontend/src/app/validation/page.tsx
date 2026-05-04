@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState, useRef } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { Search, X, ChevronDown, Clock, FileCheck, ChevronLeft, ChevronRight as ChevronRightIcon, CheckCircle } from "lucide-react";
 
 import TopHeader from "@/app/components/TopHeader";
@@ -31,7 +31,6 @@ import {
   type UserProfile,
 } from "@/services/auth";
 import {
-  type DashboardScope,
   DemandeAchat,
   getDemandeAchatById,
   listDemandesAchat,
@@ -123,7 +122,6 @@ const filterDemandesByQuery = (items: DemandeAchat[], query: string) => {
 
 export default function ValidationDashboardPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [isHydrated, setIsHydrated] = useState(false);
   const validationRoleLabel =
@@ -139,23 +137,8 @@ export default function ValidationDashboardPage() {
   const [detailViewMode, setDetailViewMode] = useState<DetailViewMode>("detail");
   const [selectedValidationId, setSelectedValidationId] = useState<number | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const rawScope = (searchParams.get("scope") ?? "").trim().toLowerCase();
-  const dashboardScope: DashboardScope = rawScope === "mine" ? "mine" : "all";
-  const searchParamsString = searchParams.toString();
-
-  const mineScopeHref = useMemo(() => {
-    const params = new URLSearchParams(searchParamsString);
-    params.delete("scope");
-    const queryString = params.toString();
-    return queryString ? `/validation?${queryString}` : "/validation";
-  }, [searchParamsString]);
-
-  const allScopeHref = useMemo(() => {
-    const params = new URLSearchParams(searchParamsString);
-    params.set("scope", "all");
-    const queryString = params.toString();
-    return `/validation?${queryString}`;
-  }, [searchParamsString]);
+  const mineScopeHref = "/validation";
+  const allScopeHref = "/demande-achat?scope=all";
 
   useEffect(() => {
     setCurrentUser(getCurrentUser());
@@ -185,7 +168,7 @@ export default function ValidationDashboardPage() {
     const load = async () => {
       setLoading(true);
       try {
-        const data = await listDemandesAchat(dashboardScope);
+        const data = await listDemandesAchat("all");
         setDemandes(data);
         setError(null);
       } catch (err) {
@@ -195,7 +178,7 @@ export default function ValidationDashboardPage() {
       }
     };
     void load();
-  }, [currentUser, dashboardScope, isHydrated, router]);
+  }, [currentUser, isHydrated, router]);
 
   const validationBaseDemandes = useMemo(
     () =>
@@ -300,22 +283,14 @@ export default function ValidationDashboardPage() {
                   <button
                     type="button"
                     onClick={() => router.replace(mineScopeHref)}
-                    className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
-                      dashboardScope === "mine"
-                        ? "bg-slate-900 text-white shadow-sm"
-                        : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                    }`}
+                    className="rounded-md bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors"
                   >
                     Mes dossiers
                   </button>
                   <button
                     type="button"
                     onClick={() => router.replace(allScopeHref)}
-                    className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
-                      dashboardScope === "all"
-                        ? "bg-slate-900 text-white shadow-sm"
-                        : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                    }`}
+                    className="rounded-md px-3 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
                   >
                     Tous les dossiers
                   </button>
@@ -400,9 +375,7 @@ export default function ValidationDashboardPage() {
             </div>
             <h2 className="text-lg font-bold text-slate-900 mb-2">Aucun dossier en attente</h2>
             <p className="text-sm text-slate-500">
-              {dashboardScope === "mine"
-                ? "Aucun de vos dossiers n'est actuellement à cette étape de validation."
-                : "Votre file de traitement est vide. Vous recevrez une notification lorsqu'un nouvel état de besoins nécessitera votre attention."}
+              Votre file de traitement est vide. Vous recevrez une notification lorsqu&apos;un nouvel état de besoins nécessitera votre attention.
             </p>
           </div>
         ) : displayMode === "table" ? (

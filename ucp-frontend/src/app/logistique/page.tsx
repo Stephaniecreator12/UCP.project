@@ -31,7 +31,6 @@ import {
   type UserProfile,
 } from "@/services/auth";
 import {
-  type DashboardScope,
   DemandeAchat,
   listDemandesAchat,
 } from "@/services/achats";
@@ -138,7 +137,6 @@ export default function MarcheDashboardPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const filterParam = searchParams.get("filtre");
-  const rawScope = (searchParams.get("scope") ?? "").trim().toLowerCase();
   const [currentUser] = useState(() => getCurrentUser());
   const marketRoleLabel = getMarketRoleLabel(currentUser);
   const [demandes, setDemandes] = useState<DemandeAchat[]>([]);
@@ -152,7 +150,6 @@ export default function MarcheDashboardPage() {
   const [receptionModalDemandeId, setReceptionModalDemandeId] = useState<number | null>(null);
   const [resolveIssueModalDemandeId, setResolveIssueModalDemandeId] = useState<number | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const dashboardScope: DashboardScope = rawScope === "mine" ? "mine" : "all";
   const searchParamsString = searchParams.toString();
 
   const mineScopeHref = useMemo(() => {
@@ -163,11 +160,8 @@ export default function MarcheDashboardPage() {
   }, [searchParamsString]);
 
   const allScopeHref = useMemo(() => {
-    const params = new URLSearchParams(searchParamsString);
-    params.set("scope", "all");
-    const queryString = params.toString();
-    return `/logistique?${queryString}`;
-  }, [searchParamsString]);
+    return "/demande-achat?scope=all";
+  }, []);
 
   const showToast = (message: string) => {
     setToastMessage(message);
@@ -176,7 +170,7 @@ export default function MarcheDashboardPage() {
 
   const reloadDemandes = async () => {
     try {
-      const data = await listDemandesAchat(dashboardScope);
+      const data = await listDemandesAchat("all");
       setDemandes(data);
     } catch {}
   };
@@ -194,7 +188,7 @@ export default function MarcheDashboardPage() {
     const load = async () => {
       setLoading(true);
       try {
-        const data = await listDemandesAchat(dashboardScope);
+        const data = await listDemandesAchat("all");
         setDemandes(data);
         setError(null);
       } catch (err) {
@@ -204,7 +198,7 @@ export default function MarcheDashboardPage() {
       }
     };
     void load();
-  }, [currentUser, dashboardScope, router]);
+  }, [currentUser, router]);
 
   useEffect(() => {
     if (filterParam === "toutes") setActiveSection("all");
@@ -308,22 +302,14 @@ export default function MarcheDashboardPage() {
                   <button
                     type="button"
                     onClick={() => router.replace(mineScopeHref)}
-                    className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
-                      dashboardScope === "mine"
-                        ? "bg-slate-900 text-white shadow-sm"
-                        : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                    }`}
+                    className="rounded-md bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors"
                   >
                     Mes dossiers
                   </button>
                   <button
                     type="button"
                     onClick={() => router.replace(allScopeHref)}
-                    className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
-                      dashboardScope === "all"
-                        ? "bg-slate-900 text-white shadow-sm"
-                        : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                    }`}
+                    className="rounded-md px-3 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
                   >
                     Tous les dossiers
                   </button>
@@ -402,9 +388,7 @@ export default function MarcheDashboardPage() {
             <Activity className="mx-auto h-12 w-12 text-slate-300 mb-4" />
             <h2 className="text-lg font-bold text-slate-900 mb-2">Aucun dossier Marché</h2>
             <p className="text-sm text-slate-500 mb-6">
-              {dashboardScope === "mine"
-                ? "Aucun de vos dossiers n'est actuellement au stade logistique."
-                : "Aucune expédition ou réception à traiter."}
+              Aucune expédition ou réception à traiter.
             </p>
           </div>
         ) : displayMode === "table" ? (

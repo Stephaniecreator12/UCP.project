@@ -1,4 +1,3 @@
-from django.db.models import Q
 from django.http import FileResponse
 from django.shortcuts import get_object_or_404
 
@@ -24,11 +23,7 @@ from apps.achats.services import (
     close_demande,
     complete_budget_estimation,
     create_demande,
-    get_user_validation_step,
     issue_order,
-    is_agent_achat,
-    is_agent_marche,
-    is_finance,
     list_demandes_a_commander,
     list_demandes_budgetaires,
     list_mes_demandes,
@@ -91,11 +86,6 @@ def demande_detail_view(request, demande_id):
     demande = get_object_or_404(demande_qs, id=demande_id)
     
     if request.method == "GET":
-        if (
-            demande.statut == DemandeAchat.STATUT_BROUILLON
-            and demande.demandeur != request.user
-        ):
-            return Response({"detail": "Non autorisé."}, status=status.HTTP_403_FORBIDDEN)
         serializer = DemandeAchatSerializer(demande)
         return Response(serializer.data)
         
@@ -148,47 +138,9 @@ def demande_document_upload_view(request, demande_id):
 
 
 def _document_visibility_queryset(user):
-    filters = Q(demande__demandeur=user)
-
-    if is_agent_achat(user):
-        filters |= Q(
-            demande__statut__in=[
-                DemandeAchat.STATUT_VALIDEE_BUDGETAIRE,
-                DemandeAchat.STATUT_EN_COMMANDE,
-                DemandeAchat.STATUT_EN_LIVRAISON,
-            ]
-        )
-
-    if is_finance(user):
-        filters |= Q(
-            demande__statut__in=[
-                DemandeAchat.STATUT_VALIDEE,
-                DemandeAchat.STATUT_VALIDEE_BUDGETAIRE,
-                DemandeAchat.STATUT_EN_COMMANDE,
-                DemandeAchat.STATUT_EN_LIVRAISON,
-                DemandeAchat.STATUT_LIVREE,
-                DemandeAchat.STATUT_CLOTUREE,
-            ]
-        )
-
-    if is_agent_marche(user):
-        filters |= Q(
-            demande__statut__in=[
-                DemandeAchat.STATUT_EN_COMMANDE,
-                DemandeAchat.STATUT_EN_LIVRAISON,
-                DemandeAchat.STATUT_LIVREE,
-                DemandeAchat.STATUT_CLOTUREE,
-            ]
-        )
-
-    validation_step = get_user_validation_step(user)
-    if validation_step:
-        filters |= Q(
-            demande__statut=DemandeAchat.STATUT_SOUMISE,
-            demande__etape_validation_actuelle=validation_step,
-        )
-
-    return DocumentDemande.objects.select_related("demande").filter(filters)
+    # The global achats radar is shared across roles. File previews must follow
+    # the same read visibility as demande details to avoid broken document links.
+    return DocumentDemande.objects.select_related("demande").all()
 
 
 @api_view(["GET"])

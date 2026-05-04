@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Search, X, ChevronDown, Clock, FileCheck, ChevronLeft, ChevronRight as ChevronRightIcon, CheckCircle } from "lucide-react";
 
@@ -221,7 +221,7 @@ export default function ValidationDashboardPage() {
   const handleValidationSuccess = async () => {
     setSelectedValidationId(null);
     try {
-      const data = await listDemandesAchat(dashboardScope);
+      const data = await listDemandesAchat("all");
       setDemandes(data);
       showToast("Validation effectuée avec succès !");
     } catch {

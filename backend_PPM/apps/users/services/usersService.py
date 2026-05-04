@@ -8,4 +8,4 @@ User = get_user_model()
 @receiver(post_save, sender=User)
 def ensure_public_profile(sender, instance, created, **kwargs):
     if created:
-        PublicProfile.objects.create(user=instance)
+        return;

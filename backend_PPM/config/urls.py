@@ -7,10 +7,10 @@ from django.conf import settings
 from django.conf.urls.static import static
 
 from config.media_fallback import serve_tdr_st_media
-
+from apps.users.views.public_view import PublicLoginView
 urlpatterns = [
     path("admin/", admin.site.urls),
-
+    path("api/public/login/", PublicLoginView.as_view(), name="public_login"),
     path("api/ppm/", include("apps.ppm.urls")),
     path("api/users/", include("apps.users.urls")),
     path("api/TdrSt/", include("apps.TdrSt.urls")),

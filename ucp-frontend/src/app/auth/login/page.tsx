@@ -161,7 +161,7 @@ const handleLogin = async (e: React.FormEvent) => {
                   handleRegisterRedirection
                 }
               >
-                Créer un compte publique
+                Connexion publique
               </button>
             </form>
             

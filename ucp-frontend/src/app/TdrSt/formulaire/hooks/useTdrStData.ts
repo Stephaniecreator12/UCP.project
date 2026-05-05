@@ -21,6 +21,7 @@ export type Statut =
 
 export type UserRole =
   | "demandeur"
+  | "initiateur"
   | "verificateur_technique"
   | "approbateur_final"
   | "auditeur";
@@ -236,7 +237,7 @@ export function useTdrStData() {
   const refreshDocs = useCallback(
     async (r: UserRole) => {
       const url =
-        r === "demandeur"
+        r === "demandeur" || r === "initiateur"
           ? `${API_PREFIX}/documents/me/`
           : r === "verificateur_technique"
             ? `${API_PREFIX}/validations/tech/documents/`

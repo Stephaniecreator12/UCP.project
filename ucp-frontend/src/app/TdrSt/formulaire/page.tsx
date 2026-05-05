@@ -19,7 +19,8 @@ import {
 } from "./hooks/useTdrStData";
 
 const ROLE_LABEL: Record<UserRole, string> = {
-  demandeur: "Initiateur",
+  demandeur: "Demandeur",
+  initiateur: "Initiateur",
   verificateur_technique: "Point focal / Chargé de programme",
   approbateur_final: "Gestionnaire / Point focal",
   auditeur: "Auditeur (Consultation seule)",
@@ -35,6 +36,8 @@ const formatPendingDate = (value?: string | null) => {
     year: "numeric",
   });
 };
+
+const isRequesterRole = (role: UserRole | null) => role === "demandeur" || role === "initiateur";
 
 export default function TdRStPage() {
   const router = useRouter();
@@ -78,7 +81,7 @@ export default function TdRStPage() {
 
   const loadPendingTdrDemandes = useCallback(
     async (currentRole: UserRole | null) => {
-      if (currentRole !== "demandeur") {
+      if (!isRequesterRole(currentRole)) {
         setPendingTdrDemandes([]);
         return [];
       }
@@ -169,7 +172,7 @@ export default function TdRStPage() {
     }
 
     // Pour demandeur
-    if (role === "demandeur") {
+    if (isRequesterRole(role)) {
       return {
         draft: docs.filter((d) => d.statut === "BROUILLON"),
         pending: docs.filter((d) => d.statut === "SOUMIS"),
@@ -229,7 +232,7 @@ export default function TdRStPage() {
     tdrFilterProps.selectedDocumentTypes.length > 0;
 
   const totalDocuments =
-    finalDocuments.length + (role === "demandeur" ? pendingTdrDemandes.length : 0);
+    finalDocuments.length + (isRequesterRole(role) ? pendingTdrDemandes.length : 0);
 
   const [selectedDetailDoc, setSelectedDetailDoc] = useState<TdrStDocument | null>(null);
 
@@ -245,10 +248,10 @@ export default function TdRStPage() {
   }, [documents, focusDocumentId, router]);
 
   const getActionButtonLabel = (doc: TdrStDocument): string | null => {
-    if (role === "demandeur" && doc.statut === "BROUILLON") {
+    if (isRequesterRole(role) && doc.statut === "BROUILLON") {
       return "Continuer";
     }
-    if (role === "demandeur" && doc.statut === "A_REVOIR") {
+    if (isRequesterRole(role) && doc.statut === "A_REVOIR") {
       return "Corriger";
     }
     return null;
@@ -274,7 +277,7 @@ export default function TdRStPage() {
     const nextDoc = refreshedDocs.find((doc) => doc.id === documentId) || null;
     setSelectedDetailDoc(nextDoc);
     setSelectedId(documentId);
-    if (role === "demandeur") {
+    if (isRequesterRole(role)) {
       await loadPendingTdrDemandes(role);
     }
   };
@@ -284,7 +287,7 @@ export default function TdRStPage() {
   };
 
   const handleSubmitDocument = async () => {
-    if (!selectedDetailDoc || role !== "demandeur") return;
+    if (!selectedDetailDoc || !isRequesterRole(role)) return;
     setActionLoading(true);
     try {
       const updated = await fetchJson<TdrStDocument>(`/api/TdrSt/documents/${selectedDetailDoc.id}/submit/`, {
@@ -323,7 +326,7 @@ export default function TdRStPage() {
   };
 
   const detailActionSlot =
-    role === "demandeur" &&
+    isRequesterRole(role) &&
     selectedDetailDoc &&
     (selectedDetailDoc.statut === "BROUILLON" || selectedDetailDoc.statut === "A_REVOIR") ? (
       <button
@@ -336,7 +339,7 @@ export default function TdRStPage() {
     ) : null;
 
   const detailFooterSlot =
-    selectedDetailDoc && role === "demandeur" && (selectedDetailDoc.statut === "BROUILLON" || selectedDetailDoc.statut === "A_REVOIR") ? (
+    selectedDetailDoc && isRequesterRole(role) && (selectedDetailDoc.statut === "BROUILLON" || selectedDetailDoc.statut === "A_REVOIR") ? (
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-slate-600">Le document sera transmis au circuit de validation TDR/ST.</p>
         <button
@@ -490,7 +493,7 @@ export default function TdRStPage() {
         {/* Sections */}
         {!loading && (
           <div className="space-y-4">
-            {role === "demandeur" && (pendingTdrLoading || pendingTdrDemandes.length > 0) && (
+            {isRequesterRole(role) && (
               <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
                 <button
                   type="button"
@@ -540,13 +543,13 @@ export default function TdRStPage() {
                   </div>
                 </button>
 
-                {(pendingTdrLoading || pendingDemandesOpen) && (
+                {(pendingTdrLoading || pendingDemandesOpen || pendingTdrDemandes.length === 0) && (
                   <div className="bg-slate-50 px-4 py-4">
                     {pendingTdrLoading ? (
                       <div className="flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-8 text-sm text-slate-500">
                         Chargement des dossiers à documenter...
                       </div>
-                    ) : (
+                    ) : pendingTdrDemandes.length > 0 ? (
                       <div className="space-y-3">
                         {pendingTdrDemandes.map((demande) => (
                           <div
@@ -598,6 +601,10 @@ export default function TdRStPage() {
                           </div>
                         ))}
                       </div>
+                    ) : (
+                      <div className="flex items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-8 text-sm text-slate-500">
+                        Aucun dossier en attente de document TDR/ST.
+                      </div>
                     )}
                   </div>
                 )}
@@ -605,7 +612,7 @@ export default function TdRStPage() {
             )}
 
             {/* BROUILLONS - visible seulement pour demandeur */}
-            {role === "demandeur" && sections.draft.length > 0 && (
+            {isRequesterRole(role) && sections.draft.length > 0 && (
               <AccordionSection
                 sectionKey="draft"
                 title="Brouillons TDR/ST"
@@ -621,7 +628,7 @@ export default function TdRStPage() {
             )}
 
             {/* EN ATTENTE DE DECISION - Pour verificateur technique */}
-            {(role === "verificateur_technique" || role === "demandeur") && sections.pending.length > 0 && (
+            {(role === "verificateur_technique" || isRequesterRole(role)) && sections.pending.length > 0 && (
               <AccordionSection
                 sectionKey="pending"
                 title="En attente de décision"
@@ -653,7 +660,7 @@ export default function TdRStPage() {
             )}
 
             {/* A VALIDER - Pour approbateur final */}
-            {(role === "approbateur_final" || role === "demandeur" || role === "verificateur_technique") && sections.validation.length > 0 && (
+            {(role === "approbateur_final" || isRequesterRole(role) || role === "verificateur_technique") && sections.validation.length > 0 && (
               <AccordionSection
                 sectionKey="validation"
                 title="À valider"
@@ -708,7 +715,7 @@ export default function TdRStPage() {
                   {role === "auditeur" ? "Aucun document archivé" : "Aucun document"}
                 </h2>
                 <p className="text-sm text-slate-500">
-                  {role === "demandeur"
+                  {isRequesterRole(role)
                     ? "Les TDR/ST se créent désormais depuis un dossier état de besoin."
                     : role === "auditeur"
                     ? "Aucun document ne correspond aux filtres sélectionnés."

@@ -13,6 +13,8 @@ from apps.TdrSt.services.schema_compat import (
     MISSING_TDR_LINK_MIGRATION_MESSAGE,
     has_tdr_demande_link_column,
 )
+from apps.users.models import UserProfile
+from apps.users.services.permissions import get_user_role
 
 # IMPORTS POUR LES EMAILS
 from apps.TdrSt.services.emailService import (
@@ -154,6 +156,14 @@ def list_my_documents(user):
     return TdrStDocument.objects.filter(demandeur=user).select_related("fichier_courant", "demande_achat")
 
 
+def _all_documents_queryset():
+    return TdrStDocument.objects.select_related(
+        "demandeur",
+        "fichier_courant",
+        "demande_achat",
+    ).order_by("-updated_at", "-created_at")
+
+
 def list_pending_tech():
     return (
         TdrStDocument.objects.filter(statut=TdrStDocument.Statut.SOUMIS)
@@ -247,6 +257,28 @@ def list_auditeur_documents():
         .prefetch_related("actions_validation__acteur")  # Section G — traçabilité complète
         .order_by("-updated_at")
     )
+
+
+def list_documents_for_user(user, scope: str = "mine"):
+    role = get_user_role(user)
+    if role == UserProfile.Role.DEMANDEUR:
+        return _all_documents_queryset() if scope == "all" else list_my_documents(user).order_by("-updated_at", "-created_at")
+    if role == UserProfile.Role.VERIFICATEUR_TECHNIQUE:
+        return _all_documents_queryset() if scope == "all" else list_tech_documents(user)
+    if role == UserProfile.Role.APPROBATEUR_FINAL:
+        if scope == "all":
+            return _all_documents_queryset()
+        pending = TdrStDocument.objects.filter(statut=TdrStDocument.Statut.EN_VALIDATION)
+        treated = TdrStDocument.objects.filter(
+            actions_validation__etape=TdrStValidationAction.Etape.APPROBATION_FINALE,
+            actions_validation__acteur=user,
+        )
+        return (pending | treated).distinct().select_related(
+            "demandeur", "fichier_courant", "demande_achat"
+        ).order_by("-updated_at")
+    if role == UserProfile.Role.AUDITEUR:
+        return list_auditeur_documents()
+    return TdrStDocument.objects.none()
 
 
 @transaction.atomic

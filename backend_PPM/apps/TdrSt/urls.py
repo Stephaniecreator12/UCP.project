@@ -3,6 +3,7 @@ from apps.TdrSt.views.dashboard_view import DashboardAPIView
 from apps.TdrSt.views.document_view import (
     create_document_view,
     document_detail_view,
+    documents_list_view,
     my_documents_view,
     submit_document_view,
     suspend_document_view,
@@ -19,6 +20,7 @@ from apps.TdrSt.views.validation_view import (
 )
 
 urlpatterns = [
+    path("documents/list/", documents_list_view),
     path("documents/", create_document_view),
     path("documents/me/", my_documents_view),
     path("documents/<int:id>/", document_detail_view),

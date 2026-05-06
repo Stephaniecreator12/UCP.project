@@ -26,6 +26,8 @@ export type UserRole =
   | "approbateur_final"
   | "auditeur";
 
+export type TdrDashboardScope = "mine" | "all";
+
 type Procedure = "DC" | "AOI" | "AON" | "GRE_A_GRE";
 type DureeUnite = "JOURS" | "MOIS";
 
@@ -235,17 +237,9 @@ export function useTdrStData() {
   }, []);
 
   const refreshDocs = useCallback(
-    async (r: UserRole) => {
-      const url =
-        r === "demandeur" || r === "initiateur"
-          ? `${API_PREFIX}/documents/me/`
-          : r === "verificateur_technique"
-            ? `${API_PREFIX}/validations/tech/documents/`
-            : r === "approbateur_final"
-              ? `${API_PREFIX}/validations/final/documents/`
-              : r === "auditeur"
-                ? `${API_PREFIX}/auditeur/documents/`
-                : `${API_PREFIX}/documents/`;
+    async (_r: UserRole, scope: TdrDashboardScope = "mine") => {
+      const query = scope === "all" ? "?scope=all" : "";
+      const url = `${API_PREFIX}/documents/list/${query}`;
 
       const data = await fetchJson<TdrStDocument[]>(url, { method: "GET", cache: "no-store" });
       setDocuments(data);
@@ -254,7 +248,7 @@ export function useTdrStData() {
     [],
   );
 
-  const loadUserAndDocs = useCallback(async () => {
+  const loadUserAndDocs = useCallback(async (scope: TdrDashboardScope = "mine") => {
     const token = getToken();
     if (!token) return null;
 
@@ -266,7 +260,7 @@ export function useTdrStData() {
       if (!r) throw new Error("Rôle utilisateur introuvable.");
       setRole(r);
       setCurrentUsername(me.username || "");
-      const docs = await refreshDocs(r);
+      const docs = await refreshDocs(r, scope);
       return { role: r, username: me.username, documents: docs };
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);

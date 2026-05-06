@@ -1,7 +1,16 @@
 "use client";
 
 import { ReactNode, useEffect } from "react";
-import { X, FileText, History, CheckCircle, Clock } from "lucide-react";
+import {
+  X,
+  FileText,
+  History,
+  CheckCircle,
+  Clock,
+  FolderKanban,
+  CalendarDays,
+  Wallet,
+} from "lucide-react";
 
 import {
   TdrStDocument,
@@ -70,6 +79,7 @@ export default function DocumentDetailModal({
     STATUS_BADGE_CLASSES[activeDocument.statut] ?? "bg-slate-50 text-slate-700 border border-slate-200";
   const montant = formatAmountForRow(activeDocument.montant_estime_usd);
   const createdDate = formatDateForRow(activeDocument.created_at);
+  const updatedDate = formatDateForRow(activeDocument.updated_at);
 
   return (
     <div
@@ -86,16 +96,23 @@ export default function DocumentDetailModal({
       <div className="flex min-h-[85vh] max-h-[calc(100vh-0.25rem)] w-full max-w-5xl flex-col overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-2xl ring-1 ring-black/5 animate-in zoom-in-95 duration-200">
         <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-6 py-4 lg:px-7">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-100 text-emerald-700">
               <FileText className="h-4 w-4" />
             </div>
             <div>
               <h2 id="document-detail-modal-title" className="text-lg font-bold text-slate-900">
                 {activeDocument.numero_document || `Document #${activeDocument.id}`}
               </h2>
-              <p className="max-w-md truncate text-xs text-slate-500" title={activeDocument.intitule}>
-                {activeDocument.intitule || "Sans intitulé"}
-              </p>
+              <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                <span className="rounded-full border border-slate-200 bg-white px-3 py-1 font-semibold text-slate-600">
+                  {activeDocument.type_document}
+                </span>
+                {activeDocument.demande_achat_numero && (
+                  <span className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1 font-semibold text-violet-700">
+                    {activeDocument.demande_achat_numero}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 
@@ -116,37 +133,55 @@ export default function DocumentDetailModal({
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto bg-white px-5 py-4 lg:px-7 lg:py-5">
+          <div className="mb-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <div className="flex flex-wrap gap-2">
+              <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+                Version {activeDocument.version}
+              </span>
+              <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+                Cree le {createdDate}
+              </span>
+              <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+                Mis a jour le {updatedDate}
+              </span>
+            </div>
+            <h3 className="mt-3 text-base font-semibold text-slate-900">
+              {activeDocument.intitule || "Sans intitule"}
+            </h3>
+            <p className="mt-1 text-sm text-slate-500">
+              Dossier technique rattache au circuit TDR/ST.
+            </p>
+          </div>
+
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
             <div className="space-y-5 lg:col-span-2">
-              <Section title="Informations générales">
+              <Section title="Informations generales" icon={FolderKanban}>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <DataPair label="Unité technique" value={activeDocument.unite_technique} />
+                  <DataPair label="Unite technique" value={activeDocument.unite_technique} />
                   <DataPair label="Type de document" value={activeDocument.type_document} />
-                  <DataPair label="Catégorie d'activité" value={activeDocument.categorie_activite} />
-                  <DataPair label="Procédure envisagée" value={activeDocument.procedure_envisagee} />
-                  <DataPair label="Référence PTBA" value={activeDocument.reference_ptba} />
-                  <DataPair label="Ligne budgétaire" value={activeDocument.ligne_budgetaire} />
-                  <DataPair label="Montant estimé" value={`${montant} USD`} />
-                  <DataPair label="Version" value={activeDocument.version} />
-                  <DataPair label="Date de création" value={createdDate} />
-                  <DataPair label="Dernière modification" value={formatDateForRow(activeDocument.updated_at)} />
+                  <DataPair label="Categorie d'activite" value={activeDocument.categorie_activite} />
+                  <DataPair label="Procedure envisagee" value={activeDocument.procedure_envisagee} />
+                  <DataPair label="Reference PTBA" value={activeDocument.reference_ptba} />
+                  <DataPair label="Ligne budgetaire" value={activeDocument.ligne_budgetaire} />
+                  <DataPair label="Numero de subvention" value={activeDocument.numero_subvention || "Non renseigne"} />
+                  <DataPair label="Dossier lie" value={activeDocument.demande_achat_numero || "Non lie"} />
                 </div>
               </Section>
 
-              <Section title="Intitulé / Description">
+              <Section title="Intitule / Description" icon={FileText}>
                 <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
                   <p className="whitespace-pre-wrap text-sm text-slate-700">
-                    {activeDocument.intitule || "Non renseigné"}
+                    {activeDocument.intitule || "Non renseigne"}
                   </p>
                 </div>
               </Section>
 
-              <Section title="Période et durée">
+              <Section title="Periode et duree" icon={CalendarDays}>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                  <DataPair label="Période début" value={formatDateForRow(activeDocument.periode_debut)} />
-                  <DataPair label="Période fin" value={formatDateForRow(activeDocument.periode_fin)} />
+                  <DataPair label="Periode debut" value={formatDateForRow(activeDocument.periode_debut)} />
+                  <DataPair label="Periode fin" value={formatDateForRow(activeDocument.periode_fin)} />
                   <DataPair
-                    label="Durée estimée"
+                    label="Duree estimee"
                     value={`${activeDocument.duree_estimee_valeur} ${
                       activeDocument.duree_estimee_unite === "JOURS" ? "jours" : "mois"
                     }`}
@@ -154,10 +189,12 @@ export default function DocumentDetailModal({
                 </div>
               </Section>
 
-              <Section title="Financement">
+              <Section title="Financement" icon={Wallet}>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <DataPair label="Source de financement" value={formatDisplayValue(activeDocument.sources_financement)} />
-                  <DataPair label="Numéro de subvention" value={activeDocument.numero_subvention || "Non renseigné"} />
+                  <DataPair label="Montant estime" value={`${montant} USD`} />
+                  <DataPair label="Date de creation" value={createdDate} />
+                  <DataPair label="Derniere modification" value={updatedDate} />
                 </div>
               </Section>
 
@@ -165,7 +202,7 @@ export default function DocumentDetailModal({
                 <Section title="Historique des validations" icon={History}>
                   <div className="space-y-3">
                     {activeDocument.actions_validation.map((action) => (
-                      <div key={action.id} className="rounded-xl border border-slate-200 bg-white p-3">
+                      <div key={action.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <div className="flex items-center gap-2">
                             {action.decision === "FAVORABLE" || action.decision === "APPROUVE" ? (
@@ -198,20 +235,20 @@ export default function DocumentDetailModal({
             <div className="space-y-5">
               <Section title="Document PDF" icon={FileText}>
                 {activeDocument.fichier_courant?.fichier_pdf ? (
-                  <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 text-center">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 text-center">
                     <FileText className="mx-auto h-8 w-8 text-emerald-600" />
                     <p className="mt-2 text-sm font-medium text-slate-700">Version {activeDocument.version}</p>
                     <a
                       href={activeDocument.fichier_courant.fichier_pdf}
                       target="_blank"
                       rel="noreferrer"
-                      className="mt-3 inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700"
+                      className="mt-3 inline-flex items-center gap-2 rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700"
                     >
                       Visualiser le PDF
                     </a>
                   </div>
                 ) : (
-                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-center">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-center">
                     <FileText className="mx-auto h-8 w-8 text-slate-400" />
                     <p className="mt-2 text-sm text-slate-500">Aucun PDF disponible</p>
                   </div>
@@ -219,13 +256,13 @@ export default function DocumentDetailModal({
               </Section>
 
               {activeDocument.versions_fichier && activeDocument.versions_fichier.length > 0 && (
-                <Section title="Versions antérieures" icon={History}>
+                <Section title="Versions anterieures" icon={History}>
                   <div className="space-y-2">
                     {[...activeDocument.versions_fichier]
                       .sort((a, b) => (b.version ?? 0) - (a.version ?? 0))
                       .filter((version) => version.version !== activeDocument.version)
                       .map((version) => (
-                        <div key={version.id} className="rounded-xl border border-slate-200 bg-white p-3">
+                        <div key={version.id} className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
                           <div className="flex items-center justify-between">
                             <span className="text-sm font-semibold text-slate-700">Version {version.version}</span>
                             {onViewVersion && (
@@ -245,7 +282,7 @@ export default function DocumentDetailModal({
                               rel="noreferrer"
                               className="mt-2 inline-flex items-center gap-1 text-xs text-emerald-600 hover:underline"
                             >
-                              Télécharger le PDF
+                              Telecharger le PDF
                             </a>
                           )}
                           <p className="mt-1 text-xs text-slate-400">
@@ -258,10 +295,10 @@ export default function DocumentDetailModal({
               )}
 
               {activeDocument.requires_ano && (
-                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-                  <p className="text-sm font-semibold text-amber-800">⚠️ Seuil bailleur dépassé</p>
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                  <p className="text-sm font-semibold text-amber-800">Seuil bailleur depasse</p>
                   <p className="mt-1 text-xs text-amber-700">
-                    Ce document nécessite une validation additionnelle du bailleur.
+                    Ce document necessite une validation additionnelle du bailleur.
                   </p>
                 </div>
               )}
@@ -309,8 +346,8 @@ function DataPair({
   const displayValue = value && value !== "" ? value : "-";
 
   return (
-    <div>
-      <p className="mb-0.5 text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</p>
+    <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+      <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</p>
       <p className={`text-[13px] font-medium ${highlight ? "font-bold text-amber-700" : "text-slate-900"}`}>
         {displayValue}
       </p>

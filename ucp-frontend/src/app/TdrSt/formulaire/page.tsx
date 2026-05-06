@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Activity, ChevronDown, Clock3, FilePlus2 } from "lucide-react";
+import { Activity, ChevronDown, Clock3, FilePlus2, Loader2, Search, Upload, X } from "lucide-react";
 import { TdrStFilterBar, useTdrStFilters } from "./components/FinancementFilter";
 import TopHeader from "@/app/components/TopHeader";
 import { getToken } from "@/services/auth";
@@ -14,6 +14,7 @@ import { formatMoney, typeLabels } from "@/app/demande-achat/components/demandeA
 import { listDemandesAchat, type DemandeAchat } from "@/services/achats";
 import { 
   useTdrStData, 
+  type TdrDashboardScope,
   type TdrStDocument, 
   type UserRole
 } from "./hooks/useTdrStData";
@@ -21,8 +22,8 @@ import {
 const ROLE_LABEL: Record<UserRole, string> = {
   demandeur: "Demandeur",
   initiateur: "Initiateur",
-  verificateur_technique: "Point focal / Chargé de programme",
-  approbateur_final: "Gestionnaire / Point focal",
+  verificateur_technique: "Vérificateur technique (Chargé de programme)",
+  approbateur_final: "Approbateur final (Point focal)",
   auditeur: "Auditeur (Consultation seule)",
 };
 
@@ -38,6 +39,12 @@ const formatPendingDate = (value?: string | null) => {
 };
 
 const isRequesterRole = (role: UserRole | null) => role === "demandeur" || role === "initiateur";
+
+const normalizeSearchValue = (value: unknown) =>
+  String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
 
 export default function TdRStPage() {
   const router = useRouter();
@@ -59,10 +66,27 @@ export default function TdRStPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [decisionObs, setDecisionObs] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
+  const [uploadingPdfDocId, setUploadingPdfDocId] = useState<number | null>(null);
   const [pendingTdrDemandes, setPendingTdrDemandes] = useState<DemandeAchat[]>([]);
   const [pendingTdrLoading, setPendingTdrLoading] = useState(false);
   const [pendingDemandesOpen, setPendingDemandesOpen] = useState(false);
   const [selectedPendingDemande, setSelectedPendingDemande] = useState<DemandeAchat | null>(null);
+  const canAccessGlobalDashboard = true;
+  const rawScope = (searchParams.get("scope") ?? "").trim().toLowerCase();
+  const dashboardScope: TdrDashboardScope = rawScope === "all" ? "all" : "mine";
+  const searchParamsString = searchParams.toString();
+  const mineScopeHref = useMemo(() => {
+    const params = new URLSearchParams(searchParamsString);
+    params.delete("scope");
+    const queryString = params.toString();
+    return queryString ? `/TdrSt/formulaire?${queryString}` : "/TdrSt/formulaire";
+  }, [searchParamsString]);
+  const allScopeHref = useMemo(() => {
+    const params = new URLSearchParams(searchParamsString);
+    params.set("scope", "all");
+    const queryString = params.toString();
+    return `/TdrSt/formulaire?${queryString}`;
+  }, [searchParamsString]);
   const focusDocumentId = useMemo(() => {
     const raw = searchParams.get("focus");
     if (!raw) return null;
@@ -88,7 +112,7 @@ export default function TdRStPage() {
 
       setPendingTdrLoading(true);
       try {
-        const demandes = await listDemandesAchat("mine");
+        const demandes = await listDemandesAchat(dashboardScope);
         const pending = demandes.filter(
           (demande) =>
             Boolean(demande.requires_tdr) &&
@@ -109,7 +133,7 @@ export default function TdRStPage() {
         setPendingTdrLoading(false);
       }
     },
-    [setNotification],
+    [dashboardScope, setNotification],
   );
 
   // Load user and documents on mount
@@ -121,39 +145,44 @@ export default function TdRStPage() {
     }
 
     const initializePage = async () => {
-      const loaded = await loadUserAndDocs();
+      const loaded = await loadUserAndDocs(dashboardScope);
       await loadPendingTdrDemandes(loaded?.role ?? null);
     };
 
     void initializePage();
-  }, [loadPendingTdrDemandes, loadUserAndDocs, router]);
+  }, [dashboardScope, loadPendingTdrDemandes, loadUserAndDocs, router]);
 
-  // Filtre par recherche textuelle
-  const filteredBySearch = useMemo(() => {
-    if (role !== "auditeur") return documents;
-    
-    const normalize = (value: unknown) =>
-      String(value ?? "")
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .toLowerCase();
+  const baseDocuments = role === "auditeur" ? financeFilteredDocs : documents;
+  const finalDocuments = useMemo(() => {
+    const query = normalizeSearchValue(searchQuery).trim();
+    if (!query) return baseDocuments;
 
-    const query = normalize(searchQuery).trim();
-    if (!query) return financeFilteredDocs;
-
-    return financeFilteredDocs.filter((doc) => {
-      const haystack = normalize([
+    return baseDocuments.filter((doc) => {
+      const haystack = normalizeSearchValue([
         doc.numero_document,
         doc.intitule,
         doc.type_document,
         doc.unite_technique,
         doc.reference_ptba,
+        doc.demande_achat_numero,
       ].join(" "));
       return haystack.includes(query);
     });
-  }, [documents, role, financeFilteredDocs, searchQuery]);
+  }, [baseDocuments, searchQuery]);
 
-  const finalDocuments = role === "auditeur" ? filteredBySearch : documents;
+  const filteredPendingDemandes = useMemo(() => {
+    const query = normalizeSearchValue(searchQuery).trim();
+    if (!query) return pendingTdrDemandes;
+
+    return pendingTdrDemandes.filter((demande) =>
+      normalizeSearchValue([
+        demande.numero_demande,
+        demande.objet,
+        demande.type_demande,
+        demande.unite_technique,
+      ].join(" ")).includes(query),
+    );
+  }, [pendingTdrDemandes, searchQuery]);
 
   // Group documents by section
   const sections = useMemo(() => {
@@ -232,7 +261,7 @@ export default function TdRStPage() {
     tdrFilterProps.selectedDocumentTypes.length > 0;
 
   const totalDocuments =
-    finalDocuments.length + (isRequesterRole(role) ? pendingTdrDemandes.length : 0);
+    finalDocuments.length + (isRequesterRole(role) ? filteredPendingDemandes.length : 0);
 
   const [selectedDetailDoc, setSelectedDetailDoc] = useState<TdrStDocument | null>(null);
 
@@ -273,7 +302,7 @@ export default function TdRStPage() {
 
   const refreshAndKeepSelection = async (documentId: number) => {
     if (!role) return;
-    const refreshedDocs = await refreshDocs(role);
+    const refreshedDocs = await refreshDocs(role, dashboardScope);
     const nextDoc = refreshedDocs.find((doc) => doc.id === documentId) || null;
     setSelectedDetailDoc(nextDoc);
     setSelectedId(documentId);
@@ -286,8 +315,39 @@ export default function TdRStPage() {
     router.push(`/TdrSt/new?demandeId=${demande.id}&source=demande-achat`);
   };
 
+  const uploadPdfForDocument = async (documentId: number, file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const response = await fetchJson<{ document: TdrStDocument }>(`/api/TdrSt/documents/${documentId}/upload/`, {
+      method: "POST",
+      body: formData,
+    });
+
+    return response.document;
+  };
+
+  const handleUploadPdf = async (doc: TdrStDocument, file: File) => {
+    if (!isRequesterRole(role)) return;
+
+    setUploadingPdfDocId(doc.id);
+    try {
+      const updatedDoc = await uploadPdfForDocument(doc.id, file);
+      await refreshAndKeepSelection(updatedDoc.id);
+      setNotification("success", "Le PDF a ete televerse avec succes.");
+    } catch (e: unknown) {
+      setNotification("error", e instanceof Error ? e.message : String(e));
+    } finally {
+      setUploadingPdfDocId(null);
+    }
+  };
+
   const handleSubmitDocument = async () => {
     if (!selectedDetailDoc || !isRequesterRole(role)) return;
+    if (!selectedDetailDoc.fichier_courant?.fichier_pdf) {
+      setNotification("error", "Televerse un PDF avant d'envoyer le document en validation.");
+      return;
+    }
     setActionLoading(true);
     try {
       const updated = await fetchJson<TdrStDocument>(`/api/TdrSt/documents/${selectedDetailDoc.id}/submit/`, {
@@ -340,16 +400,8 @@ export default function TdRStPage() {
 
   const detailFooterSlot =
     selectedDetailDoc && isRequesterRole(role) && (selectedDetailDoc.statut === "BROUILLON" || selectedDetailDoc.statut === "A_REVOIR") ? (
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="space-y-3">
         <p className="text-sm text-slate-600">Le document sera transmis au circuit de validation TDR/ST.</p>
-        <button
-          type="button"
-          onClick={() => void handleSubmitDocument()}
-          disabled={actionLoading}
-          className="rounded-full bg-emerald-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
-        >
-          Envoyer en validation
-        </button>
       </div>
     ) : selectedDetailDoc && role === "verificateur_technique" && selectedDetailDoc.statut === "SOUMIS" ? (
       <div className="space-y-3">
@@ -434,6 +486,7 @@ export default function TdRStPage() {
           <div className="flex w-full flex-col gap-3 lg:w-auto lg:min-w-[430px] lg:items-end">
             <div className="flex w-full items-center gap-3">
               <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <input
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
@@ -445,13 +498,39 @@ export default function TdRStPage() {
                     onClick={resetSearch}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                   >
-                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
+                    <X className="h-4 w-4" />
                   </button>
                 )}
               </div>
             </div>
+            {canAccessGlobalDashboard && (
+              <div className="flex w-full flex-wrap justify-end gap-2">
+                <div className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+                  <button
+                    type="button"
+                    onClick={() => router.replace(mineScopeHref)}
+                    className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                      dashboardScope === "mine"
+                        ? "bg-slate-900 text-white shadow-sm"
+                        : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                    }`}
+                  >
+                    Mes dossiers
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => router.replace(allScopeHref)}
+                    className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                      dashboardScope === "all"
+                        ? "bg-slate-900 text-white shadow-sm"
+                        : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                    }`}
+                  >
+                    Tous les dossiers
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -498,13 +577,13 @@ export default function TdRStPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    if (!pendingTdrLoading && pendingTdrDemandes.length > 0) {
+                    if (!pendingTdrLoading && filteredPendingDemandes.length > 0) {
                       setPendingDemandesOpen((prev) => !prev);
                     }
                   }}
-                  disabled={pendingTdrLoading || pendingTdrDemandes.length === 0}
+                  disabled={pendingTdrLoading || filteredPendingDemandes.length === 0}
                   className={`flex w-full items-center justify-between px-5 py-4 text-left transition-colors ${
-                    pendingTdrLoading || pendingTdrDemandes.length === 0
+                    pendingTdrLoading || filteredPendingDemandes.length === 0
                       ? "cursor-not-allowed bg-slate-50 opacity-70"
                       : pendingDemandesOpen
                         ? "border-b border-slate-200 bg-slate-50"
@@ -524,9 +603,9 @@ export default function TdRStPage() {
                   </div>
                   <div className="flex items-center gap-2.5">
                     <span className="rounded-full border border-violet-200 bg-violet-500 px-3 py-1 text-xs font-semibold text-white">
-                      {pendingTdrDemandes.length}
+                      {filteredPendingDemandes.length}
                     </span>
-                    {!pendingTdrLoading && pendingTdrDemandes.length > 0 && (
+                    {!pendingTdrLoading && filteredPendingDemandes.length > 0 && (
                       <div className="flex items-center gap-2.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
                         <span className={pendingDemandesOpen ? "text-slate-700" : ""}>
                           {pendingDemandesOpen ? "Masquer" : "Afficher"}
@@ -543,15 +622,15 @@ export default function TdRStPage() {
                   </div>
                 </button>
 
-                {(pendingTdrLoading || pendingDemandesOpen || pendingTdrDemandes.length === 0) && (
+                {(pendingTdrLoading || pendingDemandesOpen || filteredPendingDemandes.length === 0) && (
                   <div className="bg-slate-50 px-4 py-4">
                     {pendingTdrLoading ? (
                       <div className="flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-8 text-sm text-slate-500">
                         Chargement des dossiers à documenter...
                       </div>
-                    ) : pendingTdrDemandes.length > 0 ? (
+                    ) : filteredPendingDemandes.length > 0 ? (
                       <div className="space-y-3">
-                        {pendingTdrDemandes.map((demande) => (
+                        {filteredPendingDemandes.map((demande) => (
                           <div
                             key={demande.id}
                             className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:flex-row md:items-center md:justify-between"

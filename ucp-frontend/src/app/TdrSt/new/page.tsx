@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, FilePlus2, Loader2, Save, SendHorizontal } from "lucide-react";
+import { ArrowLeft, FilePlus2, Loader2, Save, SendHorizontal, Upload } from "lucide-react";
 
 import TopHeader from "@/app/components/TopHeader";
 import {
@@ -105,10 +105,13 @@ export default function TdrStNewPage() {
   const [error, setError] = useState<string | null>(null);
   const [role, setRole] = useState<string | null>(null);
   const [selectedSourceFamily, setSelectedSourceFamily] = useState("");
+  const [uploadingPdf, setUploadingPdf] = useState(false);
+  const pdfInputRef = useRef<HTMLInputElement | null>(null);
   const saving = savingAction !== null;
 
   const isEditable = !activeDoc || EDITABLE_STATUSES.has(activeDoc.statut);
   const isLinkedToDemande = Boolean(activeDoc?.demande_achat_id || linkedDemande?.id || demandeId);
+  const hasUploadedPdf = Boolean(activeDoc?.fichier_courant?.fichier_pdf);
   const selectedFinanceCatalog = useMemo(
     () =>
       findFinanceCatalogEntry(
@@ -239,6 +242,34 @@ export default function TdrStNewPage() {
     return null;
   };
 
+  const buildPayload = () => ({
+    ...form,
+    demande_achat_id: activeDoc?.demande_achat_id ?? linkedDemande?.id ?? undefined,
+    unite_technique: form.unite_technique.trim(),
+    intitule: form.intitule.trim(),
+    reference_ptba: form.reference_ptba.trim(),
+    ligne_budgetaire: form.ligne_budgetaire.trim(),
+    numero_subvention: form.numero_subvention.trim(),
+    montant_estime_usd: form.montant_estime_usd.trim(),
+    duree_estimee_valeur: Number(form.duree_estimee_valeur) || 1,
+    sources_financement: form.sources_financement ? [form.sources_financement] : [],
+  });
+
+  const saveDraftDocument = async () => {
+    const validationError = validateForm("draft");
+    if (validationError) {
+      throw new Error(validationError);
+    }
+
+    return await fetchJson<TdrStDocument>(
+      isEditMode ? `/api/TdrSt/documents/${documentId}/` : "/api/TdrSt/documents/",
+      {
+        method: isEditMode ? "PATCH" : "POST",
+        body: JSON.stringify(buildPayload()),
+      },
+    );
+  };
+
   const handleSave = async (mode: "draft" | "submit") => {
     const validationError = validateForm(mode);
     if (validationError) {
@@ -254,26 +285,11 @@ export default function TdrStNewPage() {
     setSavingAction(mode);
     setError(null);
     try {
-      const payload = {
-        ...form,
-        demande_achat_id: activeDoc?.demande_achat_id ?? linkedDemande?.id ?? undefined,
-        unite_technique: form.unite_technique.trim(),
-        intitule: form.intitule.trim(),
-        reference_ptba: form.reference_ptba.trim(),
-        ligne_budgetaire: form.ligne_budgetaire.trim(),
-        numero_subvention: form.numero_subvention.trim(),
-        montant_estime_usd: form.montant_estime_usd.trim(),
-        duree_estimee_valeur: Number(form.duree_estimee_valeur) || 1,
-        sources_financement: form.sources_financement ? [form.sources_financement] : [],
-      };
+      const savedDoc = await saveDraftDocument();
 
-      const savedDoc = await fetchJson<TdrStDocument>(
-        isEditMode ? `/api/TdrSt/documents/${documentId}/` : "/api/TdrSt/documents/",
-        {
-          method: isEditMode ? "PATCH" : "POST",
-          body: JSON.stringify(payload),
-        },
-      );
+      if (mode === "submit" && !savedDoc.fichier_courant?.fichier_pdf) {
+        throw new Error("Televerse un PDF avant d'envoyer le document en validation.");
+      }
 
       const finalDoc =
         mode === "submit"
@@ -287,6 +303,77 @@ export default function TdrStNewPage() {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setSavingAction(null);
+    }
+  };
+
+  const MAX_PDF_SIZE_MB = 15;
+  const MAX_PDF_SIZE_BYTES = MAX_PDF_SIZE_MB * 1024 * 1024;
+
+  const uploadPdfForDocument = async (docId: number, file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const response = await fetchJson<{ document: TdrStDocument }>(`/api/TdrSt/documents/${docId}/upload/`, {
+      method: "POST",
+      body: formData,
+    });
+
+    return response.document;
+  };
+
+  const handlePdfFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file) return;
+    
+    if (!file.name.toLowerCase().endsWith(".pdf")) {
+      setError("Seuls les fichiers PDF sont acceptes.");
+      return;
+    }
+    
+    if (file.size > MAX_PDF_SIZE_BYTES) {
+      setError(`Le fichier est trop volumineux. Taille maximale: ${MAX_PDF_SIZE_MB} Mo.`);
+      return;
+    }
+
+    if (isEditMode && !isEditable) {
+      setError("Ce document n'est plus modifiable.");
+      return;
+    }
+
+    setUploadingPdf(true);
+    setError(null);
+    
+    try {
+      let docToUpload = activeDoc;
+      
+      // Si pas de document existant, il faut d'abord le créer
+      if (!docToUpload) {
+        // Valider le formulaire avant de créer le document
+        const validationError = validateForm("draft");
+        if (validationError) {
+          throw new Error(validationError);
+        }
+        
+        // Créer le document brouillon
+        docToUpload = await fetchJson<TdrStDocument>("/api/TdrSt/documents/", {
+          method: "POST",
+          body: JSON.stringify(buildPayload()),
+        });
+        
+        // Mettre à jour l'état local avec le nouveau document
+        setActiveDoc(docToUpload);
+      }
+      
+      // Maintenant uploader le PDF sur le document existant
+      const uploadedDoc = await uploadPdfForDocument(docToUpload.id, file);
+      router.replace(`/TdrSt/new?id=${uploadedDoc.id}`);
+    } catch (e: unknown) {
+      console.error("Upload error:", e);
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setUploadingPdf(false);
     }
   };
 
@@ -572,7 +659,7 @@ export default function TdrStNewPage() {
               </div>
 
               <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">
-                <Field label="Montant estimé (USD) *">
+                <Field label="Montant estimé (MGA) *">
                   <input
                     type="number"
                     min={0}
@@ -592,6 +679,49 @@ export default function TdrStNewPage() {
                     className={inputClassName}
                   />
                 </Field>
+              </div>
+            </section>
+
+            <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-7">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <h2 className="text-lg font-semibold text-slate-900">Document PDF</h2>
+                  <p className="text-sm text-slate-500">
+                    Le PDF est obligatoire avant l'envoi en validation.
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  {hasUploadedPdf ? (
+                    <a
+                      href={activeDoc?.fichier_courant?.fichier_pdf}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+                    >
+                      Voir le PDF
+                    </a>
+                  ) : (
+                    <span className="rounded-full border border-amber-200 bg-amber-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-amber-700">
+                      PDF manquant
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => pdfInputRef.current?.click()}
+                    disabled={saving || uploadingPdf || loading || !isEditable}
+                    className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white shadow transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {uploadingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                    {hasUploadedPdf ? "Remplacer le PDF" : "Televerser un PDF"}
+                  </button>
+                  <input
+                    ref={pdfInputRef}
+                    type="file"
+                    accept="application/pdf,.pdf"
+                    onChange={handlePdfFileChange}
+                    className="hidden"
+                  />
+                </div>
               </div>
             </section>
 
@@ -615,7 +745,7 @@ export default function TdrStNewPage() {
               <button
                 type="button"
                 onClick={() => void handleSave("submit")}
-                disabled={saving || loading || !isEditable}
+                disabled={saving || loading || uploadingPdf || !isEditable || !hasUploadedPdf}
                 className="inline-flex items-center gap-2 rounded-full bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white shadow transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {savingAction === "submit" ? (
@@ -625,7 +755,7 @@ export default function TdrStNewPage() {
                 )}
                 Enregistrer et envoyer
               </button>
-            </div>
+            </div>           
           </div>
         )}
       </main>

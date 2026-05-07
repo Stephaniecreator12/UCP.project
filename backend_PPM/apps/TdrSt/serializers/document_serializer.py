@@ -55,6 +55,14 @@ class TdrStDocumentFileVersionSerializer(serializers.ModelSerializer):
             "snapshot_data",
         ]
         read_only_fields = fields
+        
+    def get_version_label(self, obj):
+        """Retourne 'Finale' pour la version 2, 'Antérieur' pour la version 1"""
+        if obj.version == 2:
+            return "Finale"
+        elif obj.version == 1:
+            return "Antérieur"
+        return f"Version {obj.version}"
 
 
 class TdrStValidationActionSerializer(serializers.ModelSerializer):

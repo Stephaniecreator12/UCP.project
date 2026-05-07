@@ -80,6 +80,11 @@ export default function DocumentDetailModal({
   const montant = formatAmountForRow(activeDocument.montant_estime_usd);
   const createdDate = formatDateForRow(activeDocument.created_at);
   const updatedDate = formatDateForRow(activeDocument.updated_at);
+  const getVersionLabel = (version: number) => {
+  if (version === 2) return "Finale";
+  if (version === 1) return "Antérieur";
+  return `Version ${version}`;
+  };
 
   return (
     <div
@@ -232,67 +237,79 @@ export default function DocumentDetailModal({
               )}
             </div>
 
-            <div className="space-y-5">
-              <Section title="Document PDF" icon={FileText}>
-                {activeDocument.fichier_courant?.fichier_pdf ? (
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 text-center">
-                    <FileText className="mx-auto h-8 w-8 text-emerald-600" />
-                    <p className="mt-2 text-sm font-medium text-slate-700">Version {activeDocument.version}</p>
-                    <a
-                      href={activeDocument.fichier_courant.fichier_pdf}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="mt-3 inline-flex items-center gap-2 rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700"
-                    >
-                      Visualiser le PDF
-                    </a>
-                  </div>
-                ) : (
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-center">
-                    <FileText className="mx-auto h-8 w-8 text-slate-400" />
-                    <p className="mt-2 text-sm text-slate-500">Aucun PDF disponible</p>
-                  </div>
-                )}
-              </Section>
+              <div className="space-y-5">
+  <Section title="Document PDF" icon={FileText}>
+    {activeDocument.fichier_courant?.fichier_pdf ? (
+      <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 text-center">
+        <FileText className="mx-auto h-8 w-8 text-emerald-600" />
+        <p className="mt-2 text-sm font-medium text-slate-700">
+          {activeDocument.version === 2 
+            ? "Version Finale" 
+            : activeDocument.version === 1 
+              ? "Version Antérieure"
+              : `Version ${activeDocument.version}`}
+        </p>
+        <a
+          href={`${process.env.NEXT_PUBLIC_API_URL || ''}${activeDocument.fichier_courant.fichier_pdf}`}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-3 inline-flex items-center gap-2 rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700"
+        >
+          Visualiser le PDF
+        </a>
+      </div>
+    ) : (
+      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-center">
+        <FileText className="mx-auto h-8 w-8 text-slate-400" />
+        <p className="mt-2 text-sm text-slate-500">Aucun PDF disponible</p>
+      </div>
+    )}
+  </Section>
 
-              {activeDocument.versions_fichier && activeDocument.versions_fichier.length > 0 && (
-                <Section title="Versions anterieures" icon={History}>
-                  <div className="space-y-2">
-                    {[...activeDocument.versions_fichier]
-                      .sort((a, b) => (b.version ?? 0) - (a.version ?? 0))
-                      .filter((version) => version.version !== activeDocument.version)
-                      .map((version) => (
-                        <div key={version.id} className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-semibold text-slate-700">Version {version.version}</span>
-                            {onViewVersion && (
-                              <button
-                                type="button"
-                                onClick={() => onViewVersion(version.version, activeDocument.id)}
-                                className="text-xs text-emerald-600 hover:underline"
-                              >
-                                Voir cette version
-                              </button>
-                            )}
-                          </div>
-                          {version.fichier_pdf && (
-                            <a
-                              href={version.fichier_pdf}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="mt-2 inline-flex items-center gap-1 text-xs text-emerald-600 hover:underline"
-                            >
-                              Telecharger le PDF
-                            </a>
-                          )}
-                          <p className="mt-1 text-xs text-slate-400">
-                            {version.uploaded_at && formatDateForRow(version.uploaded_at)}
-                          </p>
-                        </div>
-                      ))}
-                  </div>
-                </Section>
+  {activeDocument.versions_fichier && activeDocument.versions_fichier.length > 0 && (
+    <Section title="Versions antérieures" icon={History}>
+      <div className="space-y-2">
+        {[...activeDocument.versions_fichier]
+          .sort((a, b) => (b.version ?? 0) - (a.version ?? 0))
+          .filter((version) => version.version !== activeDocument.version)
+          .map((version, index) => (
+            <div key={version.fichier_pdf || index} className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-semibold text-slate-700">
+                  {version.version === 1 || version.version === 2 
+                    ? "Antérieure" 
+                    : `Version ${version.version}`}
+                </span>
+                {onViewVersion && (
+                  <button
+                    type="button"
+                    onClick={() => onViewVersion(version.version, activeDocument.id)}
+                    className="text-xs text-emerald-600 hover:underline"
+                  >
+                    Voir cette versionnnn
+                  </button>
+                )}
+              </div>
+              {version.fichier_pdf && (
+                <a
+                  href={`${process.env.NEXT_PUBLIC_API_URL || ''}${version.fichier_pdf}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-2 inline-flex items-center gap-1 text-xs text-emerald-600 hover:underline"
+                >
+                  Visualiser le PDF
+                </a>
               )}
+              <p className="mt-1 text-xs text-slate-400">
+                {version.uploaded_at && formatDateForRow(version.uploaded_at)}
+              </p>
+            </div>
+          ))}
+      </div>
+    </Section>
+  )}
+
+
 
               {activeDocument.requires_ano && (
                 <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">

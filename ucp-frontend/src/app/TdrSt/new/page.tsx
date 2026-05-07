@@ -313,12 +313,28 @@ export default function TdrStNewPage() {
     const formData = new FormData();
     formData.append("file", file);
 
-    const response = await fetchJson<{ document: TdrStDocument }>(`/api/TdrSt/documents/${docId}/upload/`, {
+    const token = getToken();
+    
+    const response = await fetch(`/api/TdrSt/documents/${docId}/upload/`, {
       method: "POST",
+      headers: token ? {
+        'Authorization': `Bearer ${token}`,
+      } : {},
       body: formData,
     });
 
-    return response.document;
+    if (!response.ok) {
+      // Ne pas essayer de parser le corps, juste lancer une erreur simple
+      throw new Error(`Erreur lors de l'upload: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    
+    if (!data?.document) {
+      throw new Error("Réponse invalide du serveur");
+    }
+    
+    return data.document;
   };
 
   const handlePdfFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -348,29 +364,29 @@ export default function TdrStNewPage() {
     try {
       let docToUpload = activeDoc;
       
-      // Si pas de document existant, il faut d'abord le créer
       if (!docToUpload) {
-        // Valider le formulaire avant de créer le document
         const validationError = validateForm("draft");
         if (validationError) {
           throw new Error(validationError);
         }
         
-        // Créer le document brouillon
         docToUpload = await fetchJson<TdrStDocument>("/api/TdrSt/documents/", {
           method: "POST",
           body: JSON.stringify(buildPayload()),
         });
-        
-        // Mettre à jour l'état local avec le nouveau document
         setActiveDoc(docToUpload);
       }
       
-      // Maintenant uploader le PDF sur le document existant
+      // Upload du PDF
       const uploadedDoc = await uploadPdfForDocument(docToUpload.id, file);
-      router.replace(`/TdrSt/new?id=${uploadedDoc.id}`);
+      
+      // 🔥 MISE À JOUR IMMÉDIATE DE L'ÉTAT LOCAL
+      setActiveDoc(uploadedDoc);
+      
+      setError(null);
+
     } catch (e: unknown) {
-      console.error("Upload error:", e);
+      console.error("Upload error details:", e);
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setUploadingPdf(false);
@@ -687,24 +703,37 @@ export default function TdrStNewPage() {
                 <div>
                   <h2 className="text-lg font-semibold text-slate-900">Document PDF</h2>
                   <p className="text-sm text-slate-500">
-                    Le PDF est obligatoire avant l'envoi en validation.
+                    Le PDF est obligatoire avant l'envoi en validation. Taille maximale: {MAX_PDF_SIZE_MB} Mo.
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
                   {hasUploadedPdf ? (
                     <a
-                      href={activeDoc?.fichier_courant?.fichier_pdf}
+                      href={`${process.env.NEXT_PUBLIC_API_URL || ''}${activeDoc?.fichier_courant?.fichier_pdf}`}
                       target="_blank"
                       rel="noreferrer"
                       className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
                     >
-                      Voir le PDF
+                      Voir le PDF (Finale)
                     </a>
                   ) : (
                     <span className="rounded-full border border-amber-200 bg-amber-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-amber-700">
                       PDF manquant
                     </span>
                   )}
+                  
+                  {/* Afficher la version antérieure si elle existe */}
+                  {activeDoc?.versions_fichier && activeDoc.versions_fichier.length > 1 && (
+                    <a
+                      href={`${process.env.NEXT_PUBLIC_API_URL || ''}${activeDoc.versions_fichier[1]?.fichier_pdf}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+                    >
+                      Voir la version antérieure
+                    </a>
+                  )}
+                  
                   <button
                     type="button"
                     onClick={() => pdfInputRef.current?.click()}
@@ -712,7 +741,7 @@ export default function TdrStNewPage() {
                     className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white shadow transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {uploadingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                    {hasUploadedPdf ? "Remplacer le PDF" : "Televerser un PDF"}
+                    {hasUploadedPdf ? "Remplacer le PDF (nouvelle version finale)" : "Téléverser un PDF"}
                   </button>
                   <input
                     ref={pdfInputRef}

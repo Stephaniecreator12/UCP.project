@@ -446,14 +446,40 @@ def suspendre_document(doc: TdrStDocument, user, observations: str = "") -> TdrS
 
 @transaction.atomic
 def add_new_file_version(doc: TdrStDocument, uploaded_file, user) -> TdrStDocumentFileVersion:
+    print(f"[SERVICE] add_new_file_version - doc_id: {doc.id}, user_id: {user.id}")
+    
     if getattr(doc, "demandeur_id", None) != getattr(user, "id", None):
         raise ValidationError({"detail": "Seul le demandeur peut téléverser une version."})
+    
     if doc.statut not in (TdrStDocument.Statut.BROUILLON, TdrStDocument.Statut.A_REVOIR):
         raise ValidationError({"statut": "Téléversement autorisé uniquement en brouillon/à revoir."})
     
-    next_version = (doc.versions_fichier.aggregate(models.Max("version")).get("version__max") or 0) + 1
+    print(f"[SERVICE] Document valide, récupération des versions existantes...")
     
-    # ⭐ CAPTURE DE L'ÉTAT COMPLET DU DOCUMENT
+    existing_versions = list(doc.versions_fichier.order_by("-version"))
+    print(f"[SERVICE] Nombre de versions existantes: {len(existing_versions)}")
+    
+    # Au lieu de renommer l'ancienne version, on va créer une nouvelle version avec un numéro incrémenté
+    # et la version courante devient l'antérieure
+    
+    # Déterminer le prochain numéro de version
+    max_version = existing_versions[0].version if existing_versions else 0
+    next_version = max_version + 1
+    
+    print(f"[SERVICE] Nouvelle version numéro: {next_version}")
+    
+    # Si on a déjà 2 versions ou plus, supprimer la plus ancienne (hors version courante)
+    if len(existing_versions) >= 2:
+        # Garder seulement les 2 versions les plus récentes
+        versions_to_keep = existing_versions[:1]  # Garder la plus récente
+        versions_to_delete = existing_versions[1:]  # Supprimer les autres
+        for old_version in versions_to_delete:
+            print(f"[SERVICE] Suppression ancienne version {old_version.version}")
+            if old_version.fichier_pdf:
+                old_version.fichier_pdf.delete(save=False)
+            old_version.delete()
+    
+    # Capture du snapshot
     snapshot = {
         "unite_technique": doc.unite_technique,
         "type_document": doc.type_document,
@@ -472,6 +498,7 @@ def add_new_file_version(doc: TdrStDocument, uploaded_file, user) -> TdrStDocume
         "statut": doc.statut,
     }
     
+    print(f"[SERVICE] Création nouvelle version {next_version}...")
     version_obj = TdrStDocumentFileVersion.objects.create(
         document=doc,
         version=next_version,
@@ -479,14 +506,16 @@ def add_new_file_version(doc: TdrStDocument, uploaded_file, user) -> TdrStDocume
         fichier_nom_original=getattr(uploaded_file, "name", "") or "",
         fichier_taille_octets=getattr(uploaded_file, "size", None),
         uploaded_by=user,
-        snapshot_data=snapshot,  # ⭐ STOCKAGE DU SNAPSHOT
+        snapshot_data=snapshot,
     )
     
+    print(f"[SERVICE] Calcul empreinte SHA256...")
     version_obj.empreinte_sha256 = version_obj.compute_sha256()
     version_obj.save(update_fields=["empreinte_sha256"])
 
     doc.fichier_courant = version_obj
     doc.version = next_version
     doc.save(update_fields=["fichier_courant", "version", "updated_at"])
-
+    
+    print(f"[SERVICE] Upload terminé avec succès")
     return version_obj

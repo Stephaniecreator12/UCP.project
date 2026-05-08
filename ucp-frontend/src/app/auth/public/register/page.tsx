@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import  {publicLoginOrRegister}  from "../../../services/auth";
+import  {publicRegister}  from "../../../../services/auth";
 
 export default function RegisterPage(){
     const [full_name, setFull_name] = useState("");
@@ -29,6 +29,8 @@ export default function RegisterPage(){
           e.preventDefault();
           setIsMessage(false);
           setLoading(true);
+          setIsMessage(true);
+          setMessage("chargement...")
 
       if(confirmPassword != password){
         setLoading(false);
@@ -37,7 +39,7 @@ export default function RegisterPage(){
         return;
       }
       try {
-        const result = await publicLoginOrRegister(full_name, email, phone, type_entite, nif, password);
+        const result = await publicRegister(full_name, email, phone, type_entite, nif, password);
         setMessage(result.message || "Action réussie");
         setIsRegisterValid(result.success);
         setLoading(false)

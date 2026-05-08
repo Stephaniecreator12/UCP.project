@@ -247,7 +247,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!getToken()) {
-      router.replace("/login");
+      router.replace("/auth/login");
       return;
     }
 

@@ -1,45 +1,106 @@
 import { API_BASE_URL, API_RH_URL } from "./api";
 interface LoginResult {
   status: number;
-  success: boolean;
-  message?: string;
+  success?: boolean;
+  message?: string;  
 }
 interface RegisterResult {
   status: number;
   success: boolean;
   message: string;
 }
-
+export const rhLogin = async (
+  email: string,
+  password: string,
+): Promise<LoginResult> => {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => {
+    controller.abort();
+  }, 3000);
+  try {
+    const response = await fetch(`${API_RH_URL}/api/logins`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    clearTimeout(timeout);
+    const data = await response.json();
+    const accessType = "private"
+    if (response.ok) {
+      localStorage.setItem("access_token", data.access);
+      localStorage.setItem("refresh_token", data.refresh);
+      localStorage.setItem("accessType", accessType);
+      document.cookie = `access_type=${accessType}; path=/`;
+      document.cookie = `access_token=${data.access}; path=/`;
+      return {status:200, success: true};
+    }
+    if(response.status == 400){
+      return{
+      status: response.status,
+      success: false,
+      message: data.message || "l'adresse e-mail ou mot de passe incorrect",
+    }
+    }return{
+      status: 404,
+      success: false,
+      message: data.message || "Identifiants introuvable",
+    }
+  } catch {
+    clearTimeout(timeout);
+    return { status: 500,success: false, message: "serveur RH inaccessible" };
+  }
+};
+export const publicLogin = async (
+  email: string,
+  password: string,
+): Promise<LoginResult> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/public/login/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await response.json();
+    const accessType = "public"
+    if (response.ok) {
+      localStorage.setItem("access_token", data.access);
+      localStorage.setItem("refresh_token", data.refresh);
+      localStorage.setItem("access_type", accessType);
+      document.cookie = `access_type=${accessType}; path=/`;
+      document.cookie = `access_token=${data.access}; path=/`;
+      return {status:200, success: true};
+    }
+    if(response.status == 404){
+      return{
+        message:"identifiants publique introuvable",
+        success: false,
+        status:404
+    }
+    }return{
+      status: response.status,
+      success: false,
+      message: data.message || "l'adresse e-mail publique ou mot de passe incorrect",
+    }
+  } catch {
+    return { status: 500,success: false, message: "serveur RH inaccessible" };
+  }
+};
 export const login = async (
   email: string,
   password: string,
 ): Promise<LoginResult> => {
   try {
-    const response = await fetch(`${API_RH_URL}/api/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
-
-    const data = await response.json();
-
-    if (response.ok) {
-      localStorage.setItem("access_token", data.access);
-      localStorage.setItem("refresh_token", data.refresh);
-      return {status:200, success: true };
+    const rhResponse = await rhLogin(email, password);
+    if(rhResponse.status == 404 || rhResponse.status == 500) {
+        return await publicLogin(email, password);
     }
-    if (response.status == 400) {
-      return {
-      status: 400,
-      success: false,
-      message: "l'adresse e-mail ou mot de passe incorrect",
-    };
-    if(response.status == 404){
-      
-    }
-    }
+    return rhResponse;
   } catch {
-    return { status: 500,success: false, message: "Erreur de connexion au serveur" };
+    return {
+      status: 500,
+      success: false,
+      message: "Erreur de connexion au serveur",
+    };
   }
 };
 
@@ -47,6 +108,16 @@ export const logout = () => {
   if (typeof window === "undefined") return;
   localStorage.removeItem("access_token");
   localStorage.removeItem("refresh_token");
+  localStorage.removeItem("access_type");
+
+  document.cookie =
+    "access_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+
+  document.cookie =
+    "refresh_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+
+  document.cookie =
+    "access_type=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
 };
 
 export const getToken = () => {
@@ -129,5 +200,6 @@ else if (result.type_entite) {
 export const isUCPDomain = (email: string): boolean => {
   if (!email || !email.includes('@')) return false;
   const domain = email.split('@')[1].toLowerCase();
+
   return domain === "ucp.mg";
 };

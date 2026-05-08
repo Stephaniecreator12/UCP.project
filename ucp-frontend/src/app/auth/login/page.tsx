@@ -3,53 +3,66 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { getToken, login, isUCPDomain } from "@/services/auth";
+import { getToken, login} from "@/services/auth";
 
-const DEFAULT_AFTER_LOGIN_ROUTE = "/dashboard";
-const DEFAULT_PUBLIC_LOGIN_ROUTE = "/auth/public";
-
+const DEFAULT_PUBLIC_REGISTER_ROUTE = "/auth/public/register";
+const DEFAULT_PUBLIC_ROUTE = "/public/dao-dc";
+const DEFAULT_PRIVATE_ROUTE = "/private/dao-dc"
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [access, setAccess] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('access_type') || "public";
+    }
+    return "public";
+  });
   const router = useRouter();
 
   useEffect(() => {
-    if (getToken()) {
-      router.replace(`${DEFAULT_AFTER_LOGIN_ROUTE}`);
+    const token = getToken();
+    if (token) {
+      if(access == "private"){
+        router.push(`${DEFAULT_PRIVATE_ROUTE}`);
+      }
+      router.push(`${DEFAULT_PUBLIC_ROUTE}`);
     }
-  }, [router]);
+  }, [access, router]);
 
 const handleLogin = async (e: React.FormEvent) => {
   e.preventDefault();
+  setMessage("")
   setLoading(true);
-  setError("");
+  setMessage("chargement...");
 
   const result = await login(email, password);
 
   if (result.success) {
-    router.push(DEFAULT_AFTER_LOGIN_ROUTE);
+    if(access == "private"){
+      router.push(`${DEFAULT_PRIVATE_ROUTE}`);
+    }
+    router.push(`${DEFAULT_PUBLIC_ROUTE}`);
     return;
   }
-    if (!isUCPDomain(email)) {
-    setError("Domaine non reconnu. Redirection vers l'espace public...");
+  else if(result.message == "identifiants publique introuvable"){
+    setLoading(false);
+    setMessage("Redirection vers l'espace public...");
     setTimeout(() => {
-      router.push(DEFAULT_PUBLIC_LOGIN_ROUTE);
+      router.push(`${DEFAULT_PUBLIC_REGISTER_ROUTE}`);
       setLoading(false);
     }, 2000);
     return;
   }
-  setError(result.message || "Une erreur est survenue");
-  setLoading(false);
+  else{
+    setMessage(result.message || "Une erreur est survenue");
+    setLoading(false);
+  }
+  
 };
 
-  const handleRegisterRedirection = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    router.push(`${DEFAULT_PUBLIC_LOGIN_ROUTE}`);
-  };
 
   return (
     <div className="min-h-screen w-full overflow-hidden">
@@ -91,9 +104,9 @@ const handleLogin = async (e: React.FormEvent) => {
               <p className="mt-2 text-sm text-slate-300 leading-relaxed tracking-[0.1em]">Bienvenue</p>
             </div>
 
-            {error && (
+            {message && (
               <div className="mt-5 bg-red-500/10 border border-red-400/40 text-black px-4 py-3 rounded-lg text-sm">
-                {error}
+                {message}
               </div>
             )}
 
@@ -153,15 +166,6 @@ const handleLogin = async (e: React.FormEvent) => {
                 className="w-full mt-2 bg-[linear-gradient(96deg,#68ff8a_0%,#31d767_42%,#14943e_100%)] text-[#154b30eb] font-bold tracking-wide py-3 px-4 rounded-xl hover:brightness-110 transition duration-200 shadow-[0_16px_26px_-14px_rgba(46,218,102,0.88)]"
               >
                 Se connecter
-              </button>
-              <button
-                type="button"
-                className="w-full mt-2 bg-[linear-gradient(96deg,#68ff8a_0%,#31d767_42%,#14943e_100%)] text-[#154b30eb] font-bold tracking-wide py-3 px-4 rounded-xl hover:brightness-110 transition duration-200 shadow-[0_16px_26px_-14px_rgba(46,218,102,0.88)]"
-                onClick={
-                  handleRegisterRedirection
-                }
-              >
-                Connexion publique
               </button>
             </form>
             

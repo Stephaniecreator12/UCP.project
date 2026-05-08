@@ -69,11 +69,6 @@ class PublicLoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
 
-    full_name = serializers.CharField(required=True)
-    phone = serializers.CharField(required=True)
-    nif = serializers.CharField(required=False, allow_blank=True)
-    type_entite = serializers.CharField(required=True)
-
     def validate(self, data):
         email = data.get('email')
         password = data.get('password')
@@ -90,30 +85,6 @@ class PublicLoginSerializer(serializers.Serializer):
             raise serializers.ValidationError({
                 "error": "invalid_credentials",
                 "message": "Mot de passe incorrect"
-            })
-
-        if user.nif and user.nif != data.get('nif'):
-            raise serializers.ValidationError({
-                "error": "invalid_info",
-                "message": "NIF incorrect"
-            })
-
-        if user.type_entite != data.get('type_entite'):
-            raise serializers.ValidationError({
-                "error": "invalid_info",
-                "message": "Type entité incorrect"
-            })
-
-        if user.full_name != data.get('full_name'):
-            raise serializers.ValidationError({
-                "error": "invalid_info",
-                "message": "Nom incorrect"
-            })
-
-        if user.phone != data.get('phone'):
-            raise serializers.ValidationError({
-                "error": "invalid_info",
-                "message": "Téléphone incorrect"
             })
 
         data['user'] = user

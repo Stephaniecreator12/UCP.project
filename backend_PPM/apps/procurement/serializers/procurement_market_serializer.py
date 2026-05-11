@@ -94,7 +94,7 @@ class ProcurementMarketSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({
                 "deadline": "obligatoire"
         })
-        if(deadline <= publication_date):
+        if(deadline < publication_date):
             raise serializers.ValidationError({
                 "deadline": "deadline supérieur à la date de publication"
         })

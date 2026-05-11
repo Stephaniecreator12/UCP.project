@@ -1,7 +1,7 @@
 from django.db import models
 from django.core.exceptions import ValidationError
 from django.utils import timezone
-
+from django.core.validators import FileExtensionValidator
 
 
 class ProcedureType(models.TextChoices):
@@ -49,24 +49,29 @@ class ProcurementMarket(models.Model):
         choices=CategoryType.choices
     )
 
-    financing_sources = models.ManyToManyField(
-        "Financing",
-        related_name="markets"
+    financing_source = models.CharField(
+        max_length=50,
+        choices=FinancingSource.choices,
+        null=True,
+        blank=True
     )
 
-    reference_bailleur = models.ForeignKey(
-        "Financing",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="reference_markets"
-    )
+    reference_bailleur = models.JSONField(default=list)
 
     project_code = models.CharField(max_length=100, blank=True, null=True)
 
     publication_date = models.DateTimeField(null=True, blank=True, editable=False)
 
     deadline = models.DateTimeField()
+
+    submission_model = models.FileField(
+        upload_to="submission_models/",
+        validators=[
+            FileExtensionValidator(["docx"])
+        ],
+        null=True,
+        blank=True
+    )
 
     status = models.CharField(
         max_length=20,
@@ -76,20 +81,20 @@ class ProcurementMarket(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
 
-    # =========================
-    # LOGIQUE METIER
-    # =========================
 
     def save(self, *args, **kwargs):
         if not self.reference_number:
             self.reference_number = self.generate_reference()
 
+        if self.status == PublicationStatus.PUBLISHED and not self.publication_date:
+            self.publication_date = timezone.now()
+
         super().save(*args, **kwargs)
 
     def generate_reference(self):
         year = timezone.now().year
-        count = ProcurementMarket.objects.count() + 1
-        return f"UCP/DAO/{year}/{count:04d}"
+        last_id = ProcurementMarket.objects.count() + 1
+        return f"UCP/DAO/{year}/{last_id:04d}"
 
     def clean(self):
         if self.publication_date and self.deadline:

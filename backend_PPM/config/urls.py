@@ -14,6 +14,7 @@ urlpatterns = [
     path("api/ppm/", include("apps.ppm.urls")),
     path("api/users/", include("apps.users.urls")),
     path("api/TdrSt/", include("apps.TdrSt.urls")),
+    path('api/procurement/', include('apps.procurement.urls')),
     
 
     #path("URL", fonction_qui_repond, name="nom")

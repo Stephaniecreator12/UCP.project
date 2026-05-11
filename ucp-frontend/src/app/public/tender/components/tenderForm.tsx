@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { createTender} from "@/services/tender";
+import { createTender} from "@/services/procurement";
 export default function TenderForm() {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState('');

@@ -1,14 +1,14 @@
 "use client";
-
+import { FINANCING_SOURCE_LABELS } from "@/lib/locales/french";
 import {
   CardContent,
   CardHeader,
   CardTitle,
   Card,
 } from "@/app/TdrSt/dashboard/ui/card";
-
+import { useWatch } from "react-hook-form";
 import { UseFormReturn } from "react-hook-form";
-
+import { useEffect } from "react";
 import { ProcurementFormValues }
 from "../../../../../types/procurement";
 
@@ -25,8 +25,24 @@ export function FinancingSection({
   form,
 }: Props) {
 
-  const selected =
-    form.watch("financing_sources") || [];
+  
+
+const selected = useWatch({
+  control: form.control,
+  name: "financing_sources",
+});
+
+  useEffect(() => {
+  if (!selected) return;
+
+  if (selected.length === 1) {
+    form.setValue("reference_bailleur", selected[0]);
+  }
+
+  if (selected.length === 0) {
+    form.setValue("reference_bailleur", undefined);
+  }
+}, [selected, form]);
 
   return (
     <Card>
@@ -63,7 +79,7 @@ export function FinancingSection({
                 {...form.register("financing_sources")}
               />
 
-              Gavi
+              Alliance Gavi
             </label>
 
             <label>
@@ -96,14 +112,14 @@ export function FinancingSection({
                   key={item}
                   value={item}
                 >
-                  {item}
+                  {FINANCING_SOURCE_LABELS[item]}
                 </option>
               ))}
             </select>
             ):(
               <div>
                 {selected.length?
-                <p>{selected[0]}</p>:<p>aucun</p>}
+                <p>{FINANCING_SOURCE_LABELS[selected[0]]}</p>:<p>aucun</p>}
               </div>
             )
         }

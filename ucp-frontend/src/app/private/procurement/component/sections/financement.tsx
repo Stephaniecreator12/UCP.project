@@ -11,7 +11,16 @@ import { UseFormReturn } from "react-hook-form";
 import { useEffect } from "react";
 import { ProcurementFormValues }
 from "../../../../../types/procurement";
+import { FINANCE_CATALOG } from "@/lib/financeCatalog";
+function generateProjectCode(bailleur: string | undefined) {
+  if (!bailleur) return "";
 
+  const match = FINANCE_CATALOG.find(
+    (c) => c.family === bailleur
+  );
+
+  return match ? match.value : "";
+}
 export type FinancingSource =
   | "Fonds Mondial"
   | "Alliance Gavi"
@@ -31,7 +40,14 @@ const selected = useWatch({
   control: form.control,
   name: "financing_sources",
 });
-
+const referenceBailleur = useWatch({
+  control: form.control,
+  name: "reference_bailleur",
+});
+const projectCode = useWatch({
+  control: form.control,
+  name: "project_code",
+});
   useEffect(() => {
   if (!selected) return;
 
@@ -42,7 +58,16 @@ const selected = useWatch({
   if (selected.length === 0) {
     form.setValue("reference_bailleur", undefined);
   }
-}, [selected, form]);
+  if (!referenceBailleur) return;
+  const code = generateProjectCode(referenceBailleur);
+
+  if (code) {
+    form.setValue("project_code", code, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+  }
+}, [selected,referenceBailleur, form]);
 
   return (
     <Card>
@@ -132,10 +157,7 @@ const selected = useWatch({
             Code projet
           </label>
 
-          <input
-            {...form.register("project_code")}
-            className="input"
-          />
+          <p>{projectCode}</p>
 
         </div>
 

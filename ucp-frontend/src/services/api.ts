@@ -2,10 +2,9 @@
  * Service API pour appeler le backend Django (backend_PPM)
  * Ce service gère désormais les 3 types de marchés : Travaux, Biens, Consultance
  */
-
 export const API_BASE_URL =
-  "http://127.0.0.1:8000";
-export const API_RH_URL = "http://192.168.0.4:8000"
+  process.env.NEXT_PUBLIC_API_BASE_URL;
+export const API_RH_URL = process.env.NEXT_PUBLIC_API_RH_URL
 const SESSION_EXPIRED_MESSAGE = "Session expirée. Connecte-toi puis réessaie.";
 
 const clearSessionAndRedirectToLogin = () => {

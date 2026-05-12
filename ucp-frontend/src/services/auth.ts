@@ -1,3 +1,4 @@
+"use client";
 import { API_BASE_URL, API_RH_URL } from "./api";
 interface LoginResult {
   status: number;
@@ -18,7 +19,7 @@ export const rhLogin = async (
     controller.abort();
   }, 3000);
   try {
-    const response = await fetch(`${API_RH_URL}/api/logins`, {
+    const response = await fetch(`${API_RH_URL}/logins`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
@@ -55,7 +56,7 @@ export const publicLogin = async (
   password: string,
 ): Promise<LoginResult> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/public/login/`, {
+    const response = await fetch(`${API_BASE_URL}/public/login/`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
@@ -136,7 +137,7 @@ export const publicRegister = async (
 
 ): Promise<RegisterResult> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/users/create/`, {
+    const response = await fetch(`${API_BASE_URL}/users/create/`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(

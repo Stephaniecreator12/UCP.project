@@ -1,8 +1,8 @@
-/*import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 export function middleware(request: NextRequest) {
 
-  const path = request.nextUrl.pathname;
+  /*const path = request.nextUrl.pathname;
 
   const accessType =
     request.cookies.get("access_type")?.value;
@@ -28,4 +28,5 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: ["/private/:path*", "/public/:path*"],
-};*/
+  */
+};

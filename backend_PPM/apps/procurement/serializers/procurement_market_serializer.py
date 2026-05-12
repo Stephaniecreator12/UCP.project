@@ -35,7 +35,7 @@ class ProcurementMarketSerializer(serializers.ModelSerializer):
             "title",
             "procedure_type",
             "category",
-            "financing_source",
+            "financing_sources",
             "reference_bailleur",
             "project_code",
             "publication_date",
@@ -52,26 +52,54 @@ class ProcurementMarketSerializer(serializers.ModelSerializer):
             "publication_date",
             "created_at"
         ]
-    def validate_reference_bailleur(self, value):
 
-        valid_choices = [
-            choice[0]
-            for choice in FinancingSource.choices
-        ]
+    def validate_financing_sources(
+        self,
+        value
+    ):
 
         if not isinstance(value, list):
             raise serializers.ValidationError(
-                "reference_bailleur doit être une liste."
+                "financing_sources doit être une liste."
             )
+
+        valid_choices = [
+            choice[0]
+            for choice
+            in FinancingSource.choices
+        ]
 
         for item in value:
 
             if item not in valid_choices:
+
                 raise serializers.ValidationError(
-                    f"{item} n'est pas un bailleur valide."
+                    f"{item} n'est pas une source valide."
                 )
 
         return value
+    def validate_reference_bailleur(
+        self,
+        value
+    ):
+
+        if value is None:
+            return value
+
+        valid_choices = [
+            choice[0]
+            for choice
+            in FinancingSource.choices
+        ]
+
+        if value not in valid_choices:
+
+            raise serializers.ValidationError(
+                "Bailleur référent invalide."
+            )
+
+        return value
+
     def validate_procedure_type(self, value):
 
         valid = [c[0] for c in ProcedureType.choices]
@@ -122,29 +150,43 @@ class ProcurementMarketSerializer(serializers.ModelSerializer):
                 "DC : minimum 10 jours."
             })
 
-        financing_source = attrs.get(
-            "financing_source"
+        financing_sources = attrs.get(
+            "financing_sources",
+            []
         )
 
         reference_bailleur = attrs.get(
-            "reference_bailleur",
-            []
+            "reference_bailleur"
         )
-        if reference_bailleur is None:
-            reference_bailleur = []
-
         if (
-                financing_source is not None
-                and financing_source in reference_bailleur
-            ):
+            len(financing_sources) > 1
+            and not reference_bailleur
+        ):
 
             raise serializers.ValidationError({
                 "reference_bailleur":
                 (
-                    "La source de financement principale "
-                    "ne peut pas être dans "
-                    "les bailleurs référents."
+                    "Un bailleur référent "
+                    "est obligatoire "
+                    "si plusieurs sources "
+                    "sont sélectionnées."
                 )
             })
+
+        if (
+            reference_bailleur
+            and reference_bailleur
+            not in financing_sources
+        ):
+
+            raise serializers.ValidationError({
+                "reference_bailleur":
+                (
+                    "Le bailleur référent "
+                    "doit faire partie "
+                    "des sources sélectionnées."
+                )
+            })
+
 
         return attrs

@@ -49,14 +49,14 @@ class ProcurementMarket(models.Model):
         choices=CategoryType.choices
     )
 
-    financing_source = models.CharField(
+    financing_sources = models.JSONField(default=list)
+
+    reference_bailleur = models.CharField(
         max_length=50,
         choices=FinancingSource.choices,
         null=True,
         blank=True
     )
-
-    reference_bailleur = models.JSONField(default=list)
 
     project_code = models.CharField(max_length=100, blank=True, null=True)
 

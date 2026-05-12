@@ -9,6 +9,7 @@ import { getToken } from "@/services/auth";
 import { StatusStepper } from "./components/StatusStepper";
 import { AccordionSection } from "./components/AccordionSection";
 import DocumentDetailModal from "./components/DocumentDetailModal";
+import { SectionDocumentsList } from "./components/SectionDocumentsList";
 import DemandeDetailModal from "@/app/demande-achat/components/DemandeDetailModal";
 import { formatMoney, typeLabels } from "@/app/demande-achat/components/demandeAchatShared";
 import { listDemandesAchat, type DemandeAchat } from "@/services/achats";
@@ -71,6 +72,7 @@ export default function TdRStPage() {
   const [pendingTdrLoading, setPendingTdrLoading] = useState(false);
   const [pendingDemandesOpen, setPendingDemandesOpen] = useState(false);
   const [selectedPendingDemande, setSelectedPendingDemande] = useState<DemandeAchat | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const canAccessGlobalDashboard = true;
   const rawScope = (searchParams.get("scope") ?? "").trim().toLowerCase();
   const dashboardScope: TdrDashboardScope = rawScope === "all" ? "all" : "mine";
@@ -298,6 +300,7 @@ export default function TdRStPage() {
   const handleCloseDetailModal = () => {
     setSelectedDetailDoc(null);
     setDecisionObs("");
+    setDeleteConfirmOpen(false);
   };
 
   const refreshAndKeepSelection = async (documentId: number) => {
@@ -362,6 +365,44 @@ export default function TdRStPage() {
     }
   };
 
+  const handleRequestDeleteDocument = () => {
+    if (!selectedDetailDoc || !isRequesterRole(role)) return;
+    if (selectedDetailDoc.statut !== "BROUILLON") {
+      setNotification("error", "Seuls les brouillons peuvent être supprimés.");
+      return;
+    }
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleDeleteDocument = async () => {
+    if (!selectedDetailDoc || !isRequesterRole(role)) return;
+    if (selectedDetailDoc.statut !== "BROUILLON") {
+      setNotification("error", "Seuls les brouillons peuvent être supprimés.");
+      return;
+    }
+
+    setActionLoading(true);
+    try {
+      await fetchJson(`/api/TdrSt/documents/${selectedDetailDoc.id}/delete/`, {
+        method: "DELETE",
+      });
+      setDeleteConfirmOpen(false);
+      setNotification("success", "Brouillon supprimé.");
+      handleCloseDetailModal();
+      // Rafraîchir la liste des documents
+      if (role) {
+        await refreshDocs(role, dashboardScope);
+        if (isRequesterRole(role)) {
+          await loadPendingTdrDemandes(role);
+        }
+      }
+    } catch (e: unknown) {
+      setNotification("error", e instanceof Error ? e.message : "Erreur lors de la suppression.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleDecision = async (decision: "FAVORABLE" | "A_REVOIR" | "APPROUVE" | "REJETE") => {
     if (!selectedDetailDoc || !role) return;
     const url =
@@ -397,11 +438,24 @@ export default function TdRStPage() {
         {selectedDetailDoc.statut === "A_REVOIR" ? "Corriger" : "Continuer"}
       </button>
     ) : null;
+  const isDecisionCommentEmpty = decisionObs.trim().length === 0;
 
   const detailFooterSlot =
     selectedDetailDoc && isRequesterRole(role) && (selectedDetailDoc.statut === "BROUILLON" || selectedDetailDoc.statut === "A_REVOIR") ? (
       <div className="space-y-3">
-        <p className="text-sm text-slate-600">Le document sera transmis au circuit de validation TDR/ST.</p>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-slate-600">Le document sera transmis au circuit de validation TDR/ST.</p>
+          {selectedDetailDoc.statut === "BROUILLON" ? (
+            <button
+              type="button"
+              onClick={handleRequestDeleteDocument}
+              disabled={actionLoading}
+              className="rounded-full border border-rose-200 bg-rose-50 px-5 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 disabled:opacity-60"
+            >
+              Supprimer
+            </button>
+          ) : null}
+        </div>
       </div>
     ) : selectedDetailDoc && role === "verificateur_technique" && selectedDetailDoc.statut === "SOUMIS" ? (
       <div className="space-y-3">
@@ -409,14 +463,14 @@ export default function TdRStPage() {
           value={decisionObs}
           onChange={(e) => setDecisionObs(e.target.value)}
           rows={3}
-          placeholder="Observations techniques éventuelles..."
+          placeholder="Commentaire technique obligatoire..."
           className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm focus:border-emerald-300 focus:outline-none focus:ring-4 focus:ring-emerald-500/10"
         />
         <div className="flex flex-wrap justify-end gap-3">
           <button
             type="button"
             onClick={() => void handleDecision("A_REVOIR")}
-            disabled={actionLoading}
+            disabled={actionLoading || isDecisionCommentEmpty}
             className="rounded-full border border-amber-200 bg-amber-50 px-5 py-2 text-sm font-semibold text-amber-800 transition hover:bg-amber-100 disabled:opacity-60"
           >
             À revoir
@@ -424,7 +478,7 @@ export default function TdRStPage() {
           <button
             type="button"
             onClick={() => void handleDecision("FAVORABLE")}
-            disabled={actionLoading}
+            disabled={actionLoading || isDecisionCommentEmpty}
             className="rounded-full bg-emerald-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
           >
             Favorable
@@ -437,14 +491,14 @@ export default function TdRStPage() {
           value={decisionObs}
           onChange={(e) => setDecisionObs(e.target.value)}
           rows={3}
-          placeholder="Observations finales éventuelles..."
+          placeholder="Commentaire final obligatoire..."
           className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm focus:border-emerald-300 focus:outline-none focus:ring-4 focus:ring-emerald-500/10"
         />
         <div className="flex flex-wrap justify-end gap-3">
           <button
             type="button"
             onClick={() => void handleDecision("REJETE")}
-            disabled={actionLoading}
+            disabled={actionLoading || isDecisionCommentEmpty}
             className="rounded-full border border-rose-200 bg-rose-50 px-5 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 disabled:opacity-60"
           >
             Rejeter
@@ -452,7 +506,7 @@ export default function TdRStPage() {
           <button
             type="button"
             onClick={() => void handleDecision("APPROUVE")}
-            disabled={actionLoading}
+            disabled={actionLoading || isDecisionCommentEmpty}
             className="rounded-full bg-emerald-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
           >
             Approuver
@@ -503,7 +557,7 @@ export default function TdRStPage() {
                 )}
               </div>
             </div>
-            {canAccessGlobalDashboard && (
+            {canAccessGlobalDashboard && role !== "auditeur" && (
               <div className="flex w-full flex-wrap justify-end gap-2">
                 <div className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
                   <button
@@ -529,6 +583,13 @@ export default function TdRStPage() {
                     Tous les dossiers
                   </button>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => router.push("/TdrSt/dashboard")}
+                  className="inline-flex items-center rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-semibold text-emerald-700 shadow-sm transition hover:bg-emerald-100"
+                >
+                  Voir dashboard
+                </button>
               </div>
             )}
           </div>
@@ -572,6 +633,31 @@ export default function TdRStPage() {
         {/* Sections */}
         {!loading && (
           <div className="space-y-4">
+            {role === "auditeur" && (
+              <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                <div className="border-b border-slate-200 bg-slate-50 px-5 py-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <h2 className="text-base font-semibold text-slate-900">Tous les dossiers</h2>
+                      <p className="text-sm text-slate-500">Vue globale des documents TDR/ST sous forme de tableau.</p>
+                    </div>
+                    <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+                      {finalDocuments.length}
+                    </span>
+                  </div>
+                </div>
+                <div className="bg-slate-50 px-4 py-4">
+                  <SectionDocumentsList
+                    documents={finalDocuments}
+                    selectedId={selectedId}
+                    onSelectDocument={(id) => setSelectedId(id)}
+                    onDetailClick={handleDetailClick}
+                    role={role ?? undefined}
+                  />
+                </div>
+              </section>
+            )}
+
             {isRequesterRole(role) && (
               <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
                 <button
@@ -771,7 +857,7 @@ export default function TdRStPage() {
             )}
 
             {/* ARCHIVE */}
-            {sections.archive.length > 0 && (
+            {role !== "auditeur" && sections.archive.length > 0 && (
               <AccordionSection
                 sectionKey="archive"
                 title="Archive"
@@ -840,6 +926,54 @@ export default function TdRStPage() {
         open={!!selectedPendingDemande}
         onClose={() => setSelectedPendingDemande(null)}
       />
+      {deleteConfirmOpen && selectedDetailDoc?.statut === "BROUILLON" ? (
+        <div
+          className="fixed inset-0 z-[140] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-draft-modal-title"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !actionLoading) {
+              setDeleteConfirmOpen(false);
+            }
+          }}
+        >
+          <div className="w-full max-w-md overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl ring-1 ring-black/5">
+            <div className="border-b border-slate-200 bg-slate-50 px-6 py-5">
+              <h2 id="delete-draft-modal-title" className="text-lg font-bold text-slate-900">
+                Supprimer ce brouillon ?
+              </h2>
+              <p className="mt-2 text-sm text-slate-500">
+                Le document <span className="font-semibold text-slate-700">{selectedDetailDoc.numero_document || `#${selectedDetailDoc.id}`}</span> sera supprimé définitivement.
+              </p>
+            </div>
+            <div className="px-6 py-5">
+              <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                Cette action est irreversible et retire le brouillon de la liste.
+              </div>
+            </div>
+            <div className="flex flex-wrap justify-end gap-3 border-t border-slate-200 bg-slate-50 px-6 py-4">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmOpen(false)}
+                disabled={actionLoading}
+                className="rounded-full border border-slate-200 bg-white px-5 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:opacity-60"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleDeleteDocument()}
+                disabled={actionLoading}
+                className="inline-flex items-center gap-2 rounded-full bg-rose-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-rose-700 disabled:opacity-60"
+              >
+                {actionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                Confirmer la suppression
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

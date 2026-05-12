@@ -165,3 +165,27 @@ def upload_pdf_view(request, id: int):
         },
         status=status.HTTP_201_CREATED,
     )
+
+@api_view(["DELETE"])
+@permission_classes([IsAuthenticated])
+def document_delete_view(request, id: int):
+    doc = get_object_or_404(TdrStDocument, id=id)
+    
+    # Vérifier que l'utilisateur est le demandeur
+    if doc.demandeur != request.user:
+        return Response({"detail": "Seul le demandeur peut supprimer ce document."}, 
+                       status=status.HTTP_403_FORBIDDEN)
+    
+    # Vérifier que le document est un brouillon
+    if doc.statut != TdrStDocument.Statut.BROUILLON:
+        return Response({"detail": "Seuls les brouillons peuvent être supprimés."},
+                       status=status.HTTP_400_BAD_REQUEST)
+    
+    # Supprimer les fichiers PDF associés
+    for version in doc.versions_fichier.all():
+        if version.fichier_pdf:
+            version.fichier_pdf.delete(save=False)
+        version.delete()
+    
+    doc.delete()
+    return Response(status=status.HTTP_204_NO_CONTENT)

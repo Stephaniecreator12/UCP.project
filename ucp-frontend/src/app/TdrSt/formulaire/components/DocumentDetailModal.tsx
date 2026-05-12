@@ -277,7 +277,7 @@ export default function DocumentDetailModal({
               <div className="flex items-center justify-between">
                 <span className="text-sm font-semibold text-slate-700">
                   {version.version === 1 || version.version === 2 
-                    ? "Antérieure" 
+                    ? "Version antérieure" 
                     : `Version ${version.version}`}
                 </span>
                 {onViewVersion && (
@@ -286,7 +286,7 @@ export default function DocumentDetailModal({
                     onClick={() => onViewVersion(version.version, activeDocument.id)}
                     className="text-xs text-emerald-600 hover:underline"
                   >
-                    Voir cette versionnnn
+                    Voir cette version
                   </button>
                 )}
               </div>

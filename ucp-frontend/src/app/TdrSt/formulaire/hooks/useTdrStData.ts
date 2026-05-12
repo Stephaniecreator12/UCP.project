@@ -216,7 +216,15 @@ export async function fetchJson<T>(path: string, init: RequestInit = {}): Promis
 
   const res = await fetch(path, { ...init, headers });
   if (!res.ok) throw new Error(await toErrorMessage(res));
-  return (await res.json()) as T;
+  if (res.status === 204) {
+    return undefined as T;
+  }
+
+  const responseText = await res.text();
+  if (!responseText.trim()) {
+    return undefined as T;
+  }
+  return JSON.parse(responseText) as T;
 }
 
 export function useTdrStData() {
@@ -260,7 +268,8 @@ export function useTdrStData() {
       if (!r) throw new Error("Rôle utilisateur introuvable.");
       setRole(r);
       setCurrentUsername(me.username || "");
-      const docs = await refreshDocs(r, scope);
+      const effectiveScope: TdrDashboardScope = r === "auditeur" ? "all" : scope;
+      const docs = await refreshDocs(r, effectiveScope);
       return { role: r, username: me.username, documents: docs };
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);

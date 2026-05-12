@@ -8,6 +8,7 @@ from apps.TdrSt.views.document_view import (
     submit_document_view,
     suspend_document_view,
     upload_pdf_view,
+    document_delete_view,
 )
 from apps.TdrSt.views.validation_view import (
     final_decision_view,
@@ -39,4 +40,7 @@ urlpatterns = [
 
     # Dashboard
     path("dashboard/", DashboardAPIView.as_view()),
+
+    # Document delete
+    path("documents/<int:id>/delete/", document_delete_view),
 ]

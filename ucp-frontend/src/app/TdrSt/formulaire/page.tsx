@@ -10,6 +10,7 @@ import { StatusStepper } from "./components/StatusStepper";
 import { AccordionSection } from "./components/AccordionSection";
 import DocumentDetailModal from "./components/DocumentDetailModal";
 import { SectionDocumentsList } from "./components/SectionDocumentsList";
+import DashboardIndividual, { type AuditeurOverview } from "@/TdrSt/dashboard/components/dashboard-individual";
 import DemandeDetailModal from "@/app/demande-achat/components/DemandeDetailModal";
 import { formatMoney, typeLabels } from "@/app/demande-achat/components/demandeAchatShared";
 import { listDemandesAchat, type DemandeAchat } from "@/services/achats";
@@ -47,6 +48,27 @@ const normalizeSearchValue = (value: unknown) =>
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase();
 
+const getMonthLabel = (date: Date) =>
+  date.toLocaleDateString("fr-FR", {
+    month: "short",
+    year: "2-digit",
+  });
+
+const getLatestValidationDate = (doc: TdrStDocument) => {
+  if (!doc.actions_validation?.length) return null;
+
+  const timestamps = doc.actions_validation
+    .map((action) => {
+      const parsed = new Date(action.horodatage);
+      return Number.isNaN(parsed.getTime()) ? null : parsed;
+    })
+    .filter((value): value is Date => value instanceof Date);
+
+  if (timestamps.length === 0) return null;
+
+  return timestamps.reduce((latest, current) => (current.getTime() > latest.getTime() ? current : latest));
+};
+
 export default function TdRStPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -73,6 +95,7 @@ export default function TdRStPage() {
   const [pendingDemandesOpen, setPendingDemandesOpen] = useState(false);
   const [selectedPendingDemande, setSelectedPendingDemande] = useState<DemandeAchat | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [archiveOpen, setArchiveOpen] = useState(false);
   const canAccessGlobalDashboard = true;
   const rawScope = (searchParams.get("scope") ?? "").trim().toLowerCase();
   const dashboardScope: TdrDashboardScope = rawScope === "all" ? "all" : "mine";
@@ -186,11 +209,107 @@ export default function TdRStPage() {
     );
   }, [pendingTdrDemandes, searchQuery]);
 
+  const auditeurOverview = useMemo<AuditeurOverview>(() => {
+    if (role !== "auditeur") {
+      return {
+        total: 0,
+        rejected: 0,
+        rejectedRate: 0,
+        requiresAno: 0,
+        withAnoAction: 0,
+        avgDelayDays: null,
+        monthly: [],
+        topUnits: [],
+      };
+    }
+
+    const docs = finalDocuments;
+    const total = docs.length;
+    const rejected = docs.filter((doc) => doc.statut === "REJETE").length;
+    const requiresAno = docs.filter((doc) => doc.requires_ano).length;
+    const withAnoAction = docs.filter((doc) => doc.requires_ano && (doc.actions_validation?.length ?? 0) > 0).length;
+
+    const completedDurations = docs
+      .filter((doc) => doc.statut === "VALIDE")
+      .map((doc) => {
+        const start = new Date(doc.created_at);
+        const end = getLatestValidationDate(doc) ?? new Date(doc.updated_at);
+        if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return null;
+        const diffDays = (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24);
+        return diffDays >= 0 ? diffDays : null;
+      })
+      .filter((value): value is number => typeof value === "number");
+
+    const avgDelayDays =
+      completedDurations.length > 0
+        ? completedDurations.reduce((sum, value) => sum + value, 0) / completedDurations.length
+        : null;
+
+    const monthBuckets = Array.from({ length: 6 }, (_, index) => {
+      const current = new Date();
+      current.setDate(1);
+      current.setHours(0, 0, 0, 0);
+      current.setMonth(current.getMonth() - (5 - index));
+      return {
+        key: `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, "0")}`,
+        label: getMonthLabel(current),
+      };
+    });
+
+    const monthlyMap = new Map(monthBuckets.map((bucket) => [bucket.key, 0]));
+    docs.forEach((doc) => {
+      const referenceDate = getLatestValidationDate(doc) ?? new Date(doc.updated_at || doc.created_at);
+      if (Number.isNaN(referenceDate.getTime())) return;
+      const key = `${referenceDate.getFullYear()}-${String(referenceDate.getMonth() + 1).padStart(2, "0")}`;
+      if (monthlyMap.has(key)) {
+        monthlyMap.set(key, (monthlyMap.get(key) ?? 0) + 1);
+      }
+    });
+
+    const monthly = monthBuckets.map((bucket) => ({
+      label: bucket.label,
+      count: monthlyMap.get(bucket.key) ?? 0,
+    }));
+
+    const topUnits = Array.from(
+      docs.reduce((acc, doc) => {
+        const key = doc.unite_technique?.trim() || "Non renseignée";
+        const existing = acc.get(key) ?? { unite: key, total: 0, rejected: 0, rate: 0 };
+        existing.total += 1;
+        if (doc.statut === "REJETE") {
+          existing.rejected += 1;
+        }
+        acc.set(key, existing);
+        return acc;
+      }, new Map<string, { unite: string; total: number; rejected: number; rate: number }>())
+    )
+      .map(([, unit]) => ({
+        ...unit,
+        rate: unit.total > 0 ? unit.rejected / unit.total : 0,
+      }))
+      .sort((a, b) => {
+        if (b.rate !== a.rate) return b.rate - a.rate;
+        return b.total - a.total;
+      })
+      .slice(0, 5);
+
+    return {
+      total,
+      rejected,
+      rejectedRate: total > 0 ? rejected / total : 0,
+      requiresAno,
+      withAnoAction,
+      avgDelayDays,
+      monthly,
+      topUnits,
+    };
+  }, [finalDocuments, role]);
+
   // Group documents by section
   const sections = useMemo(() => {
     const docs = finalDocuments;
 
-    // Pour l'auditeur: tous les documents sont dans l'archive
+    // Pour l'auditeur: la table principale affiche deja tous les documents
     if (role === "auditeur") {
       return {
         archive: docs.filter((d) => ["VALIDE", "REJETE", "SUSPENDU"].includes(d.statut)),
@@ -264,6 +383,14 @@ export default function TdRStPage() {
 
   const totalDocuments =
     finalDocuments.length + (isRequesterRole(role) ? filteredPendingDemandes.length : 0);
+  const approvedArchiveDocuments = useMemo(
+    () => sections.archive.filter((doc) => doc.statut === "VALIDE"),
+    [sections.archive]
+  );
+  const rejectedArchiveDocuments = useMemo(
+    () => sections.archive.filter((doc) => doc.statut === "REJETE" || doc.statut === "SUSPENDU"),
+    [sections.archive]
+  );
 
   const [selectedDetailDoc, setSelectedDetailDoc] = useState<TdrStDocument | null>(null);
 
@@ -365,6 +492,27 @@ export default function TdRStPage() {
     }
   };
 
+  const handleSuspendDocument = async () => {
+    if (!selectedDetailDoc || !isRequesterRole(role)) return;
+    if (!["SOUMIS", "EN_VALIDATION"].includes(selectedDetailDoc.statut)) {
+      setNotification("error", "Seuls les documents en cours de validation peuvent etre suspendus.");
+      return;
+    }
+
+    setActionLoading(true);
+    try {
+      const updated = await fetchJson<TdrStDocument>(`/api/TdrSt/documents/${selectedDetailDoc.id}/suspend/`, {
+        method: "POST",
+      });
+      await refreshAndKeepSelection(updated.id);
+      setNotification("success", "Le document a ete suspendu.");
+    } catch (e: unknown) {
+      setNotification("error", e instanceof Error ? e.message : String(e));
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleRequestDeleteDocument = () => {
     if (!selectedDetailDoc || !isRequesterRole(role)) return;
     if (selectedDetailDoc.statut !== "BROUILLON") {
@@ -455,6 +603,20 @@ export default function TdRStPage() {
               Supprimer
             </button>
           ) : null}
+        </div>
+      </div>
+    ) : selectedDetailDoc && isRequesterRole(role) && ["SOUMIS", "EN_VALIDATION"].includes(selectedDetailDoc.statut) ? (
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-slate-600">Ce document est actuellement dans le circuit de validation TDR/ST.</p>
+          <button
+            type="button"
+            onClick={() => void handleSuspendDocument()}
+            disabled={actionLoading}
+            className="rounded-full border border-slate-300 bg-slate-100 px-5 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-200 disabled:opacity-60"
+          >
+            Suspendre
+          </button>
         </div>
       </div>
     ) : selectedDetailDoc && role === "verificateur_technique" && selectedDetailDoc.statut === "SOUMIS" ? (
@@ -557,32 +719,34 @@ export default function TdRStPage() {
                 )}
               </div>
             </div>
-            {canAccessGlobalDashboard && role !== "auditeur" && (
+            {canAccessGlobalDashboard && (
               <div className="flex w-full flex-wrap justify-end gap-2">
-                <div className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
-                  <button
-                    type="button"
-                    onClick={() => router.replace(mineScopeHref)}
-                    className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
-                      dashboardScope === "mine"
-                        ? "bg-slate-900 text-white shadow-sm"
-                        : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                    }`}
-                  >
-                    Mes dossiers
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => router.replace(allScopeHref)}
-                    className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
-                      dashboardScope === "all"
-                        ? "bg-slate-900 text-white shadow-sm"
-                        : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                    }`}
-                  >
-                    Tous les dossiers
-                  </button>
-                </div>
+                {role !== "auditeur" && (
+                  <div className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+                    <button
+                      type="button"
+                      onClick={() => router.replace(mineScopeHref)}
+                      className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                        dashboardScope === "mine"
+                          ? "bg-slate-900 text-white shadow-sm"
+                          : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                      }`}
+                    >
+                      Mes dossiers
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => router.replace(allScopeHref)}
+                      className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                        dashboardScope === "all"
+                          ? "bg-slate-900 text-white shadow-sm"
+                          : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                      }`}
+                    >
+                      Tous les dossiers
+                    </button>
+                  </div>
+                )}
                 <button
                   type="button"
                   onClick={() => router.push("/TdrSt/dashboard")}
@@ -634,28 +798,31 @@ export default function TdRStPage() {
         {!loading && (
           <div className="space-y-4">
             {role === "auditeur" && (
-              <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-                <div className="border-b border-slate-200 bg-slate-50 px-5 py-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <h2 className="text-base font-semibold text-slate-900">Tous les dossiers</h2>
-                      <p className="text-sm text-slate-500">Vue globale des documents TDR/ST sous forme de tableau.</p>
+              <>
+                <DashboardIndividual overview={auditeurOverview} />
+                <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                  <div className="border-b border-slate-200 bg-slate-50 px-5 py-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <h2 className="text-base font-semibold text-slate-900">Tous les dossiers</h2>
+                        <p className="text-sm text-slate-500">Vue globale des documents TDR/ST, y compris les dossiers en cours et archivés.</p>
+                      </div>
+                      <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+                        {finalDocuments.length}
+                      </span>
                     </div>
-                    <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
-                      {finalDocuments.length}
-                    </span>
                   </div>
-                </div>
-                <div className="bg-slate-50 px-4 py-4">
-                  <SectionDocumentsList
-                    documents={finalDocuments}
-                    selectedId={selectedId}
-                    onSelectDocument={(id) => setSelectedId(id)}
-                    onDetailClick={handleDetailClick}
-                    role={role ?? undefined}
-                  />
-                </div>
-              </section>
+                  <div className="bg-slate-50 px-4 py-4">
+                    <SectionDocumentsList
+                      documents={finalDocuments}
+                      selectedId={selectedId}
+                      onSelectDocument={(id) => setSelectedId(id)}
+                      onDetailClick={handleDetailClick}
+                      role={role ?? undefined}
+                    />
+                  </div>
+                </section>
+              </>
             )}
 
             {isRequesterRole(role) && (
@@ -858,18 +1025,65 @@ export default function TdRStPage() {
 
             {/* ARCHIVE */}
             {role !== "auditeur" && sections.archive.length > 0 && (
-              <AccordionSection
-                sectionKey="archive"
-                title="Archive"
-                documents={sections.archive}
-                selectedId={selectedId}
-                onSelectDocument={(id) => setSelectedId(id)}
-                onDetailClick={handleDetailClick}
-                onActionClick={handleActionClick}
-                getActionButtonLabel={getActionButtonLabel}
-                role={role ?? undefined}
-                defaultOpen={false}
-              />
+              <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => setArchiveOpen((prev) => !prev)}
+                  className={`flex w-full items-center justify-between px-5 py-4 text-left transition-colors ${
+                    archiveOpen
+                      ? "border-b border-slate-200 bg-slate-50"
+                      : "bg-white hover:bg-slate-50"
+                  }`}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-600">
+                      <Activity className="h-5 w-5" strokeWidth={2} />
+                    </div>
+                    <span className="text-base font-semibold text-slate-900">Archive</span>
+                    <span className="ml-1 rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                      {sections.archive.length}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                    <span className={archiveOpen ? "text-slate-700" : ""}>
+                      {archiveOpen ? "Masquer" : "Afficher"}
+                    </span>
+                    <div className={`rounded-lg bg-slate-100 p-1 text-slate-400 transition-transform ${archiveOpen ? "rotate-180" : ""}`}>
+                      <ChevronDown className="h-3.5 w-3.5" />
+                    </div>
+                  </div>
+                </button>
+
+                {archiveOpen && (
+                  <div className="space-y-3 bg-slate-50 px-4 py-4">
+                    <AccordionSection
+                      sectionKey="archive"
+                      title="Approuvés"
+                      documents={approvedArchiveDocuments}
+                      selectedId={selectedId}
+                      onSelectDocument={(id) => setSelectedId(id)}
+                      onDetailClick={handleDetailClick}
+                      onActionClick={handleActionClick}
+                      getActionButtonLabel={getActionButtonLabel}
+                      role={role ?? undefined}
+                      defaultOpen={false}
+                    />
+                    <AccordionSection
+                      sectionKey="archive"
+                      title="Rejetés / suspendus"
+                      documents={rejectedArchiveDocuments}
+                      selectedId={selectedId}
+                      onSelectDocument={(id) => setSelectedId(id)}
+                      onDetailClick={handleDetailClick}
+                      onActionClick={handleActionClick}
+                      getActionButtonLabel={getActionButtonLabel}
+                      role={role ?? undefined}
+                      defaultOpen={false}
+                    />
+                  </div>
+                )}
+              </section>
             )}
 
             {/* Empty state */}
@@ -877,7 +1091,7 @@ export default function TdRStPage() {
               <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center shadow-sm">
                 <Activity className="mx-auto mb-4 h-12 w-12 text-slate-300" />
                 <h2 className="mb-2 text-lg font-bold text-slate-900">
-                  {role === "auditeur" ? "Aucun document archivé" : "Aucun document"}
+                  {role === "auditeur" ? "Aucun dossier" : "Aucun document"}
                 </h2>
                 <p className="text-sm text-slate-500">
                   {isRequesterRole(role)

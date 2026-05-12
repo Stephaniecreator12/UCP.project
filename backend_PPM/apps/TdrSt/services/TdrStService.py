@@ -239,21 +239,14 @@ def list_final_documents(user):
 
 def list_auditeur_documents():
     """
-    Pour les auditeurs (lecture seule, a posteriori) :
-    - Uniquement les documents à statut final : VALIDE, REJETE, SUSPENDU.
+    Pour les auditeurs :
+    - Lecture seule sur l'ensemble des documents, y compris ceux en cours.
     - La traçabilité complète (Section G / actions_validation) est incluse via prefetch
       pour que l'auditeur puisse vérifier le respect des procédures.
     - Aucune action de décision n'est possible depuis ce queryset.
     """
     return (
-        TdrStDocument.objects.filter(
-            statut__in=(
-                TdrStDocument.Statut.VALIDE,
-                TdrStDocument.Statut.REJETE,
-                TdrStDocument.Statut.SUSPENDU,
-            )
-        )
-        .select_related("demandeur", "fichier_courant", "demande_achat")
+        TdrStDocument.objects.select_related("demandeur", "fichier_courant", "demande_achat")
         .prefetch_related("actions_validation__acteur")  # Section G — traçabilité complète
         .order_by("-updated_at")
     )

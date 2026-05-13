@@ -76,4 +76,6 @@ export interface ProcurementFormValues {
   submission_model:File;
   technicalFiles?: File[];
   annexFiles?: File[];
+
+  optionKey?:string;
 }

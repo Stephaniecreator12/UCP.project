@@ -22,24 +22,29 @@ type ApiErrorData =
       message?: string;
       [key: string]: unknown;
     };
-
-export const parseApiError = (error: unknown): string => {
+type ValidationError = Record<string, unknown>;
+export const parseApiError = (error: unknown): string | ValidationError => {
   const err = error as AxiosError<ApiErrorData>;
   const data = err.response?.data;
 
-  if (!data) return "Erreur réseau";
+  if (!data) return "Erreur réseau ou serveur injoignable";
+
+  if (err.response?.status === 400 && typeof data === "object") {
+    return data as ValidationError;
+  }
 
   if (typeof data === "string") return data;
-  if ("detail" in data && data.detail) return String(data.detail);
-  if ("message" in data && data.message) return String(data.message);
-
-  if (typeof data === "object" && data !== null) {
+  
+  if (data && typeof data === "object") {
+    if ("detail" in data && data.detail) return String(data.detail);
+    if ("message" in data && data.message) return String(data.message);
+    
     const firstKey = Object.keys(data)[0];
     const firstError = (data as Record<string, unknown>)[firstKey];
-
+    
     if (Array.isArray(firstError)) return String(firstError[0]);
     return String(firstError);
   }
 
-  return "Erreur inconnue";
+  return "Une erreur inconnue est survenue";
 };

@@ -158,6 +158,10 @@ class ProcurementMarketSerializer(serializers.ModelSerializer):
         reference_bailleur = attrs.get(
             "reference_bailleur"
         )
+        project_code = attrs.get(
+            "project_code"
+        )
+        
         if (
             len(financing_sources) > 1
             and not reference_bailleur
@@ -185,6 +189,18 @@ class ProcurementMarketSerializer(serializers.ModelSerializer):
                     "Le bailleur référent "
                     "doit faire partie "
                     "des sources sélectionnées."
+                )
+            })
+        if (
+            financing_sources and
+            not project_code
+        ):
+
+            raise serializers.ValidationError({
+                "project_code":
+                (
+                    "Le code projet "
+                    "est obligatoire "
                 )
             })
 

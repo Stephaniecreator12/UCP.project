@@ -6,28 +6,40 @@ import { uploadAnnexDocument } from "../../../../../services/procurement";
 import { useState } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { ProcurementFormValues } from "@/types/procurement";
+import { Path } from "react-hook-form";
 interface Props {
   form: UseFormReturn<ProcurementFormValues>;
 }
+type FieldErrors = Record<string, string | string[]>;
+export type ApiResult<T> =
+  | { error: false; data: T }
+  | { error: true; message: string | FieldErrors; status?: number };
 export function PublishActions({ form }: Props) {
-  const [error,setError] = useState("");
-  const handleSubmit = async () => {
-    setError("");
-
-    const values = form.getValues();
+  const [globalError, setGlobalError] = useState("");
+  const handleSubmit = async (values: ProcurementFormValues) => {
+    setGlobalError("");
     console.log("Données à envoyer :", values);
-    const market = await createMarket(values);
+    const res = await createMarket(values);
 
-    if (market.error) {
-      setError(market.message);
+    if (res.error) {
+      if (typeof res.message === "object" && res.message !== null) {
+        Object.entries(res.message).forEach(([key, messages]) => {
+          form.setError(key as Path<ProcurementFormValues>, {
+            type: "server",
+            message: Array.isArray(messages) ? messages[0] : (messages as string),
+          });
+        });
+      } else {
+        setGlobalError(res.message as string);
+      }
       return;
     }
 
     if (values.technicalFiles?.length) {
       for (const file of values.technicalFiles) {
-        const techRes = await uploadTechnicalDocument(market.data.id, file);
+        const techRes = await uploadTechnicalDocument(res.data.id, file);
         if ("error" in techRes && techRes.error) {
-          setError(`Erreur fichier technique : ${techRes.message}`);
+          setGlobalError(`Erreur fichier technique : ${techRes.message}`);
           return;
         }
       }
@@ -35,9 +47,9 @@ export function PublishActions({ form }: Props) {
 
     if (values.annexFiles?.length) {
       for (const file of values.annexFiles) {
-        const annexRes = await uploadAnnexDocument(market.data.id, file);
+        const annexRes = await uploadAnnexDocument(res.data.id, file);
         if ("error" in annexRes && annexRes.error) {
-          setError(`Erreur fichier annexe : ${annexRes.message}`);
+          setGlobalError(`Erreur fichier annexe : ${annexRes.message}`);
           return;
         }
       }
@@ -49,17 +61,13 @@ export function PublishActions({ form }: Props) {
 
   return (
     <div>
-      {error && (
-  <div style={{ color: "red", fontWeight: "bold", marginBottom: "10px" }}>
-    {error}
-  </div>
-)}
+      {globalError && <p className="text-red-600 mb-4 font-bold">{globalError}</p>}
       <button
-      onClick={handleSubmit}
-      className="btn-primary"
-    >
-      Publier sur le portail
-    </button>
+  onClick={form.handleSubmit(handleSubmit)}
+  className="btn-primary"
+>
+  Publier sur le portail
+</button>
     </div>
     
   );

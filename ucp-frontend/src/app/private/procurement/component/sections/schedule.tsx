@@ -10,7 +10,7 @@ import {
 } from "@/app/TdrSt/dashboard/ui/card";
 
 import { UseFormReturn } from "react-hook-form";
-
+import { TextTitle } from "@/app/components/textStyle";
 import { ProcurementFormValues }
 from "../../../../../types/procurement";
 interface Props {
@@ -20,6 +20,10 @@ interface Props {
 export function ScheduleSection({
   form,
 }: Props) {
+  const {
+    register,
+    formState: { errors },
+  } = form;
   return (
     <Card>
 
@@ -29,37 +33,34 @@ export function ScheduleSection({
         </CardTitle>
       </CardHeader>
 
-      <CardContent className="grid grid-cols-2 gap-6">
+      <CardContent className="space-y-6">
 
-        <div>
+        <div className="flex flex-col gap-3">
 
-          <label>
-            Date de publication
-          </label>
+          <TextTitle text="Date de publication"></TextTitle>
 
           <input
             disabled
             value={format(
               new Date(),
-              "dd/MM/yyyy"
+              "dd/MM/yyyy  HH':'mm"
             )}
-            className="input"
+            className="input focus:outline-none focus:ring-0 text-md"
           />
-
         </div>
 
-        <div>
+        <div className="flex flex-col gap-3">
 
-          <label>
-            Date limite
-          </label>
 
+          <TextTitle text="Date limite"></TextTitle>
           <input
             type="datetime-local"
             {...form.register("deadline")}
-            className="input"
+            className="input focus:outline-none focus:ring-0 text-md w-[15%]"
           />
-
+          {errors.deadline && (
+            <p className="text-red-500 text-xs mt-1">{errors.deadline.message}</p>
+          )}
         </div>
 
       </CardContent>

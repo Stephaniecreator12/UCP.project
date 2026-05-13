@@ -1,7 +1,7 @@
 "use client";
 
 import { useForm } from "react-hook-form";
-
+import { format } from "date-fns";
 import { ProcurementFormValues }
 from "../../../../types/procurement";
 
@@ -21,17 +21,17 @@ export function ProcurementForm() {
       defaultValues: {
         title: "",
 
-        procedure_type: "AOI",
+        procedure_type: undefined,
 
-        category: "BIENS",
+        category: undefined,
 
         financing_sources: [],
 
         reference_bailleur: undefined,
 
-        project_code: "",
+        project_code: undefined,
 
-        deadline: "",
+        deadline: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
 
         status: "PUBLISHED",
       },

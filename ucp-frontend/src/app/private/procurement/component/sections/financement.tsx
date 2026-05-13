@@ -6,6 +6,7 @@ import {
   CardTitle,
   Card,
 } from "@/app/TdrSt/dashboard/ui/card";
+import {TextLabel,TextTitle} from "@/app/components/textStyle";
 import { useWatch } from "react-hook-form";
 import { UseFormReturn } from "react-hook-form";
 import { useEffect} from "react";
@@ -67,6 +68,10 @@ const optionKey = useWatch({
       });
   }
 }, [selected,referenceBailleur, form, optionKey]);
+const {
+      register,
+      formState: { errors },
+    } = form;
 
   return (
     <Card>
@@ -92,25 +97,26 @@ const optionKey = useWatch({
                     className="w-4 h-4"
                     {...form.register("financing_sources")}
                   />
-                  <span className="text-sm font-medium leading-none">
-                    {entry?.familyLabel}
-                  </span>
+                  <TextLabel text={entry?.familyLabel}>
+                  </TextLabel>
                 </label>
               );
             })}
+            {errors.financing_sources && (
+              <p className="text-red-500 text-xs mt-1">{errors.financing_sources.message}</p>
+            )}
           </div>
 
         
-          <div className="flex flex-col">
+          <div className="flex flex-col gap-3">
 
-            <label>
-              Bailleur référent
-            </label>
+          <TextTitle text="Bailleur référent"></TextTitle>
             {selected.length > 1? (
             <select
               {...form.register("reference_bailleur")}
               className="input"
             >
+              <option value="">Aucun</option>
               {selected.map((item) => (
                 <option
                   key={item}
@@ -123,18 +129,21 @@ const optionKey = useWatch({
             ):(
               <div>
                 {selected.length?
-                <p>{FINANCING_SOURCE_LABELS[selected[0]]}</p>:<p>aucun</p>}
+                <TextLabel text={FINANCING_SOURCE_LABELS[selected[0]]}></TextLabel>:<TextLabel text="Aucun"></TextLabel>}
               </div>
             )
         }
+        {errors.reference_bailleur && (
+          <p className="text-red-500 text-xs mt-1">{errors.reference_bailleur.message}</p>
+        )}
           </div>
-        <div>
-  <label>Libellé budgétaire</label>
+        <div className="flex flex-col gap-3">
+  <TextTitle text="Libellé budgétaire"></TextTitle>
   {
     referenceBailleur?
     (
-      <select {...form.register("optionKey")} className="input flex flex-col">
-        <option value="">Sélectionnez un budget</option>
+      <select {...form.register("optionKey")} className="input">
+        <option value="">Aucun</option>
         {FINANCE_CATALOG.filter(c => c.family === referenceBailleur).map((entry) => (
           <option key={entry.optionKey} value={entry.optionKey}>
             {entry.optionKey}
@@ -142,22 +151,28 @@ const optionKey = useWatch({
         ))}
       </select>
     ):(
-      <span className="text-sm font-medium leading-none">
-        Aucun
-      </span>
+      <div>
+        <TextLabel text="Aucun">
+        </TextLabel>
+      </div>
+      
     )
   }
-  
+  {errors.optionKey && (
+    <p className="text-red-500 text-xs mt-1">{errors.optionKey.message}</p>
+  )}
 </div>
 
-        <div>
-
-          <label>
-            Code projet
-          </label>
-
-          <p>{projectCode}</p>
-
+        <div className="flex flex-col gap-3">
+          <TextTitle text="Code projet"></TextTitle>
+          <TextLabel text={
+            optionKey?projectCode:
+            "Aucun"
+            }>
+          </TextLabel>
+          {errors.project_code && (
+            <p className="text-red-500 text-xs mt-1">{errors.project_code.message}</p>
+          )}
         </div>
 
       </CardContent>

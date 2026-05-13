@@ -2,57 +2,55 @@
 import { ProcurementFormValues,ProcurementMarket } from "../types/procurement";
 import { api } from "./config";
 import { parseApiError } from "./config";
-export type ApiResult<T> =
-  | {
-      error: false;
-      data: T;
-    }
-  | {
-      error: true;
-      message: string;
-      status?: number;
-    };
+import { ApiResult } from "../types/procurement";
 export const createMarket = async (
   data: ProcurementFormValues
 ): Promise<ApiResult<ProcurementMarket>> => {
   try {
 
     const formData = new FormData();
-
+    if (data.title && data.title.trim() !== "") {
     formData.append("title", data.title);
-
+    }
+    if (data.procedure_type && data.procedure_type.trim() !== "") {
     formData.append(
       "procedure_type",
       data.procedure_type
     );
-
+  }
+    if (data.category && data.category.trim() !== "") {
     formData.append(
       "category",
       data.category
     );
-
+  }
+    if (data.deadline && data.deadline.trim() !== "") {
     formData.append(
       "deadline",
       data.deadline
     );
-
+  }
+    if (data.status && data.status.trim() !== "") {
     formData.append(
       "status",
       data.status
     );
+  }
 
-    if (data.project_code) {
+    if (data.project_code && data.project_code.trim() !== "") {
       formData.append(
         "project_code",
         data.project_code
       );
     }
+    if (data.financing_sources && data.financing_sources.length>0) {
     formData.append(
       "financing_sources",
       JSON.stringify(data.financing_sources)
     );
+  }
 
-    if (data.reference_bailleur) {
+    if (data.reference_bailleur && data.reference_bailleur.trim() !== "") {
       formData.append(
         "reference_bailleur",
         data.reference_bailleur
@@ -94,11 +92,12 @@ export const createMarket = async (
 export const uploadTechnicalDocument = async (
   marketId: number,
   file: File
-) => {
+): Promise<ApiResult<ProcurementMarket>> => {
   try{
     const formData = new FormData();
 
   formData.append("market", String(marketId));
+  
   formData.append("file", file);
 
   const res = await api.post(
@@ -118,7 +117,7 @@ export const uploadTechnicalDocument = async (
 export const uploadAnnexDocument = async (
   marketId: number,
   file: File
-) => {
+): Promise<ApiResult<ProcurementMarket>> => {
   try{
     const formData = new FormData();
 

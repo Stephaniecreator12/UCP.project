@@ -6,7 +6,7 @@ import {
   CardTitle,
   Card,
 } from "@/app/TdrSt/dashboard/ui/card";
-
+import { TextTitle} from "@/app/components/textStyle";
 import { UseFormReturn } from "react-hook-form";
 
 import { ProcurementFormValues }
@@ -18,6 +18,10 @@ interface Props {
 export function BasicInfoSection({
   form,
 }: Props) {
+  const {
+    register,
+    formState: { errors },
+  } = form;
   return (
     <Card>
       <CardHeader>
@@ -26,40 +30,28 @@ export function BasicInfoSection({
         </CardTitle>
       </CardHeader>
 
-      <CardContent className="grid grid-cols-2 gap-6">
+      <CardContent className="space-y-6">
 
-        <div>
-          <label>
-            Référence
-          </label>
-
-          <input
-            disabled
-            value="Auto-généré"
-            className="input"
-          />
-        </div>
-
-        <div>
-          <label>
-            Intitulé du marché
-          </label>
-
+        <div className="flex flex-col gap-3">
+          <TextTitle text="Intitulé du marché"></TextTitle>
           <input
             {...form.register("title")}
-            className="input"
+            className="input focus:outline-none focus:ring-0 text-md"
+            placeholder="Saisir l'intitulé du marché"
           />
+          {errors.title && (
+            <p className="text-red-500 text-xs mt-1">{errors.title.message}</p>
+          )}
         </div>
 
-        <div>
-          <label>
-            Type de procédure
-          </label>
+        <div className="flex flex-col gap-3">
+          <TextTitle text="Type de procédure"></TextTitle>
 
           <select
             {...form.register("procedure_type")}
             className="input"
           >
+            <option value="">Aucun</option>
             <option value="AOI">
               AOI
             </option>
@@ -76,17 +68,19 @@ export function BasicInfoSection({
               Gré à gré
             </option>
           </select>
+          {errors.procedure_type && (
+            <p className="text-red-500 text-xs mt-1">{errors.procedure_type.message}</p>
+          )}
         </div>
 
-        <div>
-          <label>
-            Catégorie
-          </label>
+        <div className="flex flex-col gap-3">
+          <TextTitle text="Catégorie"></TextTitle>
 
           <select
             {...form.register("category")}
             className="input"
           >
+            <option value="">Aucun</option>
             <option value="BIENS">
               Biens
             </option>
@@ -99,6 +93,9 @@ export function BasicInfoSection({
               Infrastructures
             </option>
           </select>
+          {errors.category && (
+            <p className="text-red-500 text-xs mt-1">{errors.category.message}</p>
+          )}
         </div>
 
       </CardContent>

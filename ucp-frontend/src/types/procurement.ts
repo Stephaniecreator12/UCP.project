@@ -41,7 +41,7 @@ export interface ProcurementMarket {
 
   financing_source: FinancingSource[];
 
-  reference_bailleur?: FinancingSource[];
+  reference_bailleur?: FinancingSource;
 
   project_code?: string;
 
@@ -73,9 +73,21 @@ export interface ProcurementFormValues {
   deadline: string;
 
   status: PublicationStatus;
-  submission_model:File;
+  submission_model?:File;
   technicalFiles?: File[];
   annexFiles?: File[];
 
   optionKey?:string;
 }
+type ValidationError = Record<string, unknown>;
+
+export type ApiResult<T> =
+  | {
+      error: false;
+      data: T;
+    }
+  | {
+      error: true;
+      message: string | ValidationError;
+      status?: number;
+    };

@@ -1,8 +1,14 @@
-import { ReactNode } from "react"
-export default function TextLabel({children} : {children:ReactNode}){
+export function TextLabel({text} : {text:string | undefined}){
     return(
-    <span className="text-sm font-medium leading-none">
-        {children}
+    <span className="text-md font-medium leading-none">
+        {text}
+        </span>
+    )
+}
+export function TextTitle({text} : {text:string | undefined}){
+    return(
+    <span className="text-lg font-semibold leading-none">
+        {text}
         </span>
     )
 }

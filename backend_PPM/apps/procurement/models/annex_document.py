@@ -11,7 +11,11 @@ class AnnexDocument(models.Model):
         related_name="annexes"
     )
 
-    file = models.FileField()
+    file = models.FileField(
+        upload_to="annex_documents/",
+        blank=False,
+        null=False
+    )
 
     uploaded_at = models.DateTimeField(
         auto_now_add=True

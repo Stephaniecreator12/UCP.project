@@ -11,6 +11,7 @@ class TechnicalDocument(models.Model):
     )
 
     file = models.FileField(
+        upload_to="technical_documents/",
         validators=[
             FileExtensionValidator(["pdf"])
         ]

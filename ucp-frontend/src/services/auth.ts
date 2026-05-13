@@ -83,7 +83,7 @@ export const publicLogin = async (
       message: data.message || "l'adresse e-mail publique ou mot de passe incorrect",
     }
   } catch {
-    return { status: 500,success: false, message: "serveur RH inaccessible" };
+    return { status: 500,success: false, message: "serveur publique inaccessible" };
   }
 };
 export const login = async (
@@ -91,11 +91,13 @@ export const login = async (
   password: string,
 ): Promise<LoginResult> => {
   try {
-    const rhResponse = await rhLogin(email, password);
-    if(rhResponse.status == 404 || rhResponse.status == 500) {
-        return await publicLogin(email, password);
+    
+    if(isUCPDomain(email)) {
+        return await rhLogin(email, password);
     }
-    return rhResponse;
+    else{
+      return await publicLogin(email, password);
+    }
   } catch {
     return {
       status: 500,

@@ -24,7 +24,7 @@ const getStepIndex = (statut?: Statut): number => {
 export function StatusStepper({ statut }: { statut?: Statut }) {
   const { pct, tone } = getProgress(statut);
   const idx = getStepIndex(statut);
-  const steps = ["Brouillon", "Soumis", "En validation", "Décision finale"];
+  const steps = ["Initié", "Soumis", "En validation", "Décision finale"];
 
   const toneClasses: Record<typeof tone, { bar: string; badge: string; dot: string }> = {
     slate: { bar: "bg-slate-500", badge: "border-slate-200 bg-slate-50 text-slate-700", dot: "bg-slate-600" },

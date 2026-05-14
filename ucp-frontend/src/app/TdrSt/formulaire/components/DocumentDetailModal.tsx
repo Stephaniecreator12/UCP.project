@@ -20,6 +20,7 @@ import {
   formatAmountForRow,
 } from "../hooks/useTdrStData";
 import { getFinancementLabel } from "./FinancementFilter";
+import { StatusStepper } from "./StatusStepper";
 
 type DocumentDetailModalProps = {
   document: TdrStDocument | null;
@@ -98,7 +99,7 @@ export default function DocumentDetailModal({
         }
       }}
     >
-      <div className="flex min-h-[85vh] max-h-[calc(100vh-0.25rem)] w-full max-w-5xl flex-col overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-2xl ring-1 ring-black/5 animate-in zoom-in-95 duration-200">
+      <div className="flex min-h-[90vh] max-h-[calc(100vh-0.25rem)] w-full max-w-7xl flex-col overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-2xl ring-1 ring-black/5 animate-in zoom-in-95 duration-200">
         <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-6 py-4 lg:px-7">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-100 text-emerald-700">
@@ -138,6 +139,10 @@ export default function DocumentDetailModal({
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto bg-white px-5 py-4 lg:px-7 lg:py-5">
+          <div className="mb-5">
+            <StatusStepper statut={activeDocument.statut} />
+          </div>
+
           <div className="mb-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <div className="flex flex-wrap gap-2">
               <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
@@ -158,8 +163,8 @@ export default function DocumentDetailModal({
             </p>
           </div>
 
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-            <div className="space-y-5 lg:col-span-2">
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
+            <div className="space-y-5 xl:col-span-8">
               <Section title="Informations generales" icon={FolderKanban}>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <DataPair label="Unite technique" value={activeDocument.unite_technique} />
@@ -237,7 +242,7 @@ export default function DocumentDetailModal({
               )}
             </div>
 
-              <div className="space-y-5">
+              <div className="space-y-5 xl:col-span-4">
   <Section title="Document PDF" icon={FileText}>
     {activeDocument.fichier_courant?.fichier_pdf ? (
       <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 text-center">

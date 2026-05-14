@@ -38,18 +38,6 @@ export function DocumentFormModal({
       <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-6">
         <div className="relative w-full max-w-4xl">
           <div className={`rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4 ${isReadOnly ? "opacity-75" : ""}`}>
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-slate-900">
-                {title || (activeDoc ? "Détail du document" : "Nouveau brouillon")}
-              </h2>
-              <button
-                type="button"
-                className="rounded-full bg-white/90 px-2.5 py-1 text-sm font-semibold text-slate-700 shadow transition hover:bg-white"
-                onClick={onClose}
-              >
-                ×
-              </button>
-            </div>
 
             {/* Form fields - simplified for brevity, you can reuse your existing form JSX */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

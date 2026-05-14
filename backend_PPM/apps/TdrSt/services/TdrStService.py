@@ -3,27 +3,29 @@ from __future__ import annotations
 from decimal import Decimal
 
 from django.conf import settings
-from django.db import transaction
-from django.db import models
+from django.db import models, transaction
+from django.db.models import Q
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
-from apps.TdrSt.models.TdrSt import TdrStDocument, TdrStDocumentFileVersion, TdrStValidationAction
+from apps.TdrSt.models.TdrSt import (
+    TdrStDocument,
+    TdrStDocumentFileVersion,
+    TdrStValidationAction,
+)
+from apps.TdrSt.services.emailService import (
+    send_demande_final_approve_email,
+    send_document_submitted_email,
+    send_document_suspended_email,
+    send_final_decision_email,
+    send_tech_decision_email,
+)
 from apps.TdrSt.services.schema_compat import (
     MISSING_TDR_LINK_MIGRATION_MESSAGE,
     has_tdr_demande_link_column,
 )
 from apps.users.models import UserProfile
 from apps.users.services.permissions import get_user_role
-
-# IMPORTS POUR LES EMAILS
-from apps.TdrSt.services.emailService import (
-    send_document_submitted_email,
-    send_tech_decision_email,
-    send_demande_final_approve_email,
-    send_final_decision_email,
-    send_document_suspended_email,
-)
 
 LOCKED_DEMANDE_FIELDS = {
     "unite_technique",
@@ -34,14 +36,6 @@ LOCKED_DEMANDE_FIELDS = {
 
 
 def _default_seuil_passation_usd() -> Decimal:
-    """
-    Valeur de fallback (configurable) du seuil a partir duquel on exige une etape ANO.
-
-    - Si `TDRST_SEUIL_PASSATION_DEFAULT_USD` est defini dans settings, on l'utilise.
-    - Sinon, on prend 50000.00 USD par defaut.
-
-    Le seuil au niveau document (`doc.seuil_passation`) reste prioritaire.
-    """
     raw = getattr(settings, "TDRST_SEUIL_PASSATION_DEFAULT_USD", None)
     if raw is None:
         return Decimal("50000.00")
@@ -52,37 +46,19 @@ def _default_seuil_passation_usd() -> Decimal:
 
 
 def _effective_seuil_passation(doc: TdrStDocument) -> Decimal | None:
-    # Si un seuil est defini sur le document, il prime; sinon on applique un fallback.
     if doc.seuil_passation is not None:
         return doc.seuil_passation
     return _default_seuil_passation_usd()
 
 
 def _build_numero_document(doc: TdrStDocument) -> str:
-    """
-    Construit le numéro de document au format:
-    - UCP/TDR/2026/0001 pour les TDR
-    - UCP/ST/2026/0001 pour les ST
-    L'incrémentation est séparée par type de document et par année.
-    """
-    from django.utils import timezone
-    
     year = doc.created_at.year if doc.created_at else timezone.now().year
-    
-    # Déterminer le préfixe selon le type de document
     prefix = "TDR" if doc.type_document == "TDR" else "ST"
-    
-    # Compter les documents du même type et de la même année
-    # On utilise filter sur l'année extraite de created_at
     same_type_count = TdrStDocument.objects.filter(
         type_document=doc.type_document,
-        created_at__year=year
+        created_at__year=year,
     ).count()
-    
-    # Le nouveau document n'est pas encore sauvegardé dans la base
-    # donc on ajoute 1 pour obtenir le prochain numéro
     next_number = same_type_count + 1
-    
     return f"UCP/{prefix}/{year}/{next_number:04d}"
 
 
@@ -101,9 +77,9 @@ def create_document(validated_data: dict, user) -> TdrStDocument:
             id=demande_achat_id
         ).first()
         if not demande_achat:
-            raise ValidationError({"demande_achat_id": "Le dossier état de besoin est introuvable."})
+            raise ValidationError({"demande_achat_id": "Le dossier etat de besoin est introuvable."})
         if getattr(demande_achat, "demandeur_id", None) != getattr(user, "id", None):
-            raise ValidationError({"detail": "Seul le demandeur du dossier peut créer son TDR/ST lié."})
+            raise ValidationError({"detail": "Seul le demandeur du dossier peut creer son TDR/ST lie."})
 
         try:
             existing_document = demande_achat.tdr_st_document
@@ -115,7 +91,6 @@ def create_document(validated_data: dict, user) -> TdrStDocument:
     doc = TdrStDocument.objects.create(demandeur=user, demande_achat=demande_achat, **validated_data)
     doc.numero_document = _build_numero_document(doc)
     doc.save(update_fields=["numero_document"])
-
     return doc
 
 
@@ -124,7 +99,7 @@ def update_document(doc: TdrStDocument, validated_data: dict, user) -> TdrStDocu
     if getattr(doc, "demandeur_id", None) != getattr(user, "id", None):
         raise ValidationError({"detail": "Seul le demandeur peut modifier ce document."})
     if doc.statut not in (TdrStDocument.Statut.BROUILLON, TdrStDocument.Statut.A_REVOIR):
-        raise ValidationError({"statut": "Modification autorisée uniquement en brouillon/à revoir."})
+        raise ValidationError({"statut": "Modification autorisee uniquement en brouillon/a revoir."})
 
     if doc.demande_achat_id:
         for locked_field in LOCKED_DEMANDE_FIELDS:
@@ -134,26 +109,27 @@ def update_document(doc: TdrStDocument, validated_data: dict, user) -> TdrStDocu
     for key, value in validated_data.items():
         setattr(doc, key, value)
     doc.save()
-
     return doc
 
 
 def _validate_document_ready_for_submission(doc: TdrStDocument) -> None:
     errors: dict[str, str] = {}
-
     if not doc.sources_financement:
-        errors["sources_financement"] = "La source de financement doit être renseignée avant soumission."
+        errors["sources_financement"] = "La source de financement doit etre renseignee avant soumission."
     if not (doc.ligne_budgetaire or "").strip():
-        errors["ligne_budgetaire"] = "La ligne budgétaire doit être renseignée avant soumission."
+        errors["ligne_budgetaire"] = "La ligne budgetaire doit etre renseignee avant soumission."
     if not (doc.numero_subvention or "").strip():
-        errors["numero_subvention"] = "Le numéro de subvention doit être renseigné avant soumission."
-
+        errors["numero_subvention"] = "Le numero de subvention doit etre renseigne avant soumission."
     if errors:
         raise ValidationError(errors)
 
 
 def list_my_documents(user):
-    return TdrStDocument.objects.filter(demandeur=user).select_related("fichier_courant", "demande_achat")
+    return (
+        TdrStDocument.objects.filter(demandeur=user)
+        .select_related("fichier_courant", "demande_achat")
+        .order_by("-updated_at", "-created_at")
+    )
 
 
 def _all_documents_queryset():
@@ -164,111 +140,111 @@ def _all_documents_queryset():
     ).order_by("-updated_at", "-created_at")
 
 
-def list_pending_tech():
+def _role_documents_queryset(queryset):
     return (
-        TdrStDocument.objects.filter(statut=TdrStDocument.Statut.SOUMIS)
+        queryset.distinct()
         .select_related("demandeur", "fichier_courant", "demande_achat")
-        .order_by("-created_at")
+        .order_by("-updated_at", "-created_at")
     )
 
 
-def _list_role_documents_with_history(*, pending_qs, treated_etape: str, user=None):
-    """
-    Helper pour les roles validateurs:
-    - pending_qs: documents "en cours" pour le role
-    - treated_etape: etape a utiliser pour retrouver l'historique
-    - user (optionnel): si fourni, limite l'historique aux documents traites par cet utilisateur
-    """
-    treated = TdrStDocument.objects.filter(actions_validation__etape=treated_etape)
-    if user is not None:
-        treated = treated.filter(actions_validation__acteur=user)
-    return (
-        (pending_qs | treated)
-        .distinct()
-        .select_related("demandeur", "fichier_courant", "demande_achat")
-        .order_by("-updated_at")
+def list_pending_tech():
+    return _role_documents_queryset(
+        TdrStDocument.objects.filter(statut=TdrStDocument.Statut.SOUMIS)
     )
 
 
 def list_tech_documents(user):
-    """
-    Pour les verificateurs techniques:
-    - inclut les documents en attente (SOUMIS)
-    - inclut aussi les documents deja traites (historique)
-    """
-    # Documents en attente de validation technique
     pending = TdrStDocument.objects.filter(statut=TdrStDocument.Statut.SOUMIS)
-    
-    # Documents déjà traités par ce vérificateur
-    treated = TdrStDocument.objects.filter(
+    treated_by_user = TdrStDocument.objects.filter(
         actions_validation__etape=TdrStValidationAction.Etape.VALIDATION_TECHNIQUE,
-        actions_validation__acteur=user
+        actions_validation__acteur=user,
+    ).filter(
+        Q(statut=TdrStDocument.Statut.A_REVOIR)
+        | Q(
+            statut__in=(
+                TdrStDocument.Statut.VALIDE,
+                TdrStDocument.Statut.REJETE,
+                TdrStDocument.Statut.SUSPENDU,
+            )
+        )
     )
-    
-    resubmitted = TdrStDocument.objects.filter(
-        statut=TdrStDocument.Statut.A_REVOIR,
-        actions_validation__etape=TdrStValidationAction.Etape.DEPOT,
-        actions_validation__meta__action="RESUBMIT"
-    )
-
-    return (pending | treated | resubmitted).distinct().select_related(
-        "demandeur", "fichier_courant", "demande_achat"
-    ).order_by("-updated_at")
+    return _role_documents_queryset(pending | treated_by_user)
 
 
 def list_pending_final():
-    return (
+    return _role_documents_queryset(
         TdrStDocument.objects.filter(statut=TdrStDocument.Statut.EN_VALIDATION)
-        .select_related("demandeur", "fichier_courant", "demande_achat")
-        .order_by("-created_at")
     )
 
 
 def list_final_documents(user):
-    """
-    Pour les approbateurs finaux:
-    - inclut les documents en attente (EN_VALIDATION)
-    - inclut aussi les documents deja traites (historique)
-    """
     pending = TdrStDocument.objects.filter(statut=TdrStDocument.Statut.EN_VALIDATION)
-    return _list_role_documents_with_history(
-        pending_qs=pending,
-        treated_etape=TdrStValidationAction.Etape.APPROBATION_FINALE,
-        user=None,
+    treated_by_user = TdrStDocument.objects.filter(
+        actions_validation__etape=TdrStValidationAction.Etape.APPROBATION_FINALE,
+        actions_validation__acteur=user,
+    ).filter(
+        Q(statut__in=(TdrStDocument.Statut.A_REVOIR, TdrStDocument.Statut.REJETE))
+        | Q(statut__in=(TdrStDocument.Statut.VALIDE, TdrStDocument.Statut.SUSPENDU))
     )
+    return _role_documents_queryset(pending | treated_by_user)
+
 
 def list_auditeur_documents():
-    """
-    Pour les auditeurs :
-    - Lecture seule sur l'ensemble des documents, y compris ceux en cours.
-    - La traçabilité complète (Section G / actions_validation) est incluse via prefetch
-      pour que l'auditeur puisse vérifier le respect des procédures.
-    - Aucune action de décision n'est possible depuis ce queryset.
-    """
     return (
-        TdrStDocument.objects.select_related("demandeur", "fichier_courant", "demande_achat")
-        .prefetch_related("actions_validation__acteur")  # Section G — traçabilité complète
+        TdrStDocument.objects.filter(
+            statut__in=(
+                TdrStDocument.Statut.VALIDE,
+                TdrStDocument.Statut.REJETE,
+                TdrStDocument.Statut.SUSPENDU,
+            )
+        )
+        .select_related("demandeur", "fichier_courant", "demande_achat")
+        .prefetch_related("actions_validation__acteur")
         .order_by("-updated_at")
+    )
+
+
+def list_all_documents_for_demandeur():
+    return _all_documents_queryset()
+
+
+def list_all_documents_for_tech():
+    return _role_documents_queryset(
+        TdrStDocument.objects.filter(
+            statut__in=(
+                TdrStDocument.Statut.SOUMIS,
+                TdrStDocument.Statut.A_REVOIR,
+                TdrStDocument.Statut.VALIDE,
+                TdrStDocument.Statut.REJETE,
+                TdrStDocument.Statut.SUSPENDU,
+            )
+        )
+    )
+
+
+def list_all_documents_for_final():
+    return _role_documents_queryset(
+        TdrStDocument.objects.filter(
+            statut__in=(
+                TdrStDocument.Statut.EN_VALIDATION,
+                TdrStDocument.Statut.A_REVOIR,
+                TdrStDocument.Statut.REJETE,
+                TdrStDocument.Statut.VALIDE,
+                TdrStDocument.Statut.SUSPENDU,
+            )
+        )
     )
 
 
 def list_documents_for_user(user, scope: str = "mine"):
     role = get_user_role(user)
     if role == UserProfile.Role.DEMANDEUR:
-        return _all_documents_queryset() if scope == "all" else list_my_documents(user).order_by("-updated_at", "-created_at")
+        return list_all_documents_for_demandeur() if scope == "all" else list_my_documents(user)
     if role == UserProfile.Role.VERIFICATEUR_TECHNIQUE:
-        return _all_documents_queryset() if scope == "all" else list_tech_documents(user)
+        return list_all_documents_for_tech() if scope == "all" else list_tech_documents(user)
     if role == UserProfile.Role.APPROBATEUR_FINAL:
-        if scope == "all":
-            return _all_documents_queryset()
-        pending = TdrStDocument.objects.filter(statut=TdrStDocument.Statut.EN_VALIDATION)
-        treated = TdrStDocument.objects.filter(
-            actions_validation__etape=TdrStValidationAction.Etape.APPROBATION_FINALE,
-            actions_validation__acteur=user,
-        )
-        return (pending | treated).distinct().select_related(
-            "demandeur", "fichier_courant", "demande_achat"
-        ).order_by("-updated_at")
+        return list_all_documents_for_final() if scope == "all" else list_final_documents(user)
     if role == UserProfile.Role.AUDITEUR:
         return list_auditeur_documents()
     return TdrStDocument.objects.none()
@@ -278,43 +254,37 @@ def list_documents_for_user(user, scope: str = "mine"):
 def submit_document(doc: TdrStDocument, user) -> TdrStDocument:
     if getattr(doc, "demandeur_id", None) != getattr(user, "id", None):
         raise ValidationError({"detail": "Seul le demandeur peut soumettre ce document."})
-    
-    # Autoriser la soumission depuis BROUILLON ou A_REVOIR
     if doc.statut not in (TdrStDocument.Statut.BROUILLON, TdrStDocument.Statut.A_REVOIR):
-        raise ValidationError({"statut": "Seuls les brouillons/à revoir peuvent être soumis."})
+        raise ValidationError({"statut": "Seuls les brouillons/a revoir peuvent etre soumis."})
 
     _validate_document_ready_for_submission(doc)
-    
-    # Passer en SOUMIS (même si c'était A_REVOIR)
+
+    previous_status = doc.statut
     doc.statut = TdrStDocument.Statut.SOUMIS
     doc.save(update_fields=["statut", "updated_at"])
-    
-    # Créer une nouvelle action de dépôt
+
     TdrStValidationAction.objects.create(
         document=doc,
         etape=TdrStValidationAction.Etape.DEPOT,
         acteur=user,
-        meta={"action": "RESUBMIT", "previous_status": "A_REVOIR"},
+        meta={"action": "RESUBMIT", "previous_status": previous_status},
     )
-    
-    # ENVOI EMAIL AUX VERIFICATEURS TECHNIQUES
+
     send_document_submitted_email(doc)
-    
     return doc
 
 
 @transaction.atomic
 def tech_decide(doc: TdrStDocument, user, decision: str, observations: str = "") -> TdrStDocument:
-    # Permettre la décision même si le document était déjà en A_REVOIR
     if doc.statut not in (TdrStDocument.Statut.SOUMIS, TdrStDocument.Statut.A_REVOIR):
-        raise ValidationError({"statut": "Décision technique impossible pour ce statut."})
+        raise ValidationError({"statut": "Decision technique impossible pour ce statut."})
 
     if decision == TdrStValidationAction.Decision.FAVORABLE:
         next_statut = TdrStDocument.Statut.EN_VALIDATION
     elif decision == TdrStValidationAction.Decision.A_REVOIR:
         next_statut = TdrStDocument.Statut.A_REVOIR
     else:
-        raise ValidationError({"decision": "Décision technique invalide."})
+        raise ValidationError({"decision": "Decision technique invalide."})
 
     TdrStValidationAction.objects.create(
         document=doc,
@@ -327,28 +297,25 @@ def tech_decide(doc: TdrStDocument, user, decision: str, observations: str = "")
 
     doc.statut = next_statut
     doc.save(update_fields=["statut", "updated_at"])
-    
-    # Envoyer l'email au demandeur
+
     send_tech_decision_email(doc, decision, observations)
-    
-    # Si le document passe en validation finale, notifier les approbateurs
     if next_statut == TdrStDocument.Statut.EN_VALIDATION:
         send_demande_final_approve_email(doc)
-    
+
     return doc
 
 
 @transaction.atomic
 def final_decide(doc: TdrStDocument, user, decision: str, observations: str = "") -> TdrStDocument:
     if doc.statut != TdrStDocument.Statut.EN_VALIDATION:
-        raise ValidationError({"statut": "Décision finale impossible pour ce statut."})
+        raise ValidationError({"statut": "Decision finale impossible pour ce statut."})
 
     if decision == TdrStValidationAction.Decision.APPROUVE:
-      next_statut = TdrStDocument.Statut.VALIDE
+        next_statut = TdrStDocument.Statut.VALIDE
     elif decision == TdrStValidationAction.Decision.REJETE:
-      next_statut = TdrStDocument.Statut.REJETE
+        next_statut = TdrStDocument.Statut.REJETE
     else:
-      raise ValidationError({"decision": "Décision finale invalide."})
+        raise ValidationError({"decision": "Decision finale invalide."})
 
     TdrStValidationAction.objects.create(
         document=doc,
@@ -361,10 +328,8 @@ def final_decide(doc: TdrStDocument, user, decision: str, observations: str = ""
 
     doc.statut = next_statut
     doc.save(update_fields=["statut", "updated_at"])
-    
-    # ENVOI DES EMAILS SELON LE CAS
+
     if decision == TdrStValidationAction.Decision.APPROUVE:
-        print(f"[EMAIL] Envoi email au demandeur pour décision finale - document {doc.numero_document}")
         send_final_decision_email(doc, decision, observations)
         if doc.demande_achat_id:
             from apps.achats.services.demande_service import submit_demande
@@ -393,15 +358,11 @@ def final_decide(doc: TdrStDocument, user, decision: str, observations: str = ""
                 demande.STATUT_A_COMPLETER,
             ):
                 submit_demande(demande, demande.demandeur)
-    
+
     return doc
 
 
 def requires_ano(doc: TdrStDocument) -> bool:
-    """
-    Business rule for extra bailleur step:
-    if `seuil_passation` is set and the estimated amount exceeds it, require ANO.
-    """
     seuil = _effective_seuil_passation(doc)
     if seuil is None:
         return False
@@ -414,10 +375,9 @@ def requires_ano(doc: TdrStDocument) -> bool:
 @transaction.atomic
 def suspendre_document(doc: TdrStDocument, user, observations: str = "") -> TdrStDocument:
     if doc.statut == TdrStDocument.Statut.SUSPENDU:
-        raise ValidationError({"statut": "Le document est déjà suspendu."})
-
+        raise ValidationError({"statut": "Le document est deja suspendu."})
     if doc.statut in (TdrStDocument.Statut.BROUILLON, TdrStDocument.Statut.A_REVOIR):
-        raise ValidationError({"statut": "Ce document doit être soumis avant de pouvoir être suspendu."})
+        raise ValidationError({"statut": "Ce document doit etre soumis avant de pouvoir etre suspendu."})
 
     doc.statut = TdrStDocument.Statut.SUSPENDU
     doc.save(update_fields=["statut", "updated_at"])
@@ -430,49 +390,29 @@ def suspendre_document(doc: TdrStDocument, user, observations: str = "") -> TdrS
         acteur=user,
         meta={"action": "SUSPEND"},
     )
-    
-    # ENVOI EMAIL AU DEMANDEUR POUR SUSPENSION
-    print(f"[EMAIL] Envoi email au demandeur pour suspension - document {doc.numero_document}")
-    send_document_suspended_email(doc, observations)
 
+    send_document_suspended_email(doc, observations)
     return doc
+
 
 @transaction.atomic
 def add_new_file_version(doc: TdrStDocument, uploaded_file, user) -> TdrStDocumentFileVersion:
-    print(f"[SERVICE] add_new_file_version - doc_id: {doc.id}, user_id: {user.id}")
-    
     if getattr(doc, "demandeur_id", None) != getattr(user, "id", None):
-        raise ValidationError({"detail": "Seul le demandeur peut téléverser une version."})
-    
+        raise ValidationError({"detail": "Seul le demandeur peut televerser une version."})
     if doc.statut not in (TdrStDocument.Statut.BROUILLON, TdrStDocument.Statut.A_REVOIR):
-        raise ValidationError({"statut": "Téléversement autorisé uniquement en brouillon/à revoir."})
-    
-    print(f"[SERVICE] Document valide, récupération des versions existantes...")
-    
+        raise ValidationError({"statut": "Televersement autorise uniquement en brouillon/a revoir."})
+
     existing_versions = list(doc.versions_fichier.order_by("-version"))
-    print(f"[SERVICE] Nombre de versions existantes: {len(existing_versions)}")
-    
-    # Au lieu de renommer l'ancienne version, on va créer une nouvelle version avec un numéro incrémenté
-    # et la version courante devient l'antérieure
-    
-    # Déterminer le prochain numéro de version
     max_version = existing_versions[0].version if existing_versions else 0
     next_version = max_version + 1
-    
-    print(f"[SERVICE] Nouvelle version numéro: {next_version}")
-    
-    # Si on a déjà 2 versions ou plus, supprimer la plus ancienne (hors version courante)
+
     if len(existing_versions) >= 2:
-        # Garder seulement les 2 versions les plus récentes
-        versions_to_keep = existing_versions[:1]  # Garder la plus récente
-        versions_to_delete = existing_versions[1:]  # Supprimer les autres
+        versions_to_delete = existing_versions[1:]
         for old_version in versions_to_delete:
-            print(f"[SERVICE] Suppression ancienne version {old_version.version}")
             if old_version.fichier_pdf:
                 old_version.fichier_pdf.delete(save=False)
             old_version.delete()
-    
-    # Capture du snapshot
+
     snapshot = {
         "unite_technique": doc.unite_technique,
         "type_document": doc.type_document,
@@ -490,8 +430,7 @@ def add_new_file_version(doc: TdrStDocument, uploaded_file, user) -> TdrStDocume
         "procedure_envisagee": doc.procedure_envisagee,
         "statut": doc.statut,
     }
-    
-    print(f"[SERVICE] Création nouvelle version {next_version}...")
+
     version_obj = TdrStDocumentFileVersion.objects.create(
         document=doc,
         version=next_version,
@@ -501,14 +440,11 @@ def add_new_file_version(doc: TdrStDocument, uploaded_file, user) -> TdrStDocume
         uploaded_by=user,
         snapshot_data=snapshot,
     )
-    
-    print(f"[SERVICE] Calcul empreinte SHA256...")
+
     version_obj.empreinte_sha256 = version_obj.compute_sha256()
     version_obj.save(update_fields=["empreinte_sha256"])
 
     doc.fichier_courant = version_obj
     doc.version = next_version
     doc.save(update_fields=["fichier_courant", "version", "updated_at"])
-    
-    print(f"[SERVICE] Upload terminé avec succès")
     return version_obj

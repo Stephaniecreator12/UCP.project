@@ -294,6 +294,17 @@ type UseTdrStFiltersProps<TDocument> = {
   getLigneBudgetaire: (doc: TDocument) => unknown;
   getNumeroSubvention: (doc: TDocument) => unknown;
   getDocumentType: (doc: TDocument) => unknown;
+  getFilterDate: (doc: TDocument) => unknown;
+};
+
+const toInputDateValue = (value: unknown): string | null => {
+  if (!value) return null;
+  const parsed = new Date(String(value));
+  if (Number.isNaN(parsed.getTime())) return null;
+  const year = parsed.getFullYear();
+  const month = String(parsed.getMonth() + 1).padStart(2, "0");
+  const day = String(parsed.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 };
 
 export function useTdrStFilters<TDocument extends { statut?: string }>({
@@ -302,9 +313,11 @@ export function useTdrStFilters<TDocument extends { statut?: string }>({
   getLigneBudgetaire,
   getNumeroSubvention,
   getDocumentType,
+  getFilterDate,
 }: UseTdrStFiltersProps<TDocument>) {
   const [selectedFinancements, setSelectedFinancements] = useState<string[]>([]);
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
+  const [selectedDate, setSelectedDate] = useState("");
   const [selectedDocumentTypes, setSelectedDocumentTypes] = useState<string[]>([]);
 
   const allFinancements = useMemo(() => {
@@ -373,6 +386,10 @@ export function useTdrStFilters<TDocument extends { statut?: string }>({
       result = result.filter((doc) => selectedStatuses.includes(doc.statut ?? ""));
     }
 
+    if (selectedDate) {
+      result = result.filter((doc) => toInputDateValue(getFilterDate(doc)) === selectedDate);
+    }
+
     if (selectedDocumentTypes.length > 0) {
       result = result.filter((doc) =>
         selectedDocumentTypes.includes(String(getDocumentType(doc) ?? "").trim()),
@@ -384,11 +401,13 @@ export function useTdrStFilters<TDocument extends { statut?: string }>({
     documents,
     selectedFinancements,
     selectedStatuses,
+    selectedDate,
     selectedDocumentTypes,
     getSourceFinancement,
     getLigneBudgetaire,
     getNumeroSubvention,
     getDocumentType,
+    getFilterDate,
   ]);
 
   return {
@@ -401,6 +420,8 @@ export function useTdrStFilters<TDocument extends { statut?: string }>({
       setSelectedFinancements,
       selectedStatuses,
       setSelectedStatuses,
+      selectedDate,
+      setSelectedDate,
       selectedDocumentTypes,
       setSelectedDocumentTypes,
       getStatusLabel,
@@ -421,6 +442,8 @@ export function TdrStFilterBar({
     setSelectedFinancements: (value: string[]) => void;
     selectedStatuses: string[];
     setSelectedStatuses: (value: string[]) => void;
+    selectedDate: string;
+    setSelectedDate: (value: string) => void;
     selectedDocumentTypes: string[];
     setSelectedDocumentTypes: (value: string[]) => void;
     getStatusLabel: (status: string) => string;
@@ -436,6 +459,8 @@ export function TdrStFilterBar({
     setSelectedFinancements,
     selectedStatuses,
     setSelectedStatuses,
+    selectedDate,
+    setSelectedDate,
     selectedDocumentTypes,
     setSelectedDocumentTypes,
     getStatusLabel,
@@ -443,7 +468,7 @@ export function TdrStFilterBar({
   } = filterProps;
 
   const activeFiltersCount =
-    selectedFinancements.length + selectedStatuses.length + selectedDocumentTypes.length;
+    selectedFinancements.length + selectedStatuses.length + selectedDocumentTypes.length + (selectedDate ? 1 : 0);
 
   const getFinancementDotColor = () => {
     if (selectedFinancements.length === 1) {
@@ -541,6 +566,28 @@ export function TdrStFilterBar({
               />
             </div>
             <div className="relative z-[5] flex-1">
+              <div
+                className={`flex h-10 items-center rounded-xl border border-slate-200 bg-white transition-colors hover:border-slate-300 ${
+                  compact ? "px-2.5" : "px-3"
+                }`}
+              >
+                <div className={`mr-2 h-1.5 w-1.5 rounded-full bg-emerald-400 shrink-0`}></div>
+                <label className="flex min-w-0 flex-1 items-center gap-2">
+                  <span className={`${compact ? "text-[11px]" : "text-[12px]"} font-semibold text-slate-600 whitespace-nowrap`}>
+                    Date
+                  </span>
+                  <input
+                    type="date"
+                    value={selectedDate}
+                    onChange={(event) => setSelectedDate(event.target.value)}
+                    className={`w-full min-w-0 bg-transparent text-slate-700 outline-none ${
+                      compact ? "text-[11px]" : "text-[12px]"
+                    }`}
+                  />
+                </label>
+              </div>
+            </div>
+            <div className="relative z-[4] flex-1">
               <FilterDropdown
                 title="Type de document"
                 options={documentTypeOptions}
@@ -559,6 +606,7 @@ export function TdrStFilterBar({
                 onClick={() => {
                   setSelectedFinancements([]);
                   setSelectedStatuses([]);
+                  setSelectedDate("");
                   setSelectedDocumentTypes([]);
                 }}
                 className={`flex items-center gap-2 rounded-lg border border-slate-200 bg-white font-semibold text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900 ${

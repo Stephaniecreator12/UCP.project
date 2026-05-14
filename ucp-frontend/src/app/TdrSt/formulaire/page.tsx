@@ -6,7 +6,6 @@ import { Activity, ChevronDown, Clock3, FilePlus2, Loader2, Search, Upload, X } 
 import { TdrStFilterBar, useTdrStFilters } from "./components/FinancementFilter";
 import TopHeader from "@/app/components/TopHeader";
 import { getToken } from "@/services/auth";
-import { StatusStepper } from "./components/StatusStepper";
 import { AccordionSection } from "./components/AccordionSection";
 import DocumentDetailModal from "./components/DocumentDetailModal";
 import { SectionDocumentsList } from "./components/SectionDocumentsList";
@@ -126,6 +125,7 @@ export default function TdRStPage() {
     getLigneBudgetaire: (doc) => doc.ligne_budgetaire,
     getNumeroSubvention: (doc) => doc.numero_subvention,
     getDocumentType: (doc) => doc.type_document,
+    getFilterDate: (doc) => doc.updated_at || doc.created_at,
   });
 
   const loadPendingTdrDemandes = useCallback(
@@ -339,8 +339,8 @@ export default function TdRStPage() {
         draft: [],
         pending: docs.filter((d) => d.statut === "SOUMIS"),
         correction: docs.filter((d) => d.statut === "A_REVOIR"),
-        validation: docs.filter((d) => d.statut === "EN_VALIDATION"),
-        all: docs.filter((d) => !["VALIDE", "REJETE", "SUSPENDU"].includes(d.statut)),
+        validation: [],
+        all: [],
         archive: docs.filter((d) => ["VALIDE", "REJETE", "SUSPENDU"].includes(d.statut)),
       };
     }
@@ -350,9 +350,9 @@ export default function TdRStPage() {
       return {
         draft: [],
         pending: [],
-        correction: docs.filter((d) => d.statut === "A_REVOIR"),
+        correction: [],
         validation: docs.filter((d) => d.statut === "EN_VALIDATION"),
-        all: docs.filter((d) => !["VALIDE", "REJETE", "SUSPENDU"].includes(d.statut)),
+        all: [],
         archive: docs.filter((d) => ["VALIDE", "REJETE", "SUSPENDU"].includes(d.statut)),
       };
     }
@@ -367,11 +367,6 @@ export default function TdRStPage() {
     };
   }, [finalDocuments, role]);
 
-  const selectedDocument = useMemo(
-    () => documents.find((d) => d.id === selectedId) || null,
-    [documents, selectedId]
-  );
-
   const resetSearch = () => {
     setSearchQuery("");
   };
@@ -379,6 +374,7 @@ export default function TdRStPage() {
   const hasActiveFilters = searchQuery !== "" || 
     tdrFilterProps.selectedFinancements.length > 0 ||
     tdrFilterProps.selectedStatuses.length > 0 ||
+    tdrFilterProps.selectedDate !== "" ||
     tdrFilterProps.selectedDocumentTypes.length > 0;
 
   const totalDocuments =
@@ -771,19 +767,13 @@ export default function TdRStPage() {
                 resetSearch();
                 tdrFilterProps.setSelectedFinancements([]);
                 tdrFilterProps.setSelectedStatuses([]);
+                tdrFilterProps.setSelectedDate("");
                 tdrFilterProps.setSelectedDocumentTypes([]);
               }}
               className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-200"
             >
               Tout réinitialiser
             </button>
-          </div>
-        )}
-
-        {/* Status indicator for selected document */}
-        {selectedDocument && (
-          <div className="mb-6">
-            <StatusStepper statut={selectedDocument.statut} />
           </div>
         )}
 
@@ -947,7 +937,7 @@ export default function TdRStPage() {
             {isRequesterRole(role) && sections.draft.length > 0 && (
               <AccordionSection
                 sectionKey="draft"
-                title="Brouillons TDR/ST"
+                title="TDR/ST Initiés"
                 documents={sections.draft}
                 selectedId={selectedId}
                 onSelectDocument={(id) => setSelectedId(id)}

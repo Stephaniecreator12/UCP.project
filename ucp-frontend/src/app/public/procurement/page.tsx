@@ -76,7 +76,7 @@ export default function ProcurementPage({
       <TopHeader />
       
       <div className="max-w-6xl mx-auto px-4 mt-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">Marchés de l'UCP</h1>
+        <h1 className="text-2xl font-bold text-gray-900 mb-6">Marchés de l UCP</h1>
 
         <div className="space-y-4 mb-8">
           {(data.results ?? []).length === 0 ? (
@@ -99,7 +99,6 @@ export default function ProcurementPage({
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm mb-4">
-                  {/* Financements */}
                   <div className="bg-gray-50 p-3 rounded-md">
                     <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-2">Financement & Origine</span>
                     <div className="space-y-1">
@@ -147,7 +146,6 @@ export default function ProcurementPage({
                   </div>
                 </div>
 
-                {/* Action Principale - Téléchargement DAO */}
                 <div className="flex justify-end pt-2 border-t border-gray-100">
                   <button 
                     type="button" 

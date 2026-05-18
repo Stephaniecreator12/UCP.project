@@ -29,8 +29,8 @@ export const rhLogin = async (
     const accessType = "private"
     if (response.ok) {
       Cookies.set("access_token", data.access, { expires: 1, secure: process.env.NODE_ENV === 'production' });
-      Cookies.set("access_token", data.refresh, { expires: 1, secure: process.env.NODE_ENV === 'production' });
-      Cookies.set("access_token", accessType, { expires: 1, secure: process.env.NODE_ENV === 'production' });
+      Cookies.set("refresh_token", data.refresh, { expires: 1, secure: process.env.NODE_ENV === 'production' });
+      Cookies.set("access_type", accessType, { expires: 1, secure: process.env.NODE_ENV === 'production' });
       return {status:200, success: true};
     }
     if(response.status == 400){
@@ -63,8 +63,8 @@ export const publicLogin = async (
     const accessType = "public"
     if (response.ok) {
       Cookies.set("access_token", data.access, { expires: 1, secure: process.env.NODE_ENV === 'production' });
-      Cookies.set("access_token", data.refresh, { expires: 1, secure: process.env.NODE_ENV === 'production' });
-      Cookies.set("access_token", accessType, { expires: 1, secure: process.env.NODE_ENV === 'production' });
+      Cookies.set("refresh_token", data.refresh, { expires: 1, secure: process.env.NODE_ENV === 'production' });
+      Cookies.set("access_type", accessType, { expires: 1, secure: process.env.NODE_ENV === 'production' });
       return {status:200, success: true};
     }
     if(response.status == 404){

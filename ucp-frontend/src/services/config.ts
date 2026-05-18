@@ -26,6 +26,76 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
+api.interceptors.response.use(
+  (response) => response, 
+  async (error) => {
+    const originalRequest = error.config;
+
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+      console.log("👉 [INTERCEPTOR] Une erreur est détectée ! Statut :", error.response?.status);
+      
+      let refreshToken: string | undefined = undefined;
+      let accessType: string | undefined = undefined;
+
+      if (typeof window !== "undefined") {
+        refreshToken = Cookies.get("refresh_token");
+        accessType = Cookies.get("access_type");
+      } else {
+        try {
+          const { cookies } = await import("next/headers");
+          const cookieStore = await cookies();
+          refreshToken = cookieStore.get("refresh_token")?.value;
+          accessType = cookieStore.get("access_type")?.value;
+        } catch (e) {
+          console.error("Erreur lecture cookies serveur", e);
+        }
+      }
+
+      if (refreshToken) {
+        try {
+          const targetBaseUrl = accessType === "private" ? process.env.NEXT_PUBLIC_API_RH_URL : process.env.NEXT_PUBLIC_API_BASE_URL;
+          
+          const refreshUrl = `${targetBaseUrl}/token/refresh/`;
+          const response = await axios.post(refreshUrl, {
+            refresh: refreshToken,
+          });
+          const newAccessToken = response.data.access;
+
+          if (typeof window !== "undefined") {
+            Cookies.set("access_token", newAccessToken, { 
+              secure: process.env.NODE_ENV === 'production', 
+              sameSite: "strict" 
+            });
+          } else {
+            const { cookies } = await import("next/headers");
+            const cookieStore = await cookies();
+            cookieStore.set("access_token", newAccessToken, {
+              secure: process.env.NODE_ENV === 'production',
+              sameSite: "strict"
+            });
+          }
+
+          originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+
+          return api(originalRequest);
+        } catch (refreshError) {
+          console.error("Le rafraîchissement du token a échoué :", refreshError);
+          
+          if (typeof window !== "undefined") {
+            Cookies.remove("access_token");
+            Cookies.remove("refresh_token");
+            Cookies.remove("access_type");
+            window.location.href = "/auth/login";
+          }
+        }
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
+
 type ApiErrorData =
   | string
   | {

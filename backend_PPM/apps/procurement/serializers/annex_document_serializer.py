@@ -36,3 +36,8 @@ class AnnexDocumentSerializer(
             )
 
         return attrs
+    
+class AnnexDocumentListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AnnexDocument
+        fields = ['id', 'file', 'uploaded_at']

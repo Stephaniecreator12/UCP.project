@@ -1,8 +1,8 @@
-"use client";
 import { ProcurementFormValues,ProcurementMarket } from "../types/procurement";
 import { api } from "./config";
 import { parseApiError } from "./config";
 import { ApiResult } from "../types/procurement";
+import { PaginatedResponse } from "../types/procurement";
 export const createMarket = async (
   data: ProcurementFormValues
 ): Promise<ApiResult<ProcurementMarket>> => {
@@ -150,3 +150,31 @@ export const uploadAnnexDocument = async (
   }
   
 };
+export const getMarkets = async(page: string): Promise<PaginatedResponse<ProcurementMarket>>=> {
+  try {
+    const res = await api.get(`/procurement/market-list/?page=${page}`);
+    return res.data; 
+  } catch (e) {
+    console.error("Erreur API getMarkets:", e);
+    return {
+      count: 0,
+      next: null,
+      previous: null,
+      results: [],
+    };
+  }
+}
+
+export const getMarketById = async(reference_number: string): Promise<ApiResult<ProcurementMarket>>=> {
+  try {
+    const res = await api.get(`/procurement/markets/${reference_number}`);
+    return res.data; 
+  } catch (e) {
+
+    return {
+      error: true,
+      message: parseApiError(e),
+    };
+  }
+}
+

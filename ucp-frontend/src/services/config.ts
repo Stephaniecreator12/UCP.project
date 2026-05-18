@@ -1,10 +1,23 @@
 import axios from "axios";
+import Cookies from 'js-cookie';
 import { AxiosError } from "axios";
 export const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_BASE_URL,
 });
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("access_token");
+api.interceptors.request.use(async (config) => {
+  let token: string | undefined = undefined;
+
+  if (typeof window !== "undefined") {
+    token = Cookies.get("access_token");
+  } else {
+    try {
+      const { cookies } = await import("next/headers");
+      const cookieStore = await cookies();
+      token = cookieStore.get("access_token")?.value;
+    } catch (e) {
+      console.error("Impossible de lire les cookies sur le serveur", e);
+    }
+  }
 
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -12,8 +25,6 @@ api.interceptors.request.use((config) => {
 
   return config;
 });
-
-
 
 type ApiErrorData =
   | string

@@ -7,8 +7,14 @@ from apps.procurement.models.procurement_market import (
     FinancingSource
 )
 
-from apps.procurement.serializers.annex_document_serializer import AnnexDocumentSerializer
-from apps.procurement.serializers.technical_document_serializer import TechnicalDocumentSerializer
+from apps.procurement.serializers.annex_document_serializer import (
+    AnnexDocumentSerializer,
+    AnnexDocumentListSerializer
+)
+from apps.procurement.serializers.technical_document_serializer import (
+    TechnicalDocumentSerializer,
+    TechnicalDocumentListSerializer
+)
 
 class ProcurementMarketSerializer(serializers.ModelSerializer):
 
@@ -212,3 +218,18 @@ class ProcurementMarketSerializer(serializers.ModelSerializer):
 
 
         return attrs
+    
+
+class ProcurementMarketListSerializer(serializers.ModelSerializer):
+    annexes = AnnexDocumentListSerializer(many=True, read_only=True)
+    technical_documents = TechnicalDocumentListSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = ProcurementMarket
+        fields = [
+            'id', 'reference_number', 'title', 'procedure_type', 
+            'category', 'financing_sources', 'reference_bailleur', 
+            'project_code', 'publication_date', 'deadline', 
+            'submission_model', 'status', 'created_at', 
+            'annexes', 'technical_documents'
+        ]

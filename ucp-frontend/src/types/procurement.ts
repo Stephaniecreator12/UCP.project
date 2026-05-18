@@ -39,7 +39,7 @@ export interface ProcurementMarket {
   procedure_type: ProcedureType | "";
   category: CategoryType | "";
 
-  financing_source: FinancingSource[];
+  financing_sources: FinancingSource[];
 
   reference_bailleur?: FinancingSource;
 
@@ -91,3 +91,10 @@ export type ApiResult<T> =
       message: string | ValidationError;
       status?: number;
     };
+
+export interface PaginatedResponse<T> {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+}

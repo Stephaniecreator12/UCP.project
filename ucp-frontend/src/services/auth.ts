@@ -1,4 +1,4 @@
-"use client";
+import Cookies from 'js-cookie';
 import { API_BASE_URL, API_RH_URL } from "./api";
 interface LoginResult {
   status: number;
@@ -28,11 +28,9 @@ export const rhLogin = async (
     const data = await response.json();
     const accessType = "private"
     if (response.ok) {
-      localStorage.setItem("access_token", data.access);
-      localStorage.setItem("refresh_token", data.refresh);
-      localStorage.setItem("accessType", accessType);
-      document.cookie = `access_type=${accessType}; path=/`;
-      document.cookie = `access_token=${data.access}; path=/`;
+      Cookies.set("access_token", data.access, { expires: 1, secure: process.env.NODE_ENV === 'production' });
+      Cookies.set("access_token", data.refresh, { expires: 1, secure: process.env.NODE_ENV === 'production' });
+      Cookies.set("access_token", accessType, { expires: 1, secure: process.env.NODE_ENV === 'production' });
       return {status:200, success: true};
     }
     if(response.status == 400){
@@ -64,11 +62,9 @@ export const publicLogin = async (
     const data = await response.json();
     const accessType = "public"
     if (response.ok) {
-      localStorage.setItem("access_token", data.access);
-      localStorage.setItem("refresh_token", data.refresh);
-      localStorage.setItem("access_type", accessType);
-      document.cookie = `access_type=${accessType}; path=/`;
-      document.cookie = `access_token=${data.access}; path=/`;
+      Cookies.set("access_token", data.access, { expires: 1, secure: process.env.NODE_ENV === 'production' });
+      Cookies.set("access_token", data.refresh, { expires: 1, secure: process.env.NODE_ENV === 'production' });
+      Cookies.set("access_token", accessType, { expires: 1, secure: process.env.NODE_ENV === 'production' });
       return {status:200, success: true};
     }
     if(response.status == 404){
@@ -109,23 +105,14 @@ export const login = async (
 
 export const logout = () => {
   if (typeof window === "undefined") return;
-  localStorage.removeItem("access_token");
-  localStorage.removeItem("refresh_token");
-  localStorage.removeItem("access_type");
-
-  document.cookie =
-    "access_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-
-  document.cookie =
-    "refresh_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-
-  document.cookie =
-    "access_type=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+  Cookies.remove("access_token");
+  Cookies.remove("refresh_token");
+  Cookies.remove("access_type");
 };
 
 export const getToken = () => {
   if (typeof window === "undefined") return null;
-  return localStorage.getItem("access_token");
+  return Cookies.get("access_token");
 };
 
 

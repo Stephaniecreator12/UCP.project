@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 export function middleware(request: NextRequest) {
 
-  /*const path = request.nextUrl.pathname;
+  const path = request.nextUrl.pathname;
 
   const accessType =
     request.cookies.get("access_type")?.value;
@@ -14,7 +14,8 @@ export function middleware(request: NextRequest) {
       new URL("/auth/login", request.url)
     );
   }
-  if (
+
+  /*if (
     path.startsWith("/private") &&
     accessType !== "private"
   ) {
@@ -22,11 +23,11 @@ export function middleware(request: NextRequest) {
       new URL("/public/dao-dc", request.url)
     );
   }
-
+    */
   return NextResponse.next();
 }
 
 export const config = {
   matcher: ["/private/:path*", "/public/:path*"],
-  */
+  
 };

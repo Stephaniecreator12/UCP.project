@@ -24,3 +24,8 @@ class TechnicalDocumentSerializer(
             "version",
             "uploaded_at"
         ]
+
+class TechnicalDocumentListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TechnicalDocument
+        fields = ['id', 'file', 'version', 'uploaded_at']

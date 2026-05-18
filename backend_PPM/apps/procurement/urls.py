@@ -1,7 +1,8 @@
 from rest_framework.routers import DefaultRouter
 
 from apps.procurement.views.procurement_market_view import (
-    ProcurementMarketViewSet
+    ProcurementMarketViewSet,
+    ProcurementMarketListViewSet
 )
 from apps.procurement.views.technical_document_view import (
     TechnicalDocumentViewSet
@@ -29,5 +30,11 @@ router.register(
     AnnexDocumentViewSet,
     basename="annexes"
 )
+router.register(
+    r"market-list",
+    ProcurementMarketListViewSet,
+    basename="market-list"
+)
+
 
 urlpatterns = router.urls

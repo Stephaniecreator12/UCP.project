@@ -60,7 +60,7 @@ class ProcurementMarket(models.Model):
 
     project_code = models.CharField(max_length=100, blank=True, null=True)
 
-    publication_date = models.DateTimeField(null=True, blank=True, editable=False)
+    publication_date = models.DateTimeField()
 
     deadline = models.DateTimeField()
 

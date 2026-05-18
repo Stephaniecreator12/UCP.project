@@ -49,7 +49,6 @@ class ProcurementMarketSerializer(serializers.ModelSerializer):
 
         read_only_fields = [
             "reference_number",
-            "publication_date",
             "created_at"
         ]
 
@@ -115,8 +114,15 @@ class ProcurementMarketSerializer(serializers.ModelSerializer):
         procedure_type = attrs.get("procedure_type")
         deadline = attrs.get("deadline")
 
-        publication_date = timezone.now()
-
+        publication_date = attrs.get("publication_date")
+        if not publication_date:
+            raise serializers.ValidationError({
+                "publication_date": "obligatoire"
+        })
+        if(publication_date < timezone.now()):
+            raise serializers.ValidationError({
+                "publication_date": "publication_date supérieur à la date actuelle"
+        })
         delta = deadline - publication_date
         if not deadline:
             raise serializers.ValidationError({

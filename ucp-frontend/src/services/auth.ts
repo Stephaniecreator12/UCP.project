@@ -54,7 +54,9 @@ const getLoginErrorMessage = (status: number, data: unknown) => {
     return "Le serveur d'authentification est indisponible pour le moment.";
   }
 
-  return extractAuthErrorMessage(data) ?? "Connexion impossible pour le moment.";
+  return (
+    extractAuthErrorMessage(data) ?? "Connexion impossible pour le moment."
+  );
 };
 
 export interface UserProfile {
@@ -89,8 +91,12 @@ const MARKET_GROUPS = [
   MARCHES_GROUP,
   LOGISTIQUE_GROUP,
 ] as const;
+export const SECRETAIRE_GROUP = "SECRETAIRE" as const;
 
-const VALIDATOR_GROUP_LABELS: Record<(typeof VALIDATOR_GROUPS)[number], string> = {
+const VALIDATOR_GROUP_LABELS: Record<
+  (typeof VALIDATOR_GROUPS)[number],
+  string
+> = {
   VALIDATEUR_HIERARCHIQUE: "Supérieur hiérarchique",
   VALIDATEUR_TECHNIQUE: "Responsable technique",
   VALIDATEUR_PROGRAMMATIQUE: "Point focal programme",
@@ -103,7 +109,10 @@ const FINANCE_GROUP_LABELS: Record<(typeof FINANCE_GROUPS)[number], string> = {
   VALIDATEUR_BUDGETAIRE: "Responsable administratif et financier",
 };
 
-const VALIDATOR_GROUP_TO_STEP: Record<(typeof VALIDATOR_GROUPS)[number], string> = {
+const VALIDATOR_GROUP_TO_STEP: Record<
+  (typeof VALIDATOR_GROUPS)[number],
+  string
+> = {
   VALIDATEUR_HIERARCHIQUE: "HIERARCHIQUE",
   VALIDATEUR_TECHNIQUE: "TECHNIQUE",
   VALIDATEUR_PROGRAMMATIQUE: "PROGRAMMATIQUE",
@@ -135,37 +144,37 @@ const storeCurrentUser = (user: UserProfile) => {
 };
 
 export const isValidatorUser = (user: UserProfile | null) =>
-  !!user?.groups?.some(
-    (group): group is (typeof VALIDATOR_GROUPS)[number] =>
-      VALIDATOR_GROUPS.includes(group as (typeof VALIDATOR_GROUPS)[number]),
+  !!user?.groups?.some((group): group is (typeof VALIDATOR_GROUPS)[number] =>
+    VALIDATOR_GROUPS.includes(group as (typeof VALIDATOR_GROUPS)[number]),
   );
 
 export const isAgentAchatUser = (user: UserProfile | null) =>
   !!user?.groups?.includes(AGENT_ACHAT_GROUP);
 
 export const isFinanceUser = (user: UserProfile | null) =>
-  !!user?.groups?.some(
-    (group): group is (typeof FINANCE_GROUPS)[number] =>
-      FINANCE_GROUPS.includes(group as (typeof FINANCE_GROUPS)[number]),
+  !!user?.groups?.some((group): group is (typeof FINANCE_GROUPS)[number] =>
+    FINANCE_GROUPS.includes(group as (typeof FINANCE_GROUPS)[number]),
   );
 
 export const isAgentMarcheUser = (user: UserProfile | null) =>
-  !!user?.groups?.some(
-    (group): group is (typeof MARKET_GROUPS)[number] =>
-      MARKET_GROUPS.includes(group as (typeof MARKET_GROUPS)[number]),
+  !!user?.groups?.some((group): group is (typeof MARKET_GROUPS)[number] =>
+    MARKET_GROUPS.includes(group as (typeof MARKET_GROUPS)[number]),
   );
+
+export const isSecretaireUser = (user: UserProfile | null) =>
+  !!user?.groups?.includes(SECRETAIRE_GROUP);
 
 export const isLogistiqueUser = (user: UserProfile | null) =>
   isAgentMarcheUser(user);
 
-export const canUseGlobalDashboard = (user: UserProfile | null) =>
-  !!user;
+export const canUseGlobalDashboard = (user: UserProfile | null) => !!user;
 
 export const getValidatorGroup = (
   user: UserProfile | null,
 ): (typeof VALIDATOR_GROUPS)[number] | null => {
-  const group = user?.groups?.find((item): item is (typeof VALIDATOR_GROUPS)[number] =>
-    VALIDATOR_GROUPS.includes(item as (typeof VALIDATOR_GROUPS)[number]),
+  const group = user?.groups?.find(
+    (item): item is (typeof VALIDATOR_GROUPS)[number] =>
+      VALIDATOR_GROUPS.includes(item as (typeof VALIDATOR_GROUPS)[number]),
   );
 
   return group ?? null;
@@ -176,16 +185,17 @@ export const getValidatorRoleLabel = (user: UserProfile | null) => {
   return group ? VALIDATOR_GROUP_LABELS[group] : "";
 };
 
-export const getFinanceGroup = (user: UserProfile | null) => user?.groups?.find((item): item is (typeof FINANCE_GROUPS)[number] =>
+export const getFinanceGroup = (user: UserProfile | null) =>
+  user?.groups?.find((item): item is (typeof FINANCE_GROUPS)[number] =>
     FINANCE_GROUPS.includes(item as (typeof FINANCE_GROUPS)[number]),
   );
 
 export const getValidatorStep = (user: UserProfile | null) => {
   const vGroup = getValidatorGroup(user);
   if (vGroup) return VALIDATOR_GROUP_TO_STEP[vGroup];
-  
+
   if (isFinanceUser(user)) return "BUDGETAIRE";
-  
+
   return null;
 };
 
@@ -205,6 +215,7 @@ export const getMarketRoleLabel = (user: UserProfile | null) => {
 };
 
 export const getLandingRouteForUser = (user: UserProfile | null) => {
+  if (isSecretaireUser(user)) return "/ouverture_offre";
   if (isFinanceUser(user) || isValidatorUser(user)) return "/validation";
   if (isAgentAchatUser(user)) return "/passation";
   if (isAgentMarcheUser(user)) return "/marche";
@@ -250,12 +261,10 @@ export const login = async (
     const data = await readApiResponse(response);
 
     if (response.ok) {
-      const payload = data as
-        | {
-            access?: string;
-            refresh?: string;
-          }
-        | null;
+      const payload = data as {
+        access?: string;
+        refresh?: string;
+      } | null;
 
       if (!payload?.access || !payload?.refresh) {
         return {

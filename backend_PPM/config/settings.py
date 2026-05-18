@@ -85,6 +85,7 @@ INSTALLED_APPS = [
     'apps.ppm',
     'apps.achats',
     'apps.TdrSt',
+    "apps.ouverture_offre",
 ]
 
 MIDDLEWARE = [

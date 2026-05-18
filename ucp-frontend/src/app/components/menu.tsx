@@ -18,6 +18,7 @@ import {
   isAgentMarcheUser,
   isFinanceUser,
   isValidatorUser,
+  isSecretaireUser,
 } from "@/services/auth";
 
 type MenuLink = {
@@ -27,6 +28,7 @@ type MenuLink = {
 };
 
 const getUserMode = (user: ReturnType<typeof getCurrentUser>) => {
+  if (isSecretaireUser(user)) return "secretaire" as const;
   if (isFinanceUser(user)) return "finance" as const;
   if (isValidatorUser(user)) return "validator" as const;
   if (isAgentAchatUser(user)) return "agent" as const;
@@ -48,12 +50,14 @@ const DEFAULT_LINKS: MenuLink[] = [
   {
     label: "état de besoins",
     href: "/demande-achat",
-    match: (pathname) => pathname === "/demande-achat" || pathname.startsWith("/demande-achat/"),
+    match: (pathname) =>
+      pathname === "/demande-achat" || pathname.startsWith("/demande-achat/"),
   },
   {
     label: "TDR",
     href: "/TdrSt",
-    match: (pathname) => pathname === "/TdrSt" || pathname.startsWith("/TdrSt/"),
+    match: (pathname) =>
+      pathname === "/TdrSt" || pathname.startsWith("/TdrSt/"),
   },
 ];
 
@@ -67,16 +71,17 @@ const VALIDATOR_LINKS: MenuLink[] = [
   {
     label: "TDR",
     href: "/TdrSt",
-    match: (pathname) => pathname === "/TdrSt" || pathname.startsWith("/TdrSt/"),
+    match: (pathname) =>
+      pathname === "/TdrSt" || pathname.startsWith("/TdrSt/"),
   },
 ];
-
 
 const AGENT_ACHAT_LINKS: MenuLink[] = [
   {
     label: "passation",
     href: "/passation",
-    match: (pathname) => pathname === "/passation" || pathname.startsWith("/passation/"),
+    match: (pathname) =>
+      pathname === "/passation" || pathname.startsWith("/passation/"),
   },
 ];
 
@@ -89,6 +94,16 @@ const MARKET_LINKS: MenuLink[] = [
       pathname.startsWith("/marche/") ||
       pathname === "/logistique" ||
       pathname.startsWith("/logistique/"),
+  },
+];
+
+const SECRETAIRE_LINKS: MenuLink[] = [
+  {
+    label: "ouverture des offres",
+    href: "/ouverture_offre",
+    match: (pathname) =>
+      pathname === "/ouverture_offre" ||
+      pathname.startsWith("/ouverture_offre/"),
   },
 ];
 
@@ -105,9 +120,9 @@ export default function Menu({ className = "" }: { className?: string }) {
     null,
   );
   const [hoverTimeout, setHoverTimeout] = useState<NodeJS.Timeout | null>(null);
-  const [userMode, setUserMode] = useState<"default" | "validator" | "finance" | "agent" | "marche">(
-    () => getUserMode(getCurrentUser()),
-  );
+  const [userMode, setUserMode] = useState<
+    "default" | "validator" | "finance" | "agent" | "marche" | "secretaire"
+  >(() => getUserMode(getCurrentUser()));
 
   const showAuthenticatedActions = pathname !== "/login";
   const canPortal = typeof document !== "undefined";
@@ -171,7 +186,9 @@ export default function Menu({ className = "" }: { className?: string }) {
   }, [open, measureMenuPosition]);
 
   const links =
-    userMode === "finance" || userMode === "validator"
+    userMode === "secretaire"
+      ? SECRETAIRE_LINKS
+      : userMode === "finance" || userMode === "validator"
       ? VALIDATOR_LINKS
       : userMode === "agent"
         ? AGENT_ACHAT_LINKS

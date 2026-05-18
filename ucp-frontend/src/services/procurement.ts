@@ -24,6 +24,12 @@ export const createMarket = async (
       data.category
     );
   }
+  if (data.publication_date && data.publication_date.trim() !== "") {
+    formData.append(
+      "publication_date",
+      data.publication_date
+    );
+  }
     if (data.deadline && data.deadline.trim() !== "") {
     formData.append(
       "deadline",

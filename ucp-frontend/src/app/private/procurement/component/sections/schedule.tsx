@@ -40,13 +40,13 @@ export function ScheduleSection({
           <TextTitle text="Date de publication"></TextTitle>
 
           <input
-            disabled
-            value={format(
-              new Date(),
-              "dd/MM/yyyy  HH':'mm"
-            )}
-            className="input focus:outline-none focus:ring-0 text-md"
+            type="datetime-local"
+            {...form.register("publication_date")}
+            className="input focus:outline-none focus:ring-0 text-md w-[15%]"
           />
+          {errors.publication_date && (
+            <p className="text-red-500 text-xs mt-1">{errors.publication_date.message}</p>
+          )}
         </div>
 
         <div className="flex flex-col gap-3">

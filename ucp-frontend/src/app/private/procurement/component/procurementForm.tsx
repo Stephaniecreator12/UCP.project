@@ -30,7 +30,7 @@ export function ProcurementForm() {
         reference_bailleur: undefined,
 
         project_code: undefined,
-
+        publication_date: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
         deadline: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
 
         status: "PUBLISHED",

@@ -61,13 +61,14 @@ export function PublishActions({ form }: Props) {
 
   return (
     <div>
-      {globalError && <p className="text-red-600 mb-4 font-bold">{globalError}</p>}
+      
       <button
-  onClick={form.handleSubmit(handleSubmit)}
-  className="btn-primary"
->
-  Publier sur le portail
-</button>
+        onClick={form.handleSubmit(handleSubmit)}
+        className="btn-primary"
+      >
+        Publier sur le portail
+      </button>
+      {globalError && <p className="text-red-600 mb-4 font-bold">{globalError}</p>}
     </div>
     
   );

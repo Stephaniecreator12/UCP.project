@@ -45,7 +45,7 @@ export interface ProcurementMarket {
 
   project_code?: string;
 
-  publication_date?: string;
+  publication_date: string;
 
   deadline: string;
 
@@ -69,7 +69,7 @@ export interface ProcurementFormValues {
   reference_bailleur?: FinancingSource;
 
   project_code?: string;
-
+  publication_date: string;
   deadline: string;
 
   status: PublicationStatus;

@@ -1,4 +1,6 @@
 export const getCountdown = (deadlineStr: string): string => {
+  if (!deadlineStr) return "-";
+
   const deadline = new Date(deadlineStr).getTime();
   const now = new Date().getTime();
   const distance = deadline - now;
@@ -9,6 +11,8 @@ export const getCountdown = (deadlineStr: string): string => {
   const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
   const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
 
-  if (days > 0) return `${days}j ${hours}h restant(s)`;
-  return `${hours}h ${minutes}m restant(s)`;
+  if (days > 0) {
+    return `${days}j ${hours}h restant${days > 1 || hours > 1 ? "s" : ""}`;
+  }
+  return `${hours}h ${minutes}m restant${hours > 1 || minutes > 1 ? "s" : ""}`;
 };

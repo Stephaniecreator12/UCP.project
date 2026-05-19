@@ -6,7 +6,7 @@ import Link from "next/link";
 import { getToken } from "@/services/auth";
 import TopHeader from "@/app/components/TopHeader";
 import { ProcurementMarket } from "@/types/procurement";
-
+import { getCountdown } from "./components/countdown";
 interface MarketData {
   count: number;
   previous: string | null;
@@ -96,10 +96,15 @@ export default function ProcurementPage({
                       Ref: {market.reference_number}
                     </span>
                     <h2 className="text-xl font-semibold text-gray-800 mt-2">{market.title}</h2>
+                    {market.procedure_type == "DC" && (
+                      <span className="text-xs bg-amber-100 border border-amber-200 text-amber-800 px-2.5 py-0.5 rounded-full font-bold animate-pulse flex items-center gap-1">
+                        ⚡ DC – réponse sous 5 jours
+                      </span>
+                    )}
                   </div>
                   <div className="text-xs text-gray-500 bg-blue-50 border border-blue-100 rounded px-3 py-1.5 whitespace-nowrap">
                     <span className="font-medium">En ligne :</span> {formatDate(market.publication_date)} <br />
-                    <span className="font-medium text-red-600">Limite :</span> {formatDate(market.deadline)}
+                    <span className="font-medium text-red-600">Limite :</span> {getCountdown(market.deadline)}
                     {market.category === "SERVICES" && (
                       <div>
                         <h2>Dates prévisionnelles de l’atelier</h2>

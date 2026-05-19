@@ -43,6 +43,12 @@ export function ScheduleSection({
     const updatedDates = datesAtelier.filter((_, index) => index !== indexToRemove);
     setValue("dates_atelier", updatedDates, { shouldValidate: true });
   };
+  const triggerDatePicker = () => {
+    const inputEl = document.getElementById("dates-atelier-upload") as HTMLInputElement;
+    if (inputEl && typeof inputEl.showPicker === "function") {
+      inputEl.showPicker();
+    }
+  };
   return (
     <Card>
 
@@ -84,11 +90,18 @@ export function ScheduleSection({
         {watchCategory === "SERVICES" && (
           <div className="flex flex-col gap-3">
             <TextTitle text="Dates prévisionnelles de l’atelier" />
-
+            <label
+              onClick={triggerDatePicker}
+              htmlFor="dates-atelier-upload"
+              className="cursor-pointer text-sm"
+            >
+              Ajouter des dates
+            </label>
             <input
+              id="dates-atelier-upload"
               type="datetime-local"
               onChange={handleDateChange}
-              className="input focus:outline-none focus:ring-0 text-md w-full max-w-xs border rounded p-2"
+              className="hidden"
             />
 
             {errors.dates_atelier && (

@@ -170,16 +170,18 @@ export const getMarkets = async(page: string): Promise<PaginatedResponse<Procure
   }
 }
 
-export const getMarketById = async(reference_number: string): Promise<ApiResult<ProcurementMarket>>=> {
+export const getMarketById = async (id: string): Promise<ApiResult<ProcurementMarket>> => {
   try {
-    const res = await api.get(`/procurement/markets/${reference_number}`);
-    return res.data; 
+    const res = await api.get(`/procurement/markets/${id}/`);
+    return {
+      error: false,
+      data: res.data
+    };
   } catch (e) {
-
     return {
       error: true,
       message: parseApiError(e),
     };
   }
-}
+};
 

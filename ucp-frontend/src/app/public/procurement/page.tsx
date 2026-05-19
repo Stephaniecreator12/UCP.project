@@ -49,14 +49,19 @@ export default function ProcurementPage({
     };
   }, [currentPage]);
 
-  const handleDownloadDAO = (refNumber: string) => {
-    if (!getToken()) {
-      alert("Veuillez vous connecter pour télécharger le DAO.");
-      return;
-    }
-    window.open(`/api/procurement/market/${refNumber}/download-dao/`, "_blank");
-  };
-
+  const handleDownloadDAO = (id: string) => {
+  if (!getToken()) {
+    alert("Veuillez vous connecter pour télécharger le DAO.");
+    return;
+  }
+  
+  if (!id) {
+    alert("Erreur : Ce marché ne possède pas de numéro de référence.");
+    return;
+  }
+    
+  window.open(`/api/procurement/markets/${id}`, "_blank");
+};
   const handlePageChange = () => {
     setLoading(true);
   };
@@ -95,6 +100,20 @@ export default function ProcurementPage({
                   <div className="text-xs text-gray-500 bg-blue-50 border border-blue-100 rounded px-3 py-1.5 whitespace-nowrap">
                     <span className="font-medium">En ligne :</span> {formatDate(market.publication_date)} <br />
                     <span className="font-medium text-red-600">Limite :</span> {formatDate(market.deadline)}
+                    {market.category === "SERVICES" && (
+                      <div>
+                        <h2>Dates prévisionnelles de l’atelier</h2>
+                        {market.dates_atelier && market.dates_atelier.length > 0 ? (
+                          market.dates_atelier.map((item, index) => (
+                          <div key={item.id || index} className="text-gray-600">
+                            <span>• {formatDate(item.dates_atelier)}</span> 
+                          </div>
+                        ))
+                        ) : (
+                          <span>aucun</span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -121,8 +140,6 @@ export default function ProcurementPage({
                       )}
                     </div>
                   </div>
-
-                  {/* Documents & Annexes */}
                   <div className="bg-gray-50 p-3 rounded-md flex flex-col justify-between">
                     <div>
                       <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Annexes</span>
@@ -149,7 +166,7 @@ export default function ProcurementPage({
                 <div className="flex justify-end pt-2 border-t border-gray-100">
                   <button 
                     type="button" 
-                    onClick={() => handleDownloadDAO(market.reference_number)}
+                    onClick={() => handleDownloadDAO(market.id.toString())}
                     className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition flex items-center gap-2 shadow-sm"
                   >
                     📥 Télécharger le DAO complet
@@ -163,7 +180,7 @@ export default function ProcurementPage({
 
         <div className="flex justify-between items-center bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
           <Link
-            href={`/procurements?page=${Number(currentPage) - 1}`}
+            href={`/public/procurement?page=${Number(currentPage) - 1}`}
             onClick={handlePageChange}
             className={`px-4 py-2 text-sm font-medium border rounded-md text-gray-700 bg-white hover:bg-gray-50 transition ${!data.previous ? 'pointer-events-none opacity-40' : ''}`}
           >
@@ -173,7 +190,7 @@ export default function ProcurementPage({
           <span className="text-sm text-gray-600 font-medium">Page {currentPage} sur {totalPages}</span>
 
           <Link
-            href={`/procurements?page=${Number(currentPage) + 1}`}
+            href={`/public/procurement?page=${Number(currentPage) + 1}`}
             onClick={handlePageChange}
             className={`px-4 py-2 text-sm font-medium border rounded-md text-gray-700 bg-white hover:bg-gray-50 transition ${!data.next ? 'pointer-events-none opacity-40' : ''}`}
           >

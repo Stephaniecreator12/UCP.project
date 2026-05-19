@@ -15,7 +15,12 @@ from apps.procurement.serializers.procurement_market_serializer import (
     ProcurementMarketListSerializer
 )
 from rest_framework.permissions import IsAuthenticated
-
+from django.http import FileResponse, Http404
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import api_view, permission_classes
+from django.shortcuts import get_object_or_404
+from apps.procurement.models.procurement_market import ProcurementMarket
 
 class ProcurementMarketViewSet(viewsets.ModelViewSet):
 
@@ -49,3 +54,25 @@ class ProcurementMarketListViewSet(ReadOnlyModelViewSet):
             'annexes',
             'technical_documents'
         )
+
+
+
+
+class DownloadDAOView(APIView):
+    permission_classes = [IsAuthenticated] 
+
+    def get(self, request, reference_number):
+        market = get_object_or_404(ProcurementMarket, reference_number=reference_number)
+        
+        if not market.submission_model:
+            raise Http404("Aucun fichier DAO disponible pour ce marché.")
+        
+        file_handle = market.submission_model.open()
+        
+        clean_ref = reference_number.replace('/', '-')
+        filename = f"DAO_{clean_ref}.docx"
+        
+        response = FileResponse(file_handle, content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        
+        return response

@@ -254,7 +254,7 @@ class ProcurementMarketSerializer(serializers.ModelSerializer):
 class ProcurementMarketListSerializer(serializers.ModelSerializer):
     annexes = AnnexDocumentListSerializer(many=True, read_only=True)
     technical_documents = TechnicalDocumentListSerializer(many=True, read_only=True)
-    dates_atelier = DateAtelierSerializer(many=True, read_only=True)
+    dates_atelier = DateAtelierSerializer(many=True, read_only=True, source='dates_previsionnelles')
 
     class Meta:
         model = ProcurementMarket

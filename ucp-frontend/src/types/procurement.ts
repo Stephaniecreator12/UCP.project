@@ -31,7 +31,10 @@ export interface AnnexDocument {
   file: string;
   uploaded_at: string;
 }
-
+export interface DateAtelierObj {
+  id: number;
+  dates_atelier: string;
+}
 export interface ProcurementMarket {
   id: number;
   reference_number: string;
@@ -49,7 +52,7 @@ export interface ProcurementMarket {
 
   deadline: string;
 
-  dates_atelier: string[];
+  dates_atelier: DateAtelierObj[];
 
   submission_model?: string;
 

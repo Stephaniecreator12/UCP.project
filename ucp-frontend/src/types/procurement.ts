@@ -49,7 +49,7 @@ export interface ProcurementMarket {
 
   deadline: string;
 
-  dates_atelier: { date_atelier: string }[];
+  dates_atelier: string[];
 
   submission_model?: string;
 
@@ -73,7 +73,7 @@ export interface ProcurementFormValues {
   project_code?: string;
   publication_date: string;
   deadline: string;
-  dates_atelier: { date_atelier: string }[];
+  dates_atelier: string[];
 
   status: PublicationStatus;
   submission_model?:File;

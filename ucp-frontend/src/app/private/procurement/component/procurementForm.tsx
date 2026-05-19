@@ -32,6 +32,7 @@ export function ProcurementForm() {
         project_code: undefined,
         publication_date: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
         deadline: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
+        dates_atelier: [],
 
         status: "PUBLISHED",
       },

@@ -27,7 +27,8 @@ export function PublishActions({ form }: Props) {
           form.setError(key as Path<ProcurementFormValues>, {
             type: "server",
             message: Array.isArray(messages) ? messages[0] : (messages as string),
-          });
+          }, 
+          { shouldFocus: true });
         });
       } else {
         setGlobalError(res.message as string);
@@ -63,7 +64,11 @@ export function PublishActions({ form }: Props) {
     <div>
       
       <button
-        onClick={form.handleSubmit(handleSubmit)}
+      type="button"
+        onClick={()=>{
+          form.clearErrors();
+          form.handleSubmit(handleSubmit)();
+        }}
         className="btn-primary"
       >
         Publier sur le portail

@@ -37,7 +37,10 @@ class ProcurementMarketSerializer(serializers.ModelSerializer):
             read_only=True
         )
     )
-    dates_atelier = DateAtelierSerializer(many=True, required=False)
+    dates_atelier = serializers.ListField(
+        child=serializers.DateTimeField(), 
+        required=False
+    )
 
     class Meta:
         model = ProcurementMarket
@@ -65,21 +68,6 @@ class ProcurementMarketSerializer(serializers.ModelSerializer):
             "reference_number",
             "created_at"
         ]
-    def to_internal_value(self, data):
-        if hasattr(data, 'dict'):
-            modified_data = data.copy()
-        else:
-            modified_data = dict(data)
-
-        if 'dates_atelier' in modified_data:
-            val = modified_data['dates_atelier']
-            if isinstance(val, str):
-                try:
-                    modified_data['dates_atelier'] = json.loads(val)
-                except json.JSONDecodeError:
-                    pass
-
-        return super().to_internal_value(modified_data)
     
     def validate_financing_sources(
         self,
@@ -247,20 +235,22 @@ class ProcurementMarketSerializer(serializers.ModelSerializer):
 
 
         return attrs
-    
-@transaction.atomic
-def create(self, validated_data):
-        dates_data = validated_data.pop('dates_atelier', [])
-        
-        procurement_market = ProcurementMarket.objects.create(**validated_data)
-        
-        for date_item in dates_data:
-            DateAtelier.objects.create(
-                market=procurement_market, 
-                **date_item
-            )
+    @transaction.atomic
+    def create(self, validated_data):
+            dates_data = validated_data.pop('dates_atelier', [])
             
-        return procurement_market
+            procurement_market = ProcurementMarket.objects.create(**validated_data)
+            
+            for date_value in dates_data:
+                DateAtelier.objects.create(
+                    market=procurement_market, 
+                    dates_atelier=date_value
+                )
+                
+            return procurement_market
+    
+
+
 class ProcurementMarketListSerializer(serializers.ModelSerializer):
     annexes = AnnexDocumentListSerializer(many=True, read_only=True)
     technical_documents = TechnicalDocumentListSerializer(many=True, read_only=True)

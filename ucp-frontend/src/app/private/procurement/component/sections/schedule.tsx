@@ -21,24 +21,27 @@ export function ScheduleSection({
   form,
 }: Props) {
   const {
-    control,
     watch,
+    setValue,
     formState: { errors },
   } = form;
 
-  const { fields, append, remove } = useFieldArray<ProcurementFormValues, "dates_atelier">({
-    control,
-    name: "dates_atelier",
-  });
-
+  const datesAtelier = watch("dates_atelier");
   const watchCategory = watch("category");
 
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedDate = e.target.value;
     if (selectedDate) {
-      append({ date_atelier: selectedDate }); 
+      setValue("dates_atelier", [...datesAtelier, selectedDate], {
+        shouldValidate: true,
+      });
       e.target.value = ""; 
     }
+  };
+
+  const handleRemoveDate = (indexToRemove: number) => {
+    const updatedDates = datesAtelier.filter((_, index) => index !== indexToRemove);
+    setValue("dates_atelier", updatedDates, { shouldValidate: true });
   };
   return (
     <Card>
@@ -87,30 +90,31 @@ export function ScheduleSection({
               onChange={handleDateChange}
               className="input focus:outline-none focus:ring-0 text-md w-full max-w-xs border rounded p-2"
             />
-            
+
             {errors.dates_atelier && (
-              <p className="text-red-500 text-xs mt-1">{errors.dates_atelier.message}</p>
+              <p className="text-red-500 text-xs mt-1">
+                {errors.dates_atelier.message}
+              </p>
             )}
 
-            {fields.length > 0 && (
+            {datesAtelier.length > 0 && (
               <div className="flex flex-wrap gap-2 mt-2">
-                {fields.map((field, index) => {
-                  const dateValue = field.date_atelier;
+                {datesAtelier.map((dateValue, index) => {
                   const dateObj = new Date(dateValue);
-                  const formattedDate = isNaN(dateObj.getTime()) 
-                    ? dateValue 
+                  const formattedDate = isNaN(dateObj.getTime())
+                    ? dateValue
                     : dateObj.toLocaleString();
 
                   return (
-                    <div 
-                      key={field.id} 
+                    <div
+                      key={`${dateValue}-${index}`}
                       className="flex items-center gap-2 bg-blue-50 text-blue-700 border border-blue-200 px-3 py-1 rounded-full text-sm"
                     >
                       <span>{formattedDate}</span>
-                      
+
                       <button
                         type="button"
-                        onClick={() => remove(index)}
+                        onClick={() => handleRemoveDate(index)}
                         className="text-red-500 hover:text-red-700 font-bold ml-1 focus:outline-none"
                         title="Supprimer cette date"
                       >

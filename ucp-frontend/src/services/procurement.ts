@@ -25,10 +25,9 @@ export const createMarket = async (
     );
   }
   if (data.dates_atelier && data.dates_atelier.length > 0) {
-    formData.append(
-      "dates_atelier",
-      JSON.stringify(data.dates_atelier)
-    );
+    data.dates_atelier.forEach((date) => {
+      formData.append("dates_atelier", date);
+    });
   }
   if (data.publication_date && data.publication_date.trim() !== "") {
     formData.append(

@@ -13,12 +13,14 @@ import DashboardIndividual, { type AuditeurOverview } from "@/TdrSt/dashboard/co
 import DemandeDetailModal from "@/app/demande-achat/components/DemandeDetailModal";
 import { formatMoney, typeLabels } from "@/app/demande-achat/components/demandeAchatShared";
 import { listDemandesAchat, type DemandeAchat } from "@/services/achats";
-import { 
+import {
   useTdrStData, 
   type TdrDashboardScope,
   type TdrStDocument, 
   type UserRole
 } from "./hooks/useTdrStData";
+
+type DisplayMode = "status" | "table";
 
 const ROLE_LABEL: Record<UserRole, string> = {
   demandeur: "Demandeur",
@@ -95,9 +97,11 @@ export default function TdRStPage() {
   const [selectedPendingDemande, setSelectedPendingDemande] = useState<DemandeAchat | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [archiveOpen, setArchiveOpen] = useState(false);
+  const [displayMode, setDisplayMode] = useState<DisplayMode>("status");
   const canAccessGlobalDashboard = true;
   const rawScope = (searchParams.get("scope") ?? "").trim().toLowerCase();
   const dashboardScope: TdrDashboardScope = rawScope === "all" ? "all" : "mine";
+  const isGlobalReadOnlyView = dashboardScope === "all";
   const searchParamsString = searchParams.toString();
   const mineScopeHref = useMemo(() => {
     const params = new URLSearchParams(searchParamsString);
@@ -177,7 +181,7 @@ export default function TdRStPage() {
     void initializePage();
   }, [dashboardScope, loadPendingTdrDemandes, loadUserAndDocs, router]);
 
-  const baseDocuments = role === "auditeur" ? financeFilteredDocs : documents;
+  const baseDocuments = role === "auditeur" || isGlobalReadOnlyView ? financeFilteredDocs : documents;
   const finalDocuments = useMemo(() => {
     const query = normalizeSearchValue(searchQuery).trim();
     if (!query) return baseDocuments;
@@ -309,15 +313,26 @@ export default function TdRStPage() {
   const sections = useMemo(() => {
     const docs = finalDocuments;
 
+    if (isGlobalReadOnlyView) {
+      return {
+        draft: docs.filter((d) => d.statut === "BROUILLON"),
+        pending: docs.filter((d) => d.statut === "SOUMIS"),
+        correction: docs.filter((d) => d.statut === "A_REVOIR"),
+        validation: docs.filter((d) => d.statut === "EN_VALIDATION"),
+        all: docs.filter((d) => !["BROUILLON", "VALIDE", "REJETE", "SUSPENDU"].includes(d.statut)),
+        archive: docs.filter((d) => ["VALIDE", "REJETE", "SUSPENDU"].includes(d.statut)),
+      };
+    }
+
     // Pour l'auditeur: la table principale affiche deja tous les documents
     if (role === "auditeur") {
       return {
-        archive: docs.filter((d) => ["VALIDE", "REJETE", "SUSPENDU"].includes(d.statut)),
+        archive: [],
         draft: [],
         pending: [],
         correction: [],
         validation: [],
-        all: [],
+        all: docs,
       };
     }
 
@@ -378,7 +393,7 @@ export default function TdRStPage() {
     tdrFilterProps.selectedDocumentTypes.length > 0;
 
   const totalDocuments =
-    finalDocuments.length + (isRequesterRole(role) ? filteredPendingDemandes.length : 0);
+    finalDocuments.length + (isRequesterRole(role) && !isGlobalReadOnlyView ? filteredPendingDemandes.length : 0);
   const approvedArchiveDocuments = useMemo(
     () => sections.archive.filter((doc) => doc.statut === "VALIDE"),
     [sections.archive]
@@ -402,6 +417,9 @@ export default function TdRStPage() {
   }, [documents, focusDocumentId, router]);
 
   const getActionButtonLabel = (doc: TdrStDocument): string | null => {
+    if (isGlobalReadOnlyView) {
+      return null;
+    }
     if (isRequesterRole(role) && doc.statut === "BROUILLON") {
       return "Continuer";
     }
@@ -571,6 +589,7 @@ export default function TdRStPage() {
   };
 
   const detailActionSlot =
+    !isGlobalReadOnlyView &&
     isRequesterRole(role) &&
     selectedDetailDoc &&
     (selectedDetailDoc.statut === "BROUILLON" || selectedDetailDoc.statut === "A_REVOIR") ? (
@@ -584,94 +603,95 @@ export default function TdRStPage() {
     ) : null;
   const isDecisionCommentEmpty = decisionObs.trim().length === 0;
 
-  const detailFooterSlot =
-    selectedDetailDoc && isRequesterRole(role) && (selectedDetailDoc.statut === "BROUILLON" || selectedDetailDoc.statut === "A_REVOIR") ? (
-      <div className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm text-slate-600">Le document sera transmis au circuit de validation TDR/ST.</p>
-          {selectedDetailDoc.statut === "BROUILLON" ? (
+  const detailFooterSlot = isGlobalReadOnlyView
+    ? null
+    : selectedDetailDoc && isRequesterRole(role) && (selectedDetailDoc.statut === "BROUILLON" || selectedDetailDoc.statut === "A_REVOIR") ? (
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-slate-600">Le document sera transmis au circuit de validation TDR/ST.</p>
+            {selectedDetailDoc.statut === "BROUILLON" ? (
+              <button
+                type="button"
+                onClick={handleRequestDeleteDocument}
+                disabled={actionLoading}
+                className="rounded-full border border-rose-200 bg-rose-50 px-5 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 disabled:opacity-60"
+              >
+                Supprimer
+              </button>
+            ) : null}
+          </div>
+        </div>
+      ) : selectedDetailDoc && isRequesterRole(role) && ["SOUMIS", "EN_VALIDATION"].includes(selectedDetailDoc.statut) ? (
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-slate-600">Ce document est actuellement dans le circuit de validation TDR/ST.</p>
             <button
               type="button"
-              onClick={handleRequestDeleteDocument}
+              onClick={() => void handleSuspendDocument()}
               disabled={actionLoading}
+              className="rounded-full border border-slate-300 bg-slate-100 px-5 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-200 disabled:opacity-60"
+            >
+              Suspendre
+            </button>
+          </div>
+        </div>
+      ) : selectedDetailDoc && role === "verificateur_technique" && selectedDetailDoc.statut === "SOUMIS" ? (
+        <div className="space-y-3">
+          <textarea
+            value={decisionObs}
+            onChange={(e) => setDecisionObs(e.target.value)}
+            rows={3}
+            placeholder="Commentaire technique obligatoire..."
+            className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm focus:border-emerald-300 focus:outline-none focus:ring-4 focus:ring-emerald-500/10"
+          />
+          <div className="flex flex-wrap justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => void handleDecision("A_REVOIR")}
+              disabled={actionLoading || isDecisionCommentEmpty}
+              className="rounded-full border border-amber-200 bg-amber-50 px-5 py-2 text-sm font-semibold text-amber-800 transition hover:bg-amber-100 disabled:opacity-60"
+            >
+              À revoir
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleDecision("FAVORABLE")}
+              disabled={actionLoading || isDecisionCommentEmpty}
+              className="rounded-full bg-emerald-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+            >
+              Favorable
+            </button>
+          </div>
+        </div>
+      ) : selectedDetailDoc && role === "approbateur_final" && selectedDetailDoc.statut === "EN_VALIDATION" ? (
+        <div className="space-y-3">
+          <textarea
+            value={decisionObs}
+            onChange={(e) => setDecisionObs(e.target.value)}
+            rows={3}
+            placeholder="Commentaire final obligatoire..."
+            className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm focus:border-emerald-300 focus:outline-none focus:ring-4 focus:ring-emerald-500/10"
+          />
+          <div className="flex flex-wrap justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => void handleDecision("REJETE")}
+              disabled={actionLoading || isDecisionCommentEmpty}
               className="rounded-full border border-rose-200 bg-rose-50 px-5 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 disabled:opacity-60"
             >
-              Supprimer
+              Rejeter
             </button>
-          ) : null}
+            <button
+              type="button"
+              onClick={() => void handleDecision("APPROUVE")}
+              disabled={actionLoading || isDecisionCommentEmpty}
+              className="rounded-full bg-emerald-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+            >
+              Approuver
+            </button>
+          </div>
         </div>
-      </div>
-    ) : selectedDetailDoc && isRequesterRole(role) && ["SOUMIS", "EN_VALIDATION"].includes(selectedDetailDoc.statut) ? (
-      <div className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm text-slate-600">Ce document est actuellement dans le circuit de validation TDR/ST.</p>
-          <button
-            type="button"
-            onClick={() => void handleSuspendDocument()}
-            disabled={actionLoading}
-            className="rounded-full border border-slate-300 bg-slate-100 px-5 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-200 disabled:opacity-60"
-          >
-            Suspendre
-          </button>
-        </div>
-      </div>
-    ) : selectedDetailDoc && role === "verificateur_technique" && selectedDetailDoc.statut === "SOUMIS" ? (
-      <div className="space-y-3">
-        <textarea
-          value={decisionObs}
-          onChange={(e) => setDecisionObs(e.target.value)}
-          rows={3}
-          placeholder="Commentaire technique obligatoire..."
-          className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm focus:border-emerald-300 focus:outline-none focus:ring-4 focus:ring-emerald-500/10"
-        />
-        <div className="flex flex-wrap justify-end gap-3">
-          <button
-            type="button"
-            onClick={() => void handleDecision("A_REVOIR")}
-            disabled={actionLoading || isDecisionCommentEmpty}
-            className="rounded-full border border-amber-200 bg-amber-50 px-5 py-2 text-sm font-semibold text-amber-800 transition hover:bg-amber-100 disabled:opacity-60"
-          >
-            À revoir
-          </button>
-          <button
-            type="button"
-            onClick={() => void handleDecision("FAVORABLE")}
-            disabled={actionLoading || isDecisionCommentEmpty}
-            className="rounded-full bg-emerald-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
-          >
-            Favorable
-          </button>
-        </div>
-      </div>
-    ) : selectedDetailDoc && role === "approbateur_final" && selectedDetailDoc.statut === "EN_VALIDATION" ? (
-      <div className="space-y-3">
-        <textarea
-          value={decisionObs}
-          onChange={(e) => setDecisionObs(e.target.value)}
-          rows={3}
-          placeholder="Commentaire final obligatoire..."
-          className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm focus:border-emerald-300 focus:outline-none focus:ring-4 focus:ring-emerald-500/10"
-        />
-        <div className="flex flex-wrap justify-end gap-3">
-          <button
-            type="button"
-            onClick={() => void handleDecision("REJETE")}
-            disabled={actionLoading || isDecisionCommentEmpty}
-            className="rounded-full border border-rose-200 bg-rose-50 px-5 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 disabled:opacity-60"
-          >
-            Rejeter
-          </button>
-          <button
-            type="button"
-            onClick={() => void handleDecision("APPROUVE")}
-            disabled={actionLoading || isDecisionCommentEmpty}
-            className="rounded-full bg-emerald-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
-          >
-            Approuver
-          </button>
-        </div>
-      </div>
-    ) : null;
+      ) : null;
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -697,6 +717,30 @@ export default function TdRStPage() {
 
           <div className="flex w-full flex-col gap-3 lg:w-auto lg:min-w-[430px] lg:items-end">
             <div className="flex w-full items-center gap-3">
+              <div className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => setDisplayMode("status")}
+                  className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                    displayMode === "status"
+                      ? "bg-slate-900 text-white shadow-sm"
+                      : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                  }`}
+                >
+                  Vue par statut
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDisplayMode("table")}
+                  className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                    displayMode === "table"
+                      ? "bg-slate-900 text-white shadow-sm"
+                      : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                  }`}
+                >
+                  Vue tableau
+                </button>
+              </div>
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <input
@@ -759,7 +803,7 @@ export default function TdRStPage() {
         
 
         {/* Active filters indicator */}
-        {hasActiveFilters && role === "auditeur" && (
+        {hasActiveFilters && (role === "auditeur" || isGlobalReadOnlyView) && (
           <div className="mb-4 flex items-center gap-2 text-sm text-slate-500">
             <span>Filtres actifs:</span>
             <button
@@ -785,7 +829,40 @@ export default function TdRStPage() {
         )}
 
         {/* Sections */}
-        {!loading && (
+        {!loading && displayMode === "table" && (
+          <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-200 bg-slate-50 px-5 py-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-base font-semibold text-slate-900">
+                    {isGlobalReadOnlyView ? "Tous les dossiers" : "Tableau des dossiers"}
+                  </h2>
+                  <p className="text-sm text-slate-500">
+                    {isGlobalReadOnlyView
+                      ? "Vue globale de tous les dossiers existants."
+                      : "Vue tableau des dossiers filtrés sur la page TDR/ST."}
+                  </p>
+                </div>
+                <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+                  {finalDocuments.length}
+                </span>
+              </div>
+            </div>
+            <div className="bg-slate-50 px-4 py-4">
+              <SectionDocumentsList
+                documents={finalDocuments}
+                selectedId={selectedId}
+                onSelectDocument={(id) => setSelectedId(id)}
+                onDetailClick={handleDetailClick}
+                role={role ?? undefined}
+                readOnly={isGlobalReadOnlyView}
+                forceTable
+              />
+            </div>
+          </section>
+        )}
+
+        {!loading && displayMode === "status" && (
           <div className="space-y-4">
             {role === "auditeur" && (
               <>
@@ -809,13 +886,14 @@ export default function TdRStPage() {
                       onSelectDocument={(id) => setSelectedId(id)}
                       onDetailClick={handleDetailClick}
                       role={role ?? undefined}
+                      readOnly
                     />
                   </div>
                 </section>
               </>
             )}
 
-            {isRequesterRole(role) && (
+            {isRequesterRole(role) && !isGlobalReadOnlyView && (
               <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
                 <button
                   type="button"
@@ -934,7 +1012,7 @@ export default function TdRStPage() {
             )}
 
             {/* BROUILLONS - visible seulement pour demandeur */}
-            {isRequesterRole(role) && sections.draft.length > 0 && (
+            {(isGlobalReadOnlyView || isRequesterRole(role)) && sections.draft.length > 0 && (
               <AccordionSection
                 sectionKey="draft"
                 title="TDR/ST Initiés"
@@ -946,11 +1024,12 @@ export default function TdRStPage() {
                 getActionButtonLabel={getActionButtonLabel}
                 role={role ?? undefined}
                 defaultOpen={false}
+                readOnly={isGlobalReadOnlyView}
               />
             )}
 
             {/* EN ATTENTE DE DECISION - Pour verificateur technique */}
-            {(role === "verificateur_technique" || isRequesterRole(role)) && sections.pending.length > 0 && (
+            {(isGlobalReadOnlyView || role === "verificateur_technique" || isRequesterRole(role)) && sections.pending.length > 0 && (
               <AccordionSection
                 sectionKey="pending"
                 title="En attente de décision"
@@ -962,6 +1041,7 @@ export default function TdRStPage() {
                 getActionButtonLabel={getActionButtonLabel}
                 role={role ?? undefined}
                 defaultOpen={false}
+                readOnly={isGlobalReadOnlyView}
               />
             )}
 
@@ -978,11 +1058,12 @@ export default function TdRStPage() {
                 getActionButtonLabel={getActionButtonLabel}
                 role={role ?? undefined}
                 defaultOpen={false}
+                readOnly={isGlobalReadOnlyView}
               />
             )}
 
             {/* A VALIDER - Pour approbateur final */}
-            {(role === "approbateur_final" || isRequesterRole(role) || role === "verificateur_technique") && sections.validation.length > 0 && (
+            {(isGlobalReadOnlyView || role === "approbateur_final" || isRequesterRole(role) || role === "verificateur_technique") && sections.validation.length > 0 && (
               <AccordionSection
                 sectionKey="validation"
                 title="À valider"
@@ -994,14 +1075,15 @@ export default function TdRStPage() {
                 getActionButtonLabel={getActionButtonLabel}
                 role={role ?? undefined}
                 defaultOpen={false}
+                readOnly={isGlobalReadOnlyView}
               />
             )}
 
             {/* TOUS LES ETATS ACTIFS */}
-            {sections.all.length > 0 && (
+            {(isGlobalReadOnlyView || role !== "auditeur") && sections.all.length > 0 && (
               <AccordionSection
                 sectionKey="all"
-                title="Tous les états actifs"
+                title={isGlobalReadOnlyView ? "Actifs" : "Tous les états actifs"}
                 documents={sections.all}
                 selectedId={selectedId}
                 onSelectDocument={(id) => setSelectedId(id)}
@@ -1010,11 +1092,12 @@ export default function TdRStPage() {
                 getActionButtonLabel={getActionButtonLabel}
                 role={role ?? undefined}
                 defaultOpen={false}
+                readOnly={isGlobalReadOnlyView}
               />
             )}
 
             {/* ARCHIVE */}
-            {role !== "auditeur" && sections.archive.length > 0 && (
+            {(isGlobalReadOnlyView || role !== "auditeur") && sections.archive.length > 0 && (
               <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
                 <button
                   type="button"
@@ -1058,6 +1141,7 @@ export default function TdRStPage() {
                       getActionButtonLabel={getActionButtonLabel}
                       role={role ?? undefined}
                       defaultOpen={false}
+                      readOnly={isGlobalReadOnlyView}
                     />
                     <AccordionSection
                       sectionKey="archive"
@@ -1070,6 +1154,7 @@ export default function TdRStPage() {
                       getActionButtonLabel={getActionButtonLabel}
                       role={role ?? undefined}
                       defaultOpen={false}
+                      readOnly={isGlobalReadOnlyView}
                     />
                   </div>
                 )}

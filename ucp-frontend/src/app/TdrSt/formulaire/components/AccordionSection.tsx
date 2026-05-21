@@ -18,6 +18,7 @@ type AccordionSectionProps = {
   role?: string | null;
   defaultOpen?: boolean;
   countBadgeClassName?: string;
+  readOnly?: boolean;
 };
 
 const defaultIconMap: Record<string, React.ElementType> = {
@@ -60,6 +61,7 @@ export function AccordionSection({
   role,
   defaultOpen = false,
   countBadgeClassName,
+  readOnly = false,
 }: AccordionSectionProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const sectionRef = useRef<HTMLDivElement>(null);
@@ -135,6 +137,7 @@ export function AccordionSection({
             onActionClick={onActionClick}
             getActionButtonLabel={getActionButtonLabel}
             role={role}
+            readOnly={readOnly}
           />
         </div>
       )}

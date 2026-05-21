@@ -18,6 +18,7 @@ type CompactDocumentRowProps = {
   actionButtonLabel?: string;
   isSelected: boolean;
   role?: string | null;
+  readOnly?: boolean;
 };
 
 export function CompactDocumentRow({
@@ -30,6 +31,7 @@ export function CompactDocumentRow({
   actionButtonLabel,
   isSelected,
   role,
+  readOnly = false,
 }: CompactDocumentRowProps) {
   const formattedCreatedDate = formatDateForRow(document.created_at);
   const formattedUpdatedDate = formatDateForRow(document.updated_at || document.created_at);

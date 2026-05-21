@@ -23,6 +23,8 @@ type SectionDocumentsListProps = {
   role?: string | null;
   title?: string;
   emptyMessage?: string;
+  readOnly?: boolean;
+  forceTable?: boolean;
 };
 
 export function SectionDocumentsList({
@@ -35,9 +37,11 @@ export function SectionDocumentsList({
   role,
   title,
   emptyMessage = "Aucun document",
+  readOnly = false,
+  forceTable = false,
 }: SectionDocumentsListProps) {
   const [page, setPage] = useState(1);
-  const isAuditeur = role === "auditeur";
+  const isAuditeur = role === "auditeur" || forceTable;
 
   const totalPages = Math.ceil(documents.length / PAGE_SIZE) || 1;
   const safePage = Math.min(page, totalPages);
@@ -143,6 +147,7 @@ export function SectionDocumentsList({
               actionButtonLabel={getActionButtonLabel ? getActionButtonLabel(doc) ?? undefined : undefined}
               isSelected={selectedId === doc.id}
               role={role}
+              readOnly={readOnly}
             />
           ))}
         </div>

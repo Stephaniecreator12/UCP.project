@@ -4,8 +4,6 @@ export type AuditeurOverview = {
   total: number;
   rejected: number;
   rejectedRate: number;
-  requiresAno: number;
-  withAnoAction: number;
   avgDelayDays: number | null;
   monthly: { label: string; count: number }[];
   topUnits: { unite: string; total: number; rejected: number; rate: number }[];
@@ -24,7 +22,7 @@ export default function DashboardIndividual({ overview }: { overview: AuditeurOv
         </p>
       </div>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Volume</p>
           <p className="mt-1 text-2xl font-bold text-slate-900">{overview.total}</p>
@@ -40,11 +38,6 @@ export default function DashboardIndividual({ overview }: { overview: AuditeurOv
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Taux de rejet</p>
           <p className="mt-1 text-2xl font-bold text-slate-900">{Math.round(overview.rejectedRate * 100)}%</p>
           <p className="mt-1 text-xs text-slate-500">{overview.rejected} rejeté(s)</p>
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Seuil / ANO</p>
-          <p className="mt-1 text-2xl font-bold text-slate-900">{overview.requiresAno}</p>
-          <p className="mt-1 text-xs text-slate-500">{overview.withAnoAction} avec action ANO</p>
         </div>
       </div>
 

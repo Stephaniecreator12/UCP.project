@@ -113,13 +113,8 @@ export default function TdrStNewPage() {
   const isLinkedToDemande = Boolean(activeDoc?.demande_achat_id || linkedDemande?.id || demandeId);
   const hasUploadedPdf = Boolean(activeDoc?.fichier_courant?.fichier_pdf);
   const selectedFinanceCatalog = useMemo(
-    () =>
-      findFinanceCatalogEntry(
-        form.sources_financement,
-        form.numero_subvention,
-        form.ligne_budgetaire,
-      ),
-    [form.ligne_budgetaire, form.numero_subvention, form.sources_financement],
+    () => findFinanceCatalogEntry(form.sources_financement, form.numero_subvention),
+    [form.numero_subvention, form.sources_financement],
   );
   const financeLineOptions = useMemo(
     () => getFinanceCatalogByFamily(selectedSourceFamily),
@@ -646,12 +641,25 @@ export default function TdrStNewPage() {
                 </Field>
 
                 <Field label="Ligne budgétaire *">
+                  <input
+                    type="text"
+                    value={form.ligne_budgetaire}
+                    onChange={(e) => handleChange("ligne_budgetaire", e.target.value)}
+                    disabled={saving || !isEditable}
+                    className={inputClassName}
+                    placeholder="Saisir la ligne budgétaire"
+                  />
+                </Field>
+              </div>
+
+              <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">
+                
+                <Field label="Numéro de subvention">
                   <select
                     value={selectedFinanceCatalog?.optionKey || ""}
                     onChange={(e) => {
                       const nextCatalog = getFinanceCatalogByOptionKey(e.target.value);
                       handleChange("sources_financement", nextCatalog?.value || "");
-                      handleChange("ligne_budgetaire", nextCatalog?.budgetLabel || "");
                       handleChange("numero_subvention", nextCatalog?.subvention || "");
                     }}
                     disabled={saving || !isEditable || !selectedSourceFamily}
@@ -659,7 +667,7 @@ export default function TdrStNewPage() {
                   >
                     <option value="" disabled>
                       {selectedSourceFamily
-                        ? "Sélectionner une ligne budgétaire"
+                        ? "Sélectionner un numéro de subvention"
                         : "Choisissez d'abord la source de financement"}
                     </option>
                     {financeLineOptions.map((item) => (
@@ -672,9 +680,7 @@ export default function TdrStNewPage() {
                     ))}
                   </select>
                 </Field>
-              </div>
-
-              <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">
+                
                 <Field label="Montant estimé (MGA) *">
                   <input
                     type="number"
@@ -687,14 +693,7 @@ export default function TdrStNewPage() {
                   />
                 </Field>
 
-                <Field label="Numéro de subvention">
-                  <input
-                    value={form.numero_subvention}
-                    readOnly
-                    disabled
-                    className={inputClassName}
-                  />
-                </Field>
+                
               </div>
             </section>
 
@@ -808,3 +807,5 @@ function Field({
     </label>
   );
 }
+
+

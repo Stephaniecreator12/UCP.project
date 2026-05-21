@@ -317,7 +317,8 @@ export function useTdrStFilters<TDocument extends { statut?: string }>({
 }: UseTdrStFiltersProps<TDocument>) {
   const [selectedFinancements, setSelectedFinancements] = useState<string[]>([]);
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
-  const [selectedDate, setSelectedDate] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [selectedDocumentTypes, setSelectedDocumentTypes] = useState<string[]>([]);
 
   const allFinancements = useMemo(() => {
@@ -386,8 +387,21 @@ export function useTdrStFilters<TDocument extends { statut?: string }>({
       result = result.filter((doc) => selectedStatuses.includes(doc.statut ?? ""));
     }
 
-    if (selectedDate) {
-      result = result.filter((doc) => toInputDateValue(getFilterDate(doc)) === selectedDate);
+    // Filtrage par plage de dates
+    if (startDate || endDate) {
+      result = result.filter((doc) => {
+        const docDate = toInputDateValue(getFilterDate(doc));
+        if (!docDate) return false;
+        
+        if (startDate && endDate) {
+          return docDate >= startDate && docDate <= endDate;
+        } else if (startDate) {
+          return docDate >= startDate;
+        } else if (endDate) {
+          return docDate <= endDate;
+        }
+        return true;
+      });
     }
 
     if (selectedDocumentTypes.length > 0) {
@@ -401,7 +415,8 @@ export function useTdrStFilters<TDocument extends { statut?: string }>({
     documents,
     selectedFinancements,
     selectedStatuses,
-    selectedDate,
+    startDate,
+    endDate,
     selectedDocumentTypes,
     getSourceFinancement,
     getLigneBudgetaire,
@@ -420,8 +435,10 @@ export function useTdrStFilters<TDocument extends { statut?: string }>({
       setSelectedFinancements,
       selectedStatuses,
       setSelectedStatuses,
-      selectedDate,
-      setSelectedDate,
+      startDate,
+      setStartDate,
+      endDate,
+      setEndDate,
       selectedDocumentTypes,
       setSelectedDocumentTypes,
       getStatusLabel,
@@ -442,8 +459,10 @@ export function TdrStFilterBar({
     setSelectedFinancements: (value: string[]) => void;
     selectedStatuses: string[];
     setSelectedStatuses: (value: string[]) => void;
-    selectedDate: string;
-    setSelectedDate: (value: string) => void;
+    startDate: string;
+    setStartDate: (value: string) => void;
+    endDate: string;
+    setEndDate: (value: string) => void;
     selectedDocumentTypes: string[];
     setSelectedDocumentTypes: (value: string[]) => void;
     getStatusLabel: (status: string) => string;
@@ -459,8 +478,10 @@ export function TdrStFilterBar({
     setSelectedFinancements,
     selectedStatuses,
     setSelectedStatuses,
-    selectedDate,
-    setSelectedDate,
+    startDate,
+    setStartDate,
+    endDate,
+    setEndDate,
     selectedDocumentTypes,
     setSelectedDocumentTypes,
     getStatusLabel,
@@ -468,7 +489,11 @@ export function TdrStFilterBar({
   } = filterProps;
 
   const activeFiltersCount =
-    selectedFinancements.length + selectedStatuses.length + selectedDocumentTypes.length + (selectedDate ? 1 : 0);
+    selectedFinancements.length +
+    selectedStatuses.length +
+    selectedDocumentTypes.length +
+    (startDate ? 1 : 0) +
+    (endDate ? 1 : 0);
 
   const getFinancementDotColor = () => {
     if (selectedFinancements.length === 1) {
@@ -567,22 +592,49 @@ export function TdrStFilterBar({
             </div>
             <div className="relative z-[5] flex-1">
               <div
-                className={`flex h-10 items-center rounded-xl border border-slate-200 bg-white transition-colors hover:border-slate-300 ${
-                  compact ? "px-2.5" : "px-3"
+                className={`flex flex-col sm:flex-row items-start sm:items-center gap-2 rounded-xl border border-slate-200 bg-white transition-colors hover:border-slate-300 ${
+                  compact ? "px-2.5 py-2" : "px-3 py-2"
                 }`}
               >
-                <div className={`mr-2 h-1.5 w-1.5 rounded-full bg-emerald-400 shrink-0`}></div>
-                <label className="flex min-w-0 flex-1 items-center gap-2">
+                <div className={`mr-0 sm:mr-2 h-1.5 w-1.5 rounded-full bg-emerald-400 shrink-0 hidden sm:block`}></div>
+                
+                {/* Date début */}
+                <label className="flex flex-1 min-w-0 items-center gap-2">
                   <span className={`${compact ? "text-[11px]" : "text-[12px]"} font-semibold text-slate-600 whitespace-nowrap`}>
-                    Date
+                    Du
                   </span>
                   <input
                     type="date"
-                    value={selectedDate}
-                    onChange={(event) => setSelectedDate(event.target.value)}
+                    value={startDate}
+                    onChange={(event) => {
+                      const newStartDate = event.target.value;
+                      setStartDate(newStartDate);
+                      // Si la date de fin est antérieure à la nouvelle date de début, on la reset
+                      if (endDate && newStartDate && endDate < newStartDate) {
+                        setEndDate("");
+                      }
+                    }}
                     className={`w-full min-w-0 bg-transparent text-slate-700 outline-none ${
                       compact ? "text-[11px]" : "text-[12px]"
                     }`}
+                  />
+                </label>
+                
+                <span className={`${compact ? "text-[11px]" : "text-[12px]"} text-slate-400 hidden sm:inline`}>→</span>
+                
+                {/* Date fin */}
+                <label className="flex flex-1 min-w-0 items-center gap-2">
+                  <span className={`${compact ? "text-[11px]" : "text-[12px]"} font-semibold text-slate-600 whitespace-nowrap`}>
+                    Au
+                  </span>
+                  <input
+                    type="date"
+                    value={endDate}
+                    min={startDate || undefined}
+                    onChange={(event) => setEndDate(event.target.value)}
+                    className={`w-full min-w-0 bg-transparent text-slate-700 outline-none ${
+                      compact ? "text-[11px]" : "text-[12px]"
+                    } ${startDate && (!endDate || endDate < startDate) ? "text-red-400" : ""}`}
                   />
                 </label>
               </div>
@@ -606,8 +658,9 @@ export function TdrStFilterBar({
                 onClick={() => {
                   setSelectedFinancements([]);
                   setSelectedStatuses([]);
-                  setSelectedDate("");
                   setSelectedDocumentTypes([]);
+                  setStartDate("");
+                  setEndDate("");
                 }}
                 className={`flex items-center gap-2 rounded-lg border border-slate-200 bg-white font-semibold text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900 ${
                   compact ? "px-2.5 py-1.5 text-[11px]" : "px-3 py-2 text-[12px]"

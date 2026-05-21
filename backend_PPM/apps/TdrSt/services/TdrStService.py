@@ -238,13 +238,16 @@ def list_all_documents_for_final():
 
 
 def list_documents_for_user(user, scope: str = "mine"):
+    if scope == "all":
+        return _all_documents_queryset()
+
     role = get_user_role(user)
     if role == UserProfile.Role.DEMANDEUR:
-        return list_all_documents_for_demandeur() if scope == "all" else list_my_documents(user)
+        return list_my_documents(user)
     if role == UserProfile.Role.VERIFICATEUR_TECHNIQUE:
-        return list_all_documents_for_tech() if scope == "all" else list_tech_documents(user)
+        return list_tech_documents(user)
     if role == UserProfile.Role.APPROBATEUR_FINAL:
-        return list_all_documents_for_final() if scope == "all" else list_final_documents(user)
+        return list_final_documents(user)
     if role == UserProfile.Role.AUDITEUR:
         return list_auditeur_documents()
     return TdrStDocument.objects.none()

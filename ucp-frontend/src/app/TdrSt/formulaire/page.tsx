@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Activity, ChevronDown, Clock3, FilePlus2 } from "lucide-react";
 import { TdrStFilterBar, useTdrStFilters } from "./components/FinancementFilter";
@@ -36,7 +36,31 @@ const formatPendingDate = (value?: string | null) => {
   });
 };
 
+function TdRStPageFallback() {
+  return (
+    <main className="min-h-screen bg-slate-50 text-slate-900">
+      <TopHeader />
+      <div className="mx-auto max-w-7xl px-4 py-8">
+        <div className="space-y-4 animate-pulse">
+          <div className="h-16 rounded-2xl bg-white shadow-sm" />
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="h-28 rounded-2xl border border-slate-200 bg-white shadow-sm" />
+          ))}
+        </div>
+      </div>
+    </main>
+  );
+}
+
 export default function TdRStPage() {
+  return (
+    <Suspense fallback={<TdRStPageFallback />}>
+      <TdRStPageContent />
+    </Suspense>
+  );
+}
+
+function TdRStPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useRef } from "react";
+import { Suspense, useEffect, useMemo, useState, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Search, X, ChevronDown, Activity, PackageCheck, ChevronLeft, ChevronRight as ChevronRightIcon, CheckCircle } from "lucide-react";
 
@@ -133,7 +133,31 @@ const getSectionContextLine = (demande: DemandeAchat, sectionKey?: SectionKey | 
     : `Créée le ${formatDate(demande.created_at)}`;
 };
 
+function MarcheDashboardPageFallback() {
+  return (
+    <main className="min-h-screen bg-slate-50 pb-12 text-slate-800">
+      <TopHeader />
+      <div className="mx-auto max-w-[1400px] px-4 py-8">
+        <div className="space-y-4 animate-pulse">
+          <div className="h-16 rounded-2xl bg-white shadow-sm" />
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="h-32 rounded-2xl border border-slate-200 bg-white shadow-sm" />
+          ))}
+        </div>
+      </div>
+    </main>
+  );
+}
+
 export default function MarcheDashboardPage() {
+  return (
+    <Suspense fallback={<MarcheDashboardPageFallback />}>
+      <MarcheDashboardPageContent />
+    </Suspense>
+  );
+}
+
+function MarcheDashboardPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const filterParam = searchParams.get("filtre");

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { Suspense, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, FilePlus2, Loader2, Save, SendHorizontal } from "lucide-react";
 
@@ -74,7 +74,29 @@ const toFormState = (doc: TdrStDocument): TdrStFormState => ({
   procedure_envisagee: doc.procedure_envisagee || "DC",
 });
 
+function TdrStNewPageFallback() {
+  return (
+    <main className="min-h-screen bg-slate-50 text-slate-900">
+      <TopHeader />
+      <div className="mx-auto max-w-5xl px-4 py-8">
+        <div className="space-y-4 animate-pulse">
+          <div className="h-12 w-64 rounded-2xl bg-white shadow-sm" />
+          <div className="h-96 rounded-3xl border border-slate-200 bg-white shadow-sm" />
+        </div>
+      </div>
+    </main>
+  );
+}
+
 export default function TdrStNewPage() {
+  return (
+    <Suspense fallback={<TdrStNewPageFallback />}>
+      <TdrStNewPageContent />
+    </Suspense>
+  );
+}
+
+function TdrStNewPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const inputClassName =

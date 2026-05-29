@@ -490,13 +490,13 @@ export default function ReceptionModal({
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <PurchaseSelect
-                  value={typeEcart}
+                  value={typeEcart ?? ""}
                   onChange={(value) => setTypeEcart(value as ReceiveDemandePayload["type_ecart"])}
                   options={[...typeEcartOptions]}
                   className="rounded-xl border border-rose-200 bg-white px-2 py-1.5 text-sm font-semibold text-rose-900 outline-none"
                 />
                 <PurchaseSelect
-                  value={actionCorrective}
+                  value={actionCorrective ?? ""}
                   onChange={(value) => setActionCorrective(value as ReceiveDemandePayload["action_corrective"])}
                   options={[...actionCorrectiveOptions]}
                   className="rounded-xl border border-rose-200 bg-white px-2 py-1.5 text-sm font-semibold text-rose-900 outline-none"

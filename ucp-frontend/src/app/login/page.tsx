@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import {
@@ -10,7 +10,25 @@ import {
   login,
 } from "@/services/auth";
 
+function LoginPageFallback() {
+  return (
+    <div className="min-h-dvh w-full overflow-x-hidden overflow-y-auto">
+      <div className="relative flex min-h-dvh items-center justify-center overflow-x-hidden bg-[linear-gradient(180deg,#f5f6f6_0%,#eef1f0_100%)] px-4 py-8">
+        <div className="h-96 w-full max-w-md animate-pulse rounded-[30px] border border-slate-200/80 bg-white/80 shadow-[0_28px_70px_-42px_rgba(15,23,42,0.34)]" />
+      </div>
+    </div>
+  );
+}
+
 export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginPageFallback />}>
+      <LoginPageContent />
+    </Suspense>
+  );
+}
+
+function LoginPageContent() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);

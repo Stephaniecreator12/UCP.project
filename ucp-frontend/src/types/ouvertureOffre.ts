@@ -13,8 +13,42 @@ export type MembreSeance = {
   utilisateur_detail: OuvertureUser;
   est_present: boolean;
   a_valide: boolean;
+  decision: "EN_ATTENTE" | "VALIDEE" | "REJETEE";
   commentaire: string;
   date_validation: string | null;
+};
+
+export type OffreOuverture = {
+  id: number;
+  ordre_passage: number;
+  nom_soumissionnaire: string;
+  pli_existe: boolean;
+  motif_absence_pli: string;
+  date_reception_pli: string | null;
+  heure_reception_pli: string | null;
+  enveloppe_administrative: "" | "DEPOSEE" | "MANQUANTE";
+  enveloppe_technique: "" | "DEPOSEE" | "MANQUANTE";
+  enveloppe_financiere: "" | "DEPOSEE" | "MANQUANTE";
+  montant_global: string | number | null;
+  observations: string;
+};
+
+export type SeanceStatut =
+  | "BROUILLON"
+  | "EN_SAISIE"
+  | "A_VALIDER"
+  | "EN_VALIDATION_MEMBRES"
+  | "EN_VALIDATION_PRESIDENT"
+  | "VALIDEE"
+  | "REJETEE"
+  | "ARCHIVEE";
+
+export type PVDocument = {
+  id: number;
+  fichier: string;
+  version: number;
+  hash_document: string;
+  created_at: string;
 };
 
 export type SeanceOuverture = {
@@ -25,7 +59,7 @@ export type SeanceOuverture = {
   heure_seance: string | null;
   lieu: string;
   observations: string;
-  statut: "BROUILLON" | "EN_SAISIE" | "A_VALIDER" | "VALIDEE";
+  statut: SeanceStatut;
   secretaire: number;
   secretaire_detail: OuvertureUser;
   president: number | null;
@@ -34,26 +68,43 @@ export type SeanceOuverture = {
   created_at: string;
   updated_at: string;
   president_a_valide: boolean;
+  president_decision: "EN_ATTENTE" | "VALIDEE" | "REJETEE";
   president_commentaire: string;
   date_validation_president: string | null;
+  etape_ouverture: "COMPLETE" | "ADMIN_TECH";
+  etat_scelle: "" | "INTACT" | "ALTERE" | "ABSENT";
+  presence_rature: boolean;
+  description_rature: string;
+  document_substitution_present: boolean;
+  offres: OffreOuverture[];
+  pv_document: PVDocument | null;
 };
 
 export type CreateSeancePayload = {
   reference_dossier: string;
   objet_dossier: string;
-  statut?: "BROUILLON" | "EN_SAISIE" | "A_VALIDER" | "VALIDEE";
+  statut?: SeanceStatut;
 };
 
 export type UpdateSeancePayload = {
-  president?: number;
-  date_seance?: string;
-  heure_seance?: string;
+  reference_dossier?: string;
+  objet_dossier?: string;
+  president?: number | null;
+  date_seance?: string | null;
+  heure_seance?: string | null;
   lieu?: string;
   observations?: string;
+  etape_ouverture?: "COMPLETE" | "ADMIN_TECH";
+  etat_scelle?: "" | "INTACT" | "ALTERE" | "ABSENT";
+  presence_rature?: boolean;
+  description_rature?: string;
+  document_substitution_present?: boolean;
   membre_ids?: number[];
-  statut?: "BROUILLON" | "EN_SAISIE" | "A_VALIDER" | "VALIDEE";
+  offres?: Omit<OffreOuverture, "id">[];
+  statut?: SeanceStatut;
 };
 
 export type ValidationPayload = {
   commentaire?: string;
+  password?: string;
 };

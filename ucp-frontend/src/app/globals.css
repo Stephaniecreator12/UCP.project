@@ -40,14 +40,15 @@ input[type="date"] {
 
 input[type="date"]::-webkit-calendar-picker-indicator {
   cursor: pointer;
-  opacity: 0.42;
-  transform: scale(0.82);
-  filter: saturate(0.72) brightness(1.04);
+  opacity: 0.82;
+  transform: scale(1.18);
+  transform-origin: center;
+  filter: saturate(1) contrast(1.12) brightness(0.92);
 }
 
 input[type="date"]::-webkit-calendar-picker-indicator:hover {
-  opacity: 0.68;
-  filter: saturate(0.92) brightness(1.08);
+  opacity: 1;
+  filter: saturate(1.08) contrast(1.16) brightness(0.86);
 }
 
 /* Réduction d'affichage "type zoom 80%" (écran PC) */
@@ -97,6 +98,25 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 
 .btn-ucp-gradient:active {
   @apply scale-95;
+}
+
+.input {
+  @apply w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm transition outline-none;
+}
+
+.input:focus {
+  border-color: rgba(16, 185, 129, 0.65);
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.12);
+}
+
+.btn-primary {
+  @apply inline-flex items-center justify-center rounded-2xl px-5 py-3 text-sm font-bold text-white transition;
+  background: linear-gradient(135deg, #10b981 0%, #047857 100%);
+  box-shadow: 0 16px 30px -18px rgba(4, 120, 87, 0.6);
+}
+
+.btn-primary:hover {
+  @apply brightness-105;
 }
 
 @keyframes fadeIn {

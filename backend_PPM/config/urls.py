@@ -12,6 +12,7 @@ urlpatterns = [
     path("api/ppm/", include("apps.ppm.urls")),
     path("api/achats/", include("apps.achats.urls")),
     path("api/TdrSt/", include("apps.TdrSt.urls")),
+    path("api/procurement/", include("apps.procurement.urls")),
     path("api/users/", include("apps.users.urls")),
 
     # Current login uses the stock JWT endpoint.

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import {
   getLandingRouteForUser,
@@ -15,35 +15,42 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const nextPath = getSafeNextPath(searchParams.get("next"));
 
   useEffect(() => {
     if (getToken()) {
       const currentUser = getCurrentUser();
       // Reuse the same landing rule after page refresh so the login page
       // does not stay visible once a session already exists.
-      router.replace(getLandingRouteForUser(currentUser));
+      redirectTo(router, nextPath ?? getLandingRouteForUser(currentUser));
     }
-  }, [router]);
+  }, [nextPath, router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
+
     setError("");
+    setIsSubmitting(true);
 
     const result = await login(username, password);
 
     if (result.success) {
       const currentUser = getCurrentUser();
       // The destination is decided from the fetched user profile.
-      router.push(getLandingRouteForUser(currentUser));
+      redirectTo(router, nextPath ?? getLandingRouteForUser(currentUser));
     } else {
       setError(result.error || "Une erreur est survenue");
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="min-h-screen w-full overflow-hidden">
-      <div className="relative flex min-h-[calc(100vh-78px)] items-center justify-center overflow-hidden bg-[linear-gradient(180deg,#f5f6f6_0%,#eef1f0_100%)] px-4 py-8">
+    <div className="min-h-dvh w-full overflow-x-hidden overflow-y-auto">
+      <div className="relative flex min-h-dvh items-center justify-center overflow-x-hidden bg-[linear-gradient(180deg,#f5f6f6_0%,#eef1f0_100%)] px-4 py-8">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_80%_10%,rgba(247,247,248,0.72),transparent_28%)]" />
         <div className="pointer-events-none absolute -top-24 -left-16 h-[280px] w-[240px] rotate-[-17deg] rounded-[42px] bg-[linear-gradient(140deg,#a2f3b5_0%,#41f37c_62%,#a2f8be_100%)] shadow-[0_45px_80px_-30px_rgba(33,83,46,0.6)] login-float-soft" />
         <div className="pointer-events-none absolute left-[9%] top-[10%] h-[180px] w-[200px] rotate-[-32deg] rounded-[34px] bg-[linear-gradient(125deg,rgba(58,69,82,0.44)_0%,rgba(15,20,27,0.14)_100%)] login-float-soft [animation-delay:1200ms]" />
@@ -97,6 +104,7 @@ export default function LoginPage() {
                 type="text"
                 className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/10 placeholder:text-slate-400"
                 value={username}
+                disabled={isSubmitting}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="Saisir votre nom d'utilisateur"
               />
@@ -111,6 +119,7 @@ export default function LoginPage() {
                   type={showPassword ? "text" : "password"}
                   className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 pr-12 text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/10 placeholder:text-slate-400"
                   value={password}
+                  disabled={isSubmitting}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Saisir votre mot de passe"
                 />
@@ -184,9 +193,11 @@ export default function LoginPage() {
 
             <button
               type="submit"
-              className="mt-2 inline-flex w-full items-center justify-center rounded-2xl bg-[#166534] px-4 py-3 text-sm font-bold tracking-wide text-white shadow-[0_16px_30px_-20px_rgba(22,101,52,0.65)] transition hover:bg-[#14532d]"
+              disabled={isSubmitting}
+              aria-busy={isSubmitting}
+              className="mt-2 inline-flex w-full items-center justify-center rounded-2xl bg-[#166534] px-4 py-3 text-sm font-bold tracking-wide text-white shadow-[0_16px_30px_-20px_rgba(22,101,52,0.65)] transition hover:bg-[#14532d] disabled:cursor-not-allowed disabled:bg-slate-400"
             >
-              Se connecter
+              {isSubmitting ? "Connexion..." : "Se connecter"}
             </button>
           </form>
 
@@ -198,3 +209,26 @@ export default function LoginPage() {
     </div>
   );
 }
+
+const getSafeNextPath = (value: string | null) => {
+  if (!value) return null;
+  if (!value.startsWith("/") || value.startsWith("//")) return null;
+  const pathOnly = value.split(/[?#]/, 1)[0];
+  if (pathOnly === "/login") return null;
+  return value;
+};
+
+const redirectTo = (
+  router: ReturnType<typeof useRouter>,
+  destination: string,
+) => {
+  router.replace(destination);
+
+  if (typeof window === "undefined") return;
+
+  window.setTimeout(() => {
+    if (window.location.pathname === "/login") {
+      window.location.replace(destination);
+    }
+  }, 500);
+};

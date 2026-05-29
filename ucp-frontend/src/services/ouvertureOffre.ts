@@ -8,20 +8,57 @@ import type {
 } from "@/types/ouvertureOffre";
 
 const readErrorMessage = async (response: Response): Promise<string> => {
-  const payload = await response.json().catch(() => null);
+  const contentType = response.headers.get("content-type") ?? "";
+  const payload = contentType.includes("application/json")
+    ? await response.json().catch(() => null)
+    : null;
+
   if (payload && typeof payload === "object") {
-    const record = payload as Record<string, unknown>;
-
-    if (typeof record.detail === "string" && record.detail.trim()) {
-      return record.detail.trim();
-    }
-
-    if (typeof record.error === "string" && record.error.trim()) {
-      return record.error.trim();
+    const message = formatApiErrorPayload(payload);
+    if (message) {
+      return message;
     }
   }
 
-  return "Une erreur est survenue.";
+  if (response.status >= 500) {
+    return "Le backend ou la base de données est indisponible. Vérifie que Django et PostgreSQL sont lancés.";
+  }
+
+  return `Erreur API ouverture (HTTP ${response.status}).`;
+};
+
+const formatApiErrorPayload = (payload: unknown, prefix = ""): string | null => {
+  if (!payload) return null;
+
+  if (typeof payload === "string") {
+    const trimmed = payload.trim();
+    return trimmed ? `${prefix}${trimmed}` : null;
+  }
+
+  if (Array.isArray(payload)) {
+    for (const item of payload) {
+      const message = formatApiErrorPayload(item, prefix);
+      if (message) return message;
+    }
+    return null;
+  }
+
+  if (typeof payload === "object") {
+    const record = payload as Record<string, unknown>;
+
+    for (const preferredKey of ["detail", "error", "non_field_errors"]) {
+      const message = formatApiErrorPayload(record[preferredKey], prefix);
+      if (message) return message;
+    }
+
+    for (const [field, value] of Object.entries(record)) {
+      const label = field === "non_field_errors" ? "" : `${field} : `;
+      const message = formatApiErrorPayload(value, label);
+      if (message) return message;
+    }
+  }
+
+  return null;
 };
 
 const getAuthHeaders = () => {
@@ -131,6 +168,43 @@ export async function validatePresident(
   return (await response.json()) as SeanceOuverture;
 }
 
+export async function rejectMember(
+  id: number,
+  payload: ValidationPayload,
+): Promise<SeanceOuverture> {
+  const response = await fetch(`/api/ouverture/seances/${id}/rejeter-membre/`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  return (await response.json()) as SeanceOuverture;
+}
+
+export async function rejectPresident(
+  id: number,
+  payload: ValidationPayload,
+): Promise<SeanceOuverture> {
+  const response = await fetch(
+    `/api/ouverture/seances/${id}/rejeter-president/`,
+    {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  return (await response.json()) as SeanceOuverture;
+}
+
 export async function getAvailableUsers(): Promise<OuvertureUser[]> {
   const response = await fetch("/api/ouverture/utilisateurs/", {
     method: "GET",
@@ -143,4 +217,28 @@ export async function getAvailableUsers(): Promise<OuvertureUser[]> {
   }
 
   return (await response.json()) as OuvertureUser[];
+}
+
+export async function downloadPV(id: number, referenceDossier: string): Promise<void> {
+  const token = getToken();
+  const response = await fetch(`/api/ouverture/seances/${id}/telecharger-pv/`, {
+    method: "GET",
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  const blob = await response.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `PV_Ouverture_${referenceDossier}.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(url);
 }

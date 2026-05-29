@@ -46,7 +46,8 @@ INSTALLED_APPS = [
     'apps.users',
     'apps.ppm',
     'apps.TdrSt',
-    'apps.procurement'
+    'apps.procurement',
+    'apps.log'
 ]
 
 MIDDLEWARE = [

@@ -8,6 +8,9 @@ import TopHeader from "@/app/components/TopHeader";
 import { ProcurementMarket } from "@/types/procurement";
 import { getCountdown } from "./components/countdown";
 import { useRouter } from 'next/navigation';
+import { trackUserAction } from "@/services/trackAction";
+import { getme } from "@/services/profile";
+import { UserProfileValue } from "@/types/profile";
 interface MarketData {
   count: number;
   previous: string | null;
@@ -29,10 +32,35 @@ export default function ProcurementPage({
 
   const [data, setData] = useState<MarketData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [user,setUser] = useState<UserProfileValue | null>(null);
   const router = useRouter();
   useEffect(() => {
     let isMounted = true;
 
+    const handleGetProfile = async () => {
+      try {
+        const result = await getme();
+        if (isMounted) {
+          if (!result.error) {
+            setUser(result.data);
+          } else {
+            console.error("Erreur de récupération profil :", result.message);
+          }
+        }
+      } catch (err) {
+        console.error("Erreur crash profil :", err);
+      }
+    };
+
+    handleGetProfile();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+  useEffect(() => {
+    let isMounted = true;
+    
     getMarkets(currentPage)
       .then((res) => {
         if (isMounted) {
@@ -81,6 +109,21 @@ const handleToDetailRedirection = (id:string)=>{
   }
 
   const totalPages = data.count > 0 ? Math.ceil(data.count / 10) : 1;
+
+  const handleTrackDownload = async(
+  dossierId:string,userId:string,actionType:string,annexeName:string) =>{
+    const data = {
+      dossierId,
+      userId,
+      actionType,
+      annexeName
+    }
+    try{
+      await trackUserAction(data)
+    }catch(e){
+      console.error(e);
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 pb-12">
@@ -156,12 +199,13 @@ const handleToDetailRedirection = (id:string)=>{
                   <div className="bg-gray-50 p-3 rounded-md flex flex-col justify-between">
                     <div>
                       <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Annexes</span>
-                      {market.annexes && market.annexes.length > 0 ? (
+                      {user && market.annexes && market.annexes.length > 0 ? (
                         <div className="flex flex-col gap-1 max-h-24 overflow-y-auto">
                           {market.annexes.map((annexe) => (
                             <a 
                               key={annexe.id} 
                               href={annexe.file} 
+                              onClick={()=>handleTrackDownload(market.id.toString(),user.id.toString(),"DOWNLOAD_ANNEXE",annexe.file.toString())}
                               download
                               className="text-blue-600 hover:underline text-xs inline-flex items-center gap-1"
                             >

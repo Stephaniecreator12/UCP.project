@@ -13,6 +13,7 @@ from apps.users.views.auth_view import (
 )
 from config.media_fallback import serve_tdr_st_media
 from apps.users.views.public_view import PublicLoginView
+from apps.log.views.track_action_view import TrackActionView
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/public/login/", PublicLoginView.as_view(), name="public_login"),
@@ -20,6 +21,7 @@ urlpatterns = [
     path('api/users/create/', inscription_view, name='api_register'),
     path("api/users/", include("apps.users.urls")),
     path("api/TdrSt/", include("apps.TdrSt.urls")),
+    path("api/logs/track", TrackActionView.as_view(), name="track-action"),
     path('api/procurement/', include('apps.procurement.urls')),
     path('market/<path:reference_number>/download-dao/', DownloadDAOView.as_view(), name='download-dao'),
     

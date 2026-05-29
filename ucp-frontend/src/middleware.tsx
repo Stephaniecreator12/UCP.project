@@ -20,7 +20,7 @@ export function middleware(request: NextRequest) {
     accessType !== "private"
   ) {
     return NextResponse.redirect(
-      new URL("/public/dao-dc", request.url)
+      new URL("/public/procurement", request.url)
     );
   }
     */

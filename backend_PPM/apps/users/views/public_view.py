@@ -23,7 +23,10 @@ def me(request):
 
     serializer = PublicProfileSerializer(request.user)
 
-    return Response(serializer.data)
+    return Response({
+        "error": False,
+        "data": serializer.data
+    })
 
 
 @api_view(["GET"])

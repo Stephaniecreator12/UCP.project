@@ -1,7 +1,7 @@
 import { ProcurementFormValues,ProcurementMarket } from "../types/procurement";
 import { api } from "./config";
 import { parseApiError } from "./config";
-import { ApiResult } from "../types/procurement";
+import { ApiResult } from "../types/api";
 import { PaginatedResponse } from "../types/procurement";
 export const createMarket = async (
   data: ProcurementFormValues

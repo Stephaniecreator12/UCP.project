@@ -7,7 +7,7 @@ import type {
 
 type ValidationError = Record<string, unknown>;
 
-const getAuthHeaders = () => {
+const getAuthHeaders = (): HeadersInit => {
   const token = getToken();
 
   return token ? { Authorization: `Bearer ${token}` } : {};

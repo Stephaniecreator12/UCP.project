@@ -32,7 +32,7 @@ if command -v tmux &> /dev/null; then
     tmux new-session -d -s "ucp" -x 200 -y 50
     
     # Onglet 1 : Django
-    tmux send-keys -t "ucp" "cd $ROOT_DIR && if [ -f .env ]; then set -a && . ./.env && set +a; fi && source .venv/bin/activate && echo '🟢 Backend Django en cours de démarrage...' && python $BACKEND_DIR/manage.py runserver" Enter
+    tmux send-keys -t "ucp" "cd $ROOT_DIR && if [ -f .env ]; then set -a && . ./.env && set +a; fi && source .venv/bin/activate && echo '🟢 Backend Django en cours de démarrage...' && python3 $BACKEND_DIR/manage.py runserver" Enter
     sleep 3
     
     # Onglet 2 : Next.js
@@ -44,11 +44,11 @@ if command -v tmux &> /dev/null; then
     echo ""
     echo "✅ Serveurs lancés!"
     echo ""
-    echo "📍 Accédez à l'application: http://localhost:3001"
+    echo "📍 Accédez à l'application: http://localhost:3000"
     echo ""
     echo "📊 Panel tmux:"
     echo "   - Onglet 1: Django Backend (port 8000)"
-    echo "   - Onglet 2: Next.js Frontend (port 3001)"
+    echo "   - Onglet 2: Next.js Frontend (port 3000)"
     echo ""
     echo "Commandes tmux:"
     echo "   tmux attach -t ucp       (Se connecter)"
@@ -67,11 +67,11 @@ else
     echo "Terminal 1 (Backend Django):"
     echo "  cd $ROOT_DIR"
     echo "  source .venv/bin/activate"
-    echo "  python backend_PPM/manage.py runserver"
+    echo "  python3 backend_PPM/manage.py runserver"
     echo ""
     echo "Terminal 2 (Frontend Next.js):"
     echo "  cd $FRONTEND_DIR"
     echo "  npm run dev"
     echo ""
-    echo "Puis visitez: http://localhost:3001"
+    echo "Puis visitez: http://localhost:3000"
 fi

@@ -40,28 +40,27 @@ export function ProcurementForm() {
   });
 
   return (
-    <form 
-    onSubmit={(e) => {
-    e.preventDefault();
-  }}
-    className="space-y-8">
-
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+      }}
+      className="space-y-8"
+    >
       <BasicInfoSection form={form} />
 
       <FinancingSection form={form} />
 
       <ScheduleSection form={form} />
 
-      <TechnicalDocumentsSection form={form}/>
+      <TechnicalDocumentsSection form={form} />
 
-      <AnnexSection form={form}/>
+      <AnnexSection form={form} />
 
-      <SubmissionModelSection form={form}/>
+      <SubmissionModelSection form={form} />
 
       <PublicationSection form={form} />
 
       <PublishActions form={form} />
-
     </form>
   );
 }

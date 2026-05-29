@@ -23,6 +23,10 @@ import {
 import TopHeader from "@/app/components/TopHeader";
 import SeanceOverviewDetails from "@/app/ouverture_offre/components/SeanceOverviewDetails";
 import {
+  consumeOpeningFlashMessage,
+  setOpeningFlashMessage,
+} from "@/app/ouverture_offre/utils/flashMessage";
+import {
   fetchCurrentUser,
   getToken,
   isSecretaireUser,
@@ -232,6 +236,11 @@ const getUserLabel = (user: OuvertureUser) =>
 export default function SeanceOuvertureDetail() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
+  const rawParamId = params?.id;
+  const normalizedParamId = Array.isArray(rawParamId) ? rawParamId[0] : rawParamId;
+  const currentDetailPath = normalizedParamId
+    ? `/ouverture_offre/${normalizedParamId}`
+    : "/ouverture_offre";
   const [screenState, setScreenState] = useState<ScreenState>("loading");
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [seance, setSeance] = useState<SeanceOuverture | null>(null);
@@ -239,7 +248,9 @@ export default function SeanceOuvertureDetail() {
   const [availableUsers, setAvailableUsers] = useState<OuvertureUser[]>([]);
   const [formData, setFormData] = useState<DetailFormState | null>(null);
   const [error, setError] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState(() =>
+    consumeOpeningFlashMessage(currentDetailPath),
+  );
   const [saveMode, setSaveMode] = useState<SaveMode | null>(null);
   const [validationComment, setValidationComment] = useState("");
   const [validationTarget, setValidationTarget] = useState("");
@@ -747,6 +758,12 @@ export default function SeanceOuvertureDetail() {
       setSaveMode(nextStatus === "EN_VALIDATION_MEMBRES" ? "submit" : "draft");
 
       await updateSeance(seance.id, buildPayload(formData, nextStatus));
+      setOpeningFlashMessage(
+        nextStatus === "EN_VALIDATION_MEMBRES"
+          ? "La séance a été mise à valider avec succès."
+          : "Le brouillon a été enregistré avec succès.",
+        "/ouverture_offre",
+      );
       router.replace("/ouverture_offre");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Enregistrement impossible.");
@@ -766,6 +783,10 @@ export default function SeanceOuvertureDetail() {
         password,
       });
       setPendingValidateMode(null);
+      setOpeningFlashMessage(
+        "Validation membre enregistrée avec succès.",
+        "/ouverture_offre",
+      );
       router.replace("/ouverture_offre");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Validation membre impossible.");
@@ -785,6 +806,10 @@ export default function SeanceOuvertureDetail() {
         password,
       });
       setPendingValidateMode(null);
+      setOpeningFlashMessage(
+        "Validation président enregistrée avec succès.",
+        "/ouverture_offre",
+      );
       router.replace("/ouverture_offre");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Validation président impossible.");
@@ -822,6 +847,10 @@ export default function SeanceOuvertureDetail() {
         commentaire: validationComment.trim(),
         password,
       });
+      setOpeningFlashMessage(
+        "Rejet membre enregistré avec succès.",
+        "/ouverture_offre",
+      );
       router.replace("/ouverture_offre");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Rejet membre impossible.");
@@ -845,6 +874,10 @@ export default function SeanceOuvertureDetail() {
         commentaire: validationComment.trim(),
         password,
       });
+      setOpeningFlashMessage(
+        "Rejet président enregistré avec succès.",
+        "/ouverture_offre",
+      );
       router.replace("/ouverture_offre");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Rejet président impossible.");
@@ -878,6 +911,18 @@ export default function SeanceOuvertureDetail() {
 
     if (pendingValidateMode === "member") {
       void handleMemberValidation(password);
+    }
+  };
+
+  const handleDownloadPV = async () => {
+    if (!seance) return;
+
+    try {
+      setError("");
+      await downloadPV(seance.id, seance.reference_dossier);
+      setSuccessMessage("Téléchargement du PV lancé avec succès.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Impossible de télécharger le PV.");
     }
   };
 
@@ -963,11 +1008,7 @@ export default function SeanceOuvertureDetail() {
             {seance.pv_document && (
               <button
                 type="button"
-                onClick={() => {
-                  if (seance) {
-                    void downloadPV(seance.id, seance.reference_dossier);
-                  }
-                }}
+                onClick={() => void handleDownloadPV()}
                 className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-emerald-700"
               >
                 <FileText className="h-4 w-4" />
@@ -1626,7 +1667,7 @@ export default function SeanceOuvertureDetail() {
                     </div>
                     <button
                       type="button"
-                      onClick={() => void downloadPV(seance.id, seance.reference_dossier)}
+                      onClick={() => void handleDownloadPV()}
                       className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 text-sm font-bold text-white shadow-lg shadow-emerald-500/20 transition-all hover:-translate-y-0.5 hover:bg-emerald-700 cursor-pointer"
                     >
                       <FileText className="h-4 w-4" />

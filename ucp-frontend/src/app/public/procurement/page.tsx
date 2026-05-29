@@ -34,6 +34,21 @@ export default function ProcurementPage({
   const [loading, setLoading] = useState(true);
   const [user,setUser] = useState<UserProfileValue | null>(null);
   const router = useRouter();
+  const handleViewTrack = async(dossierId:string) => {
+    try{
+      const token = getToken();
+          if (user && token) {  
+              await trackUserAction({
+                  dossierId: dossierId,
+                  userId: user.id.toString(),
+                  actionType: 'VIEW',
+              }, token);
+          }
+    }catch(e){
+      console.error(e)
+    }
+          
+  }
   useEffect(() => {
     let isMounted = true;
 
@@ -93,6 +108,7 @@ export default function ProcurementPage({
 };
 const handleToDetailRedirection = (id:string)=>{
   if(id){
+    handleViewTrack(id);
     router.push(`procurement/${id}`)
   }
 }
@@ -119,7 +135,11 @@ const handleToDetailRedirection = (id:string)=>{
       annexeName
     }
     try{
-      await trackUserAction(data)
+      const token = getToken()
+      if(token){
+        await trackUserAction(data,token)
+      }
+      
     }catch(e){
       console.error(e);
     }

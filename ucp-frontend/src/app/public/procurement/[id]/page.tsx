@@ -1,7 +1,7 @@
 "use client"
 import { getMarketById } from "@/services/procurement";
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState} from "react";
 import { ProcurementMarket } from "@/types/procurement";
 import TopHeader from "@/app/components/TopHeader";
 import { useRouter } from 'next/navigation';
@@ -33,7 +33,7 @@ export default function ProcurementDetailPage() {
         fetchMarketDetail();
 
     }, [id]);
-    const handleBackRedirection=()=>{
+    const handleBackRedirection = () => {
         route.back();
     }
 
@@ -47,9 +47,9 @@ export default function ProcurementDetailPage() {
         <div className="max-w-6xl mx-auto p-6 space-y-6 bg-gray-50 min-h-screen justify-center items-center">
             <TopHeader></TopHeader>
             <div>
-                <button 
-                onClick={()=>handleBackRedirection()}
-                className=""
+                <button
+                    onClick={() => handleBackRedirection()}
+                    className=""
                 >
                     retour
                 </button>
@@ -154,10 +154,10 @@ export default function ProcurementDetailPage() {
                                     ) : (
                                         <div className="space-y-2">
                                             {market.technical_documents.map((doc, idx) => (
-                                                <a key={idx} href={doc.file} className="flex items-center justify-between p-3 bg-gray-50 hover:bg-blue-50/50 rounded-lg border border-gray-100 transition-colors group">
+                                                <p key={idx} className="flex items-center justify-between p-3 bg-gray-50 hover:bg-blue-50/50 rounded-lg border border-gray-100 transition-colors group">
                                                     <span className="break-all text-sm text-gray-700 group-hover:text-blue-600 truncate font-medium">📄{doc.file}</span>
                                                     <span className="break-all text-xs text-gray-400 font-mono">Télécharger</span>
-                                                </a>
+                                                </p>
                                             ))}
                                         </div>
                                     )}
@@ -170,10 +170,10 @@ export default function ProcurementDetailPage() {
                                     ) : (
                                         <div className="space-y-2">
                                             {market.annexes.map((annexe, idx) => (
-                                                <a key={idx} href={annexe.file} className="flex items-center justify-between p-3 bg-gray-50 hover:bg-blue-50/50 rounded-lg border border-gray-100 transition-colors group">
+                                                <p key={idx} className="flex items-center justify-between p-3 bg-gray-50 hover:bg-blue-50/50 rounded-lg border border-gray-100 transition-colors group">
                                                     <span className="break-all text-sm text-gray-700 group-hover:text-blue-600 truncate font-medium">📎{annexe.file}</span>
                                                     <span className="break-all text-xs text-gray-400 font-mono">Télécharger</span>
-                                                </a>
+                                                </p>
                                             ))}
                                         </div>
                                     )}

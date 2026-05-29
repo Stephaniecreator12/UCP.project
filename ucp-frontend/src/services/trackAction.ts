@@ -1,12 +1,11 @@
-import { getToken } from "./auth";
 import { TrackActionFormValue } from "@/types/trackAction";
-export async function trackUserAction(data: TrackActionFormValue) {
+export async function trackUserAction(data: TrackActionFormValue,token: string) {
   try {
     const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/logs/track`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${getToken()}`, 
+        'Authorization': `Bearer ${token}`, 
       },
       body: JSON.stringify({
         dossier_id: data.dossierId,

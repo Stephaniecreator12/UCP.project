@@ -7,6 +7,7 @@ import { getToken } from "@/services/auth";
 import TopHeader from "@/app/components/TopHeader";
 import { ProcurementMarket } from "@/types/procurement";
 import { getCountdown } from "./components/countdown";
+import { useRouter } from 'next/navigation';
 interface MarketData {
   count: number;
   previous: string | null;
@@ -28,7 +29,7 @@ export default function ProcurementPage({
 
   const [data, setData] = useState<MarketData | null>(null);
   const [loading, setLoading] = useState(true);
-
+  const router = useRouter();
   useEffect(() => {
     let isMounted = true;
 
@@ -62,6 +63,11 @@ export default function ProcurementPage({
     
   window.open(`/api/procurement/markets/${id}`, "_blank");
 };
+const handleToDetailRedirection = (id:string)=>{
+  if(id){
+    router.push(`procurement/${id}`)
+  }
+}
   const handlePageChange = () => {
     setLoading(true);
   };
@@ -92,7 +98,9 @@ export default function ProcurementPage({
                 
                 <div className="flex flex-col sm:flex-row justify-between items-start gap-2 mb-4 border-b border-gray-100 pb-3">
                   <div>
-                    <span className="text-xs font-mono bg-gray-100 px-2 py-1 rounded text-gray-600 font-semibold">
+                    <span 
+                    onClick={()=>handleToDetailRedirection((market.id).toString())}
+                    className="text-xs font-mono bg-gray-100 px-2 py-1 rounded text-gray-600 font-semibold hover:cursor-pointer">
                       Ref: {market.reference_number}
                     </span>
                     <h2 className="text-xl font-semibold text-gray-800 mt-2">{market.title}</h2>

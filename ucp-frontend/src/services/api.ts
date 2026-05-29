@@ -172,6 +172,39 @@ const toDateValue = (value: unknown): string | null => {
   return v.length > 0 ? v : null;
 };
 
+const normalizeStatusKey = (value: unknown): string =>
+  String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+const isManualFinalStatus = (status: unknown): boolean => {
+  const key = normalizeStatusKey(status);
+  return key.includes("arrete") || key.includes("annule") || key.includes("supprime");
+};
+
+const readApiErrorMessage = async (
+  response: Response,
+  fallback: string,
+): Promise<string> => {
+  const contentType = response.headers.get("content-type") || "";
+
+  if (contentType.includes("application/json")) {
+    const errorData = await response.json().catch(() => ({}));
+    const detail =
+      errorData && typeof errorData === "object"
+        ? (errorData as { detail?: unknown; error?: unknown }).detail ??
+          (errorData as { detail?: unknown; error?: unknown }).error
+        : undefined;
+    return typeof detail === "string" && detail.trim() ? detail : fallback;
+  }
+
+  const text = await response.text().catch(() => "");
+  const snippet = text.replace(/\s+/g, " ").trim().slice(0, 300);
+  return snippet ? `${fallback} (${response.status}) : ${snippet}` : fallback;
+};
+
 /**
  * Récupérer TOUS les marchés (combine les 3 types)
  */
@@ -250,12 +283,12 @@ export async function getAllProcurements(): Promise<Procurement[]> {
       request_for_proposal: item.demande_proposition_prevu,
       invitation_date: item.date_invitation_prevu,
       submissions_opening_date: item.date_ouverture_prevu,
-      technical_evaluation: item.evaluation_technique_prevu,
+      technical_evaluation: item.rapport_evaluation_prevu ?? item.evaluation_technique_prevu,
       financial_opening_date: item.ouverture_plis_prevu,
       contract_draft: item.projet_contrat_prevu,
       contract_date: item.date_signature_prevu,
       mission_end_date: item.date_fin_prevu,
-      evaluation_report: item.evaluation_technique_prevu, // ← AJOUT pour correspondre au champ de planning
+      evaluation_report: item.rapport_evaluation_prevu ?? item.evaluation_technique_prevu,
       // Dates réelles
       terms_of_reference_actual: item.TdR_reel,
       ami_actual: item.ami_reel,
@@ -263,11 +296,12 @@ export async function getAllProcurements(): Promise<Procurement[]> {
       request_for_proposal_actual: item.demande_proposition_reel,
       invitation_date_actual: item.date_invitation_reel,
       submissions_opening_date_actual: item.date_ouverture_reel,
-      technical_evaluation_actual: item.evaluation_technique_reel,
+      technical_evaluation_actual: item.rapport_evaluation_reel ?? item.evaluation_technique_reel,
       financial_opening_date_actual: item.ouverture_plis_reel,
       contract_draft_actual: item.projet_contrat_reel,
       contract_date_actual: item.date_signature_reel,
       mission_end_date_actual: item.date_fin_reel,
+      evaluation_report_actual: item.rapport_evaluation_reel ?? item.evaluation_technique_reel,
     };
     console.log('Mapped Consultance:', mapped);
     return mapped;
@@ -313,6 +347,27 @@ const mapped = {
     console.error("Erreur API:", error);
     return [];
   }
+}
+
+export async function getAllProcurementsWithComputedStatus(): Promise<Procurement[]> {
+  const procurements = await getAllProcurements();
+
+  return Promise.all(
+    procurements.map(async (item) => {
+      if (!item.type || isManualFinalStatus(item.status)) return item;
+
+      try {
+        const status = await getProcurementStatus(
+          item.type,
+          item as unknown as Record<string, unknown>,
+        );
+        return { ...item, status };
+      } catch (error) {
+        console.error("Erreur calcul statut au chargement:", error);
+        return item;
+      }
+    }),
+  );
 }
 
 /**
@@ -375,9 +430,10 @@ export async function createProcurement(
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      const errorMessage =
-        errorData.error || "Erreur lors de la création du marché";
+      const errorMessage = await readApiErrorMessage(
+        response,
+        "Erreur lors de la création du marché",
+      );
       console.error("Erreur API:", errorMessage);
       throw new Error(errorMessage);
     }
@@ -456,7 +512,7 @@ function buildProcurementPayload(data: Procurement): Record<string, unknown> {
      addIfDate("ouverture_plis_prevu", data.financial_opening_date);
      addIfDate("date_signature_prevu", data.contract_date);
      addIfDate("date_fin_prevu", data.mission_end_date);
-     addIfDate("evaluation_technique_prevu", data.technical_evaluation);
+     addIfDate("rapport_evaluation_prevu", data.technical_evaluation ?? data.evaluation_report);
      addIfDate("projet_contrat_prevu", data.contract_draft);
       // Dates réelles
       addIfDate("TdR_reel", dataExtras["terms_of_reference_actual"]);
@@ -468,7 +524,10 @@ function buildProcurementPayload(data: Procurement): Record<string, unknown> {
       addIfDate("ouverture_plis_reel", dataExtras["financial_opening_date_actual"]);
       addIfDate("date_signature_reel", dataExtras["contract_date_actual"]);
       addIfDate("date_fin_reel", dataExtras["mission_end_date_actual"]);
-      addIfDate("evaluation_technique_reel", dataExtras["technical_evaluation_actual"]);
+      addIfDate(
+        "rapport_evaluation_reel",
+        dataExtras["technical_evaluation_actual"] ?? dataExtras["evaluation_report_actual"],
+      );
       addIfDate("projet_contrat_reel", dataExtras["contract_draft_actual"]);
 
     console.log("Payload Consultance final:", consultancePayload); // DEBUG
@@ -491,7 +550,7 @@ function buildProcurementPayload(data: Procurement): Record<string, unknown> {
     date_ouverture_prevu: toBackendDate(data.opening_date),
     date_signature_prevu: toBackendDate(data.contract_date),
     date_livraison_prevu: toBackendDate(data.delivery_date),
-    listesetspecifications_prevu: toBackendDate(data.specifications_date),
+    listesetspecifications: toBackendDate(data.specifications_date),
     rapport_evaluation_prevu: toBackendDate(data.evaluation_report),
     // Dates réelles (Réel)
     dossiers_appel_reel: toBackendDate(dataExtras["tender_documents_date_actual"]),
@@ -539,9 +598,10 @@ export async function updateProcurement(
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      const errorMessage =
-        errorData.error || "Erreur lors de la mise à jour du marché";
+      const errorMessage = await readApiErrorMessage(
+        response,
+        "Erreur lors de la mise à jour du marché",
+      );
       console.error("Erreur API:", errorMessage);
       throw new Error(errorMessage);
     }
@@ -699,7 +759,7 @@ export async function getProcurementStatus(
       ouverture_plis_prevu: toDateValue(row.financial_opening_date),
       date_signature_prevu: toDateValue(row.contract_date),
       date_fin_prevu: toDateValue(row.mission_end_date),
-      evaluation_technique_prevu: toDateValue(row.technical_evaluation),
+      rapport_evaluation_prevu: toDateValue(row.technical_evaluation ?? row.evaluation_report),
       projet_contrat_prevu: toDateValue(row.contract_draft),
     };
 
@@ -713,7 +773,9 @@ export async function getProcurementStatus(
       ouverture_plis_reel: toDateValue(row.financial_opening_date_actual),
       date_signature_reel: toDateValue(row.contract_date_actual),
       date_fin_reel: toDateValue(row.mission_end_date_actual),
-      evaluation_technique_reel: toDateValue(row.technical_evaluation_actual),
+      rapport_evaluation_reel: toDateValue(
+        row.technical_evaluation_actual ?? row.evaluation_report_actual,
+      ),
       projet_contrat_reel: toDateValue(row.contract_draft_actual),
     };
   }

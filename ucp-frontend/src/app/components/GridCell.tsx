@@ -29,7 +29,6 @@ export default function GridCell({
   maxDate,
 }: GridCellProps) {
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(null);
-  const [draftDate, setDraftDate] = React.useState<string>(typeof value === "string" ? value : "");
   const inputValue = typeof value === "string" || typeof value === "number" ? value : "";
 
 
@@ -142,12 +141,11 @@ export default function GridCell({
         ref={inputRef as React.Ref<HTMLInputElement>}
         type="date"
         {...FRENCH_DATE_INPUT_PROPS}
-        value={draftDate}
+        value={typeof value === "string" ? value : ""}
         min={minDate}
         max={maxDate}
         onChange={(e) => {
   const nextValue = e.target.value;
-  setDraftDate(nextValue);
   onChange(nextValue); // commit immédiat dans la row (sans validation stricte)
           }}
           onBlur={(e) => {
@@ -157,7 +155,7 @@ export default function GridCell({
             // Validation stricte au blur (ordre des dates, etc.)
             if (onConfirm) accepted = onConfirm(nextValue) !== false;
 
-            if (!accepted) setDraftDate(typeof value === "string" ? value : "");
+            if (!accepted) onChange(typeof value === "string" ? value : "");
             onBlur();
           }}
         onKeyDown={onKeyDown}

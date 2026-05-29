@@ -18,7 +18,7 @@ import { TABLE_CONFIGS } from "@/config/tableConfigs";
 import {
   createProcurement,
   deleteProcurement,
-  getAllProcurements,
+  getAllProcurementsWithComputedStatus,
   getProcurementStatus,
   Procurement,
   stopProcurement,
@@ -78,7 +78,7 @@ export default function GestionMarches() {
 const loadData = useCallback(async (): Promise<GridRow[]> => {
   setIsLoading(true);
   try {
-    const allData = await getAllProcurements();
+    const allData = await getAllProcurementsWithComputedStatus();
     const filteredData = allData.filter((item) => {
       if (activeMenu === "works") return item.type === "Travaux";
       if (activeMenu === "goods-services") return item.type === "Biens";
@@ -248,6 +248,7 @@ const loadData = useCallback(async (): Promise<GridRow[]> => {
 const handleRowSave = async (row: GridRow) => {
   setIsSaving(true);
   try {
+    const rowsBeforeSave = rows;
     const typeMapping: Record<string, "Travaux" | "Biens" | "Consultance"> = {
       works: "Travaux",
       "goods-services": "Biens",
@@ -277,10 +278,39 @@ const handleRowSave = async (row: GridRow) => {
     if (result) {
       setSaveMessage({ type: "success", message: "Enregistré avec succès" });
       const refreshedRows = await loadData();
+      const savedId = String(result.id ?? "");
+      const refreshedById = new Map(
+        refreshedRows.map((refreshedRow) => [String(refreshedRow._id ?? ""), refreshedRow]),
+      );
+      const orderedIds = new Set<string>();
+      const orderedRows = rowsBeforeSave
+        .map((previousRow) => {
+          const previousId = String(previousRow._id ?? "");
+          const nextId = previousId === rowId ? savedId : previousId;
+          const refreshedRow = refreshedById.get(nextId);
+          if (!refreshedRow) return null;
+          orderedIds.add(nextId);
+          return refreshedRow;
+        })
+        .filter((orderedRow): orderedRow is GridRow => Boolean(orderedRow));
+      const appendedRows = refreshedRows.filter((refreshedRow) => {
+        const refreshedId = String(refreshedRow._id ?? "");
+        return !orderedIds.has(refreshedId);
+      });
+      const nextRows = [...orderedRows, ...appendedRows];
+
+      if (isNewRow && savedId) {
+        const savedSwitch = localStorage.getItem(`pvact:${rowId}`);
+        if (savedSwitch) {
+          localStorage.setItem(`pvact:${savedId}`, savedSwitch);
+          localStorage.removeItem(`pvact:${rowId}`);
+        }
+      }
+
+      setRows(nextRows);
 
       try {
-        const savedId = String(result.id ?? "");
-        const savedRow = refreshedRows.find((r) => String(r._id ?? "") === savedId);
+        const savedRow = nextRows.find((r) => String(r._id ?? "") === savedId);
         if (savedRow) {
           const newStatus = await getProcurementStatus(typeMapping[activeMenu], savedRow);
           setRows((prev) =>

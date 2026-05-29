@@ -25,6 +25,7 @@ class Travaux(models.Model):
     duree = models.IntegerField(default=60)
 
     # --- DATES REELLES (Saisie manuelle progressive) ---
+    listesetspecifications_reel = models.DateField(null=True, blank=True)
     dossiers_appel_reel = models.DateField(null=True, blank=True)
     date_lancement_reel = models.DateField(null=True, blank=True)
     date_ouverture_reel = models.DateField(null=True, blank=True)

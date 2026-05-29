@@ -181,7 +181,7 @@ export default function TdRStPage() {
     void initializePage();
   }, [dashboardScope, loadPendingTdrDemandes, loadUserAndDocs, router]);
 
-  const baseDocuments = role === "auditeur" || isGlobalReadOnlyView ? financeFilteredDocs : documents;
+  const baseDocuments = financeFilteredDocs;
   const finalDocuments = useMemo(() => {
     const query = normalizeSearchValue(searchQuery).trim();
     if (!query) return baseDocuments;
@@ -380,7 +380,7 @@ export default function TdRStPage() {
       all: [],
       archive: [],
     };
-  }, [finalDocuments, role]);
+  }, [finalDocuments, isGlobalReadOnlyView, role]);
 
   const resetSearch = () => {
     setSearchQuery("");
@@ -389,7 +389,8 @@ export default function TdRStPage() {
   const hasActiveFilters = searchQuery !== "" || 
     tdrFilterProps.selectedFinancements.length > 0 ||
     tdrFilterProps.selectedStatuses.length > 0 ||
-    tdrFilterProps.selectedDate !== "" ||
+    tdrFilterProps.startDate !== "" ||
+    tdrFilterProps.endDate !== "" ||
     tdrFilterProps.selectedDocumentTypes.length > 0;
 
   const totalDocuments =
@@ -811,7 +812,8 @@ export default function TdRStPage() {
                 resetSearch();
                 tdrFilterProps.setSelectedFinancements([]);
                 tdrFilterProps.setSelectedStatuses([]);
-                tdrFilterProps.setSelectedDate("");
+                tdrFilterProps.setStartDate("");
+                tdrFilterProps.setEndDate("");
                 tdrFilterProps.setSelectedDocumentTypes([]);
               }}
               className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-200"

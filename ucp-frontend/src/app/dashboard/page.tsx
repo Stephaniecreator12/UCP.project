@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import TopHeader from "@/app/components/TopHeader";
-import { getAllProcurements, Procurement } from "@/services/api";
+import { getAllProcurementsWithComputedStatus, Procurement } from "@/services/api";
 import { getToken } from "@/services/auth";
 import { DonutPieChart } from "@/app/dashboard/components/donut";
 
@@ -253,7 +253,7 @@ export default function DashboardPage() {
 
     const fetchData = async () => {
       try {
-        const data = await getAllProcurements();
+        const data = await getAllProcurementsWithComputedStatus();
         setProcurements(data);
       } catch (err) {
         console.error("Erreur dashboard:", err);

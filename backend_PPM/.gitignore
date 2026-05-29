@@ -7,3 +7,13 @@ db.sqlite3
 # Node
 node_modules/
 **/node_modules/
+
+backend_PPM/media/annex_documents/*
+backend_PPM/media/submission_models/*
+backend_PPM/media/tdr_st/*
+backend_PPM/media/technical_documents/*
+
+backend_PPM/media/annex_documents/.gitkeep
+backend_PPM/media/submission_models/.gitkeep
+backend_PPM/media/tdr_st/.gitkeep
+backend_PPM/media/technical_documents/.gitkeep

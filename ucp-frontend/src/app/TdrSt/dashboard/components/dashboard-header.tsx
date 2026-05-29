@@ -1,7 +1,7 @@
-"use client"
+"use client";
 
-import { FileText, RefreshCw } from "lucide-react"
-import { Button } from "@/TdrSt/dashboard/ui/button"
+import { FileText, RefreshCw } from "lucide-react";
+import { Button } from "@/TdrSt/dashboard/ui/button";
 
 export function DashboardHeader() {
   return (
@@ -20,11 +20,11 @@ export function DashboardHeader() {
         </div>
       </div>
       <div className="flex items-center gap-2">
-        <Button variant="outline" size="sm" className="gap-2 border-border/50 bg-card/50">
+        <button className="inline-flex items-center gap-2 rounded-md border border-border/50 bg-card/50 px-3 py-2 text-sm">
           <RefreshCw className="h-4 w-4" />
           <span className="hidden sm:inline">Actualiser</span>
-        </Button>
+        </button>
       </div>
     </div>
-  )
+  );
 }

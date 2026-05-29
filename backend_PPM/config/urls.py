@@ -14,6 +14,9 @@ from apps.users.views.auth_view import (
 from config.media_fallback import serve_tdr_st_media
 from apps.users.views.public_view import PublicLoginView
 from apps.log.views.track_action_view import TrackActionView
+from apps.log.views.view_count_view import ProcurementViewCountAPIView
+from apps.log.views.annexe_ratio_view import AnnexeDownloadRatioAPIView
+from apps.log.views.download_count_view import DAODownloadCountAPIView
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/public/login/", PublicLoginView.as_view(), name="public_login"),
@@ -21,6 +24,9 @@ urlpatterns = [
     path('api/users/create/', inscription_view, name='api_register'),
     path("api/users/", include("apps.users.urls")),
     path("api/TdrSt/", include("apps.TdrSt.urls")),
+    path('api/logs/dao-downloads/', DAODownloadCountAPIView.as_view(), name='dao-downloads-count'),
+    path('api/logs/annexes-ratios/', AnnexeDownloadRatioAPIView.as_view(), name='annexes-download-ratios'),
+    path('api/logs/views-count/', ProcurementViewCountAPIView.as_view(), name='procurement-views-count'),
     path("api/logs/track", TrackActionView.as_view(), name="track-action"),
     path('api/procurement/', include('apps.procurement.urls')),
     path('market/<path:reference_number>/download-dao/', DownloadDAOView.as_view(), name='download-dao'),

@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  KeyboardEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
   useId,
   useMemo,
   useRef,
@@ -128,7 +128,7 @@ export default function PurchaseSelect({
       setOpen(false);
     };
 
-    const handleEscape = (event: KeyboardEvent) => {
+    const handleEscape = (event: globalThis.KeyboardEvent) => {
       if (event.key === "Escape") {
         setOpen(false);
         buttonRef.current?.focus();
@@ -166,7 +166,7 @@ export default function PurchaseSelect({
     buttonRef.current?.focus();
   };
 
-  const handleButtonKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+  const handleButtonKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
     if (disabled) return;
 
     if (event.key === "ArrowDown" || event.key === "Enter" || event.key === " ") {
@@ -181,7 +181,7 @@ export default function PurchaseSelect({
     }
   };
 
-  const handleListKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+  const handleListKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
     if (!open) return;
 
     if (event.key === "ArrowDown") {

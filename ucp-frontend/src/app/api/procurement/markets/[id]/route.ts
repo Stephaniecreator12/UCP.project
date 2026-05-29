@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getMarketById } from "@/services/procurement";
-
+import { getme } from "@/services/profile";
+import { trackUserAction } from "@/services/trackAction";
+import { TrackActionFormValue } from "@/types/trackAction";
+import { cookies } from "next/headers";
 interface RouteParams {
   params: Promise<{ id: string }> | { id: string };
 }
@@ -11,7 +14,45 @@ export async function GET(
 ) {
   const resolvedParams = params instanceof Promise ? await params : params;
   const { id } = resolvedParams;
+  const cookieStore = await cookies();
+  const token = cookieStore.get("access_token")?.value;
+  if (!token) {
+    return NextResponse.json({ message: "Non authentifié" }, { status: 401 });
+  }
+  let user;
+try {
+  const result = await getme();
+  if (!result.error) {
+    user = result.data;
+  } else {
+    console.error("Erreur de récupération profil :", result.message);
+  }
+} catch (err) {
+  console.error("Erreur crash profil :", err);
+}
 
+if (!user) {
+  console.warn("Impossible de tracer l'action : Utilisateur non authentifié.");
+  return; 
+}
+
+const dossierId = id.toString();
+const userId = user.id.toString(); 
+const actionType = "DOWNLOAD_DAO";
+
+const data: TrackActionFormValue = {
+  dossierId,
+  userId,
+  actionType,
+};
+
+try {
+  await trackUserAction(data,token);
+} catch (err) {
+  console.error("Erreur lors de l'enregistrement du log :", err);
+}
+  
+    
   if (!id || id === "undefined") {
     return NextResponse.json(
       { message: "Identifiant du marché manquant." },

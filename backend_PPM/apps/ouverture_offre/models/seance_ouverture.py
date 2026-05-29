@@ -6,8 +6,16 @@ class SeanceOuverture(models.Model):
     class Statut(models.TextChoices):
         BROUILLON = "BROUILLON", "Brouillon"
         EN_SAISIE = "EN_SAISIE", "En saisie"
-        A_VALIDER = "A_VALIDER", "A valider"
+        EN_VALIDATION_MEMBRES = "EN_VALIDATION_MEMBRES", "En validation membres"
+        EN_VALIDATION_PRESIDENT = "EN_VALIDATION_PRESIDENT", "En validation president"
         VALIDEE = "VALIDEE", "Validee"
+        REJETEE = "REJETEE", "Rejetee"
+        ARCHIVEE = "ARCHIVEE", "Archivee"
+
+    class Decision(models.TextChoices):
+        EN_ATTENTE = "EN_ATTENTE", "En attente"
+        VALIDEE = "VALIDEE", "Validee"
+        REJETEE = "REJETEE", "Rejetee"
 
     reference_dossier = models.CharField(max_length=100)
     objet_dossier = models.CharField(max_length=255, blank=True)
@@ -30,7 +38,7 @@ class SeanceOuverture(models.Model):
     )
 
     statut = models.CharField(
-        max_length=20,
+        max_length=32,
         choices=Statut.choices,
         default=Statut.BROUILLON,
         db_index=True,
@@ -40,8 +48,15 @@ class SeanceOuverture(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     
     president_a_valide = models.BooleanField(default=False)
+    president_decision = models.CharField(
+        max_length=20,
+        choices=Decision.choices,
+        default=Decision.EN_ATTENTE,
+    )
     president_commentaire = models.TextField(blank=True)
     date_validation_president = models.DateTimeField(null=True, blank=True)
+    president_ip_adresse = models.GenericIPAddressField(null=True, blank=True)
+    president_navigateur = models.CharField(max_length=255, blank=True)
 
 
     class Meta:

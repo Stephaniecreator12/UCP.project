@@ -312,15 +312,15 @@ const handleRowSave = async (row: GridRow) => {
 
 
   return (
-    <div className="h-screen overflow-hidden bg-[radial-gradient(circle_at_10%_0%,#f6faf8_0%,transparent_25%),linear-gradient(180deg,#eceeef_0%,#e8eaed_100%)] text-[#17212e] font-sans">
+    <div className="min-h-dvh overflow-x-hidden overflow-y-auto bg-[radial-gradient(circle_at_10%_0%,#f6faf8_0%,transparent_25%),linear-gradient(180deg,#eceeef_0%,#e8eaed_100%)] text-[#17212e] font-sans min-[1151px]:h-screen min-[1151px]:overflow-hidden">
       <TopHeader />
-      <div className="page-enter grid grid-cols-[auto_minmax(0,1fr)] max-[1150px]:grid-cols-1 gap-2 p-2 overflow-hidden">
+      <div className="page-enter grid grid-cols-[auto_minmax(0,1fr)] gap-2 p-2 max-[1150px]:grid-cols-1 min-[1151px]:overflow-hidden">
         <div className="page-enter-up" style={{ animationDelay: "0.08s" }}>
           <SidebarMenu activeMenu={activeMenu} onMenuSelect={setActiveMenu} />
         </div>
 
         <main
-          className="page-enter-up min-w-0 flex h-[calc(100vh-15px)] flex-col overflow-hidden rounded-[14px] border border-[#d9dee3] bg-white p-3 py-2 shadow-[0_18px_36px_-30px_rgba(34,44,52,0.5)]"
+          className="page-enter-up flex min-w-0 flex-col rounded-[14px] border border-[#d9dee3] bg-white p-3 py-2 shadow-[0_18px_36px_-30px_rgba(34,44,52,0.5)] max-[1150px]:min-h-0 min-[1151px]:h-[calc(100vh-15px)] min-[1151px]:overflow-hidden"
           style={{ animationDelay: "0.14s", position: "relative" }}
         >
           <header
@@ -377,7 +377,7 @@ const handleRowSave = async (row: GridRow) => {
             className="page-enter-up mt-[0.9rem] flex min-h-0 flex-1 flex-col overflow-hidden rounded-[14px] border border-[#d9dee3] bg-white shadow-[0_18px_36px_-30px_rgba(34,44,52,0.5)]"
             style={{ animationDelay: "0.28s" }}
           >
-            <div className="min-h-0 max-h-[80vh] flex-1 overflow-hidden">
+            <div className="min-h-0 flex-1 overflow-hidden max-[1150px]:max-h-none min-[1151px]:max-h-[80vh]">
               <GridTable
                 columns={columnsForGrid}
                 rows={rows}

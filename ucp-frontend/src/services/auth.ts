@@ -285,8 +285,19 @@ export const login = async (
       success: false,
       error: getLoginErrorMessage(response.status, data),
     };
-  } catch {
-    return { success: false, error: "Erreur de connexion au serveur" };
+  } catch (error) {
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("refresh_token");
+    clearStoredUser();
+
+    const message = error instanceof Error ? error.message.trim() : "";
+    return {
+      success: false,
+      error:
+        message && message !== "Failed to fetch"
+          ? message
+          : "Erreur de connexion au serveur",
+    };
   }
 };
 

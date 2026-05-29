@@ -1,0 +1,238 @@
+import json
+
+from rest_framework import serializers
+from django.utils import timezone
+
+from apps.procurement.models.procurement_market import (
+    ProcurementMarket,
+    ProcedureType,
+    FinancingSource
+)
+
+from apps.procurement.serializers.annex_document_serializer import AnnexDocumentSerializer
+from apps.procurement.serializers.technical_document_serializer import TechnicalDocumentSerializer
+
+class ProcurementMarketSerializer(serializers.ModelSerializer):
+
+    technical_documents = (
+        TechnicalDocumentSerializer(
+            many=True,
+            read_only=True
+        )
+    )
+
+    annexes = (
+        AnnexDocumentSerializer(
+            many=True,
+            read_only=True
+        )
+    )
+
+    class Meta:
+        model = ProcurementMarket
+
+        fields = [
+            "id",
+            "reference_number",
+            "title",
+            "procedure_type",
+            "category",
+            "financing_sources",
+            "reference_bailleur",
+            "project_code",
+            "publication_date",
+            "deadline",
+            "status",
+            "created_at",
+            "submission_model",
+            "technical_documents",
+            "annexes"
+        ]
+
+        read_only_fields = [
+            "reference_number",
+            "created_at"
+        ]
+        extra_kwargs = {
+            "publication_date": {"required": False},
+            "submission_model": {"required": False, "allow_null": True},
+            "reference_bailleur": {"required": False, "allow_null": True},
+            "project_code": {"required": False, "allow_null": True},
+        }
+
+    def validate_financing_sources(
+        self,
+        value
+    ):
+        if isinstance(value, str):
+            try:
+                value = json.loads(value)
+            except json.JSONDecodeError as exc:
+                raise serializers.ValidationError(
+                    "financing_sources doit être une liste JSON valide."
+                ) from exc
+
+        if not isinstance(value, list):
+            raise serializers.ValidationError(
+                "financing_sources doit être une liste."
+            )
+
+        valid_choices = [
+            choice[0]
+            for choice
+            in FinancingSource.choices
+        ]
+
+        for item in value:
+
+            if item not in valid_choices:
+
+                raise serializers.ValidationError(
+                    f"{item} n'est pas une source valide."
+                )
+
+        return value
+    def validate_reference_bailleur(
+        self,
+        value
+    ):
+
+        if value is None:
+            return value
+
+        valid_choices = [
+            choice[0]
+            for choice
+            in FinancingSource.choices
+        ]
+
+        if value not in valid_choices:
+
+            raise serializers.ValidationError(
+                "Bailleur référent invalide."
+            )
+
+        return value
+
+    def validate_procedure_type(self, value):
+
+        valid = [c[0] for c in ProcedureType.choices]
+
+        if value not in valid:
+            raise serializers.ValidationError(
+                "procedure_type invalide"
+            )
+
+        return value
+    def validate(self, attrs):
+        instance = getattr(self, "instance", None)
+
+        procedure_type = attrs.get(
+            "procedure_type",
+            getattr(instance, "procedure_type", None),
+        )
+        deadline = attrs.get(
+            "deadline",
+            getattr(instance, "deadline", None),
+        )
+
+        publication_date = attrs.get(
+            "publication_date",
+            getattr(instance, "publication_date", None),
+        ) or timezone.now()
+
+        attrs["publication_date"] = publication_date
+
+        if not deadline:
+            raise serializers.ValidationError({
+                "deadline": "obligatoire"
+            })
+
+        if deadline < publication_date:
+            raise serializers.ValidationError({
+                "deadline": "deadline supérieur à la date de publication"
+            })
+
+        if not procedure_type:
+            raise serializers.ValidationError({
+                "procedure_type": "obligatoire"
+            })
+
+        delta = deadline - publication_date
+
+        if (
+            procedure_type == ProcedureType.AOI
+            and delta.days < 15
+        ):
+            raise serializers.ValidationError({
+                "deadline":
+                "AOI : minimum 15 jours."
+            })
+
+        elif (
+            procedure_type == ProcedureType.DC
+            and delta.days < 10
+        ):
+            raise serializers.ValidationError({
+                "deadline":
+                "DC : minimum 10 jours."
+            })
+
+        financing_sources = attrs.get(
+            "financing_sources",
+            getattr(instance, "financing_sources", []),
+        )
+
+        reference_bailleur = attrs.get(
+            "reference_bailleur",
+            getattr(instance, "reference_bailleur", None),
+        )
+        project_code = attrs.get(
+            "project_code",
+            getattr(instance, "project_code", None),
+        )
+        
+        if (
+            len(financing_sources) > 1
+            and not reference_bailleur
+        ):
+
+            raise serializers.ValidationError({
+                "reference_bailleur":
+                (
+                    "Un bailleur référent "
+                    "est obligatoire "
+                    "si plusieurs sources "
+                    "sont sélectionnées."
+                )
+            })
+
+        if (
+            reference_bailleur
+            and reference_bailleur
+            not in financing_sources
+        ):
+
+            raise serializers.ValidationError({
+                "reference_bailleur":
+                (
+                    "Le bailleur référent "
+                    "doit faire partie "
+                    "des sources sélectionnées."
+                )
+            })
+        if (
+            financing_sources and
+            not project_code
+        ):
+
+            raise serializers.ValidationError({
+                "project_code":
+                (
+                    "Le code projet "
+                    "est obligatoire "
+                )
+            })
+
+
+        return attrs

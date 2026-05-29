@@ -20,6 +20,8 @@ import {
   isValidatorUser,
   isSecretaireUser,
 } from "@/services/auth";
+import { getSeances } from "@/services/ouvertureOffre";
+import type { SeanceOuverture } from "@/types/ouvertureOffre";
 
 type MenuLink = {
   label: string;
@@ -34,6 +36,25 @@ const getUserMode = (user: ReturnType<typeof getCurrentUser>) => {
   if (isAgentAchatUser(user)) return "agent" as const;
   if (isAgentMarcheUser(user)) return "marche" as const;
   return "default" as const;
+};
+
+const isOpeningParticipant = (
+  user: ReturnType<typeof getCurrentUser>,
+  seances: SeanceOuverture[],
+) =>
+  !!user &&
+  seances.some(
+    (seance) =>
+      seance.president === user.id ||
+      seance.membres.some((member) => member.utilisateur === user.id),
+  );
+
+const OPENING_LINK: MenuLink = {
+  label: "ouverture des offres",
+  href: "/ouverture_offre",
+  match: (pathname) =>
+    pathname === "/ouverture_offre" ||
+    pathname.startsWith("/ouverture_offre/"),
 };
 
 const DEFAULT_LINKS: MenuLink[] = [
@@ -52,6 +73,11 @@ const DEFAULT_LINKS: MenuLink[] = [
     href: "/demande-achat",
     match: (pathname) =>
       pathname === "/demande-achat" || pathname.startsWith("/demande-achat/"),
+  },
+  {
+    label: "DAO / DC",
+    href: "/dao-dc",
+    match: (pathname) => pathname === "/dao-dc" || pathname.startsWith("/dao-dc/"),
   },
   {
     label: "TDR",
@@ -97,15 +123,7 @@ const MARKET_LINKS: MenuLink[] = [
   },
 ];
 
-const SECRETAIRE_LINKS: MenuLink[] = [
-  {
-    label: "ouverture des offres",
-    href: "/ouverture_offre",
-    match: (pathname) =>
-      pathname === "/ouverture_offre" ||
-      pathname.startsWith("/ouverture_offre/"),
-  },
-];
+const SECRETAIRE_LINKS: MenuLink[] = [OPENING_LINK];
 
 export default function Menu({ className = "" }: { className?: string }) {
   const pathname = usePathname();
@@ -123,6 +141,9 @@ export default function Menu({ className = "" }: { className?: string }) {
   const [userMode, setUserMode] = useState<
     "default" | "validator" | "finance" | "agent" | "marche" | "secretaire"
   >(() => getUserMode(getCurrentUser()));
+  const [hasOpeningAccess, setHasOpeningAccess] = useState(() =>
+    isSecretaireUser(getCurrentUser()),
+  );
 
   const showAuthenticatedActions = pathname !== "/login";
   const canPortal = typeof document !== "undefined";
@@ -131,8 +152,9 @@ export default function Menu({ className = "" }: { className?: string }) {
     const button = buttonRef.current;
     if (!button) return;
     const rect = button.getBoundingClientRect();
+    const menuWidth = 200;
     setMenuPos({
-      left: rect.left,
+      left: Math.max(8, Math.min(rect.left, window.innerWidth - menuWidth - 8)),
       top: rect.bottom,
     });
   }, []);
@@ -145,12 +167,38 @@ export default function Menu({ className = "" }: { className?: string }) {
   useEffect(() => {
     if (!showAuthenticatedActions) return;
 
-    const currentUser = getCurrentUser();
-    if (currentUser) return;
-
+    let cancelled = false;
     void fetchCurrentUser()
-      .then((user) => setUserMode(getUserMode(user)))
-      .catch(() => setUserMode("default"));
+      .then((user) => {
+        if (cancelled) return;
+
+        setUserMode(getUserMode(user));
+
+        if (isSecretaireUser(user)) {
+          setHasOpeningAccess(true);
+          return;
+        }
+
+        void getSeances()
+          .then((seances) => {
+            if (!cancelled) {
+              setHasOpeningAccess(isOpeningParticipant(user, seances));
+            }
+          })
+          .catch(() => {
+            if (!cancelled) setHasOpeningAccess(false);
+          });
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setUserMode("default");
+          setHasOpeningAccess(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [showAuthenticatedActions]);
 
   useEffect(() => {
@@ -185,7 +233,7 @@ export default function Menu({ className = "" }: { className?: string }) {
     };
   }, [open, measureMenuPosition]);
 
-  const links =
+  const baseLinks =
     userMode === "secretaire"
       ? SECRETAIRE_LINKS
       : userMode === "finance" || userMode === "validator"
@@ -195,6 +243,10 @@ export default function Menu({ className = "" }: { className?: string }) {
         : userMode === "marche"
           ? MARKET_LINKS
           : DEFAULT_LINKS;
+  const links =
+    userMode === "secretaire" || !hasOpeningAccess
+      ? baseLinks
+      : [...baseLinks, OPENING_LINK];
 
   const handleMouseEnter = () => {
     if (hoverTimeout) clearTimeout(hoverTimeout);
@@ -232,6 +284,7 @@ export default function Menu({ className = "" }: { className?: string }) {
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={menuId}
+        onClick={() => setOpen((current) => !current)}
         className="group relative inline-flex h-[32px] items-center justify-start bg-transparent px-0 text-[11px] font-black uppercase tracking-widest text-[var(--muted)] transition-all hover:text-[var(--text)]"
       >
         <span className="relative z-10 leading-none flex items-center gap-2">
@@ -261,10 +314,10 @@ export default function Menu({ className = "" }: { className?: string }) {
             aria-labelledby={buttonId}
             onMouseEnter={handleMenuMouseEnter}
             onMouseLeave={handleMenuMouseLeave}
-            className="fixed w-[200px] overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg animate-in fade-in slide-in-from-top-2 duration-200"
+            className="fixed w-[200px] max-w-[calc(100vw-1rem)] overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg animate-in fade-in slide-in-from-top-2 duration-200"
             style={{ left: menuPos.left, top: menuPos.top + 8 }}
           >
-            <div className="py-1">
+            <div className="max-h-[min(22rem,calc(100dvh-5rem))] overflow-y-auto py-1">
               {links.map((item) => {
                 const isActive = item.match(pathname);
                 return (

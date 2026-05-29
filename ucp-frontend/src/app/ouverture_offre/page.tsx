@@ -23,6 +23,10 @@ import {
 import TopHeader from "@/app/components/TopHeader";
 import SeanceOverviewModal from "@/app/ouverture_offre/components/SeanceOverviewModal";
 import {
+  consumeOpeningFlashMessage,
+  setOpeningFlashMessage,
+} from "@/app/ouverture_offre/utils/flashMessage";
+import {
   fetchCurrentUser,
   getToken,
   isSecretaireUser,
@@ -346,6 +350,9 @@ export default function OuvertureOffrePage() {
   const [openingMarketId, setOpeningMarketId] = useState<number | null>(null);
   const [detailRow, setDetailRow] = useState<OpeningRow | null>(null);
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState(() =>
+    consumeOpeningFlashMessage("/ouverture_offre"),
+  );
   const isSecretaire = isSecretaireUser(currentUser);
 
   useEffect(() => {
@@ -620,10 +627,22 @@ export default function OuvertureOffrePage() {
         statut: "BROUILLON",
       });
 
-      router.push(`/ouverture_offre/${seance.id}`);
+      const detailPath = `/ouverture_offre/${seance.id}`;
+      setOpeningFlashMessage("Séance d'ouverture créée avec succès.", detailPath);
+      router.push(detailPath);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Impossible d'ouvrir la séance.");
       setOpeningMarketId(null);
+    }
+  };
+
+  const handleDownloadPV = async (seanceId: number, referenceDossier: string) => {
+    try {
+      setError("");
+      await downloadPV(seanceId, referenceDossier);
+      setSuccessMessage("Téléchargement du PV lancé avec succès.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Impossible de télécharger le PV.");
     }
   };
 
@@ -804,6 +823,7 @@ export default function OuvertureOffrePage() {
                               openingMarketId={openingMarketId}
                               onOpenDetail={(row) => setDetailRow(row)}
                               onOpenSeance={handleOpenSeance}
+                              onDownloadPV={handleDownloadPV}
                             />
                           ))
                         : reviewSections.map((section) => (
@@ -821,6 +841,7 @@ export default function OuvertureOffrePage() {
                                 if (!row.seance) return;
                                 router.push(`/ouverture_offre/${row.seance.id}`);
                               }}
+                              onDownloadPV={handleDownloadPV}
                             />
                           ))}
                     </div>
@@ -838,8 +859,75 @@ export default function OuvertureOffrePage() {
         seance={detailRow?.seance ?? null}
         market={detailRow?.market ?? null}
         stateLabel={detailRow ? stateLabels[detailRow.state] : ""}
+        onDownloadPV={handleDownloadPV}
       />
+      {successMessage && (
+        <NotificationPopup
+          type="success"
+          message={successMessage}
+          onClose={() => setSuccessMessage("")}
+        />
+      )}
+      {error && screenState === "ready" && (
+        <NotificationPopup
+          type="error"
+          message={error}
+          onClose={() => setError("")}
+        />
+      )}
     </main>
+  );
+}
+
+function NotificationPopup({
+  type,
+  message,
+  onClose,
+}: {
+  type: "error" | "success";
+  message: string;
+  onClose: () => void;
+}) {
+  const isError = type === "error";
+
+  useEffect(() => {
+    const timeout = window.setTimeout(onClose, 5000);
+    return () => window.clearTimeout(timeout);
+  }, [onClose]);
+
+  return (
+    <div
+      className={`fixed bottom-6 right-6 z-[120] flex w-[min(92vw,31rem)] items-start gap-4 rounded-[22px] border px-5 py-4 shadow-[0_24px_70px_rgba(15,23,42,0.28)] ${
+        isError
+          ? "border-rose-300 bg-[linear-gradient(135deg,#be123c_0%,#e11d48_100%)] text-white"
+          : "border-emerald-300 bg-[linear-gradient(135deg,#047857_0%,#10b981_100%)] text-white"
+      }`}
+      role="status"
+    >
+      <div className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/25 bg-white/12 text-white">
+        {isError ? (
+          <AlertCircle className="h-5 w-5" />
+        ) : (
+          <CheckCircle2 className="h-5 w-5" />
+        )}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-[15px] font-black tracking-tight text-white">
+          {isError ? "Action impossible" : "Action enregistrée"}
+        </p>
+        <p className="mt-1 text-[14px] font-medium leading-relaxed text-white/92">
+          {message}
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={onClose}
+        className="rounded-xl p-2 text-white/80 transition-colors hover:bg-white/12 hover:text-white"
+        aria-label="Fermer la notification"
+      >
+        <X className="h-4 w-4" />
+      </button>
+    </div>
   );
 }
 
@@ -850,6 +938,7 @@ function OpeningStatusSection({
   openingMarketId,
   onOpenDetail,
   onOpenSeance,
+  onDownloadPV,
 }: {
   section: StatusSection;
   isActive: boolean;
@@ -857,6 +946,7 @@ function OpeningStatusSection({
   openingMarketId: number | null;
   onOpenDetail: (row: OpeningRow) => void;
   onOpenSeance: (row: OpeningRow) => void;
+  onDownloadPV: (seanceId: number, referenceDossier: string) => void;
 }) {
   const Icon = section.icon;
   const hasRows = section.rows.length > 0;
@@ -918,6 +1008,7 @@ function OpeningStatusSection({
                 opening={openingMarketId === row.market.id}
                 onOpenDetail={() => onOpenDetail(row)}
                 onOpen={() => onOpenSeance(row)}
+                onDownloadPV={onDownloadPV}
               />
             ))
           ) : (
@@ -937,12 +1028,14 @@ function OpeningDaoRow({
   opening,
   onOpenDetail,
   onOpen,
+  onDownloadPV,
 }: {
   row: OpeningRow;
   index: number;
   opening: boolean;
   onOpenDetail: () => void;
   onOpen: () => void;
+  onDownloadPV: (seanceId: number, referenceDossier: string) => void;
 }) {
   const { market, seance, state } = row;
   const isDraft = state === "DRAFT";
@@ -1008,7 +1101,7 @@ function OpeningDaoRow({
               <button
                 type="button"
                 onClick={() => {
-                  void downloadPV(seance.id, seance.reference_dossier);
+                  onDownloadPV(seance.id, seance.reference_dossier);
                 }}
                 className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-emerald-700 transition-all hover:-translate-y-0.5 hover:bg-emerald-100 sm:flex-none"
               >
@@ -1075,12 +1168,14 @@ function ReviewStatusSection({
   onToggle,
   onOpenDetail,
   onOpenValidation,
+  onDownloadPV,
 }: {
   section: ReviewSection;
   isActive: boolean;
   onToggle: () => void;
   onOpenDetail: (row: ReviewRow) => void;
   onOpenValidation: (row: ReviewRow) => void;
+  onDownloadPV: (seanceId: number, referenceDossier: string) => void;
 }) {
   const Icon = section.icon;
   const hasRows = section.rows.length > 0;
@@ -1141,6 +1236,7 @@ function ReviewStatusSection({
                 index={index}
                 onOpenDetail={() => onOpenDetail(row)}
                 onOpenValidation={() => onOpenValidation(row)}
+                onDownloadPV={onDownloadPV}
               />
             ))
           ) : (
@@ -1159,11 +1255,13 @@ function ReviewSeanceRow({
   index,
   onOpenDetail,
   onOpenValidation,
+  onDownloadPV,
 }: {
   row: ReviewRow;
   index: number;
   onOpenDetail: () => void;
   onOpenValidation: () => void;
+  onDownloadPV: (seanceId: number, referenceDossier: string) => void;
 }) {
   const displayDate = row.seance?.date_seance || row.market.deadline || null;
   const title = row.seance?.objet_dossier || row.market.title;
@@ -1226,7 +1324,7 @@ function ReviewSeanceRow({
             type="button"
             onClick={() => {
               if (row.seance) {
-                void downloadPV(row.seance.id, row.seance.reference_dossier);
+                onDownloadPV(row.seance.id, row.seance.reference_dossier);
               }
             }}
             className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-emerald-700 transition-all hover:-translate-y-0.5 hover:bg-emerald-100 sm:flex-none"

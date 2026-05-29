@@ -6,14 +6,13 @@ import { CalendarDays, CircleSlash, FileText, Layers3, X } from "lucide-react";
 import SeanceOverviewDetails from "@/app/ouverture_offre/components/SeanceOverviewDetails";
 import type { ProcurementMarket } from "@/types/procurement";
 import type { SeanceOuverture } from "@/types/ouvertureOffre";
-import { downloadPV } from "@/services/ouvertureOffre";
-
 type SeanceOverviewModalProps = {
   open: boolean;
   onClose: () => void;
   seance: SeanceOuverture | null;
   market: ProcurementMarket | null;
   stateLabel: string;
+  onDownloadPV?: (seanceId: number, referenceDossier: string) => void;
 };
 
 const statusLabels: Record<SeanceOuverture["statut"], string> = {
@@ -169,6 +168,7 @@ export default function SeanceOverviewModal({
   seance,
   market,
   stateLabel,
+  onDownloadPV,
 }: SeanceOverviewModalProps) {
   useEffect(() => {
     if (!open) return;
@@ -268,7 +268,7 @@ export default function SeanceOverviewModal({
               type="button"
               onClick={() => {
                 if (seance) {
-                  void downloadPV(seance.id, seance.reference_dossier);
+                  onDownloadPV?.(seance.id, seance.reference_dossier);
                 }
               }}
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-700 cursor-pointer"

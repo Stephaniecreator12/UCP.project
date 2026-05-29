@@ -31,14 +31,14 @@ fi
 # Lancer Django en arrière-plan
 cd "$ROOT_DIR"
 source .venv/bin/activate
-python "$BACKEND_DIR/manage.py" runserver &
+python3 "$BACKEND_DIR/manage.py" runserver &
 DJANGO_PID=$!
 
 sleep 2
 
 echo ""
 echo "2️⃣  Démarrage du serveur Next.js (Frontend)..."
-echo "   Port: http://localhost:3001 (ou 3000)"
+echo "   Port: http://localhost:3000"
 echo ""
 
 # Lancer Next.js en arrière-plan
@@ -49,7 +49,7 @@ NEXTJS_PID=$!
 echo ""
 echo "✅ Les deux serveurs sont lancés!"
 echo ""
-echo "📍 Accédez à: http://localhost:3001"
+echo "📍 Accédez à: http://localhost:3000"
 echo ""
 echo "🛑 Pour arrêter, appuyez sur Ctrl+C"
 echo ""

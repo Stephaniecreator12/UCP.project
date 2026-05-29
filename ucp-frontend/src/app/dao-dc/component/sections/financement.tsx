@@ -6,10 +6,9 @@ import {
   CardTitle,
   Card,
 } from "@/app/TdrSt/dashboard/ui/card";
-import {TextLabel,TextTitle} from "@/app/components/textStyle";
-import { useWatch } from "react-hook-form";
-import { UseFormReturn } from "react-hook-form";
-import { useEffect} from "react";
+import { TextLabel, TextTitle } from "@/app/components/textStyle";
+import { UseFormReturn, useWatch } from "react-hook-form";
+import { useEffect, useMemo } from "react";
 import type { ProcurementFormValues } from "@/types/procurement";
 import { FINANCE_CATALOG } from "@/lib/financeCatalog";
 
@@ -47,18 +46,19 @@ interface Props {
 export function FinancingSection({
   form,
 }: Props) {
-
-  
-
-  const selected = useWatch({
+  const watchedSelected = useWatch({
     control: form.control,
     name: "financing_sources",
     defaultValue: [],
   });
+  const selected = useMemo(
+    () => (watchedSelected ?? []) as BackendFinancingSource[],
+    [watchedSelected],
+  );
   const referenceBailleur = useWatch({
     control: form.control,
     name: "reference_bailleur",
-  });
+  }) as BackendFinancingSource | undefined;
   const projectCode = useWatch({
     control: form.control,
     name: "project_code",
@@ -68,18 +68,51 @@ export function FinancingSection({
     name: "optionKey",
   });
   useEffect(() => {
-    if (!selected) return;
-
     if (selected.length === 1) {
-      form.setValue("reference_bailleur", selected[0]);
+      if (referenceBailleur !== selected[0]) {
+        form.setValue("reference_bailleur", selected[0]);
+      }
     }
 
     if (selected.length === 0) {
       form.setValue("reference_bailleur", undefined);
+      form.setValue("optionKey", undefined);
+      form.setValue("project_code", undefined);
+      return;
     }
 
-    if (referenceBailleur && optionKey) {
-      const code = generateProjectCode(referenceBailleur, optionKey);
+    if (
+      selected.length > 1 &&
+      referenceBailleur &&
+      !selected.includes(referenceBailleur)
+    ) {
+      form.setValue("reference_bailleur", undefined);
+      form.setValue("optionKey", undefined);
+      form.setValue("project_code", undefined);
+      return;
+    }
+
+    const effectiveReference =
+      selected.length === 1 ? selected[0] : referenceBailleur;
+
+    if (!effectiveReference || !optionKey) {
+      form.setValue("project_code", undefined);
+      return;
+    }
+
+    const family = getFamilyFromSource(effectiveReference);
+    const optionMatchesReference = FINANCE_CATALOG.some(
+      (entry) => entry.family === family && entry.optionKey === optionKey,
+    );
+
+    if (!optionMatchesReference) {
+      form.setValue("optionKey", undefined);
+      form.setValue("project_code", undefined);
+      return;
+    }
+
+    if (effectiveReference && optionKey) {
+      const code = generateProjectCode(effectiveReference, optionKey);
       form.setValue("project_code", code, {
         shouldDirty: true,
         shouldValidate: true,
@@ -111,7 +144,11 @@ export function FinancingSection({
                     type="checkbox"
                     value={source}
                     className="w-4 h-4"
-                    {...form.register("financing_sources")}
+                    {...form.register("financing_sources", {
+                      validate: (value) =>
+                        (Array.isArray(value) && value.length > 0) ||
+                        "Sélectionne au moins une source de financement.",
+                    })}
                   />
                   <TextLabel text={label} />
                 </label>

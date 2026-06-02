@@ -1,24 +1,37 @@
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
+from apps.ouverture_offre.models import SeanceOuverture
 from apps.ouverture_offre.permissions import IsSecretaireOuLectureSeule
 from apps.ouverture_offre.serializers import (
     RejetSeanceSerializer,
     SeanceOuvertureSerializer,
+    ValidationAccessSerializer,
+    ValidationDecisionSerializer,
     ValidationMembreSerializer,
     ValidationPresidentSerializer)
 
 from apps.ouverture_offre.services import (
     create_seance,
+    get_public_validation_seance,
     get_visible_seance,
     list_visible_seances,
     reject_member,
+    reject_member_with_password,
     reject_president,
+    reject_president_with_password,
+    report_president_with_password,
     update_seance,
     validate_member,
+    validate_member_with_password,
     validate_president,
+    validate_president_with_password,
+)
+from apps.ouverture_offre.services.validation_access_service import (
+    check_president_password,
+    get_member_with_password,
 )
 
 
@@ -56,6 +69,129 @@ def seance_detail(request, pk):
 
     seance = update_seance(seance, serializer.validated_data, request.user)
     return Response(SeanceOuvertureSerializer(seance).data)
+
+
+def _validation_context_response(seance, role, user):
+    if role == "membre":
+        actions = ["VALIDER", "REJETER"]
+    else:
+        actions = ["APPROUVER", "REJETER", "REPORTER"]
+
+    full_name = f"{user.first_name} {user.last_name}".strip() or user.username
+    return {
+        "role": role,
+        "participant": {
+            "id": user.id,
+            "full_name": full_name,
+            "email": user.email,
+        },
+        "actions": actions,
+        "seance": SeanceOuvertureSerializer(seance).data,
+    }
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def seance_validation_access(request, pk):
+    seance = get_public_validation_seance(pk)
+    if not seance:
+        return Response({"detail": "Seance introuvable."}, status=status.HTTP_404_NOT_FOUND)
+
+    serializer = ValidationAccessSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    role = serializer.validated_data["role"]
+    email = serializer.validated_data["email"]
+    password = serializer.validated_data["password"]
+
+    if role == "membre":
+        if seance.statut != SeanceOuverture.Statut.EN_VALIDATION_MEMBRES:
+            return Response(
+                {"detail": "Cette seance n'est pas en validation des membres."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        membre = get_member_with_password(seance, email, password)
+        return Response(_validation_context_response(seance, role, membre.utilisateur))
+
+    if seance.statut != SeanceOuverture.Statut.EN_VALIDATION_PRESIDENT:
+        return Response(
+            {"detail": "Cette seance n'est pas en validation president."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    president = check_president_password(seance, email, password)
+    return Response(_validation_context_response(seance, role, president))
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def seance_validation_decision(request, pk):
+    seance = get_public_validation_seance(pk)
+    if not seance:
+        return Response({"detail": "Seance introuvable."}, status=status.HTTP_404_NOT_FOUND)
+
+    serializer = ValidationDecisionSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+
+    data = serializer.validated_data
+    ip_adresse = get_client_ip(request)
+    navigateur = request.META.get("HTTP_USER_AGENT", "")
+    commentaire = data.get("commentaire", "")
+
+    if data["role"] == "membre":
+        if data["decision"] == "VALIDER":
+            validate_member_with_password(
+                seance,
+                data["email"],
+                data["password"],
+                commentaire=commentaire,
+                ip_adresse=ip_adresse,
+                navigateur=navigateur,
+            )
+        else:
+            reject_member_with_password(
+                seance,
+                data["email"],
+                data["password"],
+                commentaire=commentaire,
+                ip_adresse=ip_adresse,
+                navigateur=navigateur,
+            )
+    elif data["decision"] == "APPROUVER":
+        validate_president_with_password(
+            seance,
+            data["email"],
+            data["password"],
+            commentaire=commentaire,
+            ip_adresse=ip_adresse,
+            navigateur=navigateur,
+        )
+    elif data["decision"] == "REJETER":
+        reject_president_with_password(
+            seance,
+            data["email"],
+            data["password"],
+            commentaire=commentaire,
+            ip_adresse=ip_adresse,
+            navigateur=navigateur,
+        )
+    else:
+        report_president_with_password(
+            seance,
+            data["email"],
+            data["password"],
+            data["date_report"],
+            commentaire=commentaire,
+            ip_adresse=ip_adresse,
+            navigateur=navigateur,
+        )
+
+    refreshed = get_public_validation_seance(pk)
+    return Response(
+        {
+            "detail": "Decision enregistree. Le mot de passe de validation est maintenant desactive.",
+            "seance": SeanceOuvertureSerializer(refreshed).data if refreshed else None,
+        },
+        status=status.HTTP_200_OK,
+    )
 
 def get_client_ip(request):
     x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
@@ -181,7 +317,7 @@ def download_pv(request, pk):
         pv_document = seance.pv_document
     except Exception:
         from apps.ouverture_offre.models import SeanceOuverture
-        if seance.statut in [SeanceOuverture.Statut.VALIDEE, SeanceOuverture.Statut.ARCHIVEE]:
+        if seance.statut == SeanceOuverture.Statut.VALIDEE:
             try:
                 from apps.ouverture_offre.services.pdf_service import generate_and_archive_pv
                 pv_document = generate_and_archive_pv(seance)

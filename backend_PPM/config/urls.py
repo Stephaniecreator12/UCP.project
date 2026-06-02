@@ -4,9 +4,19 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import path, include
+from django.http import JsonResponse
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
+def home_view(request):
+    return JsonResponse({
+        "status": "online",
+        "message": "UCP Backend API is running successfully!",
+        "admin_panel": "/admin/",
+        "project": "e-Proc UCP"
+    })
+
 urlpatterns = [
+    path("", home_view, name="home"),
     path("admin/", admin.site.urls),
 
     path("api/ppm/", include("apps.ppm.urls")),
@@ -26,3 +36,4 @@ urlpatterns = [
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+

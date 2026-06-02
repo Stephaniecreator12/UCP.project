@@ -11,11 +11,17 @@ export type MembreSeance = {
   id: number;
   utilisateur: number;
   utilisateur_detail: OuvertureUser;
+  nom_prenom: string;
+  numero_carte: string;
+  intitule: string;
+  poste: string;
   est_present: boolean;
   a_valide: boolean;
   decision: "EN_ATTENTE" | "VALIDEE" | "REJETEE";
   commentaire: string;
   date_validation: string | null;
+  ip_adresse?: string | null;
+  navigateur?: string;
 };
 
 export type OffreOuverture = {
@@ -26,9 +32,9 @@ export type OffreOuverture = {
   motif_absence_pli: string;
   date_reception_pli: string | null;
   heure_reception_pli: string | null;
-  enveloppe_administrative: "" | "DEPOSEE" | "MANQUANTE";
-  enveloppe_technique: "" | "DEPOSEE" | "MANQUANTE";
-  enveloppe_financiere: "" | "DEPOSEE" | "MANQUANTE";
+  enveloppe_administrative: "" | "DEPOSEE" | "MANQUANTE" | "RECU" | "INTEGRE" | "MANQUANT";
+  enveloppe_technique: "" | "DEPOSEE" | "MANQUANTE" | "RECU" | "INTEGRE" | "MANQUANT";
+  enveloppe_financiere: "" | "DEPOSEE" | "MANQUANTE" | "RECU" | "INTEGRE" | "MANQUANT";
   montant_global: string | number | null;
   observations: string;
 };
@@ -40,8 +46,7 @@ export type SeanceStatut =
   | "EN_VALIDATION_MEMBRES"
   | "EN_VALIDATION_PRESIDENT"
   | "VALIDEE"
-  | "REJETEE"
-  | "ARCHIVEE";
+  | "REJETEE";
 
 export type PVDocument = {
   id: number;
@@ -68,9 +73,11 @@ export type SeanceOuverture = {
   created_at: string;
   updated_at: string;
   president_a_valide: boolean;
-  president_decision: "EN_ATTENTE" | "VALIDEE" | "REJETEE";
+  president_decision: "EN_ATTENTE" | "VALIDEE" | "REJETEE" | "REPORTEE";
   president_commentaire: string;
   date_validation_president: string | null;
+  president_ip_adresse?: string | null;
+  president_navigateur?: string;
   etape_ouverture: "COMPLETE" | "ADMIN_TECH";
   etat_scelle: "" | "INTACT" | "ALTERE" | "ABSENT";
   presence_rature: boolean;
@@ -84,6 +91,15 @@ export type CreateSeancePayload = {
   reference_dossier: string;
   objet_dossier: string;
   statut?: SeanceStatut;
+  commission_members?: CommissionMemberPayload[];
+};
+
+export type CommissionMemberPayload = {
+  nomPrenom: string;
+  email: string;
+  cin: string;
+  poste: string;
+  entite: string;
 };
 
 export type UpdateSeancePayload = {
@@ -100,6 +116,7 @@ export type UpdateSeancePayload = {
   description_rature?: string;
   document_substitution_present?: boolean;
   membre_ids?: number[];
+  commission_members?: CommissionMemberPayload[];
   offres?: Omit<OffreOuverture, "id">[];
   statut?: SeanceStatut;
 };
@@ -107,4 +124,35 @@ export type UpdateSeancePayload = {
 export type ValidationPayload = {
   commentaire?: string;
   password?: string;
+};
+
+export type PublicValidationRole = "membre" | "president";
+
+export type PublicValidationDecision =
+  | "VALIDER"
+  | "APPROUVER"
+  | "REJETER"
+  | "REPORTER";
+
+export type PublicValidationContext = {
+  role: PublicValidationRole;
+  participant: {
+    id: number;
+    full_name: string;
+    email: string;
+  };
+  actions: PublicValidationDecision[];
+  seance: SeanceOuverture;
+};
+
+export type PublicValidationAccessPayload = {
+  role: PublicValidationRole;
+  email: string;
+  password: string;
+};
+
+export type PublicValidationDecisionPayload = PublicValidationAccessPayload & {
+  decision: PublicValidationDecision;
+  commentaire?: string;
+  date_report?: string | null;
 };

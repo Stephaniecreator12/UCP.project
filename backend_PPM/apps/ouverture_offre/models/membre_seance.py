@@ -20,6 +20,10 @@ class MembreSeance(models.Model):
         on_delete=models.PROTECT,
         related_name="participations_ouverture",
     )
+    nom_prenom = models.CharField(max_length=255, blank=True)
+    numero_carte = models.CharField(max_length=50, blank=True)
+    intitule = models.CharField(max_length=255, blank=True)
+    poste = models.CharField(max_length=255, blank=True)
     est_present = models.BooleanField(default=True)
     a_valide = models.BooleanField(default=False)
     decision = models.CharField(
@@ -31,6 +35,9 @@ class MembreSeance(models.Model):
     date_validation = models.DateTimeField(null=True, blank=True)
     ip_adresse = models.GenericIPAddressField(null=True, blank=True)
     navigateur = models.CharField(max_length=255, blank=True)
+    validation_password_hash = models.CharField(max_length=255, blank=True)
+    validation_password_generated_at = models.DateTimeField(null=True, blank=True)
+    validation_password_consumed_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         constraints = [

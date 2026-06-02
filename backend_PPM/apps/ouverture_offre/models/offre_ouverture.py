@@ -5,8 +5,11 @@ from .seance_ouverture import SeanceOuverture
 
 class OffreOuverture(models.Model):
     class EtatEnveloppe(models.TextChoices):
-        DEPOSEE = "DEPOSEE", "Deposee"
+        RECU = "RECU", "Reçu"
+        INTEGRE = "INTEGRE", "Intègre"
+        MANQUANT = "MANQUANT", "Manquant"
         MANQUANTE = "MANQUANTE", "Manquante"
+        DEPOSEE = "DEPOSEE", "Déposée"
 
     seance = models.ForeignKey(
         SeanceOuverture,

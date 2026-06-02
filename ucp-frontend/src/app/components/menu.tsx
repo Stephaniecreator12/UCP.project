@@ -123,7 +123,16 @@ const MARKET_LINKS: MenuLink[] = [
   },
 ];
 
-const SECRETAIRE_LINKS: MenuLink[] = [OPENING_LINK];
+const SECRETAIRE_LINKS: MenuLink[] = [
+  OPENING_LINK,
+  {
+    label: "Membres des commissions",
+    href: "/ouverture_offre/membres",
+    match: (pathname) =>
+      pathname === "/ouverture_offre/membres" ||
+      pathname.startsWith("/ouverture_offre/membres/"),
+  },
+];
 
 export default function Menu({ className = "" }: { className?: string }) {
   const pathname = usePathname();

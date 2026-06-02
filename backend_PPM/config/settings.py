@@ -12,6 +12,8 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 from pathlib import Path
 import os 
+import socket
+from urllib.parse import urlsplit, urlunsplit
 from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -44,8 +46,27 @@ def env_list(name, default=""):
     return [item.strip() for item in raw.split(",") if item.strip()]
 
 
-FRONTEND_APP_URL = os.getenv("FRONTEND_APP_URL", "http://localhost:3000").rstrip("/")
-FRONTEND_URL = FRONTEND_APP_URL
+def _get_lan_ip():
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            sock.connect(("8.8.8.8", 80))
+            return sock.getsockname()[0]
+    except OSError:
+        return ""
+
+
+def _resolve_frontend_app_url():
+    raw_url = os.getenv("FRONTEND_APP_URL", "http://localhost:3000").rstrip("/")
+    parsed = urlsplit(raw_url)
+
+    if DEBUG and parsed.hostname in {"localhost", "127.0.0.1", "0.0.0.0"}:
+        lan_host = os.getenv("FRONTEND_LAN_HOST", "").strip() or _get_lan_ip()
+        if lan_host:
+            port = parsed.port or 3000
+            netloc = f"{lan_host}:{port}" if port else lan_host
+            return urlunsplit((parsed.scheme or "http", netloc, parsed.path, "", "")).rstrip("/")
+
+    return raw_url
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 
@@ -58,6 +79,9 @@ SECRET_KEY = os.getenv("SECRET_KEY") or 'django-insecure-zs0yxq36mps)t8kk85$n=qh
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env_bool("DEBUG", True)
+
+FRONTEND_APP_URL = _resolve_frontend_app_url()
+FRONTEND_URL = FRONTEND_APP_URL
 
 ALLOWED_HOSTS = env_list(
     "ALLOWED_HOSTS",

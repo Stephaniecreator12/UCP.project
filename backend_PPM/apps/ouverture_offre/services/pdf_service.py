@@ -1,5 +1,7 @@
 import hashlib
 from io import BytesIO
+from xml.sax.saxutils import escape
+
 from django.core.files.base import ContentFile
 from django.utils import timezone
 
@@ -9,6 +11,40 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
 from apps.ouverture_offre.models import PVDocument
+
+
+def _pdf_text(value, fallback="-"):
+    text = str(value or "").strip()
+    return escape(text or fallback)
+
+
+def _user_display_name(user):
+    if not user:
+        return "-"
+    full_name = f"{user.first_name} {user.last_name}".strip()
+    return full_name or user.username or "-"
+
+
+def _member_display_name(member):
+    return member.nom_prenom.strip() or _user_display_name(member.utilisateur)
+
+
+def _format_validation_datetime(value, fallback="-"):
+    if not value:
+        return fallback
+    try:
+        value = timezone.localtime(value)
+    except ValueError:
+        pass
+    return value.strftime("%d/%m/%Y à %H:%M")
+
+
+def _member_decision_label(member):
+    if member.decision == member.Decision.VALIDEE:
+        return "Validé"
+    if member.decision == member.Decision.REJETEE:
+        return "Rejeté"
+    return "En attente"
 
 
 def generate_and_archive_pv(seance):
@@ -127,38 +163,20 @@ def generate_and_archive_pv(seance):
     # SECTION 2: Membres de la Commission
     story.append(Paragraph("2. COMMISSION D'OUVERTURE", section_title_style))
     
-    sec_name = f"{seance.secretaire.first_name} {seance.secretaire.last_name}".strip() or seance.secretaire.username
-    pres_name = f"{seance.president.first_name} {seance.president.last_name}".strip() or seance.president.username if seance.president else "-"
+    sec_name = _user_display_name(seance.secretaire)
+    pres_name = _user_display_name(seance.president)
     
     commission_data = [
         [
             Paragraph("Secrétaire de séance :", bold_body_style),
-            Paragraph(f"{sec_name} (Saisie et préparation)", body_style)
+            Paragraph(f"{_pdf_text(sec_name)} (Saisie et préparation)", body_style)
         ],
         [
             Paragraph("Président de commission :", bold_body_style),
-            Paragraph(f"{pres_name} (Validation finale)", body_style)
+            Paragraph(f"{_pdf_text(pres_name)} (Validation finale)", body_style)
         ]
     ]
-    
-    # Add members
-    membres_presents = seance.membres.filter(est_present=True)
-    if membres_presents.exists():
-        membres_str = []
-        for m in membres_presents:
-            m_name = f"{m.utilisateur.first_name} {m.utilisateur.last_name}".strip() or m.utilisateur.username
-            decision_date = f" (validé le {m.date_validation.strftime('%d/%m/%Y %H:%M')})" if m.date_validation else " (en attente)"
-            membres_str.append(f"• {m_name}{decision_date}")
-        commission_data.append([
-            Paragraph("Membres de commission présents :", bold_body_style),
-            Paragraph("<br/>".join(membres_str), body_style)
-        ])
-    else:
-        commission_data.append([
-            Paragraph("Membres de commission :", bold_body_style),
-            Paragraph("Aucun membre enregistré", body_style)
-        ])
-        
+
     t_commission = Table(commission_data, colWidths=[180, 330])
     t_commission.setStyle(TableStyle([
         ('VALIGN', (0,0), (-1,-1), 'TOP'),
@@ -166,6 +184,72 @@ def generate_and_archive_pv(seance):
         ('TOPPADDING', (0,0), (-1,-1), 4),
     ]))
     story.append(t_commission)
+
+    membres_presents = seance.membres.select_related("utilisateur").filter(est_present=True)
+    if membres_presents.exists():
+        member_headers = [
+            Paragraph("Nom et prénom", table_header_style),
+            Paragraph("N° carte", table_header_style),
+            Paragraph("Intitulé", table_header_style),
+            Paragraph("Poste", table_header_style),
+            Paragraph("Décision", table_header_style),
+            Paragraph("Date/heure validation", table_header_style),
+        ]
+        member_rows = [member_headers]
+
+        for membre in membres_presents:
+            member_rows.append([
+                Paragraph(_pdf_text(_member_display_name(membre)), table_cell_style),
+                Paragraph(_pdf_text(membre.numero_carte), table_cell_style),
+                Paragraph(_pdf_text(membre.intitule), table_cell_style),
+                Paragraph(_pdf_text(membre.poste), table_cell_style),
+                Paragraph(_pdf_text(_member_decision_label(membre)), table_cell_center_style),
+                Paragraph(_pdf_text(_format_validation_datetime(membre.date_validation, "En attente")), table_cell_style),
+            ])
+
+        t_members = Table(member_rows, colWidths=[100, 70, 95, 75, 70, 100])
+        t_members.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#0f172a')),
+            ('ALIGN', (0,0), (-1,-1), 'LEFT'),
+            ('VALIGN', (0,0), (-1,-1), 'TOP'),
+            ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e1')),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+            ('TOPPADDING', (0,0), (-1,-1), 4),
+            ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.white, colors.HexColor('#f8fafc')]),
+        ]))
+        story.append(Spacer(1, 8))
+        story.append(t_members)
+
+        comment_rows = [
+            [
+                Paragraph("Membre", table_header_style),
+                Paragraph("Commentaire", table_header_style),
+            ]
+        ]
+        for membre in membres_presents:
+            if not membre.commentaire.strip():
+                continue
+            comment_rows.append([
+                Paragraph(_pdf_text(_member_display_name(membre)), table_cell_style),
+                Paragraph(_pdf_text(membre.commentaire), table_cell_style),
+            ])
+
+        if len(comment_rows) > 1:
+            story.append(Spacer(1, 8))
+            story.append(Paragraph("Commentaires des membres de commission", bold_body_style))
+            t_member_comments = Table(comment_rows, colWidths=[140, 370])
+            t_member_comments.setStyle(TableStyle([
+                ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#334155')),
+                ('VALIGN', (0,0), (-1,-1), 'TOP'),
+                ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e1')),
+                ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+                ('TOPPADDING', (0,0), (-1,-1), 4),
+                ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.white, colors.HexColor('#f8fafc')]),
+            ]))
+            story.append(t_member_comments)
+    else:
+        story.append(Spacer(1, 8))
+        story.append(Paragraph("Aucun membre de commission présent enregistré.", body_style))
     story.append(Spacer(1, 15))
     
     # SECTION 3: Tableau des Offres
@@ -259,18 +343,29 @@ def generate_and_archive_pv(seance):
     # We calculate the SHA256 dummy placeholder or temporary hash. 
     # To compute a hash, we build the PDF once, compute its hash, and then we save it.
     # Actually, we can generate a temporary unique transaction token representing the digital validation.
-    date_pres = seance.date_validation_president.strftime("%d/%m/%Y à %H:%M") if seance.date_validation_president else date_gen
+    date_pres = _format_validation_datetime(seance.date_validation_president, date_gen)
     
     audit_lines = [
-        f"<b>Président :</b> {pres_name} (validé le {date_pres})",
-        f"<b>Audit IP :</b> {seance.president_ip_adresse or '127.0.0.1'} | <b>Navigateur :</b> {seance.president_navigateur or 'Navigateur de séance'}",
+        f"<b>Président :</b> {_pdf_text(pres_name)} (validé le {_pdf_text(date_pres)})",
+        f"<b>Audit IP :</b> {_pdf_text(seance.president_ip_adresse or '127.0.0.1')} | <b>Navigateur :</b> {_pdf_text(seance.president_navigateur or 'Navigateur de séance')}",
     ]
+    if seance.president_commentaire.strip():
+        audit_lines.append(
+            f"<b>Commentaire président :</b> {_pdf_text(seance.president_commentaire)}"
+        )
     
     # Add member validation audits
     for m in membres_presents:
-        m_name = f"{m.utilisateur.first_name} {m.utilisateur.last_name}".strip() or m.utilisateur.username
-        m_date = m.date_validation.strftime("%d/%m/%Y %H:%M") if m.date_validation else "-"
-        audit_lines.append(f"<b>Membre :</b> {m_name} (validé le {m_date}) - IP: {m.ip_adresse or '127.0.0.1'}")
+        m_name = _member_display_name(m)
+        m_date = _format_validation_datetime(m.date_validation)
+        audit_line = (
+            f"<b>Membre :</b> {_pdf_text(m_name)} "
+            f"({_pdf_text(_member_decision_label(m))} le {_pdf_text(m_date)}) "
+            f"- IP: {_pdf_text(m.ip_adresse or '127.0.0.1')}"
+        )
+        if m.commentaire.strip():
+            audit_line += f" - <b>Commentaire :</b> {_pdf_text(m.commentaire)}"
+        audit_lines.append(audit_line)
         
     integrity_text = (
         "Ce procès-verbal d'ouverture publique des plis a été signé numériquement par "

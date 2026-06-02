@@ -1,11 +1,16 @@
 import logging
 from html import escape
+from urllib.parse import urlencode
 
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.db import transaction
 
 from apps.ouverture_offre.models import SeanceOuverture
+from apps.ouverture_offre.services.validation_access_service import (
+    issue_member_validation_password,
+    issue_president_validation_password,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +27,14 @@ def _subject(subject):
 def _frontend_url(path):
     base_url = getattr(settings, "FRONTEND_APP_URL", "http://localhost:3000").rstrip("/")
     return f"{base_url}{path}"
+
+
+def _validation_url(seance, role_key, email):
+    query = urlencode({
+        "role": role_key,
+        "email": email,
+    })
+    return _frontend_url(f"/ouverture_offre/validation/{seance.id}?{query}")
 
 
 def _user_name(user):
@@ -93,29 +106,31 @@ def _send_email(subject, body, recipient, html_body):
     return message.send(fail_silently=True)
 
 
-def _send_validation_requests(seance: SeanceOuverture, recipients):
+def _send_validation_requests(seance: SeanceOuverture, recipient_credentials):
     seance = (
         SeanceOuverture.objects.select_related("secretaire", "president")
         .prefetch_related("membres__utilisateur")
         .get(pk=seance.pk)
     )
-    action_url = _frontend_url(f"/ouverture_offre/{seance.id}")
 
     def runner():
         sent_count = 0
-        for user in recipients:
+        for user, password, role_key in recipient_credentials:
             email = _recipient_email(user)
             if not email:
                 continue
 
             role = _validation_role(seance, user)
+            action_url = _validation_url(seance, role_key, email)
             title = "Validation de séance d'ouverture requise"
             body = (
                 f"Bonjour {_user_name(user)},\n\n"
                 f"Vous êtes sollicité comme {role} pour valider la séance d'ouverture "
                 f"{seance.reference_dossier}.\n"
                 f"Objet : {seance.objet_dossier or '-'}\n\n"
-                f"Ouvrir la page de validation : {action_url}\n"
+                f"Mot de passe de validation : {password}\n"
+                f"Valider la seance : {action_url}\n\n"
+                "Ce mot de passe est valable uniquement pour ce DAO et sera desactive apres votre decision.\n"
             )
             html_body = _html_template(
                 title,
@@ -128,7 +143,12 @@ def _send_validation_requests(seance: SeanceOuverture, recipients):
                     <div style="margin-top: 8px; font-size: 12px; color: #64748b; font-weight: 700;">Objet</div>
                     <div style="font-size: 13px; color: #0f172a; font-weight: 700;">{escape(seance.objet_dossier or "-")}</div>
                 </div>
-                <p>Le bouton ci-dessous ouvre directement la séance. Si vous n'êtes pas connecté, l'application vous demandera d'abord de vous authentifier.</p>
+                <p>Utilisez le mot de passe ci-dessous pour accéder uniquement à la validation de ce DAO.</p>
+                <div style="margin: 12px 0; border: 1px solid #bbf7d0; border-radius: 10px; background-color: #f0fdf4; padding: 12px; color: #14532d;">
+                    <div style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em;">Mot de passe de validation</div>
+                    <div style="margin-top: 4px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 18px; font-weight: 900; letter-spacing: 0.08em;">{escape(password)}</div>
+                </div>
+                <p>Ce mot de passe est valable uniquement pour cette séance. Après validation, rejet ou report, il sera désactivé.</p>
                 """,
                 action_url,
             )
@@ -144,7 +164,7 @@ def _send_validation_requests(seance: SeanceOuverture, recipients):
         return sent_count
 
     transaction.on_commit(runner)
-    return len(recipients)
+    return len(recipient_credentials)
 
 
 def notify_members_validation_requested(seance: SeanceOuverture):
@@ -153,12 +173,15 @@ def notify_members_validation_requested(seance: SeanceOuverture):
         .prefetch_related("membres__utilisateur")
         .get(pk=seance.pk)
     )
-    recipients = [membre.utilisateur for membre in seance.membres.filter(est_present=True)]
-    return _send_validation_requests(seance, recipients)
+    credentials = []
+    for membre in seance.membres.select_related("utilisateur").filter(est_present=True):
+        credentials.append((membre.utilisateur, issue_member_validation_password(membre), "membre"))
+    return _send_validation_requests(seance, credentials)
 
 
 def notify_president_validation_requested(seance: SeanceOuverture):
     seance = SeanceOuverture.objects.select_related("president").get(pk=seance.pk)
     if not seance.president:
         return 0
-    return _send_validation_requests(seance, [seance.president])
+    password = issue_president_validation_password(seance)
+    return _send_validation_requests(seance, [(seance.president, password, "president")])

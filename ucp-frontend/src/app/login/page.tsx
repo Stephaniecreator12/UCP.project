@@ -8,7 +8,13 @@ import {
   getCurrentUser,
   getToken,
   login,
+  logout,
 } from "@/services/auth";
+import {
+  openPublicValidationSession,
+  savePublicValidationSession,
+} from "@/services/ouvertureOffre";
+import type { PublicValidationRole } from "@/types/ouvertureOffre";
 
 function LoginPageFallback() {
   return (
@@ -29,23 +35,37 @@ export default function LoginPage() {
 }
 
 function LoginPageContent() {
-  const [username, setUsername] = useState("");
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const validationRequest = getValidationRequest(searchParams);
+  const nextPath = getSafeNextPath(searchParams.get("next"));
+  const isValidationLogin = !!validationRequest;
+  const [username, setUsername] = useState(validationRequest?.email ?? "");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const nextPath = getSafeNextPath(searchParams.get("next"));
 
   useEffect(() => {
+    if (isValidationLogin) {
+      logout();
+      return;
+    }
+
     if (getToken()) {
       const currentUser = getCurrentUser();
       // Reuse the same landing rule after page refresh so the login page
       // does not stay visible once a session already exists.
       redirectTo(router, nextPath ?? getLandingRouteForUser(currentUser));
     }
-  }, [nextPath, router]);
+  }, [
+    nextPath,
+    router,
+    isValidationLogin,
+    validationRequest?.email,
+    validationRequest?.role,
+    validationRequest?.seanceId,
+  ]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,16 +74,60 @@ function LoginPageContent() {
     setError("");
     setIsSubmitting(true);
 
-    const result = await login(username, password);
+    const cleanUsername = username.trim();
+    const cleanPassword = password.trim();
 
-    if (result.success) {
-      const currentUser = getCurrentUser();
-      // The destination is decided from the fetched user profile.
-      redirectTo(router, nextPath ?? getLandingRouteForUser(currentUser));
-    } else {
+    if (validationRequest) {
+      if (!cleanUsername || !cleanPassword) {
+        setError("Saisissez l'email et le mot de passe reçus par mail.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      try {
+        const context = await openPublicValidationSession(
+          validationRequest.seanceId,
+          {
+            role: validationRequest.role,
+            email: cleanUsername,
+            password: cleanPassword,
+          },
+        );
+        savePublicValidationSession({
+          seanceId: validationRequest.seanceId,
+          role: context.role,
+          email: context.participant.email,
+          password: cleanPassword,
+          createdAt: Date.now(),
+        });
+
+        const params = new URLSearchParams({
+          role: context.role,
+          email: context.participant.email,
+        });
+        redirectTo(
+          router,
+          `/ouverture_offre/validation/${validationRequest.seanceId}?${params.toString()}`,
+        );
+        return;
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Accès validation impossible.");
+        setIsSubmitting(false);
+        return;
+      }
+    }
+
+    const result = await login(cleanUsername, password);
+
+    if (!result.success) {
       setError(result.error || "Une erreur est survenue");
       setIsSubmitting(false);
+      return;
     }
+
+    const currentUser = getCurrentUser();
+    // The destination is decided from the fetched user profile.
+    redirectTo(router, nextPath ?? getLandingRouteForUser(currentUser));
   };
 
   return (
@@ -99,10 +163,10 @@ function LoginPageContent() {
               />
             </div>
             <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-emerald-700">
-              e-Procurement Platform
+              {isValidationLogin ? "Accès validateur DAO" : "e-Procurement Platform"}
             </p>
             <h1 className="mt-3 text-3xl font-bold text-slate-900">
-              Connexion
+              {isValidationLogin ? "Validation DAO" : "Connexion"}
             </h1>
             <div className="login-line-glow mx-auto mt-3 h-px w-24 bg-[linear-gradient(90deg,rgba(34,197,94,0),rgba(34,197,94,0.8),rgba(34,197,94,0))]" />
           </div>
@@ -113,24 +177,34 @@ function LoginPageContent() {
             </div>
           )}
 
+          {searchParams.get("validation_done") === "1" && (
+            <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">
+              Votre décision a été enregistrée avec succès.
+            </div>
+          )}
+
           <form onSubmit={handleLogin} className="space-y-5">
             <div>
               <label className="mb-2 block text-sm font-bold text-slate-700">
-                Nom d&apos;utilisateur
+                {isValidationLogin ? "Email" : "Nom d'utilisateur"}
               </label>
               <input
-                type="text"
+                type={isValidationLogin ? "email" : "text"}
                 className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/10 placeholder:text-slate-400"
                 value={username}
                 disabled={isSubmitting}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="Saisir votre nom d'utilisateur"
+                placeholder={
+                  isValidationLogin
+                    ? "Saisir l'email reçu dans le mail"
+                    : "Saisir votre nom d'utilisateur"
+                }
               />
             </div>
 
             <div>
               <label className="mb-2 block text-sm font-bold text-slate-700">
-                Mot de passe
+                {isValidationLogin ? "Mot de passe reçu par mail" : "Mot de passe"}
               </label>
               <div className="relative">
                 <input
@@ -139,7 +213,11 @@ function LoginPageContent() {
                   value={password}
                   disabled={isSubmitting}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Saisir votre mot de passe"
+                  placeholder={
+                    isValidationLogin
+                      ? "Saisir le mot de passe du mail"
+                      : "Saisir votre mot de passe"
+                  }
                 />
                 <button
                   type="button"
@@ -215,7 +293,13 @@ function LoginPageContent() {
               aria-busy={isSubmitting}
               className="mt-2 inline-flex w-full items-center justify-center rounded-2xl bg-[#166534] px-4 py-3 text-sm font-bold tracking-wide text-white shadow-[0_16px_30px_-20px_rgba(22,101,52,0.65)] transition hover:bg-[#14532d] disabled:cursor-not-allowed disabled:bg-slate-400"
             >
-              {isSubmitting ? "Connexion..." : "Se connecter"}
+              {isSubmitting
+                ? isValidationLogin
+                  ? "Vérification..."
+                  : "Connexion..."
+                : isValidationLogin
+                  ? "Accéder à la validation"
+                  : "Se connecter"}
             </button>
           </form>
 
@@ -235,6 +319,42 @@ const getSafeNextPath = (value: string | null) => {
   if (pathOnly === "/login") return null;
   return value;
 };
+
+type ValidationLoginRequest = {
+  seanceId: number;
+  role: PublicValidationRole;
+  email: string;
+};
+
+const getValidationRequest = (
+  searchParams: ReturnType<typeof useSearchParams>,
+): ValidationLoginRequest | null => {
+  if (getQueryParam(searchParams, "validation") !== "ouverture") return null;
+
+  const seance = getQueryParam(searchParams, "seance");
+  const roleParam = getQueryParam(searchParams, "role");
+  const email = getQueryParam(searchParams, "email") ?? "";
+  const seanceId = Number(seance);
+  const role = getRole(roleParam);
+
+  if (!seance || !Number.isInteger(seanceId) || seanceId <= 0 || !role) {
+    return null;
+  }
+
+  return {
+    seanceId,
+    role,
+    email,
+  };
+};
+
+const getQueryParam = (
+  searchParams: ReturnType<typeof useSearchParams>,
+  key: string,
+) => searchParams.get(key) ?? searchParams.get(`amp;${key}`);
+
+const getRole = (value: string | null): PublicValidationRole | null =>
+  value === "membre" || value === "president" ? value : null;
 
 const redirectTo = (
   router: ReturnType<typeof useRouter>,

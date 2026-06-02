@@ -16,7 +16,7 @@ import {
   ShieldCheck,
   Sparkles,
   Trash2,
-  UserPlus,
+  Users,
   X,
 } from "lucide-react";
 
@@ -30,6 +30,7 @@ import {
   fetchCurrentUser,
   getToken,
   isSecretaireUser,
+  logout,
   type UserProfile,
 } from "@/services/auth";
 import {
@@ -43,6 +44,7 @@ import {
   downloadPV,
 } from "@/services/ouvertureOffre";
 import { listMarkets } from "@/services/procurement";
+import { listFournisseurs, type Fournisseur } from "@/services/achats";
 import type {
   OffreOuverture,
   OuvertureUser,
@@ -60,7 +62,7 @@ type SaveMode =
   | "reject-member"
   | "reject-president";
 type RejectMode = "member" | "president";
-type EnvelopeState = "" | "DEPOSEE" | "MANQUANTE";
+type EnvelopeState = "" | "DEPOSEE" | "MANQUANTE" | "RECU" | "INTEGRE" | "MANQUANT";
 
 type EditableOffre = {
   localId: string;
@@ -74,6 +76,17 @@ type EditableOffre = {
   enveloppe_financiere: EnvelopeState;
   montant_global: string;
   observations: string;
+};
+
+type CommissionMember = {
+  nomPrenom?: string;
+  email?: string;
+  cin?: string;
+  poste?: string;
+  entite?: string;
+  decision?: SeanceOuverture["membres"][number]["decision"];
+  dateValidation?: string | null;
+  commentaire?: string;
 };
 
 type DetailFormState = {
@@ -106,7 +119,6 @@ const statusLabelMap: Record<SeanceOuverture["statut"], string> = {
   EN_VALIDATION_PRESIDENT: "Validation président",
   VALIDEE: "Validée",
   REJETEE: "Rejetée",
-  ARCHIVEE: "Archivée",
 };
 
 const statusClassMap: Record<SeanceOuverture["statut"], string> = {
@@ -117,7 +129,6 @@ const statusClassMap: Record<SeanceOuverture["statut"], string> = {
   EN_VALIDATION_PRESIDENT: "border-violet-200 bg-violet-50 text-violet-700",
   VALIDEE: "border-emerald-200 bg-emerald-50 text-emerald-700",
   REJETEE: "border-rose-200 bg-rose-50 text-rose-700",
-  ARCHIVEE: "border-slate-300 bg-slate-100 text-slate-700",
 };
 
 const inputClass =
@@ -126,6 +137,74 @@ const selectClass =
   "h-10 rounded-xl border border-slate-200 bg-white/70 px-3 text-[13px] font-semibold text-slate-800 shadow-sm outline-none transition-all focus:border-slate-400 focus:bg-white focus:ring-4 focus:ring-slate-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500";
 const textareaClass =
   "rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-[13px] font-semibold text-slate-800 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-slate-400 focus:bg-white focus:ring-4 focus:ring-slate-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500";
+
+const parseCommissionMembers = (stored: string | null): CommissionMember[] => {
+  if (!stored) return [];
+
+  try {
+    const parsed: unknown = JSON.parse(stored);
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed
+      .filter((member): member is Record<string, unknown> =>
+        typeof member === "object" && member !== null,
+      )
+      .map((member) => ({
+        nomPrenom:
+          typeof member.nomPrenom === "string" ? member.nomPrenom : undefined,
+        email: typeof member.email === "string" ? member.email : undefined,
+        cin: typeof member.cin === "string" ? member.cin : undefined,
+        poste: typeof member.poste === "string" ? member.poste : undefined,
+        entite: typeof member.entite === "string" ? member.entite : undefined,
+      }));
+  } catch {
+    return [];
+  }
+};
+
+const mapSeanceMembersToCommissionMembers = (
+  seance: SeanceOuverture,
+): CommissionMember[] =>
+  seance.membres.map((member) => ({
+    nomPrenom:
+      member.nom_prenom?.trim() ||
+      member.utilisateur_detail.full_name?.trim() ||
+      member.utilisateur_detail.username,
+    email: member.utilisateur_detail.email || member.utilisateur_detail.username,
+    cin: member.numero_carte || "",
+    poste: member.poste || "",
+    entite: member.intitule || "",
+    decision: member.decision,
+    dateValidation: member.date_validation,
+    commentaire: member.commentaire || "",
+  }));
+
+const mergeCommissionMembers = (
+  backendMembers: CommissionMember[],
+  storedMembers: CommissionMember[],
+): CommissionMember[] => {
+  if (backendMembers.length === 0) return storedMembers;
+  if (storedMembers.length === 0) return backendMembers;
+
+  return backendMembers.map((backendMember) => {
+    const storedMember = storedMembers.find(
+      (member) =>
+        member.email &&
+        backendMember.email &&
+        member.email.toLowerCase() === backendMember.email.toLowerCase(),
+    );
+
+    if (!storedMember) return backendMember;
+
+    return {
+      ...backendMember,
+      cin: backendMember.cin || storedMember.cin,
+      poste: backendMember.poste || storedMember.poste,
+      entite: backendMember.entite || storedMember.entite,
+      nomPrenom: backendMember.nomPrenom || storedMember.nomPrenom,
+    };
+  });
+};
 const compactInputClass =
   "h-9 rounded-lg border border-slate-200 bg-white/75 px-2.5 text-[12px] font-semibold text-slate-800 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500";
 const compactSelectClass =
@@ -172,6 +251,17 @@ const formatDateTime = (value?: string | null) => {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(parsed);
+};
+
+const formatValidationDateTime = (value?: string | null) => {
+  if (!value) return "Non renseignée";
+  return formatDateTime(value);
+};
+
+const getCommissionDecisionLabel = (decision?: CommissionMember["decision"]) => {
+  if (decision === "VALIDEE") return "Validé";
+  if (decision === "REJETEE") return "Rejeté";
+  return "En attente";
 };
 
 const createLocalId = () =>
@@ -248,9 +338,11 @@ export default function SeanceOuvertureDetail() {
   const [availableUsers, setAvailableUsers] = useState<OuvertureUser[]>([]);
   const [formData, setFormData] = useState<DetailFormState | null>(null);
   const [error, setError] = useState("");
+  const [membersIncomplete, setMembersIncomplete] = useState(false);
   const [successMessage, setSuccessMessage] = useState(() =>
     consumeOpeningFlashMessage(currentDetailPath),
   );
+  const [suppliers, setSuppliers] = useState<Fournisseur[]>([]);
   const [saveMode, setSaveMode] = useState<SaveMode | null>(null);
   const [validationComment, setValidationComment] = useState("");
   const [validationTarget, setValidationTarget] = useState("");
@@ -260,6 +352,8 @@ export default function SeanceOuvertureDetail() {
   const [memberSearch, setMemberSearch] = useState("");
   const [draftMemberIds, setDraftMemberIds] = useState<number[]>([]);
   const [memberModalError, setMemberModalError] = useState("");
+  const [commissionMembers, setCommissionMembers] = useState<CommissionMember[]>([]);
+  const [isCommissionModalOpen, setIsCommissionModalOpen] = useState(false);
 
   useEffect(() => {
     const bootstrap = async () => {
@@ -282,12 +376,18 @@ export default function SeanceOuvertureDetail() {
 
       try {
         const user = await fetchCurrentUser();
+        if (!isSecretaireUser(user)) {
+          logout();
+          router.replace("/login");
+          return;
+        }
         setCurrentUser(user);
 
-        const [seanceData, users, markets] = await Promise.all([
+        const [seanceData, users, markets, suppliersData] = await Promise.all([
           getSeanceById(seanceId),
           getAvailableUsers(),
           listMarkets(),
+          listFournisseurs().catch(() => []),
         ]);
 
         setSeance(seanceData);
@@ -297,7 +397,42 @@ export default function SeanceOuvertureDetail() {
           ) ?? null,
         );
         setAvailableUsers(users);
-        setFormData(buildFormState(seanceData));
+        setSuppliers(suppliersData);
+
+        // Load manual commission members from localStorage
+        const localKey = `ucp_commission_membres_${seanceData.reference_dossier}`;
+        const loadedMembers = parseCommissionMembers(localStorage.getItem(localKey));
+        const backendMembers = mapSeanceMembersToCommissionMembers(seanceData);
+        setCommissionMembers(mergeCommissionMembers(backendMembers, loadedMembers));
+
+        // Bridge manual members to DB user accounts (by email)
+        const matchedIds: number[] = [];
+        if (Array.isArray(loadedMembers)) {
+          loadedMembers.forEach((m) => {
+            if (!m.email) return;
+
+            const found = users.find(
+              (u: OuvertureUser) => u.email?.toLowerCase() === m.email?.toLowerCase(),
+            );
+            if (found) {
+              matchedIds.push(found.id);
+            }
+          });
+        }
+
+        const initialFormState = buildFormState(seanceData);
+        if (matchedIds.length > 0) {
+          initialFormState.membre_ids = matchedIds;
+        }
+        setFormData(initialFormState);
+
+        // Check if commission members are complete (status "final" in localStorage)
+        const localStatus = localStorage.getItem(`ucp_commission_membres_status_${seanceData.reference_dossier}`);
+        const isSecretaire = isSecretaireUser(user);
+        if (isSecretaire && localStatus !== "final" && seanceData.membres.length < 3) {
+          setMembersIncomplete(true);
+        }
+
         setScreenState("ready");
       } catch (err) {
         setError(
@@ -328,13 +463,6 @@ export default function SeanceOuvertureDetail() {
   const deadlineDate = toInputDate(linkedMarket?.deadline);
   const deadlineTime = toInputTime(linkedMarket?.deadline);
 
-  const selectedMembers = useMemo(() => {
-    if (!formData) return [];
-    return formData.membre_ids
-      .map((memberId) => availableUsers.find((user) => user.id === memberId))
-      .filter((user): user is OuvertureUser => !!user);
-  }, [availableUsers, formData]);
-
   const modalMemberOptions = useMemo(() => {
     const normalizedSearch = memberSearch.trim().toLowerCase();
 
@@ -361,9 +489,9 @@ export default function SeanceOuvertureDetail() {
     (membre) => membre.utilisateur === currentUser?.id,
   );
   const presentMembers = seance?.membres.filter((membre) => membre.est_present) ?? [];
-  const allPresentMembersValidated =
+  const allPresentMembersDecided =
     presentMembers.length > 0 &&
-    presentMembers.every((membre) => membre.decision === "VALIDEE");
+    presentMembers.every((membre) => membre.decision !== "EN_ATTENTE");
   const canValidateAsMember =
     !!seance &&
     (seance.statut === "EN_VALIDATION_MEMBRES" || seance.statut === "A_VALIDER") &&
@@ -376,7 +504,7 @@ export default function SeanceOuvertureDetail() {
     !!currentUser &&
     (seance.statut === "EN_VALIDATION_PRESIDENT" || seance.statut === "A_VALIDER") &&
     seance.president === currentUser.id &&
-    allPresentMembersValidated &&
+    allPresentMembersDecided &&
     seance.president_decision === "EN_ATTENTE";
   const isPresidentViewer =
     !!seance && !!currentUser && seance.president === currentUser.id;
@@ -402,7 +530,7 @@ export default function SeanceOuvertureDetail() {
     isPresidentViewer &&
     (seance.statut === "EN_VALIDATION_MEMBRES" || seance.statut === "A_VALIDER") &&
     seance.president_decision === "EN_ATTENTE" &&
-    !allPresentMembersValidated;
+    !allPresentMembersDecided;
   const canTakeDecision =
     canValidateAsMember ||
     canValidateAsPresident ||
@@ -450,33 +578,13 @@ export default function SeanceOuvertureDetail() {
     setFormData((current) =>
       current
         ? {
-            ...current,
-            membre_ids: values.filter((id) =>
-              selectedPresidentId ? id !== selectedPresidentId : true,
-            ),
-          }
+          ...current,
+          membre_ids: values.filter((id) =>
+            selectedPresidentId ? id !== selectedPresidentId : true,
+          ),
+        }
         : current,
     );
-  };
-
-  const openMemberModal = () => {
-    if (!formData || !canEdit) return;
-    if (!selectedPresidentId) {
-      reportValidationIssue({
-        field: "president",
-        message: "Choisis d'abord le président avant d'ajouter les membres.",
-      });
-      return;
-    }
-    setDraftMemberIds(formData.membre_ids);
-    setMemberSearch("");
-    setMemberModalError("");
-    setIsMemberModalOpen(true);
-  };
-
-  const handleRemoveMember = (memberId: number) => {
-    if (!formData) return;
-    handleMemberSelect(formData.membre_ids.filter((id) => id !== memberId));
   };
 
   const toggleDraftMember = (memberId: number) => {
@@ -529,11 +637,11 @@ export default function SeanceOuvertureDetail() {
     setFormData((current) =>
       current
         ? {
-            ...current,
-            offres: current.offres.map((offre) =>
-              offre.localId === localId ? { ...offre, ...patch } : offre,
-            ),
-          }
+          ...current,
+          offres: current.offres.map((offre) =>
+            offre.localId === localId ? { ...offre, ...patch } : offre,
+          ),
+        }
         : current,
     );
   };
@@ -553,9 +661,9 @@ export default function SeanceOuvertureDetail() {
     setFormData((current) =>
       current
         ? {
-            ...current,
-            offres: [...current.offres, createEmptyOffre()],
-          }
+          ...current,
+          offres: [...current.offres, createEmptyOffre()],
+        }
         : current,
     );
   };
@@ -589,19 +697,16 @@ export default function SeanceOuvertureDetail() {
       .map((offre, index) => ({
         ordre_passage: index + 1,
         nom_soumissionnaire: offre.nom_soumissionnaire.trim(),
-        pli_existe: offre.pli_existe,
-        motif_absence_pli: offre.pli_existe ? "" : offre.motif_absence_pli.trim(),
-        date_reception_pli:
-          offre.pli_existe && offre.date_reception_pli ? offre.date_reception_pli : null,
-        heure_reception_pli:
-          offre.pli_existe && offre.heure_reception_pli ? offre.heure_reception_pli : null,
-        enveloppe_administrative: offre.pli_existe ? offre.enveloppe_administrative : "",
-        enveloppe_technique: offre.pli_existe ? offre.enveloppe_technique : "",
-        enveloppe_financiere: offre.pli_existe ? offre.enveloppe_financiere : "",
+        pli_existe: true,
+        motif_absence_pli: "",
+        date_reception_pli: offre.date_reception_pli || null,
+        heure_reception_pli: offre.heure_reception_pli || null,
+        enveloppe_administrative: offre.enveloppe_administrative,
+        enveloppe_technique: offre.enveloppe_technique,
+        enveloppe_financiere: offre.enveloppe_financiere,
         montant_global:
-          offre.pli_existe &&
           currentForm.etape_ouverture === "COMPLETE" &&
-          offre.montant_global.trim()
+            offre.montant_global.trim()
             ? offre.montant_global.trim()
             : null,
         observations: offre.observations.trim(),
@@ -609,14 +714,13 @@ export default function SeanceOuvertureDetail() {
       .filter((offre) =>
         Boolean(
           offre.nom_soumissionnaire ||
-            offre.motif_absence_pli ||
-            offre.date_reception_pli ||
-            offre.heure_reception_pli ||
-            offre.enveloppe_administrative ||
-            offre.enveloppe_technique ||
-            offre.enveloppe_financiere ||
-            offre.montant_global ||
-            offre.observations,
+          offre.date_reception_pli ||
+          offre.heure_reception_pli ||
+          offre.enveloppe_administrative ||
+          offre.enveloppe_technique ||
+          offre.enveloppe_financiere ||
+          offre.montant_global ||
+          offre.observations,
         ),
       );
 
@@ -658,12 +762,6 @@ export default function SeanceOuvertureDetail() {
       if (!currentForm.lieu.trim()) {
         return { field: "lieu", message: "Renseigne le lieu de séance." };
       }
-      if (currentForm.membre_ids.length < 3) {
-        return {
-          field: "membre_ids",
-          message: "La commission doit contenir au minimum 3 membres présents hors président.",
-        };
-      }
       if (!currentForm.etat_scelle) {
         return { field: "etat_scelle", message: "Renseigne l'état du scellé." };
       }
@@ -678,33 +776,24 @@ export default function SeanceOuvertureDetail() {
       }
     }
 
-    if (
-      deadlineDate &&
-      currentForm.date_seance &&
-      (currentForm.date_seance < deadlineDate ||
-        (currentForm.date_seance === deadlineDate &&
-          deadlineTime &&
-          currentForm.heure_seance &&
-          currentForm.heure_seance <= deadlineTime))
-    ) {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    if (currentForm.date_seance && currentForm.date_seance < todayStr) {
       return {
-        field: currentForm.date_seance === deadlineDate ? "heure_seance" : "date_seance",
-        message:
-          "La date et l'heure d'ouverture doivent être postérieures à la date limite de dépôt.",
+        field: "date_seance",
+        message: "La date de séance ne peut pas être antérieure à aujourd'hui.",
       };
     }
 
     for (const offre of currentForm.offres) {
       const hasPartialData = Boolean(
         offre.nom_soumissionnaire.trim() ||
-          offre.motif_absence_pli.trim() ||
-          offre.date_reception_pli ||
-          offre.heure_reception_pli ||
-          offre.enveloppe_administrative ||
-          offre.enveloppe_technique ||
-          offre.enveloppe_financiere ||
-          offre.montant_global.trim() ||
-          offre.observations.trim(),
+        offre.date_reception_pli ||
+        offre.heure_reception_pli ||
+        offre.enveloppe_administrative ||
+        offre.enveloppe_technique ||
+        offre.enveloppe_financiere ||
+        offre.montant_global.trim() ||
+        offre.observations.trim(),
       );
 
       if (hasPartialData && !offre.nom_soumissionnaire.trim()) {
@@ -714,15 +803,7 @@ export default function SeanceOuvertureDetail() {
         };
       }
 
-      if (!offre.pli_existe && !offre.motif_absence_pli.trim()) {
-        return {
-          field: `offre-${offre.localId}-motif`,
-          message: "Renseigne le motif d'absence du pli.",
-        };
-      }
-
       if (
-        offre.pli_existe &&
         deadlineDate &&
         offre.date_reception_pli &&
         (offre.date_reception_pli > deadlineDate ||
@@ -939,6 +1020,45 @@ export default function SeanceOuvertureDetail() {
     );
   }
 
+  if (membersIncomplete) {
+    return (
+      <main className="min-h-screen bg-[radial-gradient(circle_at_10%_0%,#f6faf8_0%,transparent_25%),linear-gradient(180deg,#f8fafc_0%,#f1f5f9_100%)] pb-24 text-slate-800 antialiased selection:bg-emerald-200">
+        <TopHeader />
+        <div className="zoom-content">
+          <div className="mx-auto max-w-xl px-4 pt-16 text-center">
+            <div className="rounded-3xl border border-rose-100 bg-white p-8 shadow-xl">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-50 text-rose-600 shadow-md">
+                <Users className="h-7 w-7" />
+              </div>
+              <h2 className="mt-6 text-xl font-black text-slate-900">Commission incomplète</h2>
+              <p className="mt-4 text-sm text-slate-600 leading-relaxed">
+                Les membres de la commission pour le dossier <strong className="text-slate-800">{seance?.reference_dossier || "de cette séance"}</strong> ne sont pas encore au complet ou enregistrés définitivement.
+                <br />
+                <span className="mt-2 block font-semibold text-rose-600">Au moins 3 membres complets doivent être enregistrés définitivement avant de pouvoir ouvrir le dossier d&apos;offres.</span>
+              </p>
+              <div className="mt-8 flex flex-col gap-3">
+                <button
+                  type="button"
+                  onClick={() => router.push("/ouverture_offre/membres")}
+                  className="inline-flex justify-center items-center gap-2 rounded-xl bg-slate-900 px-5 py-3 text-xs font-bold text-white shadow-md hover:bg-slate-800 transition-all"
+                >
+                  <Users className="h-4 w-4" /> Configurer les membres de commission
+                </button>
+                <button
+                  type="button"
+                  onClick={() => router.push("/ouverture_offre")}
+                  className="inline-flex justify-center items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-all"
+                >
+                  Retour à la liste
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   if (screenState === "error" || !seance || !formData) {
     return (
       <main className="min-h-screen bg-slate-50 text-slate-800">
@@ -964,16 +1084,14 @@ export default function SeanceOuvertureDetail() {
     <main className="min-h-screen bg-[radial-gradient(circle_at_10%_0%,#f6faf8_0%,transparent_25%),linear-gradient(180deg,#f8fafc_0%,#f1f5f9_100%)] pb-8 text-slate-800 antialiased selection:bg-emerald-200">
       <TopHeader />
 
-      <div className="zoom-content mx-auto mt-2 max-w-[1360px] px-3 pb-6 md:px-4">
-        <div className={`group relative flex w-full flex-col justify-between overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-[0_8px_24px_rgb(0,0,0,0.035)] md:flex-row md:items-center ${
-          canEdit ? "mb-3 gap-3 p-3" : "mb-2 gap-2 p-3"
-        }`}>
+      <div className="zoom-content mx-auto mt-2 max-w-[1880px] px-2 pb-6 sm:px-3 lg:px-4">
+        <div className={`group relative flex w-full flex-col justify-between overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-[0_8px_24px_rgb(0,0,0,0.035)] md:flex-row md:items-center ${canEdit ? "mb-3 gap-3 p-3" : "mb-2 gap-2 p-3"
+          }`}>
           <div className="absolute right-0 top-0 -z-10 h-64 w-64 rounded-full bg-gradient-to-br from-emerald-100 to-teal-50 opacity-50 blur-3xl transition-transform duration-700 group-hover:scale-110" />
           <div className="flex items-center gap-3">
             <div className="relative">
-              <div className={`flex rotate-3 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-400 text-white shadow-lg shadow-emerald-500/20 transition-all duration-300 group-hover:rotate-6 ${
-                canEdit ? "h-9 w-9" : "h-8 w-8"
-              }`}>
+              <div className={`flex rotate-3 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-400 text-white shadow-lg shadow-emerald-500/20 transition-all duration-300 group-hover:rotate-6 ${canEdit ? "h-9 w-9" : "h-8 w-8"
+                }`}>
                 <ShieldCheck className="h-4 w-4" />
               </div>
               {canEdit && <Sparkles className="absolute -right-1 -top-1 h-3 w-3 text-amber-400" />}
@@ -1015,6 +1133,14 @@ export default function SeanceOuvertureDetail() {
                 Télécharger le PV PDF
               </button>
             )}
+            <button
+              type="button"
+              onClick={() => setIsCommissionModalOpen(true)}
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
+            >
+              <Users className="h-4 w-4 text-emerald-500" />
+              Voir les membres de la commission
+            </button>
             <Link
               href="/ouverture_offre"
               className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
@@ -1028,310 +1154,210 @@ export default function SeanceOuvertureDetail() {
         <div className={canEdit ? "space-y-3" : "space-y-2"}>
           {canEdit ? (
             <>
-            <section className="group relative overflow-hidden rounded-2xl border border-white/40 bg-white/70 shadow-[0_6px_24px_rgba(0,0,0,0.04)] backdrop-blur-md transition-all duration-500 hover:shadow-[0_10px_36px_rgba(0,0,0,0.06)]">
-              <div className="absolute left-0 top-0 h-1 w-full bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-500 bg-[length:200%_100%] animate-gradient" />
-              <div className="p-3">
-                <h2 className="mb-3 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-800">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-100/80 text-emerald-600 shadow-sm backdrop-blur-sm transition-transform duration-300 group-hover:scale-110">
-                    <FileText className="h-4 w-4" />
-                  </div>
-                  1. En-tête de la séance
-                </h2>
+              <section className="group relative overflow-hidden rounded-2xl border border-white/40 bg-white/70 shadow-[0_6px_24px_rgba(0,0,0,0.04)] backdrop-blur-md transition-all duration-500 hover:shadow-[0_10px_36px_rgba(0,0,0,0.06)]">
+                <div className="absolute left-0 top-0 h-1 w-full bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-500 bg-[length:200%_100%] animate-gradient" />
+                <div className="p-3">
+                  <h2 className="mb-3 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-800">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-100/80 text-emerald-600 shadow-sm backdrop-blur-sm transition-transform duration-300 group-hover:scale-110">
+                      <FileText className="h-4 w-4" />
+                    </div>
+                    1. En-tête de la séance
+                  </h2>
 
-              <div className="grid gap-2 lg:grid-cols-12">
-                <label className="grid gap-1 lg:col-span-3">
-                  <span className={labelClass}>Référence</span>
-                  <input
-                    value={formData.reference_dossier}
-                    disabled
-                    className={compactInputClass}
-                  />
-                </label>
+                  <div className="grid gap-2 lg:grid-cols-12">
+                    <label className="grid gap-1 lg:col-span-3">
+                      <span className={labelClass}>Référence</span>
+                      <input
+                        value={formData.reference_dossier}
+                        disabled
+                        className={compactInputClass}
+                      />
+                    </label>
 
-                <label className="grid gap-1 lg:col-span-5">
-                  <span className={labelClass}>Intitulé</span>
-                  <input
-                    value={formData.objet_dossier}
-                    disabled
-                    className={compactInputClass}
-                  />
-                </label>
+                    <label className="grid gap-1 lg:col-span-5">
+                      <span className={labelClass}>Intitulé</span>
+                      <input
+                        value={formData.objet_dossier}
+                        disabled
+                        className={compactInputClass}
+                      />
+                    </label>
 
-                <label className="grid gap-1 lg:col-span-4">
-                  <span className={labelClass}>Type de procédure</span>
-                  <input
-                    value={
-                      linkedMarket?.procedure_type
-                        ? procedureLabels[linkedMarket.procedure_type]
-                        : "Non renseigné dans le DAO"
-                    }
-                    disabled
-                    className={compactInputClass}
-                  />
-                </label>
+                    <label className="grid gap-1 lg:col-span-4">
+                      <span className={labelClass}>Type de procédure</span>
+                      <input
+                        value={
+                          linkedMarket?.procedure_type
+                            ? procedureLabels[linkedMarket.procedure_type]
+                            : "Non renseigné dans le DAO"
+                        }
+                        disabled
+                        className={compactInputClass}
+                      />
+                    </label>
 
-                <label className="grid gap-1 lg:col-span-4">
-                  <span className={labelClass}>Date limite de dépôt</span>
-                  <input
-                    value={formatDateTime(linkedMarket?.deadline)}
-                    disabled
-                    className={compactInputClass}
-                  />
-                </label>
+                    <label className="grid gap-1 lg:col-span-4">
+                      <span className={labelClass}>Date limite de dépôt</span>
+                      <input
+                        value={formatDateTime(linkedMarket?.deadline)}
+                        disabled
+                        className={compactInputClass}
+                      />
+                    </label>
 
-                <label className="grid gap-1 lg:col-span-4">
-                  <span className={labelClass}>Étape</span>
-                  <select
-                    value={formData.etape_ouverture}
-                    onChange={(event) =>
-                      setField(
-                        "etape_ouverture",
-                        event.target.value as DetailFormState["etape_ouverture"],
-                      )
-                    }
-                    disabled={!canEdit}
-                    className={compactSelectClass}
-                  >
-                    <option value="COMPLETE">Ouverture complète</option>
-                    <option value="ADMIN_TECH">Administrative et technique</option>
-                  </select>
-                </label>
-
-                <label
-                  data-validation-field="date_seance"
-                  className={`grid gap-1 lg:col-span-3 ${getValidationFieldClass("date_seance")}`}
-                >
-                  <span className={labelClass}>Date ouverture</span>
-                  <input
-                    type="date"
-                    value={formData.date_seance}
-                    onChange={(event) => setField("date_seance", event.target.value)}
-                    disabled={!canEdit}
-                    min={deadlineDate || undefined}
-                    className={compactInputClass}
-                  />
-                </label>
-
-                <label
-                  data-validation-field="heure_seance"
-                  className={`grid gap-1 lg:col-span-2 ${getValidationFieldClass("heure_seance")}`}
-                >
-                  <span className={labelClass}>Heure</span>
-                  <input
-                    type="time"
-                    value={formData.heure_seance}
-                    onChange={(event) => setField("heure_seance", event.target.value)}
-                    disabled={!canEdit}
-                    className={compactInputClass}
-                  />
-                </label>
-
-                <label
-                  data-validation-field="lieu"
-                  className={`grid gap-1 lg:col-span-7 ${getValidationFieldClass("lieu")}`}
-                >
-                  <span className={labelClass}>Lieu</span>
-                  <input
-                    value={formData.lieu}
-                    onChange={(event) => setField("lieu", event.target.value)}
-                    disabled={!canEdit}
-                    placeholder="Ex. Salle 3, UCP"
-                    className={compactInputClass}
-                  />
-                </label>
-
-                <label
-                  data-validation-field="president"
-                  className={`grid gap-1 lg:col-span-4 ${getValidationFieldClass("president")}`}
-                >
-                  <span className={labelClass}>Président</span>
-                  <select
-                    value={formData.president}
-                    onChange={(event) => handlePresidentChange(event.target.value)}
-                    disabled={!canEdit}
-                    className={compactSelectClass}
-                  >
-                    <option value="" disabled>
-                      Choisir un président
-                    </option>
-                    {availableUsers.map((user) => (
-                      <option key={user.id} value={user.id}>
-                        {getUserLabel(user)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <div
-                  data-validation-field="membre_ids"
-                  className={`grid gap-1 lg:col-span-12 ${getValidationFieldClass("membre_ids")}`}
-                >
-                  <span className={labelClass}>Membres présents hors président</span>
-                  <div className="rounded-lg border border-slate-200 bg-slate-50/70 p-2">
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="text-[12px] font-semibold text-slate-500">
-                        {selectedMembers.length > 0
-                          ? `${selectedMembers.length} membre(s) hors président sélectionné(s)`
-                          : "Aucun membre hors président sélectionné"}
-                      </p>
-                      <button
-                        type="button"
-                        onClick={openMemberModal}
-                        disabled={!canEdit || !selectedPresidentId}
-                        className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-white shadow-lg shadow-emerald-500/20 transition-all hover:-translate-y-0.5 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
+                    <label className="grid gap-1 lg:col-span-4">
+                      <span className={labelClass}>Étape</span>
+                      <select
+                        value={formData.etape_ouverture}
+                        onChange={(event) =>
+                          setField(
+                            "etape_ouverture",
+                            event.target.value as DetailFormState["etape_ouverture"],
+                          )
+                        }
+                        disabled={!canEdit}
+                        className={compactSelectClass}
                       >
-                        <UserPlus className="h-4 w-4" />
-                        Ajouter un membre
-                      </button>
-                    </div>
+                        <option value="COMPLETE">Ouverture complète</option>
+                        <option value="ADMIN_TECH">Administrative et technique</option>
+                      </select>
+                    </label>
 
-                    <div className="mt-2 rounded-lg border border-emerald-100 bg-emerald-50/80 px-3 py-2 text-[11px] font-semibold leading-relaxed text-emerald-800">
-                      <div className="flex items-start gap-2">
-                        <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-                        {selectedPresident ? (
-                          <p>
-                            Le président est choisi dans le champ précédent et ne doit pas être
-                            ajouté ici. Cette liste contient uniquement les membres qui valideront
-                            avant le président.
-                          </p>
-                        ) : (
-                          <p>
-                            Choisis d’abord le président, puis ajoute les membres présents. Le
-                            président sera exclu de cette liste pour éviter le double rôle.
-                          </p>
-                        )}
-                      </div>
-                      {selectedPresident && (
-                        <p className="mt-1 pl-6 text-emerald-700">
-                          Président sélectionné :{" "}
-                          <span className="font-black">{getUserLabel(selectedPresident)}</span>
-                        </p>
-                      )}
-                    </div>
+                    <label
+                      data-validation-field="date_seance"
+                      className={`grid gap-1 lg:col-span-3 ${getValidationFieldClass("date_seance")}`}
+                    >
+                      <span className={labelClass}>Date ouverture</span>
+                      <input
+                        type="date"
+                        value={formData.date_seance}
+                        onChange={(event) => setField("date_seance", event.target.value)}
+                        disabled={!canEdit}
+                        min={new Date().toISOString().slice(0, 10)}
+                        className={compactInputClass}
+                      />
+                    </label>
 
-                    <div className="mt-2 grid gap-1.5 md:grid-cols-3">
-                      {selectedMembers.length > 0 ? (
-                        selectedMembers.map((user, index) => (
-                          <div
-                            key={user.id}
-                            className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-2 py-1.5 shadow-sm"
+                    <label
+                      data-validation-field="heure_seance"
+                      className={`grid gap-1 lg:col-span-2 ${getValidationFieldClass("heure_seance")}`}
+                    >
+                      <span className={labelClass}>Heure</span>
+                      <input
+                        type="time"
+                        value={formData.heure_seance}
+                        onChange={(event) => setField("heure_seance", event.target.value)}
+                        disabled={!canEdit}
+                        className={compactInputClass}
+                      />
+                    </label>
+
+                    <label
+                      data-validation-field="lieu"
+                      className={`grid gap-1 lg:col-span-7 ${getValidationFieldClass("lieu")}`}
+                    >
+                      <span className={labelClass}>Lieu</span>
+                      <input
+                        value={formData.lieu}
+                        onChange={(event) => setField("lieu", event.target.value)}
+                        disabled={!canEdit}
+                        placeholder="Ex. Salle 3, UCP"
+                        className={compactInputClass}
+                      />
+                    </label>
+
+                    <label
+                      data-validation-field="president"
+                      className={`grid gap-1 lg:col-span-4 ${getValidationFieldClass("president")}`}
+                    >
+                      <span className={labelClass}>Président</span>
+                      <select
+                        value={formData.president}
+                        onChange={(event) => handlePresidentChange(event.target.value)}
+                        disabled={!canEdit}
+                        className={compactSelectClass}
+                      >
+                        <option value="" disabled>
+                          Choisir un président
+                        </option>
+                        {availableUsers.map((user) => (
+                          <option key={user.id} value={user.id}>
+                            {getUserLabel(user)}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                  </div>
+                </div>
+              </section>
+
+              <section className="group relative overflow-hidden rounded-2xl border border-white/40 bg-white/70 shadow-[0_6px_24px_rgba(0,0,0,0.04)] backdrop-blur-md transition-all duration-500 hover:shadow-[0_10px_36px_rgba(0,0,0,0.06)]">
+                <div className="absolute left-0 top-0 h-1 w-full bg-gradient-to-r from-emerald-500 via-sky-400 to-emerald-500 bg-[length:200%_100%] animate-gradient" />
+                <div className="p-3">
+                  <h2 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-800">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-100/80 text-emerald-600 shadow-sm backdrop-blur-sm transition-transform duration-300 group-hover:scale-110">
+                      <ListPlus className="h-4 w-4" />
+                    </div>
+                    2. Soumissionnaires et offres reçues
+                  </h2>
+                </div>
+
+                {!showMontantColumn && (
+                  <div className="border-b border-sky-100 bg-sky-50/80 px-4 py-2 text-sm font-semibold text-sky-800">
+                    Aucun montant à saisir pour une ouverture administrative et technique.
+                  </div>
+                )}
+
+                <div className="overflow-x-auto 2xl:overflow-visible">
+                  <table className="w-full min-w-[1120px] table-fixed text-left">
+                    <thead className="bg-white">
+                      <tr className="border-b border-slate-200 text-center text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">
+                        <th className="w-10 px-3 py-3">#</th>
+                        <th className="w-40 px-2 py-3">Soumissionnaire</th>
+                        <th className="w-64 px-2 py-3">Date & Heure de réception</th>
+                        <th className="w-28 px-2 py-3">Enveloppe administrative</th>
+                        <th className="w-28 px-2 py-3">Enveloppe technique</th>
+                        <th className="w-28 px-2 py-3">Enveloppe financière</th>
+                        {showMontantColumn && <th className="w-28 px-2 py-3">Montant</th>}
+                        <th className="w-56 px-2 py-3">Observation</th>
+                        <th className="w-14 px-2 py-3 text-right">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {formData.offres.map((offre, index) => {
+                        const disableOfferFields = !canEdit;
+
+                        return (
+                          <tr
+                            key={offre.localId}
+                            className="border-b align-top text-sm text-slate-700 last:border-b-0 border-slate-100"
                           >
-                            <div className="flex min-w-0 items-center gap-3">
-                              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-slate-100 text-[11px] font-black text-slate-600">
+                            <td className="px-3 py-3">
+                              <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 text-xs font-bold text-slate-600">
                                 {index + 1}
                               </span>
-                              <div className="min-w-0">
-                                <p className="truncate text-[12px] font-black text-slate-800">
-                                  {getUserLabel(user)}
-                                </p>
-                                <p className="truncate text-[10px] font-semibold text-slate-400">
-                                  {user.email || user.username}
-                                </p>
+                            </td>
+                            <td className="px-3 py-3">
+                              <div
+                                data-validation-field={`offre-${offre.localId}-nom`}
+                                className={getValidationFieldClass(`offre-${offre.localId}-nom`)}
+                              >
+                                <input
+                                  value={offre.nom_soumissionnaire}
+                                  onChange={(event) =>
+                                    updateOffreRow(offre.localId, {
+                                      nom_soumissionnaire: event.target.value,
+                                    })
+                                  }
+                                  disabled={!canEdit}
+                                  placeholder="Entreprise"
+                                  className={`${inputClass} w-full`}
+                                />
                               </div>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveMember(user.id)}
-                              disabled={!canEdit}
-                              className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-400 transition-colors hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-50"
-                              title="Retirer"
-                            >
-                              <X className="h-4 w-4" />
-                            </button>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="rounded-lg border border-dashed border-slate-300 bg-white/70 p-2 text-center text-[12px] font-semibold text-slate-500 md:col-span-3">
-                          Aucun membre hors président ajouté.
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-              </div>
-            </section>
-
-            <section className="group relative overflow-hidden rounded-2xl border border-white/40 bg-white/70 shadow-[0_6px_24px_rgba(0,0,0,0.04)] backdrop-blur-md transition-all duration-500 hover:shadow-[0_10px_36px_rgba(0,0,0,0.06)]">
-              <div className="absolute left-0 top-0 h-1 w-full bg-gradient-to-r from-emerald-500 via-sky-400 to-emerald-500 bg-[length:200%_100%] animate-gradient" />
-              <div className="p-3">
-                <h2 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-800">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-100/80 text-emerald-600 shadow-sm backdrop-blur-sm transition-transform duration-300 group-hover:scale-110">
-                    <ListPlus className="h-4 w-4" />
-                  </div>
-                  2. Soumissionnaires et offres reçues
-                </h2>
-              </div>
-
-              {!showMontantColumn && (
-                <div className="border-b border-sky-100 bg-sky-50/80 px-4 py-2 text-sm font-semibold text-sky-800">
-                  Aucun montant à saisir pour une ouverture administrative et technique.
-                </div>
-              )}
-
-              <div className="overflow-x-auto">
-                <table className="min-w-[1180px] w-full table-fixed text-left">
-                  <thead className="bg-white">
-                    <tr className="border-b border-slate-200 text-center text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">
-                      <th className="w-10 px-3 py-3">#</th>
-                      <th className="w-44 px-3 py-3">Soumissionnaire</th>
-                      <th className="w-80 px-3 py-3">Pli / réception</th>
-                      <th className="w-32 px-3 py-3">Enveloppe administrative</th>
-                      <th className="w-32 px-3 py-3">Enveloppe technique</th>
-                      <th className="w-32 px-3 py-3">Enveloppe financière</th>
-                      {showMontantColumn && <th className="w-32 px-3 py-3">Montant</th>}
-                      <th className="w-40 px-3 py-3">Observation</th>
-                      <th className="w-16 px-3 py-3 text-right">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {formData.offres.map((offre, index) => {
-                      const disableOfferFields = !canEdit || !offre.pli_existe;
-
-                      return (
-                        <tr
-                          key={offre.localId}
-                          className={`border-b align-top text-sm text-slate-700 last:border-b-0 ${
-                            offre.pli_existe
-                              ? "border-slate-100"
-                              : "border-rose-100 bg-rose-50/45"
-                          }`}
-                        >
-                          <td className="px-3 py-3">
-                            <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 text-xs font-bold text-slate-600">
-                              {index + 1}
-                            </span>
-                          </td>
-                          <td className="px-3 py-3">
-                            <div
-                              data-validation-field={`offre-${offre.localId}-nom`}
-                              className={getValidationFieldClass(`offre-${offre.localId}-nom`)}
-                            >
-                              <input
-                                value={offre.nom_soumissionnaire}
-                                onChange={(event) =>
-                                  updateOffreRow(offre.localId, {
-                                    nom_soumissionnaire: event.target.value,
-                                  })
-                                }
-                                disabled={!canEdit}
-                                placeholder="Entreprise"
-                                className={`${inputClass} w-full`}
-                              />
-                            </div>
-                          </td>
-                          <td className="px-3 py-3">
-                            <div className="grid w-full gap-2">
-                              <BinaryChoice
-                                trueLabel="Pli reçu"
-                                falseLabel="Non reçu"
-                                checked={offre.pli_existe}
-                                disabled={!canEdit}
-                                falseTone="danger"
-                                onChange={(checked) => setPliState(offre, checked)}
-                              />
-
-                              {offre.pli_existe ? (
+                            </td>
+                            <td className="px-3 py-3">
+                              <div className="grid w-full gap-2">
                                 <div
                                   data-validation-field={`offre-${offre.localId}-reception`}
                                   className={`grid grid-cols-[minmax(170px,1fr)_112px] gap-2 ${getValidationFieldClass(`offre-${offre.localId}-reception`)}`}
@@ -1359,289 +1385,285 @@ export default function SeanceOuvertureDetail() {
                                     disabled={disableOfferFields}
                                     max={
                                       deadlineDate &&
-                                      offre.date_reception_pli === deadlineDate
+                                        offre.date_reception_pli === deadlineDate
                                         ? deadlineTime || undefined
                                         : undefined
                                     }
                                     className={`${inputClass} px-2 text-[12px]`}
                                   />
                                 </div>
-                              ) : (
-                                <div
-                                  data-validation-field={`offre-${offre.localId}-motif`}
-                                  className={getValidationFieldClass(`offre-${offre.localId}-motif`)}
-                                >
-                                  <input
-                                    value={offre.motif_absence_pli}
-                                    onChange={(event) =>
-                                      updateOffreRow(offre.localId, {
-                                        motif_absence_pli: event.target.value,
-                                      })
-                                    }
-                                    disabled={!canEdit}
-                                    placeholder="Motif obligatoire"
-                                    className={inputClass}
-                                  />
-                                </div>
-                              )}
-                            </div>
-                          </td>
-                          <EnvelopeCell
-                            value={offre.enveloppe_administrative}
-                            disabled={disableOfferFields}
-                            onChange={(value) =>
-                              updateOffreRow(offre.localId, {
-                                enveloppe_administrative: value,
-                              })
-                            }
-                          />
-                          <EnvelopeCell
-                            value={offre.enveloppe_technique}
-                            disabled={disableOfferFields}
-                            onChange={(value) =>
-                              updateOffreRow(offre.localId, {
-                                enveloppe_technique: value,
-                              })
-                            }
-                          />
-                          <EnvelopeCell
-                            value={offre.enveloppe_financiere}
-                            disabled={disableOfferFields}
-                            onChange={(value) =>
-                              updateOffreRow(offre.localId, {
-                                enveloppe_financiere: value,
-                              })
-                            }
-                          />
-                          {showMontantColumn && (
+                              </div>
+                            </td>
+                            <EnvelopeCell
+                              value={offre.enveloppe_administrative}
+                              disabled={disableOfferFields}
+                              options={[
+                                { value: "RECU", label: "Reçu" },
+                                { value: "INTEGRE", label: "Intègre" },
+                                { value: "MANQUANT", label: "Manquant" },
+                              ]}
+                              onChange={(value) =>
+                                updateOffreRow(offre.localId, {
+                                  enveloppe_administrative: value,
+                                })
+                              }
+                            />
+                            <EnvelopeCell
+                              value={offre.enveloppe_technique}
+                              disabled={disableOfferFields}
+                              options={[
+                                { value: "RECU", label: "Reçu" },
+                                { value: "MANQUANTE", label: "Manquante" },
+                              ]}
+                              onChange={(value) =>
+                                updateOffreRow(offre.localId, {
+                                  enveloppe_technique: value,
+                                })
+                              }
+                            />
+                            <EnvelopeCell
+                              value={offre.enveloppe_financiere}
+                              disabled={disableOfferFields}
+                              options={[
+                                { value: "RECU", label: "Reçu" },
+                                { value: "INTEGRE", label: "Intègre" },
+                                { value: "MANQUANTE", label: "Manquante" },
+                              ]}
+                              onChange={(value) =>
+                                updateOffreRow(offre.localId, {
+                                  enveloppe_financiere: value,
+                                })
+                              }
+                            />
+                            {showMontantColumn && (
+                              <td className="px-3 py-3">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={offre.montant_global}
+                                  onChange={(event) =>
+                                    updateOffreRow(offre.localId, {
+                                      montant_global: event.target.value,
+                                    })
+                                  }
+                                  disabled={disableOfferFields}
+                                  placeholder="0"
+                                  className={`${inputClass} w-full`}
+                                />
+                              </td>
+                            )}
                             <td className="px-3 py-3">
                               <input
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                value={offre.montant_global}
+                                value={offre.observations}
                                 onChange={(event) =>
                                   updateOffreRow(offre.localId, {
-                                    montant_global: event.target.value,
+                                    observations: event.target.value,
                                   })
                                 }
-                                disabled={disableOfferFields}
-                                placeholder="0"
+                                disabled={!canEdit}
+                                placeholder="RAS"
                                 className={`${inputClass} w-full`}
                               />
                             </td>
-                          )}
-                          <td className="px-3 py-3">
-                            <input
-                              value={offre.observations}
-                              onChange={(event) =>
-                                updateOffreRow(offre.localId, {
-                                  observations: event.target.value,
-                                })
-                              }
-                              disabled={!canEdit}
-                              placeholder="RAS"
-                              className={`${inputClass} w-full`}
-                            />
-                          </td>
-                          <td className="px-3 py-3">
-                            <div className="flex justify-end">
-                              <button
-                                type="button"
-                                title="Retirer"
-                                onClick={() => removeOffreRow(offre.localId)}
-                                disabled={!canEdit}
-                                className="rounded-lg border border-rose-200 bg-white p-2 text-rose-700 transition-colors hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                            <td className="px-3 py-3">
+                              <div className="flex justify-end">
+                                <button
+                                  type="button"
+                                  title="Retirer"
+                                  onClick={() => removeOffreRow(offre.localId)}
+                                  disabled={!canEdit}
+                                  className="rounded-lg border border-rose-200 bg-white p-2 text-rose-700 transition-colors hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
 
-              <div className="flex justify-end border-t border-slate-100 bg-white/60 px-4 py-3">
-                <button
-                  type="button"
-                  onClick={addOffreRow}
-                  disabled={!canEdit}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-[10px] font-black uppercase tracking-widest text-white shadow-lg shadow-emerald-500/20 transition-all hover:-translate-y-0.5 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
-                >
-                  <ListPlus className="h-4 w-4" />
-                  Ajouter soumissionnaire
-                </button>
-              </div>
-            </section>
-
-            <section className="group relative overflow-hidden rounded-2xl border border-white/40 bg-white/70 shadow-[0_6px_24px_rgba(0,0,0,0.04)] backdrop-blur-md transition-all duration-500 hover:shadow-[0_10px_36px_rgba(0,0,0,0.06)]">
-              <div className="absolute left-0 top-0 h-1 w-full bg-gradient-to-r from-emerald-500 via-amber-300 to-emerald-500 bg-[length:200%_100%] animate-gradient" />
-              <div className="p-3">
-                <h2 className="mb-3 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-800">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-100/80 text-emerald-600 shadow-sm backdrop-blur-sm transition-transform duration-300 group-hover:scale-110">
-                    <ShieldCheck className="h-4 w-4" />
-                  </div>
-                  3. Scellés et incidents
-                </h2>
-
-                <div className="grid gap-2 lg:grid-cols-12">
-                  <label
-                    data-validation-field="etat_scelle"
-                    className={`grid gap-1 lg:col-span-4 ${getValidationFieldClass("etat_scelle")}`}
+                <div className="flex justify-end border-t border-slate-100 bg-white/60 px-4 py-3">
+                  <button
+                    type="button"
+                    onClick={addOffreRow}
+                    disabled={!canEdit}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-[10px] font-black uppercase tracking-widest text-white shadow-lg shadow-emerald-500/20 transition-all hover:-translate-y-0.5 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
                   >
-                    <span className={labelClass}>État du scellé</span>
-                    <select
-                      value={formData.etat_scelle}
-                      onChange={(event) =>
-                        setField(
-                          "etat_scelle",
-                          event.target.value as DetailFormState["etat_scelle"],
-                        )
-                      }
-                      disabled={!canEdit}
-                      className={compactSelectClass}
-                    >
-                      <option value="" disabled>
-                        Choisir
-                      </option>
-                      <option value="INTACT">Intact</option>
-                      <option value="ALTERE">Altéré</option>
-                      <option value="ABSENT">Absent</option>
-                    </select>
-                  </label>
+                    <ListPlus className="h-4 w-4" />
+                    Ajouter soumissionnaire
+                  </button>
+                </div>
+              </section>
 
-                  <div className="grid gap-1 lg:col-span-4">
-                    <span className={labelClass}>Rature / surcharge</span>
-                    <BinaryChoice
-                      trueLabel="Oui"
-                      falseLabel="Non"
-                      checked={formData.presence_rature}
-                      disabled={!canEdit}
-                      trueTone="danger"
-                      onChange={(checked) => setField("presence_rature", checked)}
-                    />
-                  </div>
+              <section className="group relative overflow-hidden rounded-2xl border border-white/40 bg-white/70 shadow-[0_6px_24px_rgba(0,0,0,0.04)] backdrop-blur-md transition-all duration-500 hover:shadow-[0_10px_36px_rgba(0,0,0,0.06)]">
+                <div className="absolute left-0 top-0 h-1 w-full bg-gradient-to-r from-emerald-500 via-amber-300 to-emerald-500 bg-[length:200%_100%] animate-gradient" />
+                <div className="p-3">
+                  <h2 className="mb-3 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-800">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-100/80 text-emerald-600 shadow-sm backdrop-blur-sm transition-transform duration-300 group-hover:scale-110">
+                      <ShieldCheck className="h-4 w-4" />
+                    </div>
+                    3. Scellés et incidents
+                  </h2>
 
-                  <div className="grid gap-1 lg:col-span-4">
-                    <span className={labelClass}>Document de substitution</span>
-                    <BinaryChoice
-                      trueLabel="Oui"
-                      falseLabel="Non"
-                      checked={formData.document_substitution_present}
-                      disabled={!canEdit}
-                      onChange={(checked) =>
-                        setField("document_substitution_present", checked)
-                      }
-                    />
-                  </div>
-
-                  {formData.presence_rature && (
+                  <div className="grid gap-2 lg:grid-cols-12">
                     <label
-                      data-validation-field="description_rature"
-                      className={`grid gap-1 lg:col-span-12 ${getValidationFieldClass("description_rature")}`}
+                      data-validation-field="etat_scelle"
+                      className={`grid gap-1 lg:col-span-4 ${getValidationFieldClass("etat_scelle")}`}
                     >
-                      <span className={labelClass}>Description rature</span>
-                      <textarea
-                        rows={3}
-                        value={formData.description_rature}
+                      <span className={labelClass}>État du scellé</span>
+                      <select
+                        value={formData.etat_scelle}
                         onChange={(event) =>
-                          setField("description_rature", event.target.value)
+                          setField(
+                            "etat_scelle",
+                            event.target.value as DetailFormState["etat_scelle"],
+                          )
                         }
                         disabled={!canEdit}
-                        className={`${compactTextareaClass} w-full border-rose-200 bg-gradient-to-br from-rose-50/80 to-amber-50/50 text-rose-950 placeholder:text-rose-300 focus:border-rose-300 focus:ring-rose-50`}
-                      />
+                        className={compactSelectClass}
+                      >
+                        <option value="" disabled>
+                          Choisir
+                        </option>
+                        <option value="INTACT">Intact</option>
+                        <option value="ALTERE">Altéré</option>
+                        <option value="ABSENT">Absent</option>
+                      </select>
                     </label>
-                  )}
-                </div>
-              </div>
-            </section>
 
-            {canEdit && (
-              <section className="flex flex-col gap-2 rounded-2xl border border-white/40 bg-white/80 p-2.5 shadow-[0_6px_24px_rgba(0,0,0,0.04)] backdrop-blur-md sm:flex-row sm:items-center sm:justify-end">
-                <button
-                  type="button"
-                  onClick={() => void handleSave("BROUILLON")}
-                  disabled={!!saveMode}
-                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  <Save className="h-4 w-4" />
-                  {saveMode === "draft" ? "Enregistrement..." : "Enregistrer brouillon"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void handleSave("EN_VALIDATION_MEMBRES")}
-                  disabled={!!saveMode}
-                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  <SendHorizontal className="h-4 w-4" />
-                  {saveMode === "submit" ? "Transmission..." : "Mettre à valider"}
-                </button>
-              </section>
-            )}
+                    <div className="grid gap-1 lg:col-span-4">
+                      <span className={labelClass}>Rature / surcharge</span>
+                      <BinaryChoice
+                        trueLabel="Oui"
+                        falseLabel="Non"
+                        checked={formData.presence_rature}
+                        disabled={!canEdit}
+                        trueTone="danger"
+                        onChange={(checked) => setField("presence_rature", checked)}
+                      />
+                    </div>
 
-            {canTakeDecision && (
-              <section className="group relative overflow-hidden rounded-3xl border border-white/40 bg-white/70 shadow-[0_8px_32px_rgba(0,0,0,0.05)] backdrop-blur-md transition-all duration-500 hover:shadow-[0_12px_48px_rgba(0,0,0,0.08)]">
-                <div className="absolute left-0 top-0 h-1.5 w-full bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-500 bg-[length:200%_100%] animate-gradient" />
-                <div className="grid gap-3 p-4 lg:grid-cols-[minmax(0,1fr)_280px] lg:items-end">
-                  <div>
-                    <h2 className="mb-3 flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-slate-800">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-100/80 text-emerald-600 shadow-sm backdrop-blur-sm transition-transform duration-300 group-hover:scale-110">
-                        <CheckCircle2 className="h-4 w-4" />
-                      </div>
-                      4. Décision
-                    </h2>
-                    {presidentValidationBlocked && (
-                      <p className="mb-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
-                        La validation finale sera disponible après validation de tous les membres présents.
-                      </p>
-                    )}
-                    <textarea
-                      value={validationComment}
-                      onChange={(event) => setValidationComment(event.target.value)}
-                      rows={3}
-                      placeholder="Observation obligatoire pour un rejet, facultative pour une validation."
-                      className={`${textareaClass} w-full`}
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-3 lg:justify-end">
-                    {(canRejectAsMember || canRejectAsPresident) && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          requestReject(canRejectAsPresident ? "president" : "member")
+                    <div className="grid gap-1 lg:col-span-4">
+                      <span className={labelClass}>Document de substitution</span>
+                      <BinaryChoice
+                        trueLabel="Oui"
+                        falseLabel="Non"
+                        checked={formData.document_substitution_present}
+                        disabled={!canEdit}
+                        onChange={(checked) =>
+                          setField("document_substitution_present", checked)
                         }
-                        disabled={!!saveMode}
-                        className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-rose-600 px-5 text-sm font-semibold text-white shadow-lg shadow-rose-500/20 transition-all hover:-translate-y-0.5 hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
+                      />
+                    </div>
+
+                    {formData.presence_rature && (
+                      <label
+                        data-validation-field="description_rature"
+                        className={`grid gap-1 lg:col-span-12 ${getValidationFieldClass("description_rature")}`}
                       >
-                        <X className="h-4 w-4" />
-                        {saveMode === "reject-member" || saveMode === "reject-president"
-                          ? "Rejet..."
-                          : "Rejeter"}
-                      </button>
-                    )}
-                    {(canValidateAsMember || canValidateAsPresident) && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          requestValidate(canValidateAsPresident ? "president" : "member")
-                        }
-                        disabled={!!saveMode}
-                        className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 text-sm font-semibold text-white shadow-lg shadow-emerald-500/20 transition-all hover:-translate-y-0.5 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
-                      >
-                        <CheckCircle2 className="h-4 w-4" />
-                        {saveMode === "member" || saveMode === "president"
-                          ? "Validation..."
-                          : "Valider"}
-                      </button>
+                        <span className={labelClass}>Description rature</span>
+                        <textarea
+                          rows={3}
+                          value={formData.description_rature}
+                          onChange={(event) =>
+                            setField("description_rature", event.target.value)
+                          }
+                          disabled={!canEdit}
+                          className={`${compactTextareaClass} w-full border-rose-200 bg-gradient-to-br from-rose-50/80 to-amber-50/50 text-rose-950 placeholder:text-rose-300 focus:border-rose-300 focus:ring-rose-50`}
+                        />
+                      </label>
                     )}
                   </div>
                 </div>
               </section>
-            )}
+
+              {canEdit && (
+                <section className="flex flex-col gap-2 rounded-2xl border border-white/40 bg-white/80 p-2.5 shadow-[0_6px_24px_rgba(0,0,0,0.04)] backdrop-blur-md sm:flex-row sm:items-center sm:justify-end">
+                  <button
+                    type="button"
+                    onClick={() => void handleSave("BROUILLON")}
+                    disabled={!!saveMode}
+                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <Save className="h-4 w-4" />
+                    {saveMode === "draft" ? "Enregistrement..." : "Enregistrer brouillon"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleSave("EN_VALIDATION_MEMBRES")}
+                    disabled={!!saveMode}
+                    className="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <SendHorizontal className="h-4 w-4" />
+                    {saveMode === "submit" ? "Transmission..." : "Mettre à valider"}
+                  </button>
+                </section>
+              )}
+
+              {canTakeDecision && (
+                <section className="group relative overflow-hidden rounded-3xl border border-white/40 bg-white/70 shadow-[0_8px_32px_rgba(0,0,0,0.05)] backdrop-blur-md transition-all duration-500 hover:shadow-[0_12px_48px_rgba(0,0,0,0.08)]">
+                  <div className="absolute left-0 top-0 h-1.5 w-full bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-500 bg-[length:200%_100%] animate-gradient" />
+                  <div className="grid gap-3 p-4 lg:grid-cols-[minmax(0,1fr)_280px] lg:items-end">
+                    <div>
+                      <h2 className="mb-3 flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-slate-800">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-100/80 text-emerald-600 shadow-sm backdrop-blur-sm transition-transform duration-300 group-hover:scale-110">
+                          <CheckCircle2 className="h-4 w-4" />
+                        </div>
+                        4. Décision
+                      </h2>
+                      {presidentValidationBlocked && (
+                        <p className="mb-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
+                          La validation finale sera disponible après validation de tous les membres présents.
+                        </p>
+                      )}
+                      <textarea
+                        value={validationComment}
+                        onChange={(event) => setValidationComment(event.target.value)}
+                        rows={3}
+                        placeholder="Observation obligatoire pour un rejet, facultative pour une validation."
+                        className={`${textareaClass} w-full`}
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-3 lg:justify-end">
+                      {(canRejectAsMember || canRejectAsPresident) && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            requestReject(canRejectAsPresident ? "president" : "member")
+                          }
+                          disabled={!!saveMode}
+                          className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-rose-600 px-5 text-sm font-semibold text-white shadow-lg shadow-rose-500/20 transition-all hover:-translate-y-0.5 hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
+                        >
+                          <X className="h-4 w-4" />
+                          {saveMode === "reject-member" || saveMode === "reject-president"
+                            ? "Rejet..."
+                            : "Rejeter"}
+                        </button>
+                      )}
+                      {(canValidateAsMember || canValidateAsPresident) && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            requestValidate(canValidateAsPresident ? "president" : "member")
+                          }
+                          disabled={!!saveMode}
+                          className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 text-sm font-semibold text-white shadow-lg shadow-emerald-500/20 transition-all hover:-translate-y-0.5 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
+                        >
+                          <CheckCircle2 className="h-4 w-4" />
+                          {saveMode === "member" || saveMode === "president"
+                            ? "Validation..."
+                            : "Valider"}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </section>
+              )}
             </>
           ) : (
             <>
@@ -1748,11 +1770,10 @@ export default function SeanceOuvertureDetail() {
                     </>
                   ) : hasProcessedByCurrentUser ? (
                     <div
-                      className={`rounded-2xl border px-4 py-3 text-sm font-semibold ${
-                        hasRejectedAsMember || hasRejectedAsPresident
+                      className={`rounded-2xl border px-4 py-3 text-sm font-semibold ${hasRejectedAsMember || hasRejectedAsPresident
                           ? "border-rose-200 bg-rose-50 text-rose-800"
                           : "border-emerald-200 bg-emerald-50 text-emerald-800"
-                      }`}
+                        }`}
                     >
                       {hasRejectedAsMember || hasRejectedAsPresident
                         ? "Rejet déjà enregistré."
@@ -1811,6 +1832,14 @@ export default function SeanceOuvertureDetail() {
           />
         )}
 
+        {isCommissionModalOpen && (
+          <CommissionMembersModal
+            members={commissionMembers}
+            reference={seance.reference_dossier}
+            onClose={() => setIsCommissionModalOpen(false)}
+          />
+        )}
+
         {pendingRejectMode && (
           <RejectConfirmModal
             roleLabel={
@@ -1860,6 +1889,130 @@ export default function SeanceOuvertureDetail() {
         )}
       </div>
     </main>
+  );
+}
+
+function CommissionMembersModal({
+  members,
+  reference,
+  onClose,
+}: {
+  members: CommissionMember[];
+  reference: string;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-[85] flex items-center justify-center bg-slate-950/45 px-4 py-8 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="commission-members-title"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <div className="w-full max-w-5xl overflow-hidden rounded-3xl border border-white/70 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.24)]">
+        <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5">
+          <div className="min-w-0">
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-600">
+              Commission
+            </p>
+            <h2
+              id="commission-members-title"
+              className="mt-1 text-lg font-black text-slate-950"
+            >
+              Membres de la commission
+            </h2>
+            <p className="mt-1 text-xs font-semibold text-slate-500">
+              {reference || "Séance d'ouverture"}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-800"
+            aria-label="Fermer"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="max-h-[70vh] overflow-auto p-6">
+          {members.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
+              <Users className="mx-auto h-8 w-8 text-slate-300" />
+              <p className="mt-3 text-sm font-bold text-slate-600">
+                Aucun membre configuré pour cette commission.
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto rounded-2xl border border-slate-200">
+              <table className="w-full min-w-[1080px] text-left">
+                <thead className="bg-slate-50">
+                  <tr className="border-b border-slate-200 text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+                    <th className="w-14 px-4 py-3">#</th>
+                    <th className="px-4 py-3">Nom & prénom</th>
+                    <th className="px-4 py-3">N° carte</th>
+                    <th className="px-4 py-3">Intitulé</th>
+                    <th className="px-4 py-3">Poste</th>
+                    <th className="px-4 py-3">Validation</th>
+                    <th className="px-4 py-3">Commentaire</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {members.map((member, index) => (
+                    <tr
+                      key={`${member.email || member.nomPrenom || "member"}-${index}`}
+                      className="border-b border-slate-100 text-sm font-semibold text-slate-700 last:border-b-0"
+                    >
+                      <td className="px-4 py-3 text-xs font-black text-slate-400">
+                        {index + 1}
+                      </td>
+                      <td className="px-4 py-3 font-black text-slate-900">
+                        <p>{member.nomPrenom || "Nom non renseigné"}</p>
+                        <p className="mt-1 text-xs font-semibold text-slate-500">
+                          {member.email || "-"}
+                        </p>
+                      </td>
+                      <td className="px-4 py-3">{member.cin || "-"}</td>
+                      <td className="px-4 py-3">{member.entite || "-"}</td>
+                      <td className="px-4 py-3">
+                        {member.poste ? (
+                          <span className="inline-flex rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-1 text-xs font-black text-emerald-700">
+                            {member.poste}
+                          </span>
+                        ) : (
+                          "-"
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-black ${
+                            member.decision === "VALIDEE"
+                              ? "border-emerald-100 bg-emerald-50 text-emerald-700"
+                              : member.decision === "REJETEE"
+                                ? "border-rose-100 bg-rose-50 text-rose-700"
+                                : "border-amber-100 bg-amber-50 text-amber-700"
+                          }`}
+                        >
+                          {getCommissionDecisionLabel(member.decision)}
+                        </span>
+                        <p className="mt-1.5 text-xs font-semibold text-slate-500">
+                          {formatValidationDateTime(member.dateValidation)}
+                        </p>
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">
+                        {member.commentaire?.trim() || "Aucun commentaire"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -2135,19 +2288,17 @@ function NotificationPopup({
 
   return (
     <div
-      className={`fixed bottom-6 right-6 z-[90] flex w-[min(92vw,31rem)] items-start gap-4 rounded-[22px] border px-5 py-4 shadow-[0_24px_70px_rgba(15,23,42,0.28)] ${
-        isError
+      className={`fixed bottom-6 right-6 z-[90] flex w-[min(92vw,31rem)] items-start gap-4 rounded-[22px] border px-5 py-4 shadow-[0_24px_70px_rgba(15,23,42,0.28)] ${isError
           ? "border-rose-300 bg-[linear-gradient(135deg,#be123c_0%,#e11d48_100%)] text-white"
           : "border-emerald-300 bg-[linear-gradient(135deg,#047857_0%,#10b981_100%)] text-white"
-      }`}
+        }`}
       role="status"
     >
       <div
-        className={`mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border ${
-          isError
+        className={`mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border ${isError
             ? "border-rose-200/30 bg-white/12 text-white"
             : "border-emerald-200/30 bg-white/12 text-white"
-        }`}
+          }`}
       >
         {isError ? <AlertCircle className="h-5 w-5" /> : <CheckCircle2 className="h-5 w-5" />}
       </div>
@@ -2171,13 +2322,17 @@ function NotificationPopup({
   );
 }
 
+type EnvelopeOption = { value: EnvelopeState; label: string };
+
 function EnvelopeCell({
   value,
   disabled,
+  options,
   onChange,
 }: {
   value: EnvelopeState;
   disabled: boolean;
+  options: EnvelopeOption[];
   onChange: (value: EnvelopeState) => void;
 }) {
   return (
@@ -2191,8 +2346,11 @@ function EnvelopeCell({
         <option value="" disabled>
           Choisir
         </option>
-        <option value="DEPOSEE">Déposée</option>
-        <option value="MANQUANTE">Manquante</option>
+        {options.map((opt) => (
+          <option key={opt.value} value={opt.value}>
+            {opt.label}
+          </option>
+        ))}
       </select>
     </td>
   );
@@ -2339,11 +2497,10 @@ function MemberSelectionModal({
                     key={user.id}
                     type="button"
                     onClick={() => onToggle(user.id)}
-                    className={`flex w-full items-center justify-between gap-4 rounded-2xl border p-3 text-left transition-colors ${
-                      isSelected
+                    className={`flex w-full items-center justify-between gap-4 rounded-2xl border p-3 text-left transition-colors ${isSelected
                         ? "border-emerald-200 bg-emerald-50"
                         : "border-slate-200 bg-white hover:bg-slate-50"
-                    }`}
+                      }`}
                   >
                     <div className="min-w-0">
                       <p className="truncate text-sm font-black text-slate-900">
@@ -2354,11 +2511,10 @@ function MemberSelectionModal({
                       </p>
                     </div>
                     <span
-                      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border ${
-                        isSelected
+                      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border ${isSelected
                           ? "border-emerald-300 bg-emerald-600 text-white"
                           : "border-slate-300 bg-white text-transparent"
-                      }`}
+                        }`}
                     >
                       <CheckCircle2 className="h-4 w-4" />
                     </span>

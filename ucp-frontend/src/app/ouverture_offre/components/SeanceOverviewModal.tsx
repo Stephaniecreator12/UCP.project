@@ -23,7 +23,6 @@ const statusLabels: Record<SeanceOuverture["statut"], string> = {
   EN_VALIDATION_PRESIDENT: "Validation président",
   VALIDEE: "Validée",
   REJETEE: "Rejetée",
-  ARCHIVEE: "Archivée",
 };
 
 const statusClasses: Record<SeanceOuverture["statut"], string> = {
@@ -34,7 +33,6 @@ const statusClasses: Record<SeanceOuverture["statut"], string> = {
   EN_VALIDATION_PRESIDENT: "border-violet-200 bg-violet-50 text-violet-800",
   VALIDEE: "border-emerald-200 bg-emerald-50 text-emerald-800",
   REJETEE: "border-rose-200 bg-rose-50 text-rose-800",
-  ARCHIVEE: "border-slate-200 bg-slate-100 text-slate-700",
 };
 
 const procedureLabels: Record<string, string> = {

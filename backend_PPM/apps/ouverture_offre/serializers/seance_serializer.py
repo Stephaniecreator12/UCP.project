@@ -6,6 +6,57 @@ from .user_serializer import SimpleUserSerializer
 
 User = get_user_model()
 
+COMMON_EMAIL_DOMAIN_FIXES = {
+    "gmai.com": "gmail.com",
+    "gamil.com": "gmail.com",
+    "gmial.com": "gmail.com",
+    "gmal.com": "gmail.com",
+    "gmail.con": "gmail.com",
+    "yaho.com": "yahoo.com",
+    "yahoo.con": "yahoo.com",
+    "hotmai.com": "hotmail.com",
+    "hotmial.com": "hotmail.com",
+    "hotmail.con": "hotmail.com",
+    "outlok.com": "outlook.com",
+    "outllook.com": "outlook.com",
+    "outlook.con": "outlook.com",
+    "icloud.con": "icloud.com",
+}
+
+COMMON_COM_TLD_TYPOS = (".con", ".cim", ".cpm", ".copm", ".comm")
+
+
+def get_email_typo_suggestion(email):
+    value = (email or "").strip()
+    if value.count("@") != 1:
+        return ""
+
+    local_part, domain = value.rsplit("@", 1)
+    normalized_domain = domain.lower()
+    suggested_domain = COMMON_EMAIL_DOMAIN_FIXES.get(normalized_domain)
+
+    if not suggested_domain:
+        for typo in COMMON_COM_TLD_TYPOS:
+            if normalized_domain.endswith(typo):
+                suggested_domain = f"{domain[:-len(typo)]}.com"
+                break
+
+    if not suggested_domain or suggested_domain.lower() == normalized_domain:
+        return ""
+
+    return f"{local_part}@{suggested_domain}"
+
+
+def validate_email_typo(email):
+    suggestion = get_email_typo_suggestion(email)
+    if suggestion:
+        raise serializers.ValidationError(
+            "Adresse e-mail probablement mal saisie : "
+            f"{email}. Voulez-vous dire {suggestion} ? "
+            "Les domaines autres que Gmail restent acceptes."
+        )
+    return email
+
 
 class PVDocumentSerializer(serializers.ModelSerializer):
     class Meta:
@@ -28,6 +79,10 @@ class MembreSeanceSerializer(serializers.ModelSerializer):
             "id",
             "utilisateur",
             "utilisateur_detail",
+            "nom_prenom",
+            "numero_carte",
+            "intitule",
+            "poste",
             "est_present",
             "a_valide",
             "decision",
@@ -36,7 +91,17 @@ class MembreSeanceSerializer(serializers.ModelSerializer):
             "ip_adresse",
             "navigateur",
         ]
-        read_only_fields = ["a_valide", "decision", "date_validation", "ip_adresse", "navigateur"]
+        read_only_fields = [
+            "nom_prenom",
+            "numero_carte",
+            "intitule",
+            "poste",
+            "a_valide",
+            "decision",
+            "date_validation",
+            "ip_adresse",
+            "navigateur",
+        ]
 
 class OffreOuvertureSerializer(serializers.ModelSerializer):
     class Meta:
@@ -56,6 +121,21 @@ class OffreOuvertureSerializer(serializers.ModelSerializer):
             "observations",
         ]
 
+
+class CommissionMemberInputSerializer(serializers.Serializer):
+    nomPrenom = serializers.CharField()
+    email = serializers.EmailField()
+    cin = serializers.RegexField(
+        regex=r"^\d{12}$",
+        error_messages={"invalid": "Le CIN doit contenir exactement 12 chiffres."},
+    )
+    poste = serializers.CharField()
+    entite = serializers.CharField()
+
+    def validate_email(self, value):
+        return validate_email_typo(value)
+
+
 class SeanceOuvertureSerializer(serializers.ModelSerializer):
     secretaire_detail = SimpleUserSerializer(source="secretaire", read_only=True)
     president_detail = SimpleUserSerializer(source="president", read_only=True)
@@ -66,6 +146,11 @@ class SeanceOuvertureSerializer(serializers.ModelSerializer):
         required=False,
     )
     offres = OffreOuvertureSerializer(many=True, required=False)
+    commission_members = CommissionMemberInputSerializer(
+        many=True,
+        write_only=True,
+        required=False,
+    )
     pv_document = PVDocumentSerializer(read_only=True)
     class Meta:
         model = SeanceOuverture
@@ -84,12 +169,15 @@ class SeanceOuvertureSerializer(serializers.ModelSerializer):
             "president_detail",
             "membres",
             "membre_ids",
+            "commission_members",
             "created_at",
             "updated_at",
             "president_a_valide",
             "president_decision",
             "president_commentaire",
             "date_validation_president",
+            "president_ip_adresse",
+            "president_navigateur",
             "etape_ouverture",
             "etat_scelle",
             "presence_rature",
@@ -106,6 +194,8 @@ class SeanceOuvertureSerializer(serializers.ModelSerializer):
             "president_decision",
             "president_commentaire",
             "date_validation_president",
+            "president_ip_adresse",
+            "president_navigateur",
             "pv_document",
         ]
 
@@ -132,13 +222,29 @@ class SeanceOuvertureSerializer(serializers.ModelSerializer):
             getattr(instance, "description_rature", ""),
         )
         membre_ids = attrs.get("membre_ids", None)
-        existing_member_count = instance.membres.count() if instance else 0
-        member_count = len(membre_ids) if membre_ids is not None else existing_member_count
+        commission_members = attrs.get("commission_members", None)
 
         if membre_ids and president and president.id in membre_ids:
             raise serializers.ValidationError({
                 "membre_ids": "Le president ne doit pas etre dans la liste des membres presents."
             })
+
+        if commission_members is not None:
+            if len(commission_members) < 3:
+                raise serializers.ValidationError({
+                    "commission_members": "La commission doit contenir au moins 3 membres."
+                })
+
+            emails = [member["email"].strip().lower() for member in commission_members]
+            if len(set(emails)) != len(emails):
+                raise serializers.ValidationError({
+                    "commission_members": "Un meme email ne doit pas apparaitre deux fois."
+                })
+            president_email = (getattr(president, "email", "") or "").strip().lower()
+            if president_email and president_email in emails:
+                raise serializers.ValidationError({
+                    "commission_members": "Le president ne doit pas etre dans la liste des membres presents."
+                })
 
         if statut != SeanceOuverture.Statut.BROUILLON:
             errors = {}
@@ -150,8 +256,6 @@ class SeanceOuvertureSerializer(serializers.ModelSerializer):
                 errors["heure_seance"] = "Renseigne l heure de seance."
             if not lieu:
                 errors["lieu"] = "Renseigne le lieu."
-            if member_count < 3:
-                errors["membre_ids"] = "Selectionne au moins 3 membres presents hors president."
             if not etat_scelle:
                 errors["etat_scelle"] = "Renseigne l etat du scelle."
             if presence_rature and not description_rature:
@@ -211,3 +315,54 @@ class RejetSeanceSerializer(serializers.Serializer):
             raise serializers.ValidationError("Mot de passe incorrect.")
         return value
 
+
+class ValidationAccessSerializer(serializers.Serializer):
+    role = serializers.ChoiceField(choices=["membre", "president"])
+    email = serializers.EmailField()
+    password = serializers.CharField(required=True, write_only=True)
+
+    def validate_email(self, value):
+        return validate_email_typo(value)
+
+    def validate_password(self, value):
+        return value.strip()
+
+
+class ValidationDecisionSerializer(serializers.Serializer):
+    role = serializers.ChoiceField(choices=["membre", "president"])
+    email = serializers.EmailField()
+    password = serializers.CharField(required=True, write_only=True)
+    decision = serializers.ChoiceField(
+        choices=["VALIDER", "APPROUVER", "REJETER", "REPORTER"],
+    )
+    commentaire = serializers.CharField(required=False, allow_blank=True)
+    date_report = serializers.DateField(required=False, allow_null=True)
+
+    def validate_email(self, value):
+        return validate_email_typo(value)
+
+    def validate_password(self, value):
+        return value.strip()
+
+    def validate(self, attrs):
+        role = attrs["role"]
+        decision = attrs["decision"]
+
+        if role == "membre" and decision not in ["VALIDER", "REJETER"]:
+            raise serializers.ValidationError({
+                "decision": "Un membre peut uniquement valider ou rejeter."
+            })
+        if role == "president" and decision not in ["APPROUVER", "REJETER", "REPORTER"]:
+            raise serializers.ValidationError({
+                "decision": "Le president peut approuver, rejeter ou reporter."
+            })
+        if decision in ["REJETER", "REPORTER"] and not attrs.get("commentaire", "").strip():
+            raise serializers.ValidationError({
+                "commentaire": "Un commentaire est obligatoire pour rejeter ou reporter."
+            })
+        if decision == "REPORTER" and not attrs.get("date_report"):
+            raise serializers.ValidationError({
+                "date_report": "La date de report est obligatoire."
+            })
+
+        return attrs

@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState, type ElementType } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -22,19 +21,16 @@ import {
 
 import TopHeader from "@/app/components/TopHeader";
 import SeanceOverviewModal from "@/app/ouverture_offre/components/SeanceOverviewModal";
-import {
-  consumeOpeningFlashMessage,
-  setOpeningFlashMessage,
-} from "@/app/ouverture_offre/utils/flashMessage";
+import { consumeOpeningFlashMessage } from "@/app/ouverture_offre/utils/flashMessage";
 import {
   fetchCurrentUser,
   getToken,
   isSecretaireUser,
   type UserProfile,
 } from "@/services/auth";
-import { createSeance, getSeances, downloadPV } from "@/services/ouvertureOffre";
+import { createSeance, getSeances, updateSeance, downloadPV } from "@/services/ouvertureOffre";
 import { listMarkets } from "@/services/procurement";
-import type { SeanceOuverture } from "@/types/ouvertureOffre";
+import type { CommissionMemberPayload, SeanceOuverture } from "@/types/ouvertureOffre";
 import type { ProcurementMarket } from "@/types/procurement";
 
 type ScreenState = "loading" | "ready" | "forbidden" | "error";
@@ -46,7 +42,6 @@ type OpeningState =
   | "VALIDATION_PRESIDENT"
   | "VALIDATED"
   | "REJECTED"
-  | "ARCHIVED"
   | "CANCELLED";
 
 type OpeningRow = {
@@ -54,8 +49,6 @@ type OpeningRow = {
   seance: SeanceOuverture | null;
   state: OpeningState;
 };
-
-type DashboardScope = "mine" | "all";
 
 type StatusSection = {
   key: OpeningState;
@@ -106,6 +99,36 @@ const CATEGORY_LABELS: Record<string, string> = {
   INFRA: "Travaux",
 };
 
+const COMMISSION_STORAGE_PREFIX = "ucp_commission_membres_";
+const COMMISSION_STATUS_PREFIX = "ucp_commission_membres_status_";
+const MIN_COMMISSION_MEMBERS = 3;
+
+const COMMON_EMAIL_DOMAIN_FIXES: Record<string, string> = {
+  "gmai.com": "gmail.com",
+  "gamil.com": "gmail.com",
+  "gmial.com": "gmail.com",
+  "gmal.com": "gmail.com",
+  "gmail.con": "gmail.com",
+  "yaho.com": "yahoo.com",
+  "yahoo.con": "yahoo.com",
+  "hotmai.com": "hotmail.com",
+  "hotmial.com": "hotmail.com",
+  "hotmail.con": "hotmail.com",
+  "outlok.com": "outlook.com",
+  "outllook.com": "outlook.com",
+  "outlook.con": "outlook.com",
+  "icloud.con": "icloud.com",
+};
+
+const COMMON_COM_TLD_TYPOS = [".con", ".cim", ".cpm", ".copm", ".comm"];
+
+// Le dashboard et le formulaire membres doivent partager exactement la même règle.
+type CommissionBlock = {
+  reference: string;
+  title: string;
+  memberCount: number;
+};
+
 const stateLabels: Record<OpeningState, string> = {
   DRAFT: "Brouillon",
   ONGOING: "Dépôt en cours",
@@ -114,7 +137,6 @@ const stateLabels: Record<OpeningState, string> = {
   VALIDATION_PRESIDENT: "Validation président",
   VALIDATED: "Validée",
   REJECTED: "Rejetée",
-  ARCHIVED: "Archivée",
   CANCELLED: "Annulé",
 };
 
@@ -126,7 +148,6 @@ const stateClasses: Record<OpeningState, string> = {
   VALIDATION_PRESIDENT: "border-violet-200 bg-violet-50 text-violet-700",
   VALIDATED: "border-slate-200 bg-slate-100 text-slate-700",
   REJECTED: "border-rose-200 bg-rose-50 text-rose-700",
-  ARCHIVED: "border-emerald-200 bg-emerald-50 text-emerald-700",
   CANCELLED: "border-rose-200 bg-rose-50 text-rose-700",
 };
 
@@ -190,14 +211,6 @@ const sectionConfigs: Record<
     badgeClass: "border-rose-200 bg-rose-500 text-white",
     emptyText: "Aucune séance rejetée.",
   },
-  ARCHIVED: {
-    title: "Archivées",
-    subtitle: "Séances clôturées et rangées avec leurs documents officiels.",
-    icon: Lock,
-    iconClass: "border-emerald-200 bg-emerald-100 text-emerald-800",
-    badgeClass: "border-emerald-200 bg-emerald-500 text-white",
-    emptyText: "Aucune séance archivée.",
-  },
   CANCELLED: {
     title: "Annulés",
     subtitle: "DAO annulés, sans ouverture possible.",
@@ -216,45 +229,12 @@ const sectionOrder: OpeningState[] = [
   "ONGOING",
   "VALIDATED",
   "REJECTED",
-  "ARCHIVED",
   "CANCELLED",
-];
-
-const personalReviewSectionOrder: OpeningState[] = [
-  "VALIDATION_MEMBERS",
-  "VALIDATION_PRESIDENT",
-  "VALIDATED",
-  "REJECTED",
 ];
 
 const globalReviewSectionOrder: OpeningState[] = sectionOrder.filter(
   (key) => key !== "DRAFT",
 );
-
-const personalSectionOverrides: Partial<
-  Record<OpeningState, Partial<Omit<ReviewSection, "key" | "rows">>>
-> = {
-  VALIDATION_MEMBERS: {
-    title: "À valider comme membre",
-    subtitle: "Séances où une action de validation vous est attribuée.",
-    emptyText: "Aucune séance n'attend votre validation.",
-  },
-  VALIDATION_PRESIDENT: {
-    title: "À valider comme président",
-    subtitle: "Séances prêtes pour la décision finale du président.",
-    emptyText: "Aucune séance n'attend votre décision finale.",
-  },
-  VALIDATED: {
-    title: "Déjà validées",
-    subtitle: "Séances pour lesquelles votre validation est enregistrée.",
-    emptyText: "Aucune validation enregistrée.",
-  },
-  REJECTED: {
-    title: "Rejetées",
-    subtitle: "Séances rejetées par vous ou rejetées dans le workflow.",
-    emptyText: "Aucune séance rejetée.",
-  },
-};
 
 const formatDateTime = (value?: string | null) => {
   if (!value) return "Non définie";
@@ -296,14 +276,13 @@ const getOpeningState = (
   if (seance) {
     if (seance.statut === "VALIDEE") return "VALIDATED";
     if (seance.statut === "REJETEE") return "REJECTED";
-    if (seance.statut === "ARCHIVEE") return "ARCHIVED";
     if (seance.statut === "EN_VALIDATION_PRESIDENT") return "VALIDATION_PRESIDENT";
     if (seance.statut === "A_VALIDER") {
       const presentMembers = seance.membres.filter((member) => member.est_present);
-      const membersValidated =
+      const membersDecided =
         presentMembers.length > 0 &&
-        presentMembers.every((member) => member.decision === "VALIDEE");
-      return membersValidated ? "VALIDATION_PRESIDENT" : "VALIDATION_MEMBERS";
+        presentMembers.every((member) => member.decision !== "EN_ATTENTE");
+      return membersDecided ? "VALIDATION_PRESIDENT" : "VALIDATION_MEMBERS";
     }
     if (seance.statut === "EN_VALIDATION_MEMBRES") return "VALIDATION_MEMBERS";
     if (seance.statut === "BROUILLON" || seance.statut === "EN_SAISIE") return "DRAFT";
@@ -327,15 +306,80 @@ const getSearchText = (row: OpeningRow) =>
     .join(" ")
     .toLowerCase();
 
-const isOpeningParticipant = (
-  user: UserProfile,
-  seances: SeanceOuverture[],
-) =>
-  seances.some(
-    (seance) =>
-      seance.president === user.id ||
-      seance.membres.some((member) => member.utilisateur === user.id),
+const getStoredCommissionMemberCount = (reference: string) => {
+  return getStoredCommissionMembers(reference).length;
+};
+
+const getEmailTypoSuggestion = (email: string) => {
+  const value = email.trim();
+  const parts = value.split("@");
+  if (parts.length !== 2) return "";
+
+  const [, domain] = parts;
+  const normalizedDomain = domain.toLowerCase();
+  let suggestedDomain = COMMON_EMAIL_DOMAIN_FIXES[normalizedDomain] || "";
+
+  if (!suggestedDomain) {
+    const typo = COMMON_COM_TLD_TYPOS.find((suffix) =>
+      normalizedDomain.endsWith(suffix),
+    );
+    if (typo) {
+      suggestedDomain = `${domain.slice(0, -typo.length)}.com`;
+    }
+  }
+
+  return suggestedDomain && suggestedDomain.toLowerCase() !== normalizedDomain
+    ? suggestedDomain
+    : "";
+};
+
+const getStoredCommissionMembers = (reference: string): CommissionMemberPayload[] => {
+  if (typeof window === "undefined") return [];
+
+  const stored = window.localStorage.getItem(`${COMMISSION_STORAGE_PREFIX}${reference}`);
+  if (!stored) return [];
+
+  try {
+    const parsed: unknown = JSON.parse(stored);
+    if (!Array.isArray(parsed)) return [];
+
+    // Ici on compte seulement les lignes vraiment complètes, pas les brouillons à moitié remplis.
+    return parsed.flatMap((member) => {
+      if (typeof member !== "object" || member === null) return [];
+      const item = member as Record<string, unknown>;
+      const hasRequiredIdentity = ["nomPrenom", "email", "poste", "entite"].every((field) => {
+        const value = item[field];
+        return typeof value === "string" && value.trim() !== "";
+      });
+      const hasValidCin =
+        typeof item.cin === "string" && /^\d{12}$/.test(item.cin.trim());
+      const email = typeof item.email === "string" ? item.email.trim() : "";
+      const hasEmailTypo = Boolean(getEmailTypoSuggestion(email));
+
+      if (!hasRequiredIdentity || !hasValidCin || hasEmailTypo) return [];
+
+      return [{
+        nomPrenom: String(item.nomPrenom).trim(),
+        email,
+        cin: String(item.cin).trim(),
+        poste: String(item.poste).trim(),
+        entite: String(item.entite).trim(),
+      }];
+    });
+  } catch {
+    return [];
+  }
+};
+
+const isCommissionComplete = (reference: string) => {
+  if (typeof window === "undefined") return false;
+
+  const status = window.localStorage.getItem(`${COMMISSION_STATUS_PREFIX}${reference}`);
+  return (
+    status === "final" &&
+    getStoredCommissionMemberCount(reference) >= MIN_COMMISSION_MEMBERS
   );
+};
 
 export default function OuvertureOffrePage() {
   const router = useRouter();
@@ -346,9 +390,9 @@ export default function OuvertureOffrePage() {
   const [query, setQuery] = useState("");
   const [activeSection, setActiveSection] = useState<OpeningState | null>("DRAFT");
   const [activeReviewSection, setActiveReviewSection] = useState<OpeningState | null>("VALIDATION_MEMBERS");
-  const [dashboardScope, setDashboardScope] = useState<DashboardScope>("all");
   const [openingMarketId, setOpeningMarketId] = useState<number | null>(null);
   const [detailRow, setDetailRow] = useState<OpeningRow | null>(null);
+  const [commissionBlock, setCommissionBlock] = useState<CommissionBlock | null>(null);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState(() =>
     consumeOpeningFlashMessage("/ouverture_offre"),
@@ -365,18 +409,18 @@ export default function OuvertureOffrePage() {
       try {
         const user = await fetchCurrentUser();
 
+        if (!isSecretaireUser(user)) {
+          setCurrentUser(user);
+          setMarkets([]);
+          setSeances([]);
+          setScreenState("forbidden");
+          return;
+        }
+
         const [marketData, seanceData] = await Promise.all([
           listMarkets(),
           getSeances(),
         ]);
-
-        if (!isSecretaireUser(user) && !isOpeningParticipant(user, seanceData)) {
-          setCurrentUser(user);
-          setMarkets([]);
-          setSeances(seanceData);
-          setScreenState("forbidden");
-          return;
-        }
 
         setCurrentUser(user);
         setMarkets(marketData);
@@ -432,12 +476,10 @@ export default function OuvertureOffrePage() {
       const isPresident = seance?.president === currentUser.id;
       const assignedToCurrentUser = Boolean(currentMember || isPresident);
 
-      if (dashboardScope === "mine" && (!seance || !assignedToCurrentUser)) return [];
-
       const presentMembers = seance?.membres.filter((member) => member.est_present) ?? [];
-      const allPresentMembersValidated =
+      const allPresentMembersDecided =
         presentMembers.length > 0 &&
-        presentMembers.every((member) => member.decision === "VALIDEE");
+        presentMembers.every((member) => member.decision !== "EN_ATTENTE");
       const canValidateAsMember =
         row.state === "VALIDATION_MEMBERS" &&
         !!currentMember &&
@@ -448,7 +490,7 @@ export default function OuvertureOffrePage() {
         row.state === "VALIDATION_PRESIDENT" &&
         !!seance &&
         isPresident &&
-        allPresentMembersValidated &&
+        allPresentMembersDecided &&
         seance.president_decision === "EN_ATTENTE";
       const canRejectAsPresident =
         row.state === "VALIDATION_PRESIDENT" &&
@@ -460,7 +502,7 @@ export default function OuvertureOffrePage() {
         !!seance &&
         isPresident &&
         seance.president_decision === "EN_ATTENTE" &&
-        !allPresentMembersValidated;
+        !allPresentMembersDecided;
       const hasValidated =
         currentMember?.decision === "VALIDEE" ||
         (isPresident && seance?.president_decision === "VALIDEE");
@@ -502,29 +544,9 @@ export default function OuvertureOffrePage() {
         helperText = "Séance en préparation.";
       } else if (row.state === "READY") {
         helperText = "Ouverture en attente.";
-      } else if (row.state === "ARCHIVED") {
-        helperText = "Séance archivée.";
       }
 
-      let reviewState = row.state;
-      if (dashboardScope === "mine" && seance) {
-        if (hasRejected) {
-          reviewState = "REJECTED";
-        } else if (hasValidated) {
-          reviewState = "VALIDATED";
-        } else if (
-          canValidateAsMember ||
-          (assignedToCurrentUser && row.state === "VALIDATION_MEMBERS")
-        ) {
-          reviewState = "VALIDATION_MEMBERS";
-        } else if (
-          canValidateAsPresident ||
-          blockedPresident ||
-          (assignedToCurrentUser && row.state === "VALIDATION_PRESIDENT")
-        ) {
-          reviewState = "VALIDATION_PRESIDENT";
-        }
-      }
+      const reviewState = row.state;
 
       return [{
         market: row.market,
@@ -540,36 +562,25 @@ export default function OuvertureOffrePage() {
         assignedToCurrentUser,
       }];
     });
-  }, [currentUser, isSecretaire, openingRows, dashboardScope]);
-
-  const scopedOpeningRows = useMemo(() => {
-    if (!isSecretaire || dashboardScope === "all" || !currentUser) {
-      return openingRows;
-    }
-
-    return openingRows.filter((row) => row.seance?.secretaire === currentUser.id);
-  }, [currentUser, dashboardScope, isSecretaire, openingRows]);
+  }, [currentUser, isSecretaire, openingRows]);
 
   const filteredRows = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
 
-    return scopedOpeningRows.filter((row) => {
+    return openingRows.filter((row) => {
       return !normalizedQuery || getSearchText(row).includes(normalizedQuery);
     });
-  }, [query, scopedOpeningRows]);
+  }, [query, openingRows]);
 
   const sections = useMemo<StatusSection[]>(
     () => {
-      const order =
-        dashboardScope === "all" ? globalReviewSectionOrder : sectionOrder;
-
-      return order.map((key) => ({
+      return sectionOrder.map((key) => ({
         key,
         ...sectionConfigs[key],
         rows: filteredRows.filter((row) => row.state === key),
       }));
     },
-    [dashboardScope, filteredRows],
+    [filteredRows],
   );
 
   const filteredReviewRows = useMemo(() => {
@@ -594,23 +605,50 @@ export default function OuvertureOffrePage() {
 
   const reviewSections = useMemo<ReviewSection[]>(
     () => {
-      const order =
-        dashboardScope === "mine"
-          ? personalReviewSectionOrder
-          : globalReviewSectionOrder;
-
-      return order.map((key) => ({
+      return globalReviewSectionOrder.map((key) => ({
         key,
         ...sectionConfigs[key],
-        ...(dashboardScope === "mine" ? personalSectionOverrides[key] : {}),
         rows: filteredReviewRows.filter((row) => row.state === key),
       }));
     },
-    [dashboardScope, filteredReviewRows],
+    [filteredReviewRows],
   );
 
   const handleOpenSeance = async (row: OpeningRow) => {
+    const commissionMembers = getStoredCommissionMembers(row.market.reference_number);
+    const hasBackendCommission =
+      (row.seance?.membres.filter((member) => member.est_present).length ?? 0) >=
+      MIN_COMMISSION_MEMBERS;
+
+    // Avant d'ouvrir, on vérifie la commission: sans 3 membres complets, pas de séance.
+    if (
+      isSecretaire &&
+      !hasBackendCommission &&
+      !isCommissionComplete(row.market.reference_number)
+    ) {
+      setCommissionBlock({
+        reference: row.market.reference_number,
+        title: row.market.title,
+        memberCount: commissionMembers.length,
+      });
+      return;
+    }
+
     if (row.seance) {
+      try {
+        if (
+          (row.seance.statut === "BROUILLON" || row.seance.statut === "EN_SAISIE") &&
+          row.seance.membres.length < MIN_COMMISSION_MEMBERS
+        ) {
+          // Si une ancienne séance brouillon existe sans membres, on la répare avant d'entrer.
+          await updateSeance(row.seance.id, {
+            commission_members: commissionMembers,
+          });
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Impossible de synchroniser les membres.");
+        return;
+      }
       router.push(`/ouverture_offre/${row.seance.id}`);
       return;
     }
@@ -625,10 +663,10 @@ export default function OuvertureOffrePage() {
         reference_dossier: row.market.reference_number,
         objet_dossier: row.market.title,
         statut: "BROUILLON",
+        commission_members: commissionMembers,
       });
 
       const detailPath = `/ouverture_offre/${seance.id}`;
-      setOpeningFlashMessage("Séance d'ouverture créée avec succès.", detailPath);
       router.push(detailPath);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Impossible d'ouvrir la séance.");
@@ -705,7 +743,7 @@ export default function OuvertureOffrePage() {
             <section className="rounded-3xl border border-rose-200 bg-white p-8 shadow-[0_8px_32px_rgba(0,0,0,0.05)]">
               <h2 className="text-lg font-black text-slate-900">Accès non autorisé</h2>
               <p className="mt-2 text-sm text-slate-600">
-                Cette interface est réservée au secrétaire de commission et aux membres ou présidents désignés.
+                Cette interface est réservée au secrétaire de commission. Les membres et présidents valident chaque DAO avec le lien et le mot de passe reçus par mail.
               </p>
               <button
                 type="button"
@@ -747,31 +785,6 @@ export default function OuvertureOffrePage() {
                     </h2>
 
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                      <div className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
-                        <button
-                          type="button"
-                          onClick={() => setDashboardScope("mine")}
-                          className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
-                            dashboardScope === "mine"
-                              ? "bg-slate-900 text-white shadow-sm"
-                              : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                          }`}
-                        >
-                          Mes séances
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setDashboardScope("all")}
-                          className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
-                            dashboardScope === "all"
-                              ? "bg-slate-900 text-white shadow-sm"
-                              : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                          }`}
-                        >
-                          Tout le monde
-                        </button>
-                      </div>
-
                       <div className="relative min-w-[280px]">
                         <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                         <input
@@ -875,7 +888,110 @@ export default function OuvertureOffrePage() {
           onClose={() => setError("")}
         />
       )}
+      {commissionBlock && (
+        <CommissionIncompleteModal
+          block={commissionBlock}
+          onClose={() => setCommissionBlock(null)}
+          onComplete={() => {
+            const target = `/ouverture_offre/membres?dossier=${encodeURIComponent(
+              commissionBlock.reference,
+            )}`;
+            setCommissionBlock(null);
+            router.push(target);
+          }}
+        />
+      )}
     </main>
+  );
+}
+
+// Popup volontairement bloquant: il guide le secrétaire vers le bon formulaire.
+function CommissionIncompleteModal({
+  block,
+  onClose,
+  onComplete,
+}: {
+  block: CommissionBlock;
+  onClose: () => void;
+  onComplete: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-[140] flex items-center justify-center bg-slate-950/55 px-4 py-6 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="commission-incomplete-title"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <div className="w-full max-w-lg overflow-hidden rounded-3xl border border-amber-100 bg-white shadow-2xl ring-1 ring-black/5">
+        <div className="flex items-start gap-3 border-b border-amber-100 bg-amber-50 px-5 py-4">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
+            <AlertCircle className="h-5 w-5" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-700">
+              Commission incomplète
+            </p>
+            <h2
+              id="commission-incomplete-title"
+              className="mt-1 text-base font-black text-slate-950"
+            >
+              Membres de commission pas encore complétés
+            </h2>
+            <p className="mt-1 text-sm font-medium leading-relaxed text-slate-600">
+              Le dossier {block.reference} ne peut pas être ouvert tant que la commission
+              n&apos;est pas finalisée avec au moins {MIN_COMMISSION_MEMBERS} membres.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full p-1.5 text-slate-400 transition-colors hover:bg-white hover:text-slate-700"
+            aria-label="Fermer"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="space-y-3 px-5 py-4">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+              Dossier
+            </p>
+            <p className="mt-1 text-sm font-black text-slate-900">{block.reference}</p>
+            <p className="mt-1 line-clamp-2 text-xs font-semibold text-slate-500">
+              {block.title}
+            </p>
+          </div>
+          <p className="text-sm font-semibold leading-relaxed text-slate-600">
+            Membres complets actuellement :{" "}
+            <span className="font-black text-slate-900">{block.memberCount}</span> /{" "}
+            {MIN_COMMISSION_MEMBERS}. Complète puis enregistre définitivement la liste
+            dans le formulaire des membres.
+          </p>
+        </div>
+
+        <div className="flex flex-col-reverse gap-2 border-t border-slate-100 bg-slate-50 px-5 py-4 sm:flex-row sm:justify-end">
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-100"
+          >
+            Annuler
+          </button>
+          <button
+            type="button"
+            onClick={onComplete}
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 text-sm font-black text-white shadow-lg shadow-emerald-500/20 transition-all hover:-translate-y-0.5 hover:bg-emerald-700"
+          >
+            <ClipboardList className="h-4 w-4" />
+            Compléter
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -1048,8 +1164,7 @@ function OpeningDaoRow({
       state === "VALIDATION_MEMBERS" ||
       state === "VALIDATION_PRESIDENT" ||
       state === "VALIDATED" ||
-      state === "REJECTED" ||
-      state === "ARCHIVED"
+      state === "REJECTED"
     );
 
   return (
@@ -1097,7 +1212,7 @@ function OpeningDaoRow({
       <div className="flex w-full shrink-0 gap-2 border-t border-slate-100 pt-3 sm:w-auto sm:border-t-0 sm:pt-0">
         {shouldShowDetailAction ? (
           <>
-            {(state === "VALIDATED" || state === "ARCHIVED") && seance && (
+            {state === "VALIDATED" && seance && (
               <button
                 type="button"
                 onClick={() => {
@@ -1119,13 +1234,14 @@ function OpeningDaoRow({
             </button>
           </>
         ) : hasSeance ? (
-          <Link
-            href={`/ouverture_offre/${seance.id}`}
+          <button
+            type="button"
+            onClick={onOpen}
             className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-[10px] font-black uppercase tracking-widest text-white transition-all hover:-translate-y-0.5 hover:bg-slate-800 sm:flex-none"
           >
             {isDraft ? "Ouvrir" : "Reprendre"}
             <ArrowRight className="h-4 w-4" />
-          </Link>
+          </button>
         ) : (
           <button
             type="button"
@@ -1319,7 +1435,7 @@ function ReviewSeanceRow({
       </div>
 
       <div className="flex w-full shrink-0 gap-2 border-t border-slate-100 pt-3 sm:w-auto sm:border-t-0 sm:pt-0">
-        {(row.state === "VALIDATED" || row.state === "ARCHIVED") && row.seance && (
+        {row.state === "VALIDATED" && row.seance && (
           <button
             type="button"
             onClick={() => {

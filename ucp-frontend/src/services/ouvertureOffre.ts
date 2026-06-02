@@ -1,11 +1,83 @@
 import { getToken } from "@/services/auth";
 import type {
   CreateSeancePayload,
+  PublicValidationAccessPayload,
+  PublicValidationContext,
+  PublicValidationDecisionPayload,
+  PublicValidationRole,
   SeanceOuverture,
   UpdateSeancePayload,
   ValidationPayload,
   OuvertureUser,
 } from "@/types/ouvertureOffre";
+
+const PUBLIC_VALIDATION_SESSION_KEY = "ucp.ouverture.publicValidation";
+const PUBLIC_VALIDATION_SESSION_TTL_MS = 30 * 60 * 1000;
+
+export type StoredPublicValidationSession = {
+  seanceId: number;
+  role: PublicValidationRole;
+  email: string;
+  password: string;
+  createdAt: number;
+};
+
+const isStoredPublicValidationSession = (
+  value: unknown,
+): value is StoredPublicValidationSession => {
+  if (!value || typeof value !== "object") return false;
+  const record = value as Record<string, unknown>;
+  return (
+    typeof record.seanceId === "number" &&
+    (record.role === "membre" || record.role === "president") &&
+    typeof record.email === "string" &&
+    typeof record.password === "string" &&
+    typeof record.createdAt === "number"
+  );
+};
+
+export const savePublicValidationSession = (
+  session: StoredPublicValidationSession,
+) => {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.setItem(
+    PUBLIC_VALIDATION_SESSION_KEY,
+    JSON.stringify(session),
+  );
+};
+
+export const readPublicValidationSession = (
+  seanceId?: number,
+): StoredPublicValidationSession | null => {
+  if (typeof window === "undefined") return null;
+
+  const raw = window.sessionStorage.getItem(PUBLIC_VALIDATION_SESSION_KEY);
+  if (!raw) return null;
+
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!isStoredPublicValidationSession(parsed)) {
+      window.sessionStorage.removeItem(PUBLIC_VALIDATION_SESSION_KEY);
+      return null;
+    }
+
+    const isExpired = Date.now() - parsed.createdAt > PUBLIC_VALIDATION_SESSION_TTL_MS;
+    if (isExpired || (seanceId && parsed.seanceId !== seanceId)) {
+      window.sessionStorage.removeItem(PUBLIC_VALIDATION_SESSION_KEY);
+      return null;
+    }
+
+    return parsed;
+  } catch {
+    window.sessionStorage.removeItem(PUBLIC_VALIDATION_SESSION_KEY);
+    return null;
+  }
+};
+
+export const clearPublicValidationSession = () => {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.removeItem(PUBLIC_VALIDATION_SESSION_KEY);
+};
 
 const readErrorMessage = async (response: Response): Promise<string> => {
   const contentType = response.headers.get("content-type") ?? "";
@@ -241,4 +313,38 @@ export async function downloadPV(id: number, referenceDossier: string): Promise<
   a.click();
   a.remove();
   window.URL.revokeObjectURL(url);
+}
+
+export async function openPublicValidationSession(
+  id: number,
+  payload: PublicValidationAccessPayload,
+): Promise<PublicValidationContext> {
+  const response = await fetch(`/api/ouverture/seances/${id}/validation-acces/`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  return (await response.json()) as PublicValidationContext;
+}
+
+export async function submitPublicValidationDecision(
+  id: number,
+  payload: PublicValidationDecisionPayload,
+): Promise<{ detail: string; seance: SeanceOuverture | null }> {
+  const response = await fetch(`/api/ouverture/seances/${id}/validation-decision/`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  return (await response.json()) as { detail: string; seance: SeanceOuverture | null };
 }

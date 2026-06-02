@@ -189,7 +189,6 @@ EN_VALIDATION_MEMBRES
 EN_VALIDATION_PRESIDENT
 VALIDEE
 REJETEE
-ARCHIVEE
 ```
 
 C'est comme un feu de circulation :
@@ -199,8 +198,7 @@ C'est comme un feu de circulation :
 - `EN_VALIDATION_MEMBRES` : les membres doivent valider ;
 - `EN_VALIDATION_PRESIDENT` : le president doit valider ;
 - `VALIDEE` : seance terminee ;
-- `REJETEE` : quelqu'un a refuse ;
-- `ARCHIVEE` : conservee en archive.
+- `REJETEE` : quelqu'un a refuse.
 
 Le statut est aussi indexe avec `db_index=True`. Cela aide la base a chercher plus vite par statut.
 
@@ -1195,7 +1193,6 @@ type OpeningState =
   | "VALIDATION_PRESIDENT"
   | "VALIDATED"
   | "REJECTED"
-  | "ARCHIVED"
   | "CANCELLED";
 ```
 
@@ -2026,7 +2023,7 @@ Verifier :
 
 Verifier :
 
-- la seance est-elle `VALIDEE` ou `ARCHIVEE` ?
+- la seance est-elle `VALIDEE` ?
 - `pv_document` existe-t-il ?
 - `reportlab` est-il installe ?
 - le dossier media est-il accessible en ecriture ?
@@ -2069,8 +2066,8 @@ backend_PPM/apps/ouverture_offre/
 ```txt
 ucp-frontend/src/app/ouverture_offre/
   page.tsx                         Dashboard
-  nouvelle/page.tsx                Ancienne page informative
   [id]/page.tsx                    Route detail
+  membres/page.tsx                 Saisie des membres de commission
   components/
     SeanceOuvertureDetail.tsx      Formulaire + validation
     SeanceOverviewDetails.tsx      Vue lecture detaillee

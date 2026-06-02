@@ -10,12 +10,12 @@ class SeanceOuverture(models.Model):
         EN_VALIDATION_PRESIDENT = "EN_VALIDATION_PRESIDENT", "En validation president"
         VALIDEE = "VALIDEE", "Validee"
         REJETEE = "REJETEE", "Rejetee"
-        ARCHIVEE = "ARCHIVEE", "Archivee"
 
     class Decision(models.TextChoices):
         EN_ATTENTE = "EN_ATTENTE", "En attente"
         VALIDEE = "VALIDEE", "Validee"
         REJETEE = "REJETEE", "Rejetee"
+        REPORTEE = "REPORTEE", "Reportee"
 
     reference_dossier = models.CharField(max_length=100)
     objet_dossier = models.CharField(max_length=255, blank=True)
@@ -57,6 +57,9 @@ class SeanceOuverture(models.Model):
     date_validation_president = models.DateTimeField(null=True, blank=True)
     president_ip_adresse = models.GenericIPAddressField(null=True, blank=True)
     president_navigateur = models.CharField(max_length=255, blank=True)
+    president_validation_password_hash = models.CharField(max_length=255, blank=True)
+    president_validation_password_generated_at = models.DateTimeField(null=True, blank=True)
+    president_validation_password_consumed_at = models.DateTimeField(null=True, blank=True)
 
 
     class Meta:

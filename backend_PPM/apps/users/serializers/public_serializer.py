@@ -13,7 +13,8 @@ class PublicProfileSerializer(serializers.ModelSerializer):
             'phone', 
             'type_entite', 
             'nif', 
-            'updated_at' 
+            'updated_at',
+            'created_at'
             ] 
 class PublicProfileRegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True)
@@ -26,7 +27,8 @@ class PublicProfileRegistrationSerializer(serializers.ModelSerializer):
             'type_entite',
             'nif',
             'password',
-            'updated_at'
+            'updated_at',
+            'created_at'
         ]
 
         extra_kwargs = {

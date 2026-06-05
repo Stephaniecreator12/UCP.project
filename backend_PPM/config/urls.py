@@ -17,6 +17,8 @@ from apps.log.views.track_action_view import TrackActionView
 from apps.log.views.view_count_view import ProcurementViewCountAPIView
 from apps.log.views.annexe_ratio_view import AnnexeDownloadRatioAPIView
 from apps.log.views.download_count_view import DAODownloadCountAPIView
+from apps.log.views.individual_traceability_view import IndividualTraceabilityAPIView
+from apps.log.views.operational_monitoring_view import OperationalMonitoringAPIView
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/public/login/", PublicLoginView.as_view(), name="public_login"),
@@ -27,7 +29,9 @@ urlpatterns = [
     path('api/logs/dao-downloads/', DAODownloadCountAPIView.as_view(), name='dao-downloads-count'),
     path('api/logs/annexes-ratios/', AnnexeDownloadRatioAPIView.as_view(), name='annexes-download-ratios'),
     path('api/logs/views-count/', ProcurementViewCountAPIView.as_view(), name='procurement-views-count'),
+    path('api/logs/monitoring/', OperationalMonitoringAPIView.as_view(), name='operational-monitoring'),
     path("api/logs/track", TrackActionView.as_view(), name="track-action"),
+    path("api/logs/individual/", IndividualTraceabilityAPIView.as_view(), name="individual-traceability"),
     path('api/procurement/', include('apps.procurement.urls')),
     path('market/<path:reference_number>/download-dao/', DownloadDAOView.as_view(), name='download-dao'),
     

@@ -12,6 +12,8 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 from pathlib import Path
 import os 
+from celery.schedules import crontab
+
 AUTH_USER_MODEL = 'users.PublicProfile'
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -37,6 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django_celery_beat',
 
     'corsheaders',#librairie qui autoriser le frontend (Next.js) à appeler API Django.
 
@@ -196,5 +199,25 @@ USE_I18N = True
 USE_L10N = True
 USE_TZ = True
 
+# Configuration Celery
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_TIMEZONE = "Indian/Antananarivo"
+USE_TZ = True
+
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 DEFAULT_FROM_EMAIL = 'no-reply@ucp-marches.gov'
+
+
+CELERY_BEAT_SCHEDULE = {
+    "daily-ucp-report": {
+        "task": "apps.logs.tasks.send_daily_ucp_report.send_daily_ucp_report_task",
+        "schedule": crontab(hour=7, minute=0),
+    },
+    "daily-operational-report": {
+        "task": "apps.log.tasks.operational_monitoring.send_operational_report",
+        "schedule": crontab(hour=7, minute=0),
+    },
+}

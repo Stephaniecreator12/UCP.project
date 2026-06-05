@@ -65,7 +65,25 @@ source .venv/bin/activate
 python manage.py runserver
 ```
 
-**Terminal 2 - Next.js (Frontend)**
+**Terminal 2 - Django (celery-worker)**
+```bash
+cd /home/stephanie/UCP/backend_PPM
+celery -A config worker -l info -P solo
+```
+
+**Terminal 3 - Django (celery-beat)**
+```bash
+cd /home/stephanie/UCP/backend_PPM
+celery -A config beat -l info 
+```
+
+**Terminal 4 - windows (wsl)**
+```bash
+cd /home/stephanie/UCP/backend_PPM
+sudo service redis-server start
+```
+
+**Terminal 5 - Next.js (Frontend)**
 
 ```bash
 cd /home/stephanie/UCP/ucp-frontend

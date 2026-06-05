@@ -6,8 +6,8 @@ import Image from "next/image";
 import { getToken, login} from "@/services/auth";
 
 const DEFAULT_PUBLIC_REGISTER_ROUTE = "/auth/public/register";
-const DEFAULT_PUBLIC_ROUTE = "/public/procurement";
-const DEFAULT_PRIVATE_ROUTE = "/private/procurement/create"
+const DEFAULT_PUBLIC_ROUTE = "/procurement";
+const DEFAULT_PRIVATE_ROUTE = "/admin/procurement/create"
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

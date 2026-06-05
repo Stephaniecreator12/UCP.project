@@ -257,7 +257,7 @@ const handleToDetailRedirection = (id:string)=>{
 
         <div className="flex justify-between items-center bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
           <Link
-            href={`/public/procurement?page=${Number(currentPage) - 1}`}
+            href={`/procurement?page=${Number(currentPage) - 1}`}
             onClick={handlePageChange}
             className={`px-4 py-2 text-sm font-medium border rounded-md text-gray-700 bg-white hover:bg-gray-50 transition ${!data.previous ? 'pointer-events-none opacity-40' : ''}`}
           >
@@ -267,7 +267,7 @@ const handleToDetailRedirection = (id:string)=>{
           <span className="text-sm text-gray-600 font-medium">Page {currentPage} sur {totalPages}</span>
 
           <Link
-            href={`/public/procurement?page=${Number(currentPage) + 1}`}
+            href={`/procurement?page=${Number(currentPage) + 1}`}
             onClick={handlePageChange}
             className={`px-4 py-2 text-sm font-medium border rounded-md text-gray-700 bg-white hover:bg-gray-50 transition ${!data.next ? 'pointer-events-none opacity-40' : ''}`}
           >

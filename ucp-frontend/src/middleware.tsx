@@ -14,20 +14,15 @@ export function middleware(request: NextRequest) {
       new URL("/auth/login", request.url)
     );
   }
-
-  /*if (
-    path.startsWith("/private") &&
+  /*
+  if (
+    path.startsWith("/admin") &&
     accessType !== "private"
   ) {
     return NextResponse.redirect(
-      new URL("/public/procurement", request.url)
+      new URL("/", request.url)
     );
   }
-    */
+  */
   return NextResponse.next();
 }
-
-export const config = {
-  matcher: ["/private/:path*", "/public/:path*"],
-  
-};

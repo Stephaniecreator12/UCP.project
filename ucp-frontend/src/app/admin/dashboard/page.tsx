@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import axios from "axios";
+import { api } from "@/services/config";
 
 import StatCard from "@/app/admin/dashboard/components/StatCard";
 import ViewsChart from "@/app/admin/dashboard/components/ViewsChart";
@@ -32,11 +32,11 @@ export default function AdminDashboardPage() {
         };
 
         Promise.all([
-            axios.get("/api/logs/views-count/", { headers }),
-            axios.get("/api/logs/dao-downloads/", { headers }),
-            axios.get("/api/logs/annexes-ratios/", { headers }),
-            axios.get("/api/logs/monitoring/", { headers }),
-            axios.get("/api/logs/individual/", { headers }),
+            api.get("/logs/views-count/", { headers }),
+            api.get("/logs/dao-downloads/", { headers }),
+            api.get("/logs/annexes-ratios/", { headers }),
+            api.get("/logs/monitoring/", { headers }),
+            api.get("/logs/individual/", { headers }),
         ]).then(
             ([viewsRes, downloadsRes, annexesRes, monitoringRes, usersRes]) => {
                 setViews(viewsRes.data.data);

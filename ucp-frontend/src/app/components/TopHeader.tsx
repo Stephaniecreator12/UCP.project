@@ -15,8 +15,6 @@ export default function TopHeader() {
 
   const handleLogout = () => {
     logout();
-    router.replace(`${DEFAULT_AFTER_LOGOUT_ROUTE}`);
-    router.refresh();
     setTimeout(() => {
       if (typeof window !== "undefined" && window.location.pathname !== `${DEFAULT_AFTER_LOGOUT_ROUTE}`) {
         window.location.replace(`${DEFAULT_AFTER_LOGOUT_ROUTE}`);

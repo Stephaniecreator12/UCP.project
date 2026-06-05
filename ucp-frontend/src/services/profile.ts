@@ -14,7 +14,7 @@ export const getme = async(): Promise<ApiResult<UserProfileValue>>=> {
     }catch(e){
         return{
             error: true,
-                  message: parseApiError(e),
+            message: parseApiError(e),
         }
     }
 }

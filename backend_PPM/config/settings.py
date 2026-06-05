@@ -214,12 +214,10 @@ DEFAULT_FROM_EMAIL = 'no-reply@ucp-marches.gov'
 CELERY_BEAT_SCHEDULE = {
     "daily-ucp-report": {
         "task": "apps.log.tasks.send_daily_ucp_report_task.send_daily_ucp_report",
-        #"schedule": crontab(hour=7, minute=0),
-        "schedule": crontab(minute="*/1"),
+        "schedule": crontab(hour=7, minute=0),
     },
     "daily-operational-report": {
         "task": "apps.log.tasks.operational_monitoring_task.send_operational_report",
-        #"schedule": crontab(hour=7, minute=0),
-        "schedule": crontab(minute="*/1"),
+        "schedule": crontab(hour=7, minute=0),
     },
 }

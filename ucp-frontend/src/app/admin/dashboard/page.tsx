@@ -10,6 +10,7 @@ import AnnexesTable from "@/app/admin/dashboard/components/AnnexesTable";
 import MonitoringPanel from "@/app/admin/dashboard/components/MonitoringPanel";
 import UsersTraceability from "@/app/admin/dashboard/components/UsersTraceability";
 import { getToken } from "@/services/auth";
+import TopHeader from "@/app/components/TopHeader";
 import {
     ViewCount,
     DaoDownload,
@@ -65,6 +66,7 @@ export default function AdminDashboardPage() {
 
     return (
         <div className="p-8 bg-slate-50 min-h-screen">
+            <TopHeader></TopHeader>
 
             <h1 className="text-3xl font-bold mb-8">
                 Dashboard DAO

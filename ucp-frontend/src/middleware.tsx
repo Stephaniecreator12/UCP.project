@@ -13,9 +13,6 @@ export function middleware(request: NextRequest) {
   if (pathname.startsWith('/auth/login')) {
     return NextResponse.next()
   }
-  if (!token) {
-    return NextResponse.redirect(new URL('/auth/login', request.url))
-  }
   /*
   if (
     path.startsWith("/admin") &&

@@ -13,6 +13,7 @@ import { AnnexSection } from "./sections/annexDocuments";
 import { SubmissionModelSection } from "./sections/submissionModel";
 import { PublicationSection } from "./sections/publication";
 import { PublishActions } from "./sections/publishActions";
+import { createMarket } from "@/services/procurement";
 
 export function ProcurementForm() {
 
@@ -59,7 +60,7 @@ export function ProcurementForm() {
 
       <PublicationSection form={form} />
 
-      <PublishActions form={form} />
+      <PublishActions form={form} onPublish={createMarket} />
 
     </form>
   );

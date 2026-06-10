@@ -1,25 +1,25 @@
 "use client";
-
-import { createMarket } from "../../../../../services/procurement";
-import { uploadTechnicalDocument } from "../../../../../services/procurement";
-import { uploadAnnexDocument } from "../../../../../services/procurement";
+import { ApiResult } from "@/types/api";
+import { uploadTechnicalDocument } from "@/services/procurement";
+import { uploadAnnexDocument } from "@/services/procurement";
 import { useState } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { ProcurementFormValues } from "@/types/procurement";
 import { Path } from "react-hook-form";
+import { ProcurementMarket } from "@/types/procurement";
+import { useRouter } from "next/navigation";
 interface Props {
   form: UseFormReturn<ProcurementFormValues>;
+  id:string;
+  onPublish: (id:string,values: ProcurementFormValues) => Promise<ApiResult<ProcurementMarket>>;
 }
-type FieldErrors = Record<string, string | string[]>;
-export type ApiResult<T> =
-  | { error: false; data: T }
-  | { error: true; message: string | FieldErrors; status?: number };
-export function PublishActions({ form }: Props) {
+export function PublishActionsById({ form,id, onPublish }: Props) {
+  const router = useRouter()
   const [globalError, setGlobalError] = useState("");
   const handleSubmit = async (values: ProcurementFormValues) => {
     setGlobalError("");
     console.log("Données à envoyer :", values);
-    const res = await createMarket(values);
+    const res = await onPublish(id,values);
 
     if (res.error) {
       if (typeof res.message === "object" && res.message !== null) {
@@ -58,6 +58,7 @@ export function PublishActions({ form }: Props) {
 
     form.reset();
     alert("Marché publié !");
+    router.replace("/procurement")
   };
 
   return (

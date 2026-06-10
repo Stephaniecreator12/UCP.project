@@ -38,8 +38,15 @@ class ProcurementMarketSerializer(serializers.ModelSerializer):
         )
     )
     dates_atelier = serializers.ListField(
-        child=serializers.DateTimeField(), 
+        child=serializers.DateTimeField(),
+        write_only=True,
         required=False
+    )
+
+    dates_atelier_details = DateAtelierSerializer(
+        many=True,
+        read_only=True,
+        source='dates_previsionnelles'
     )
 
     class Meta:
@@ -61,7 +68,8 @@ class ProcurementMarketSerializer(serializers.ModelSerializer):
             "submission_model",
             "dates_atelier",
             "technical_documents",
-            "annexes"
+            "annexes",
+            "dates_atelier_details"
         ]
 
         read_only_fields = [
@@ -127,7 +135,6 @@ class ProcurementMarketSerializer(serializers.ModelSerializer):
 
         return value
     def validate(self, attrs):
-
         procedure_type = attrs.get("procedure_type")
         deadline = attrs.get("deadline")
 
@@ -137,11 +144,15 @@ class ProcurementMarketSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({
                 "publication_date": "obligatoire"
         })
-        dates_atelier = attrs.get("dates_atelier", [])
-        if(category == "SERVICES" and not dates_atelier):
-            raise serializers.ValidationError({
-                "dates_atelier": "obligatoire"
-        })
+        dates_atelier = attrs.get("dates_atelier", None)
+
+        is_create = self.instance is None
+
+        if is_create:
+            if category == "SERVICES" and not dates_atelier:
+                raise serializers.ValidationError({
+                    "dates_atelier": "obligatoire"
+                })
         if(publication_date < timezone.now()):
             raise serializers.ValidationError({
                 "publication_date": "publication_date supérieur à la date actuelle"
@@ -232,8 +243,7 @@ class ProcurementMarketSerializer(serializers.ModelSerializer):
                     "est obligatoire "
                 )
             })
-
-
+            
         return attrs
     @transaction.atomic
     def create(self, validated_data):
@@ -249,19 +259,39 @@ class ProcurementMarketSerializer(serializers.ModelSerializer):
                 
             return procurement_market
     
+    @transaction.atomic
+    def update(self, instance, validated_data):
+        dates_data = validated_data.pop("dates_atelier", None)
+
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+
+        instance.save()
+
+        if dates_data is not None:
+            instance.dates_previsionnelles.all().delete()
+
+            for date_value in dates_data:
+                DateAtelier.objects.create(
+                    market=instance,
+                    dates_atelier=date_value
+                )
+
+        return instance
+    
 
 
 class ProcurementMarketListSerializer(serializers.ModelSerializer):
     annexes = AnnexDocumentListSerializer(many=True, read_only=True)
     technical_documents = TechnicalDocumentListSerializer(many=True, read_only=True)
-    dates_atelier = DateAtelierSerializer(many=True, read_only=True, source='dates_previsionnelles')
+    dates_atelier_details = DateAtelierSerializer(many=True, read_only=True, source='dates_previsionnelles')
 
     class Meta:
         model = ProcurementMarket
         fields = [
             'id', 'reference_number', 'title', 'procedure_type', 
             'category', 'financing_sources', 'reference_bailleur', 
-            'project_code', 'publication_date', 'deadline', "dates_atelier",
+            'project_code', 'publication_date', 'deadline', "dates_atelier_details",
             'submission_model', 'status', 'created_at', 
             'annexes', 'technical_documents'
         ]

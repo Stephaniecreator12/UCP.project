@@ -52,7 +52,8 @@ class ProcurementMarketListViewSet(ReadOnlyModelViewSet):
     def get_queryset(self):
         return ProcurementMarket.objects.all().prefetch_related(
             'annexes',
-            'technical_documents'
+            'technical_documents',
+            'dates_previsionnelles'
         )
 
 

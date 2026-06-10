@@ -204,7 +204,8 @@ CELERY_BROKER_URL = 'redis://localhost:6379/0'
 CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
-CELERY_TIMEZONE = "Indian/Antananarivo"
+TIME_ZONE = "Indian/Antananarivo"
+CELERY_TIMEZONE = TIME_ZONE
 USE_TZ = True
 
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
@@ -221,3 +222,5 @@ CELERY_BEAT_SCHEDULE = {
         "schedule": crontab(hour=7, minute=0),
     },
 }
+from zoneinfo import available_timezones
+print("Indian/Antananarivo" in available_timezones())

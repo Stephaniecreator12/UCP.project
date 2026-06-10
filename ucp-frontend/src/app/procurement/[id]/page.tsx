@@ -5,6 +5,8 @@ import { useEffect, useState} from "react";
 import { ProcurementMarket } from "@/types/procurement";
 import TopHeader from "@/app/components/TopHeader";
 import { useRouter } from 'next/navigation';
+import { DeleteMarketButton } from "../components/deleteButton";
+import { UpdateMarketButton } from "../components/updateButton";
 export default function ProcurementDetailPage() {
     const { id } = useParams();
     const [error, setError] = useState("");
@@ -125,11 +127,11 @@ export default function ProcurementDetailPage() {
                                             </p>
                                         </div>
 
-                                        {market.dates_atelier && market.dates_atelier.length > 0 && (
+                                        {market.dates_atelier_details && market.dates_atelier_details.length > 0 && (
                                             <div className="pt-2">
                                                 <p className="text-xs font-bold text-gray-700 mb-2 uppercase tracking-wider">📅 Événements & Ateliers</p>
                                                 <ul className="space-y-2">
-                                                    {market.dates_atelier.map((atelier, idx) => (
+                                                    {market.dates_atelier_details.map((atelier, idx) => (
                                                         <li key={idx} className="text-xs text-gray-600 flex justify-between bg-gray-50 p-2 rounded">
                                                             <span className="font-mono text-gray-900">{new Date(atelier.dates_atelier).toLocaleDateString('fr-FR')}</span>
                                                         </li>
@@ -217,6 +219,10 @@ export default function ProcurementDetailPage() {
                     </div>
                 )
             }
+        <div>
+            <DeleteMarketButton marketId={market?market.id.toString():"-1"} marketTitle={market?market.title:"aucun"}></DeleteMarketButton>
+            <UpdateMarketButton marketId={market?market.id.toString():"-1"}></UpdateMarketButton>
+        </div>
 
         </div>
     );

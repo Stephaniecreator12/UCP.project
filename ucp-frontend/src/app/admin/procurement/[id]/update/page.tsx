@@ -1,6 +1,6 @@
 "use client";
 
-import { ProcurementForm } from "../components/procurementForm";
+import { ProcurementUpdateForm } from "../../components/procurementUpdateForm";
 import TopHeader from "@/app/components/TopHeader";
 export default function CreateProcurementPage() {
   return (
@@ -9,7 +9,7 @@ export default function CreateProcurementPage() {
             <TopHeader></TopHeader>
         </div>
         <div>
-            <ProcurementForm />
+            <ProcurementUpdateForm />
         </div>
       
     </div>

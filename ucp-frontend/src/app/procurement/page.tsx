@@ -179,8 +179,8 @@ const handleToDetailRedirection = (id:string)=>{
                     {market.category === "SERVICES" && (
                       <div>
                         <h2>Dates prévisionnelles de l’atelier</h2>
-                        {market.dates_atelier && market.dates_atelier.length > 0 ? (
-                          market.dates_atelier.map((item, index) => (
+                        {market.dates_atelier_details && market.dates_atelier_details.length > 0 ? (
+                          market.dates_atelier_details.map((item, index) => (
                           <div key={item.id || index} className="text-gray-600">
                             <span>• {formatDate(item.dates_atelier)}</span> 
                           </div>

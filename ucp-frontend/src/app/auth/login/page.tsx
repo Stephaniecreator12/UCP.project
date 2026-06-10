@@ -7,7 +7,7 @@ import { getToken, login} from "@/services/auth";
 
 const DEFAULT_PUBLIC_REGISTER_ROUTE = "/auth/public/register";
 const DEFAULT_PUBLIC_ROUTE = "/procurement";
-const DEFAULT_PRIVATE_ROUTE = "/admin/procurement/create"
+const DEFAULT_PRIVATE_ROUTE = "/admin/dashboard"
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

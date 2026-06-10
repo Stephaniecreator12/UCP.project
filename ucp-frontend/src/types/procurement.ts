@@ -51,8 +51,8 @@ export interface ProcurementMarket {
   publication_date: string;
 
   deadline: string;
-
-  dates_atelier: DateAtelierObj[];
+  dates_atelier: string[];
+  dates_atelier_details: DateAtelierObj[];
 
   submission_model?: string;
 

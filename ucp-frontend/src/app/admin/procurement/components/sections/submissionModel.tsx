@@ -1,28 +1,36 @@
 import { CardContent, CardHeader, CardTitle, Card } from "@/app/TdrSt/dashboard/ui/card";
 import { UseFormReturn, useWatch } from "react-hook-form";
 import { ProcurementFormValues } from "../../../../../types/procurement";
-import { X } from "lucide-react";
-
+import { X, FileText } from "lucide-react";
+import { getServerFileName } from "@/lib/utils";
+import { useState, useEffect } from "react";
 interface Props {
   form: UseFormReturn<ProcurementFormValues>;
+  initialFileUrl?: string;
 }
 
-export function SubmissionModelSection({ form }: Props) {
+export function SubmissionModelSection({ form,initialFileUrl }: Props) {
+  const [serverFileUrl, setServerFileUrl] = useState<string | undefined>(initialFileUrl);
   const files = useWatch({
     control: form.control,
     name: "submission_model",
   });
+  useEffect(() => {
+    setServerFileUrl(initialFileUrl);
+  }, [initialFileUrl]);
 
   const removeFile = () => {
     form.setValue("submission_model", undefined, {
       shouldDirty: true,
       shouldValidate: true,
     });
+    setServerFileUrl(undefined);
   };
   const {
     register,
     formState: { errors },
   } = form;
+  const showUploadButton = !files && !serverFileUrl;
   return (
     <Card>
       <CardHeader>
@@ -31,7 +39,7 @@ export function SubmissionModelSection({ form }: Props) {
 
       <CardContent className="space-y-6">
         <div className="flex flex-col gap-4">
-          {!files && (
+          {showUploadButton && (
             <label
               htmlFor="submission-upload"            >
               Ajouter un fichier (.docx)
@@ -74,6 +82,29 @@ export function SubmissionModelSection({ form }: Props) {
               </div>
             )}
           </div>
+          {!files && serverFileUrl && (
+              <div className="flex items-center justify-between p-2 bg-slate-50 text-slate-800 rounded-md border border-slate-200">
+                <div className="flex items-center gap-2 text-sm truncate max-w-[80%]">
+                  <FileText size={16} className="text-slate-400 flex-shrink-0" />
+                  <a 
+                    href={serverFileUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="truncate underline hover:text-slate-600"
+                  >
+                    {getServerFileName(serverFileUrl)}
+                  </a>
+                  <span className="text-xs bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded font-medium">Actuel</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={removeFile}
+                  className="text-red-500 hover:bg-red-50 p-1 rounded-full transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            )}
         </div>
       </CardContent>
     </Card>

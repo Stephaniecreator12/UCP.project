@@ -6,18 +6,8 @@ from django.contrib.auth import get_user_model
 from django.core.signing import TimestampSigner, SignatureExpired, BadSignature
 from django.core.mail import send_mail
 from django.conf import settings
-
+from apps.users.tasks.envoyer_confirmation_email_task import envoyer_confirmation_email
 User = get_user_model()
-
-def envoyer_confirmation_email(user):
-    signer = TimestampSigner()
-    token = signer.sign(user.email)
-    lien_activation = f"{settings.FRONTEND_URL}/auth/verify-email?token={token}"
-    
-    sujet = "Activez votre compte UCP"
-    message = f"Bonjour {user.full_name},\n\nCliquez sur ce lien pour activer votre compte (valable 24h) : {lien_activation}"
-    
-    send_mail(sujet, message, settings.DEFAULT_FROM_EMAIL, [user.email], fail_silently=False)
 
 @api_view(['POST'])
 @permission_classes([AllowAny]) 
@@ -52,8 +42,11 @@ def inscription_view(request):
         )
         user.is_active = False 
         user.save()
-        
-        envoyer_confirmation_email(user)
+
+        envoyer_confirmation_email.delay(
+            user.email,
+            user.full_name
+        )
         
         return Response({
             "success": True,

@@ -1,8 +1,8 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from "next/navigation";
 import { deleteMarketById } from '@/services/procurement';
-
+import Cookies from 'js-cookie';
 interface DeleteMarketButtonProps {
   marketId: string;
   marketTitle: string;
@@ -10,6 +10,7 @@ interface DeleteMarketButtonProps {
 
 export const DeleteMarketButton: React.FC<DeleteMarketButtonProps> = ({ marketId, marketTitle }) => {
   const router = useRouter();
+  const accessType = Cookies.get("access_type");
   const [isDeleting, setIsDeleting] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
@@ -39,7 +40,9 @@ export const DeleteMarketButton: React.FC<DeleteMarketButtonProps> = ({ marketId
 
   return (
     <>
-      <button
+    { accessType == "private"&&
+    <div>
+        <button
         onClick={() => setShowConfirmModal(true)}
         className="px-4 py-2.5 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 border border-transparent rounded-lg transition-all duration-200"
       >
@@ -92,6 +95,10 @@ export const DeleteMarketButton: React.FC<DeleteMarketButtonProps> = ({ marketId
           </div>
         </div>
       )}
+    </div>
+        
+    }
+      
     </>
   );
 };

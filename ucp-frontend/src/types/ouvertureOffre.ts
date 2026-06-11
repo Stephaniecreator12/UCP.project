@@ -1,3 +1,5 @@
+import type { ProcurementMarket } from "./procurement";
+
 export type OuvertureUser = {
   id: number;
   username: string;
@@ -143,6 +145,7 @@ export type PublicValidationContext = {
   };
   actions: PublicValidationDecision[];
   seance: SeanceOuverture;
+  market?: ProcurementMarket | null;
 };
 
 export type PublicValidationAccessPayload = {

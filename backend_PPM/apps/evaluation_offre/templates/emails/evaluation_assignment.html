@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Assignation à l'évaluation d'offre</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f4f7f5;
+            color: #17212e;
+            line-height: 1.6;
+        }
+        .wrapper { max-width: 620px; margin: 32px auto; padding: 0 16px; }
+        .card {
+            background: #ffffff;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(15,23,42,0.10);
+            border: 1px solid #e4ede8;
+        }
+
+        /* ── Header ── */
+        .header {
+            background: linear-gradient(135deg, #0b7a44 0%, #0ea85b 60%, #14c46c 100%);
+            padding: 36px 32px 28px;
+            text-align: center;
+        }
+        .logo-wrap {
+            display: inline-block;
+            background: rgba(255,255,255,0.95);
+            border-radius: 16px;
+            padding: 8px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+            margin-bottom: 18px;
+        }
+        .logo-wrap img { display: block; border-radius: 10px; }
+        .header h1 {
+            color: #ffffff;
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+        }
+        .header p {
+            color: rgba(255,255,255,0.82);
+            font-size: 13px;
+            margin-top: 4px;
+        }
+
+        /* ── Badge ── */
+        .badge {
+            display: inline-block;
+            background: linear-gradient(90deg, #059669, #10b981);
+            color: white;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            padding: 5px 14px;
+            border-radius: 999px;
+            margin-bottom: 20px;
+        }
+
+        /* ── Body ── */
+        .body { padding: 32px 32px 24px; }
+        .greeting { font-size: 16px; color: #1e293b; margin-bottom: 8px; }
+        .intro-text { font-size: 14px; color: #4b5563; margin-bottom: 24px; }
+
+        /* ── Info box ── */
+        .info-box {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            padding: 20px 22px;
+            margin-bottom: 24px;
+        }
+        .info-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 10px 0;
+            border-bottom: 1px solid #edf2f7;
+        }
+        .info-row:last-child { border-bottom: none; padding-bottom: 0; }
+        .info-row:first-child { padding-top: 0; }
+        .info-label {
+            min-width: 160px;
+            font-size: 12px;
+            font-weight: 700;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            padding-top: 2px;
+        }
+        .info-value {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1e293b;
+            word-break: break-word;
+        }
+
+        /* ── Code block ── */
+        .code-section {
+            margin-bottom: 28px;
+        }
+        .code-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 10px;
+        }
+        .code-block {
+            background: #fffbeb;
+            border: 2px dashed #f59e0b;
+            border-radius: 14px;
+            padding: 18px 20px;
+            text-align: center;
+        }
+        .code-value {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 22px;
+            font-weight: 800;
+            color: #b45309;
+            letter-spacing: 3px;
+            word-break: break-all;
+        }
+        .code-hint {
+            font-size: 11px;
+            color: #92400e;
+            margin-top: 6px;
+        }
+
+        /* ── CTA Button ── */
+        .cta-wrap { text-align: center; margin-bottom: 24px; }
+        .cta-btn {
+            display: inline-block;
+            background: linear-gradient(135deg, #0b7a44, #0ea85b);
+            color: #ffffff !important;
+            font-size: 15px;
+            font-weight: 700;
+            text-decoration: none;
+            padding: 14px 36px;
+            border-radius: 999px;
+            box-shadow: 0 6px 20px rgba(14,168,91,0.35);
+            letter-spacing: 0.02em;
+        }
+
+        /* ── Password block ── */
+        .password-section {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 12px;
+            padding: 14px 18px;
+            margin-bottom: 24px;
+            font-size: 13px;
+            color: #1e40af;
+        }
+        .password-section strong { font-weight: 700; }
+
+        /* ── Footer ── */
+        .footer {
+            background: #f8faf9;
+            border-top: 1px solid #e4ede8;
+            padding: 20px 32px;
+            text-align: center;
+        }
+        .footer p { font-size: 11px; color: #94a3b8; line-height: 1.8; }
+        .footer strong { color: #64748b; }
+    </style>
+</head>
+<body>
+<div class="wrapper">
+    <div class="card">
+
+        <!-- Header -->
+        <div class="header">
+            {% if logo_url %}
+            <div class="logo-wrap">
+                <img src="{{ logo_url }}" alt="UCP Logo" width="64" height="64" />
+            </div>
+            {% endif %}
+            <h1>📋 Assignation à l'évaluation d'une offre</h1>
+            <p>e-Procurement — Module Évaluation des Offres</p>
+        </div>
+
+        <!-- Body -->
+        <div class="body">
+            <div style="text-align:center; margin-bottom:22px;">
+                <span class="badge">Évaluation des Offres</span>
+            </div>
+
+            <p class="greeting">Bonjour,</p>
+            <p class="intro-text">
+                Vous avez été assigné(e) à l'évaluation de l'offre suivante.
+                Veuillez consulter les informations ci-dessous et accéder au formulaire d'évaluation.
+            </p>
+
+            <!-- Dossier info -->
+            <div class="info-box">
+                <div class="info-row">
+                    <span class="info-label">📁 Référence dossier</span>
+                    <span class="info-value">{{ reference_dossier }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">🏷️ Objet</span>
+                    <span class="info-value">{{ objet_dossier }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">👤 Soumissionnaire</span>
+                    <span class="info-value">{{ nom_soumissionnaire }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">📧 Votre email</span>
+                    <span class="info-value">{{ email }}</span>
+                </div>
+            </div>
+
+            <!-- Password (if newly created) -->
+            {% if login_password %}
+            <div class="password-section">
+                🔑 <strong>Mot de passe temporaire (connexion) :</strong> {{ login_password }}<br>
+                <span style="font-size:12px; color:#3b82f6;">Vous pouvez changer ce mot de passe après votre première connexion.</span>
+            </div>
+            {% endif %}
+
+            <!-- Access code -->
+            {% if eval_code %}
+            <div class="code-section">
+                <p class="code-label">🔐 Code d'accès unique au formulaire d'évaluation :</p>
+                <div class="code-block">
+                    <div class="code-value">{{ eval_code }}</div>
+                    <div class="code-hint">Conservez ce code — il est requis pour accéder au formulaire et signer votre évaluation.</div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- CTA -->
+            <div class="cta-wrap">
+                <a href="{{ login_url }}" class="cta-btn">
+                    Commencer l'évaluation &rarr;
+                </a>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>Ce message a été généré automatiquement, merci de ne pas y répondre.</p>
+            <p><strong>Application e-Procurement</strong> &mdash; Module d'Évaluation des Offres</p>
+        </div>
+
+    </div>
+</div>
+</body>
+</html>

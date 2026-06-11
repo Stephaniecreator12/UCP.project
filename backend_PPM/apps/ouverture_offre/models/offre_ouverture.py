@@ -47,6 +47,8 @@ class OffreOuverture(models.Model):
         blank=True,
     )
     observations = models.TextField(blank=True)
+    lot_numero = models.CharField(max_length=100, blank=True, default="")
+    nif_stat = models.CharField(max_length=100, blank=True, default="")
 
     class Meta:
         ordering = ["ordre_passage"]

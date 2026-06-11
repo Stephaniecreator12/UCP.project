@@ -77,6 +77,12 @@ def _validation_context_response(seance, role, user):
     else:
         actions = ["APPROUVER", "REJETER", "REPORTER"]
 
+    from apps.procurement.models.procurement_market import ProcurementMarket
+    from apps.procurement.serializers.procurement_market_serializer import ProcurementMarketSerializer
+
+    market = ProcurementMarket.objects.filter(reference_number=seance.reference_dossier).first()
+    market_data = ProcurementMarketSerializer(market).data if market else None
+
     full_name = f"{user.first_name} {user.last_name}".strip() or user.username
     return {
         "role": role,
@@ -87,6 +93,7 @@ def _validation_context_response(seance, role, user):
         },
         "actions": actions,
         "seance": SeanceOuvertureSerializer(seance).data,
+        "market": market_data,
     }
 
 
@@ -185,10 +192,18 @@ def seance_validation_decision(request, pk):
         )
 
     refreshed = get_public_validation_seance(pk)
+    market_data = None
+    if refreshed:
+        from apps.procurement.models.procurement_market import ProcurementMarket
+        from apps.procurement.serializers.procurement_market_serializer import ProcurementMarketSerializer
+        market = ProcurementMarket.objects.filter(reference_number=refreshed.reference_dossier).first()
+        market_data = ProcurementMarketSerializer(market).data if market else None
+
     return Response(
         {
             "detail": "Decision enregistree. Le mot de passe de validation est maintenant desactive.",
             "seance": SeanceOuvertureSerializer(refreshed).data if refreshed else None,
+            "market": market_data,
         },
         status=status.HTTP_200_OK,
     )

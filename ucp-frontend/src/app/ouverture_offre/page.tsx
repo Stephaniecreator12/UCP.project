@@ -388,8 +388,8 @@ export default function OuvertureOffrePage() {
   const [markets, setMarkets] = useState<ProcurementMarket[]>([]);
   const [seances, setSeances] = useState<SeanceOuverture[]>([]);
   const [query, setQuery] = useState("");
-  const [activeSection, setActiveSection] = useState<OpeningState | null>("DRAFT");
-  const [activeReviewSection, setActiveReviewSection] = useState<OpeningState | null>("VALIDATION_MEMBERS");
+  const [activeSection, setActiveSection] = useState<OpeningState | null>(null);
+  const [activeReviewSection, setActiveReviewSection] = useState<OpeningState | null>(null);
   const [openingMarketId, setOpeningMarketId] = useState<number | null>(null);
   const [detailRow, setDetailRow] = useState<OpeningRow | null>(null);
   const [commissionBlock, setCommissionBlock] = useState<CommissionBlock | null>(null);
@@ -764,13 +764,6 @@ export default function OuvertureOffrePage() {
 
           {screenState === "ready" && (
             <>
-              {error && (
-                <div className="flex items-start gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
-                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                  {error}
-                </div>
-              )}
-
               <section className="group relative overflow-hidden rounded-3xl border border-white/40 bg-white/70 shadow-[0_8px_32px_rgba(0,0,0,0.05)] backdrop-blur-md transition-all duration-500 hover:shadow-[0_12px_48px_rgba(0,0,0,0.08)]">
                 <div className="absolute left-0 top-0 h-1.5 w-full bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-500 bg-[length:200%_100%] animate-gradient" />
                 <div className="p-6">
@@ -851,8 +844,16 @@ export default function OuvertureOffrePage() {
                               }
                               onOpenDetail={(row) => setDetailRow(row)}
                               onOpenValidation={(row) => {
-                                if (!row.seance) return;
-                                router.push(`/ouverture_offre/${row.seance.id}`);
+                                if (!row.seance || !currentUser) return;
+                                const validationRole =
+                                  row.seance.president === currentUser.id ? "president" : "membre";
+                                const params = new URLSearchParams({
+                                  role: validationRole,
+                                  email: currentUser.email || currentUser.username,
+                                });
+                                router.push(
+                                  `/ouverture_offre/validation/${row.seance.id}?${params.toString()}`,
+                                );
                               }}
                               onDownloadPV={handleDownloadPV}
                             />
@@ -1013,32 +1014,40 @@ function NotificationPopup({
 
   return (
     <div
-      className={`fixed bottom-6 right-6 z-[120] flex w-[min(92vw,31rem)] items-start gap-4 rounded-[22px] border px-5 py-4 shadow-[0_24px_70px_rgba(15,23,42,0.28)] ${
+      className={`fixed bottom-6 right-6 z-[150] flex w-[min(92vw,31rem)] items-start gap-4 rounded-[24px] border p-5 backdrop-blur-xl shadow-[0_30px_60px_-15px_rgba(15,23,42,0.3)] transition-all duration-300 animate-in slide-in-from-bottom-5 ${
         isError
-          ? "border-rose-300 bg-[linear-gradient(135deg,#be123c_0%,#e11d48_100%)] text-white"
-          : "border-emerald-300 bg-[linear-gradient(135deg,#047857_0%,#10b981_100%)] text-white"
+          ? "border-rose-500/30 bg-rose-500/10 text-rose-900 shadow-rose-950/5 ring-1 ring-rose-500/25"
+          : "border-emerald-500/30 bg-emerald-500/10 text-emerald-900 shadow-emerald-950/5 ring-1 ring-emerald-500/25"
       }`}
       role="status"
     >
-      <div className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/25 bg-white/12 text-white">
+      <div className={`mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border ${
+        isError
+          ? "border-rose-500/30 bg-rose-500/20 text-rose-700"
+          : "border-emerald-500/30 bg-emerald-500/20 text-emerald-700"
+      }`}>
         {isError ? (
-          <AlertCircle className="h-5 w-5" />
+          <AlertCircle className="h-5 w-5 animate-pulse" />
         ) : (
-          <CheckCircle2 className="h-5 w-5" />
+          <CheckCircle2 className="h-5 w-5 animate-bounce" />
         )}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-[15px] font-black tracking-tight text-white">
+        <p className={`text-[15px] font-black tracking-tight ${isError ? "text-rose-950" : "text-emerald-950"}`}>
           {isError ? "Action impossible" : "Action enregistrée"}
         </p>
-        <p className="mt-1 text-[14px] font-medium leading-relaxed text-white/92">
+        <p className={`mt-1 text-[13px] font-medium leading-relaxed ${isError ? "text-rose-900/90" : "text-emerald-900/90"}`}>
           {message}
         </p>
       </div>
       <button
         type="button"
         onClick={onClose}
-        className="rounded-xl p-2 text-white/80 transition-colors hover:bg-white/12 hover:text-white"
+        className={`rounded-xl p-2 transition-colors ${
+          isError
+            ? "text-rose-700 hover:bg-rose-500/25 hover:text-rose-950"
+            : "text-emerald-700 hover:bg-emerald-500/25 hover:text-emerald-950"
+        }`}
         aria-label="Fermer la notification"
       >
         <X className="h-4 w-4" />

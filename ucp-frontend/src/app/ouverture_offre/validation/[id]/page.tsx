@@ -18,7 +18,6 @@ import {
 } from "lucide-react";
 
 import SeanceOverviewDetails from "@/app/ouverture_offre/components/SeanceOverviewDetails";
-import { logout } from "@/services/auth";
 import {
   clearPublicValidationSession,
   openPublicValidationSession,
@@ -26,11 +25,146 @@ import {
   savePublicValidationSession,
   submitPublicValidationDecision,
 } from "@/services/ouvertureOffre";
+import { listMarkets } from "@/services/procurement";
 import type {
   PublicValidationContext,
   PublicValidationDecision,
   PublicValidationRole,
 } from "@/types/ouvertureOffre";
+import type { ProcurementMarket } from "@/types/procurement";
+
+type StoredCommissionMember = {
+  nomPrenom?: string;
+  email?: string;
+  cin?: string;
+  poste?: string;
+  entite?: string;
+};
+
+const parseStoredCommissionMembers = (
+  stored: string | null,
+): StoredCommissionMember[] => {
+  if (!stored) return [];
+
+  try {
+    const parsed: unknown = JSON.parse(stored);
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed
+      .filter(
+        (member): member is Record<string, unknown> =>
+          typeof member === "object" && member !== null,
+      )
+      .map((member) => ({
+        nomPrenom:
+          typeof member.nomPrenom === "string" ? member.nomPrenom : undefined,
+        email: typeof member.email === "string" ? member.email : undefined,
+        cin: typeof member.cin === "string" ? member.cin : undefined,
+        poste: typeof member.poste === "string" ? member.poste : undefined,
+        entite: typeof member.entite === "string" ? member.entite : undefined,
+      }));
+  } catch {
+    return [];
+  }
+};
+
+const mapStoredMemberToSeanceMember = (
+  member: StoredCommissionMember,
+  index: number,
+): PublicValidationContext["seance"]["membres"][number] => ({
+  id: -(index + 1),
+  utilisateur: -(index + 1),
+  utilisateur_detail: {
+    id: -(index + 1),
+    username:
+      member.email?.trim() || member.nomPrenom?.trim() || `membre-${index + 1}`,
+    email: member.email?.trim() || "",
+    first_name: "",
+    last_name: "",
+    full_name:
+      member.nomPrenom?.trim() || member.email?.trim() || `Membre ${index + 1}`,
+  },
+  nom_prenom: member.nomPrenom?.trim() || "",
+  numero_carte: member.cin?.trim() || "",
+  intitule: member.entite?.trim() || "",
+  poste: member.poste?.trim() || "",
+  est_present: true,
+  a_valide: false,
+  decision: "EN_ATTENTE",
+  commentaire: "",
+  date_validation: null,
+});
+
+const mergeCommissionMembers = (
+  backendMembers: PublicValidationContext["seance"]["membres"],
+  storedMembers: PublicValidationContext["seance"]["membres"],
+): PublicValidationContext["seance"]["membres"] => {
+  if (backendMembers.length === 0) return storedMembers;
+  if (storedMembers.length === 0) return backendMembers;
+
+  const merged = backendMembers.map((backendMember) => {
+    const backendEmail = backendMember.utilisateur_detail.email
+      .trim()
+      .toLowerCase();
+    const backendName = (
+      backendMember.nom_prenom || backendMember.utilisateur_detail.full_name
+    )
+      .trim()
+      .toLowerCase();
+
+    const storedMember = storedMembers.find((member) => {
+      const storedEmail = member.utilisateur_detail.email.trim().toLowerCase();
+      const storedName = (
+        member.nom_prenom || member.utilisateur_detail.full_name
+      )
+        .trim()
+        .toLowerCase();
+      return (
+        (backendEmail && storedEmail && backendEmail === storedEmail) ||
+        (!backendEmail && storedName && backendName === storedName)
+      );
+    });
+
+    if (!storedMember) return backendMember;
+
+    return {
+      ...backendMember,
+      numero_carte: backendMember.numero_carte || storedMember.numero_carte,
+      intitule: backendMember.intitule || storedMember.intitule,
+      poste: backendMember.poste || storedMember.poste,
+    };
+  });
+
+  const mergedEmails = new Set(
+    merged.map((member) =>
+      member.utilisateur_detail.email.trim().toLowerCase(),
+    ),
+  );
+  const mergedNames = new Set(
+    merged.map((member) =>
+      (member.nom_prenom || member.utilisateur_detail.full_name)
+        .trim()
+        .toLowerCase(),
+    ),
+  );
+
+  const extras = storedMembers.filter((storedMember) => {
+    const storedEmail = storedMember.utilisateur_detail.email
+      .trim()
+      .toLowerCase();
+    const storedName = (
+      storedMember.nom_prenom || storedMember.utilisateur_detail.full_name
+    )
+      .trim()
+      .toLowerCase();
+    return (
+      (!storedEmail || !mergedEmails.has(storedEmail)) &&
+      (!storedName || !mergedNames.has(storedName))
+    );
+  });
+
+  return [...merged, ...extras];
+};
 
 function ValidationFallback() {
   return (
@@ -64,21 +198,38 @@ function PublicOuvertureValidationContent() {
   const [context, setContext] = useState<PublicValidationContext | null>(null);
   const [commentaire, setCommentaire] = useState("");
   const [dateReport, setDateReport] = useState("");
-  const [pendingDecision, setPendingDecision] = useState<PublicValidationDecision | null>(null);
+  const [pendingDecision, setPendingDecision] =
+    useState<PublicValidationDecision | null>(null);
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [linkedMarket, setLinkedMarket] = useState<ProcurementMarket | null>(
+    null,
+  );
 
-  useEffect(() => {
-    logout();
-  }, []);
+  const mergedMembers = useMemo(() => {
+    if (!context) return [];
+    if (typeof window === "undefined") return context.seance.membres;
+
+    const storedMembers = parseStoredCommissionMembers(
+      window.localStorage.getItem(
+        `ucp_commission_membres_${context.seance.reference_dossier}`,
+      ),
+    ).map((member, index) => mapStoredMemberToSeanceMember(member, index));
+
+    return mergeCommissionMembers(context.seance.membres, storedMembers);
+  }, [context]);
 
   const hasValidSeanceId = Number.isInteger(seanceId) && seanceId > 0;
   const currentRole = context?.role ?? selectedRole;
-  const roleLabel = currentRole === "president" ? "Président de séance" : "Membre de commission";
-  const title = context?.seance.objet_dossier || "Validation de séance d'ouverture";
+  const roleLabel =
+    currentRole === "president"
+      ? "Président de séance"
+      : "Membre de commission";
+  const title =
+    context?.seance.objet_dossier || "Validation de séance d'ouverture";
 
   useEffect(() => {
     if (!hasValidSeanceId || context) return;
@@ -103,7 +254,9 @@ function PublicOuvertureValidationContent() {
       } catch (err) {
         if (cancelled) return;
         clearPublicValidationSession();
-        setError(err instanceof Error ? err.message : "Accès validation impossible.");
+        setError(
+          err instanceof Error ? err.message : "Accès validation impossible.",
+        );
       }
     });
 
@@ -111,6 +264,41 @@ function PublicOuvertureValidationContent() {
       cancelled = true;
     };
   }, [context, email, hasValidSeanceId, router, seanceId, selectedRole]);
+
+  useEffect(() => {
+    if (context?.market) {
+      setLinkedMarket(context.market);
+      return;
+    }
+
+    if (!context?.seance?.reference_dossier) {
+      setLinkedMarket(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    void Promise.resolve().then(async () => {
+      try {
+        const markets = await listMarkets();
+        if (cancelled) return;
+        setLinkedMarket(
+          markets.find(
+            (market) =>
+              market.reference_number === context.seance.reference_dossier,
+          ) ?? null,
+        );
+      } catch {
+        if (!cancelled) {
+          setLinkedMarket(null);
+        }
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [context?.seance?.reference_dossier, context?.market]);
 
   const actionButtons = useMemo(() => {
     if (!context) return [];
@@ -163,7 +351,9 @@ function PublicOuvertureValidationContent() {
       });
       return;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Accès validation impossible.");
+      setError(
+        err instanceof Error ? err.message : "Accès validation impossible.",
+      );
     } finally {
       setIsLoading(false);
     }
@@ -175,7 +365,9 @@ function PublicOuvertureValidationContent() {
       return;
     }
     if (decision === "REPORTER" && (!commentaire.trim() || !dateReport)) {
-      setError("La date de report et le commentaire sont obligatoires pour reporter.");
+      setError(
+        "La date de report et le commentaire sont obligatoires pour reporter.",
+      );
       return;
     }
     setError("");
@@ -205,8 +397,21 @@ function PublicOuvertureValidationContent() {
       });
       setSuccess(response.detail);
       setPendingDecision(null);
-      logout();
-      window.setTimeout(() => router.replace("/login?validation_done=1"), 1400);
+      setConfirmPassword("");
+      if (response.seance) {
+        setContext((current) =>
+          current
+            ? {
+                ...current,
+                seance: response.seance as PublicValidationContext["seance"],
+                market: response.market ? (response.market as ProcurementMarket) : current.market,
+              }
+            : current,
+        );
+      }
+      window.requestAnimationFrame(() => {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Decision impossible.");
     } finally {
@@ -251,7 +456,9 @@ function PublicOuvertureValidationContent() {
               <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-emerald-700">
                 Accès validation DAO
               </p>
-              <h1 className="truncate text-lg font-black text-slate-950">{title}</h1>
+              <h1 className="truncate text-lg font-black text-slate-950">
+                {title}
+              </h1>
               <p className="text-xs font-bold text-slate-500">{roleLabel}</p>
             </div>
           </div>
@@ -302,9 +509,7 @@ function PublicOuvertureValidationContent() {
             </div>
 
             <label className="grid gap-2">
-              <span className="text-sm font-bold text-slate-700">
-                Email
-              </span>
+              <span className="text-sm font-bold text-slate-700">Email</span>
               <div className="relative">
                 <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <input
@@ -335,10 +540,14 @@ function PublicOuvertureValidationContent() {
                 <button
                   type="button"
                   onClick={() => setShowPassword((current) => !current)}
-                  className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-500"
+                  className="absolute right-2 top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
                   aria-label={showPassword ? "Masquer" : "Afficher"}
                 >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
                 </button>
               </div>
             </label>
@@ -361,13 +570,22 @@ function PublicOuvertureValidationContent() {
             {error && <InlineError message={error} />}
             {success && (
               <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-800">
-                {success} Retour à la connexion...
+                {success} Le détail reste affiché ci-dessous.
               </div>
             )}
 
-            <div className="rounded-2xl border border-slate-200 bg-white p-3">
-              <SeanceOverviewDetails seance={context.seance} market={null} compact />
-            </div>
+            <section className="rounded-3xl border border-white/40 bg-white/75 p-4 shadow-[0_8px_32px_rgba(0,0,0,0.05)] backdrop-blur-md">
+              <SeanceOverviewDetails
+                seance={context.seance}
+                market={linkedMarket}
+                members={mergedMembers}
+                presidentLabel={
+                  context.seance.president_detail?.full_name ||
+                  context.seance.president_detail?.username
+                }
+                compact
+              />
+            </section>
 
             <label className="grid gap-2">
               <span className="text-xs font-black uppercase tracking-widest text-slate-500">
@@ -448,7 +666,8 @@ function PublicOuvertureValidationContent() {
             </div>
             <div className="space-y-4 px-5 py-4">
               <p className="text-sm font-semibold text-slate-600">
-                Saisissez à nouveau le mot de passe reçu par mail pour signer cette décision.
+                Saisissez à nouveau le mot de passe reçu par mail pour signer
+                cette décision.
               </p>
               <input
                 type="password"
@@ -483,16 +702,26 @@ function PublicOuvertureValidationContent() {
   );
 }
 
-function ValidationShell({ children, wide = false }: { children: ReactNode; wide?: boolean }) {
+function ValidationShell({
+  children,
+  wide = false,
+}: {
+  children: ReactNode;
+  wide?: boolean;
+}) {
   return (
     <main className="min-h-dvh w-full overflow-x-hidden overflow-y-auto text-slate-800">
-      <div className={`relative flex min-h-dvh justify-center overflow-x-hidden bg-[linear-gradient(180deg,#f5f6f6_0%,#eef1f0_100%)] px-4 py-8 ${wide ? "items-start" : "items-center"}`}>
+      <div
+        className={`relative flex min-h-dvh justify-center overflow-x-hidden bg-[linear-gradient(180deg,#f5f6f6_0%,#eef1f0_100%)] px-4 py-8 ${wide ? "items-start" : "items-center"}`}
+      >
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_80%_10%,rgba(247,247,248,0.72),transparent_28%)]" />
         <div className="pointer-events-none absolute -top-24 -left-16 h-[280px] w-[240px] rotate-[-17deg] rounded-[42px] bg-[linear-gradient(140deg,#a2f3b5_0%,#41f37c_62%,#a2f8be_100%)] shadow-[0_45px_80px_-30px_rgba(33,83,46,0.6)] login-float-soft" />
         <div className="pointer-events-none absolute left-[9%] top-[10%] h-[180px] w-[200px] rotate-[-32deg] rounded-[34px] bg-[linear-gradient(125deg,rgba(58,69,82,0.44)_0%,rgba(15,20,27,0.14)_100%)] login-float-soft [animation-delay:1200ms]" />
         <div className="pointer-events-none absolute bottom-[8%] right-[6%] h-[210px] w-[250px] rotate-[-13deg] rounded-[28px] bg-[linear-gradient(125deg,rgba(131,138,146,0.42)_0%,rgba(15,20,27,0.12)_100%)] opacity-90 login-float-soft [animation-delay:2200ms]" />
         <div className="pointer-events-none absolute right-[12%] top-[18%] hidden h-28 w-28 rounded-[28px] border border-emerald-200/80 opacity-70 sm:block" />
-        <div className={`relative z-10 w-full ${wide ? "max-w-[1180px]" : "max-w-md"}`}>
+        <div
+          className={`relative z-10 w-full ${wide ? "max-w-[1180px]" : "max-w-md"}`}
+        >
           {children}
         </div>
       </div>

@@ -168,7 +168,7 @@ function MarcheDashboardPageContent() {
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [displayMode, setDisplayMode] = useState<DisplayMode>("status");
-  const [activeSection, setActiveSection] = useState<SectionKey | null>("action");
+  const [activeSection, setActiveSection] = useState<SectionKey | null>(null);
   const [selectedDemandeId, setSelectedDemandeId] = useState<number | null>(null);
   const [detailViewMode, setDetailViewMode] = useState<DetailViewMode>("detail");
   const [receptionModalDemandeId, setReceptionModalDemandeId] = useState<number | null>(null);
@@ -226,7 +226,8 @@ function MarcheDashboardPageContent() {
 
   useEffect(() => {
     if (filterParam === "toutes") setActiveSection("all");
-    else setActiveSection("action");
+    else if (filterParam === "action") setActiveSection("action");
+    else setActiveSection(null);
   }, [filterParam]);
 
   const marketBaseDemandes = useMemo(

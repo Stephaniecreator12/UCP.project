@@ -132,6 +132,13 @@ const SECRETAIRE_LINKS: MenuLink[] = [
       pathname === "/ouverture_offre/membres" ||
       pathname.startsWith("/ouverture_offre/membres/"),
   },
+  {
+    label: "Évaluation des offres",
+    href: "/evaluation_offre",
+    match: (pathname) =>
+      pathname === "/evaluation_offre" ||
+      pathname.startsWith("/evaluation_offre/"),
+  },
 ];
 
 export default function Menu({ className = "" }: { className?: string }) {

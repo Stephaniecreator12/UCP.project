@@ -10,7 +10,7 @@ class IsSecretaireOuLectureSeule(BasePermission):
     - POST/PATCH : reserve aux secretaires
     """
 
-    def has_permission(self, request, view):
+    def has_permission(self, request, view) -> bool:
         if request.method in SAFE_METHODS:
             return bool(request.user and request.user.is_authenticated)
 

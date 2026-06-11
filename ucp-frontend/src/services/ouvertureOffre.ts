@@ -10,6 +10,7 @@ import type {
   ValidationPayload,
   OuvertureUser,
 } from "@/types/ouvertureOffre";
+import type { ProcurementMarket } from "@/types/procurement";
 
 const PUBLIC_VALIDATION_SESSION_KEY = "ucp.ouverture.publicValidation";
 const PUBLIC_VALIDATION_SESSION_TTL_MS = 30 * 60 * 1000;
@@ -335,7 +336,7 @@ export async function openPublicValidationSession(
 export async function submitPublicValidationDecision(
   id: number,
   payload: PublicValidationDecisionPayload,
-): Promise<{ detail: string; seance: SeanceOuverture | null }> {
+): Promise<{ detail: string; seance: SeanceOuverture | null; market?: ProcurementMarket | null }> {
   const response = await fetch(`/api/ouverture/seances/${id}/validation-decision/`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -346,5 +347,9 @@ export async function submitPublicValidationDecision(
     throw new Error(await readErrorMessage(response));
   }
 
-  return (await response.json()) as { detail: string; seance: SeanceOuverture | null };
+  return (await response.json()) as {
+    detail: string;
+    seance: SeanceOuverture | null;
+    market?: ProcurementMarket | null;
+  };
 }

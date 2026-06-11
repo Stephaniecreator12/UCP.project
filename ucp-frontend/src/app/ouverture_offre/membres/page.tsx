@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type ElementType } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ElementType,
+} from "react";
 import { useRouter } from "next/navigation";
 import {
   Users,
@@ -22,11 +28,7 @@ import {
 } from "lucide-react";
 
 import TopHeader from "@/app/components/TopHeader";
-import {
-  fetchCurrentUser,
-  getToken,
-  isSecretaireUser,
-} from "@/services/auth";
+import { fetchCurrentUser, getToken, isSecretaireUser } from "@/services/auth";
 import { getSeances } from "@/services/ouvertureOffre";
 import { listMarkets } from "@/services/procurement";
 import type { SeanceOuverture } from "@/types/ouvertureOffre";
@@ -164,21 +166,25 @@ export default function MembresCommissionsPage() {
   // Recherche + panneaux: on garde les dossiers rangés en trois familles faciles à lire.
   const [searchQuery, setSearchQuery] = useState("");
   const [activePanels, setActivePanels] = useState<Record<string, boolean>>({
-    none: true,
-    draft: true,
+    none: false,
+    draft: false,
     final: false,
   });
 
   // Etat du popup de saisie des membres.
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedMarket, setSelectedMarket] = useState<ProcurementMarket | null>(null);
+  const [selectedMarket, setSelectedMarket] =
+    useState<ProcurementMarket | null>(null);
+  const [selectedSeance, setSelectedSeance] = useState<SeanceOuverture | null>(null);
   const [modalMembers, setModalMembers] = useState<ManualMember[]>([]);
   const [isReadOnly, setIsReadOnly] = useState(false);
   const [modalError, setModalError] = useState("");
   const [modalSuccess, setModalSuccess] = useState("");
   const [invalidCinIds, setInvalidCinIds] = useState<string[]>([]);
   const [targetReference, setTargetReference] = useState<string | null>(null);
-  const [autoOpenedReference, setAutoOpenedReference] = useState<string | null>(null);
+  const [autoOpenedReference, setAutoOpenedReference] = useState<string | null>(
+    null,
+  );
 
   // Quand on arrive depuis le popup "Compléter", on ouvre directement le bon dossier.
   useEffect(() => {
@@ -220,7 +226,7 @@ export default function MembresCommissionsPage() {
         setError(
           err instanceof Error
             ? err.message
-            : "Impossible de charger les données des dossiers."
+            : "Impossible de charger les données des dossiers.",
         );
         setScreenState("error");
       }
@@ -233,11 +239,13 @@ export default function MembresCommissionsPage() {
   const processedRows = useMemo(() => {
     return markets.map((market) => {
       const seance =
-        seances.find((s) => s.reference_dossier === market.reference_number) ?? null;
+        seances.find((s) => s.reference_dossier === market.reference_number) ??
+        null;
 
       const statusKey = `${STATUS_PREFIX}${market.reference_number}`;
       const hasBackendCommission =
-        (seance?.membres.filter((member) => member.est_present).length ?? 0) >= 3;
+        (seance?.membres.filter((member) => member.est_present).length ?? 0) >=
+        3;
 
       let membersStatus: "draft" | "final" | "none" = "none";
 
@@ -261,9 +269,11 @@ export default function MembresCommissionsPage() {
 
       // Une séance envoyée en validation ne doit plus laisser modifier sa commission.
       const isLocked = seance
-        ? ["EN_VALIDATION_MEMBRES", "EN_VALIDATION_PRESIDENT", "VALIDEE"].includes(
-            seance.statut
-          )
+        ? [
+            "EN_VALIDATION_MEMBRES",
+            "EN_VALIDATION_PRESIDENT",
+            "VALIDEE",
+          ].includes(seance.statut)
         : false;
 
       return {
@@ -283,7 +293,7 @@ export default function MembresCommissionsPage() {
     return processedRows.filter(
       (r) =>
         r.market.reference_number.toLowerCase().includes(q) ||
-        r.market.title.toLowerCase().includes(q)
+        r.market.title.toLowerCase().includes(q),
     );
   }, [processedRows, searchQuery]);
 
@@ -300,17 +310,20 @@ export default function MembresCommissionsPage() {
         subtitle: "Dossiers d'appel d'offres en attente d'ajout de membres",
         icon: UserX,
         iconClass: "border-slate-200 bg-slate-50 text-slate-700",
-        badgeClass: "border-slate-200 bg-slate-500 text-white shadow-sm shadow-slate-500/10",
+        badgeClass:
+          "border-slate-200 bg-slate-500 text-white shadow-sm shadow-slate-500/10",
         emptyText: "Aucun dossier en attente d'initialisation de comité.",
         rows: noneRows,
       },
       {
         key: "draft",
         title: "Commissions en brouillon",
-        subtitle: "Compositions en cours ou incomplètes (sauvegardées temporairement)",
+        subtitle:
+          "Compositions en cours ou incomplètes (sauvegardées temporairement)",
         icon: Briefcase,
         iconClass: "border-amber-200 bg-amber-50 text-amber-800",
-        badgeClass: "border-amber-200 bg-amber-500 text-white shadow-sm shadow-amber-500/10",
+        badgeClass:
+          "border-amber-200 bg-amber-500 text-white shadow-sm shadow-amber-500/10",
         emptyText: "Aucune commission enregistrée en brouillon.",
         rows: draftRows,
       },
@@ -320,7 +333,8 @@ export default function MembresCommissionsPage() {
         subtitle: "Comités d'ouverture de plis validés avec au moins 3 membres",
         icon: UserCheck,
         iconClass: "border-emerald-200 bg-emerald-50 text-emerald-800",
-        badgeClass: "border-emerald-200 bg-emerald-500 text-white shadow-sm shadow-emerald-500/10",
+        badgeClass:
+          "border-emerald-200 bg-emerald-500 text-white shadow-sm shadow-emerald-500/10",
         emptyText: "Aucun comité n'a été enregistré au complet pour le moment.",
         rows: finalRows,
       },
@@ -330,8 +344,12 @@ export default function MembresCommissionsPage() {
   // Petits compteurs du haut de page.
   const stats = useMemo(() => {
     const total = processedRows.length;
-    const completed = processedRows.filter((r) => r.membersStatus === "final").length;
-    const draft = processedRows.filter((r) => r.membersStatus === "draft").length;
+    const completed = processedRows.filter(
+      (r) => r.membersStatus === "final",
+    ).length;
+    const draft = processedRows.filter(
+      (r) => r.membersStatus === "draft",
+    ).length;
     const none = processedRows.filter((r) => r.membersStatus === "none").length;
     return { total, completed, draft, none };
   }, [processedRows]);
@@ -341,66 +359,60 @@ export default function MembresCommissionsPage() {
     setActivePanels((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  // Ouvre le popup et recharge les membres déjà saisis si le dossier en a.
-  const handleOpenMembersModal = useCallback((
-    market: ProcurementMarket,
-    seance: SeanceOuverture | null,
-    isLocked: boolean
-  ) => {
-    setSelectedMarket(market);
-    setIsReadOnly(isLocked);
-    setModalError("");
-    setModalSuccess("");
-    setInvalidCinIds([]);
+  // Ouvre le popup et recharge les membres
+  const handleOpenMembersModal = useCallback(
+    (
+      market: ProcurementMarket,
+      seance: SeanceOuverture | null,
+      isLocked: boolean,
+    ) => {
+      setSelectedMarket(market);
+      setSelectedSeance(seance);
+      setIsReadOnly(isLocked);
+      setModalError("");
+      setModalSuccess("");
+      setInvalidCinIds([]);
 
-    const localKey = `${STORAGE_PREFIX}${market.reference_number}`;
-    const stored = localStorage.getItem(localKey);
+      const localKey = `${STORAGE_PREFIX}${market.reference_number}`;
+      const stored = localStorage.getItem(localKey);
 
-    if (stored) {
-      try {
-        setModalMembers(JSON.parse(stored) as ManualMember[]);
-      } catch {
-        setModalMembers([]);
-      }
-    } else if (seance?.membres.length) {
-      setModalMembers(mapSeanceMembersToManualMembers(seance));
-    } else {
-      // Première saisie: on prépare quelques lignes vides pour aller vite.
-      const initial: ManualMember[] = [];
-      if (seance) {
-        if (seance.president_detail) {
-          const pres = seance.president_detail;
+      if (stored) {
+        try {
+          setModalMembers(JSON.parse(stored) as ManualMember[]);
+        } catch {
+          setModalMembers([]);
+        }
+      } else if (seance?.membres.length) {
+        setModalMembers(mapSeanceMembersToManualMembers(seance));
+      } else {
+        // Première saisie: on prépare quelques lignes vides pour aller vite.
+        const initial: ManualMember[] = [];
+        if (seance) {
+          if (seance.secretaire_detail) {
+            const sec = seance.secretaire_detail;
+            initial.push({
+              id: `sec-${Date.now()}`,
+              nomPrenom:
+                `${sec.first_name} ${sec.last_name}`.trim() || sec.username,
+              email: sec.email || "",
+              cin: "",
+              poste: "",
+              entite: "",
+            });
+          }
+        }
+
+        if (initial.length === 0) {
           initial.push({
-            id: `pres-${Date.now()}`,
-            nomPrenom: `${pres.first_name} ${pres.last_name}`.trim() || pres.username,
-            email: pres.email || "",
+            id: `member-1-${Date.now()}`,
+            nomPrenom: "",
+            email: "",
             cin: "",
             poste: "",
             entite: "",
           });
         }
-        if (seance.secretaire_detail) {
-          const sec = seance.secretaire_detail;
-          initial.push({
-            id: `sec-${Date.now()}`,
-            nomPrenom: `${sec.first_name} ${sec.last_name}`.trim() || sec.username,
-            email: sec.email || "",
-            cin: "",
-            poste: "",
-            entite: "",
-          });
-        }
-      }
 
-      if (initial.length === 0) {
-        initial.push({
-          id: `member-1-${Date.now()}`,
-          nomPrenom: "",
-          email: "",
-          cin: "",
-          poste: "",
-          entite: "",
-        });
         initial.push({
           id: `member-2-${Date.now()}`,
           nomPrenom: "",
@@ -409,22 +421,23 @@ export default function MembresCommissionsPage() {
           poste: "",
           entite: "",
         });
+
+        initial.push({
+          id: `member-3-${Date.now()}`,
+          nomPrenom: "",
+          email: "",
+          cin: "",
+          poste: "",
+          entite: "",
+        });
+
+        setModalMembers(initial);
       }
 
-      initial.push({
-        id: `member-3-${Date.now()}`,
-        nomPrenom: "",
-        email: "",
-        cin: "",
-        poste: "",
-        entite: "",
-      });
-
-      setModalMembers(initial);
-    }
-
-    setIsModalOpen(true);
-  }, []);
+      setIsModalOpen(true);
+    },
+    [],
+  );
 
   // Le paramètre ?dossier=REF sert au bouton "Compléter" depuis le dashboard d'ouverture.
   useEffect(() => {
@@ -442,15 +455,24 @@ export default function MembresCommissionsPage() {
     if (!market) return;
 
     const seance =
-      seances.find((item) => item.reference_dossier === market.reference_number) ?? null;
+      seances.find(
+        (item) => item.reference_dossier === market.reference_number,
+      ) ?? null;
     const isLocked = seance
-      ? ["EN_VALIDATION_MEMBRES", "EN_VALIDATION_PRESIDENT", "VALIDEE"].includes(
-          seance.statut,
-        )
+      ? [
+          "EN_VALIDATION_MEMBRES",
+          "EN_VALIDATION_PRESIDENT",
+          "VALIDEE",
+        ].includes(seance.statut)
       : false;
 
     setSearchQuery(market.reference_number);
-    setActivePanels((current) => ({ ...current, none: true, draft: true, final: true }));
+    setActivePanels((current) => ({
+      ...current,
+      none: true,
+      draft: true,
+      final: true,
+    }));
     setAutoOpenedReference(targetReference);
     handleOpenMembersModal(market, seance, isLocked);
   }, [
@@ -489,15 +511,16 @@ export default function MembresCommissionsPage() {
   const handleUpdateMemberField = (
     id: string,
     field: keyof ManualMember,
-    value: string
+    value: string,
   ) => {
     if (isReadOnly) return;
-    const nextValue = field === "cin" ? value.replace(/\D/g, "").slice(0, 12) : value;
+    const nextValue =
+      field === "cin" ? value.replace(/\D/g, "").slice(0, 12) : value;
     if (field === "cin" && nextValue.length === 12) {
       setInvalidCinIds((prev) => prev.filter((memberId) => memberId !== id));
     }
     setModalMembers((prev) =>
-      prev.map((m) => (m.id === id ? { ...m, [field]: nextValue } : m))
+      prev.map((m) => (m.id === id ? { ...m, [field]: nextValue } : m)),
     );
   };
 
@@ -515,7 +538,7 @@ export default function MembresCommissionsPage() {
         m.email.trim() !== "" ||
         m.cin.trim() !== "" ||
         m.poste.trim() !== "" ||
-        m.entite.trim() !== ""
+        m.entite.trim() !== "",
     );
 
     const localKey = `${STORAGE_PREFIX}${selectedMarket.reference_number}`;
@@ -541,9 +564,13 @@ export default function MembresCommissionsPage() {
     // En final, au moins trois membres complets sont obligatoires.
     if (activeMembers.length < 3) {
       setInvalidCinIds(invalidCinMembers.map((member) => member.id));
-      setModalError("Erreur : La commission doit être composée de 3 membres au minimum (supérieur ou égal à 3) pour être enregistrée au complet.");
+      setModalError(
+        "Erreur : La commission doit être composée de 3 membres au minimum (supérieur ou égal à 3) pour être enregistrée au complet.",
+      );
       return;
     }
+
+
 
     // Chaque membre final doit être exploitable pour le PV et les validations.
     if (invalidCinMembers.length > 0) {
@@ -556,11 +583,15 @@ export default function MembresCommissionsPage() {
 
     for (const m of activeMembers) {
       if (!m.nomPrenom.trim()) {
-        setModalError("Erreur : Tous les membres doivent avoir un Nom & Prénom renseigné.");
+        setModalError(
+          "Erreur : Tous les membres doivent avoir un Nom & Prénom renseigné.",
+        );
         return;
       }
       if (!m.email.trim()) {
-        setModalError(`Erreur : L'adresse e-mail est obligatoire pour ${m.nomPrenom}.`);
+        setModalError(
+          `Erreur : L'adresse e-mail est obligatoire pour ${m.nomPrenom}.`,
+        );
         return;
       }
       const suggestedEmail = getEmailTypoSuggestion(m.email);
@@ -571,7 +602,9 @@ export default function MembresCommissionsPage() {
         return;
       }
       if (!m.poste.trim()) {
-        setModalError(`Erreur : Le rôle/poste est obligatoire pour ${m.nomPrenom}.`);
+        setModalError(
+          `Erreur : Le rôle/poste est obligatoire pour ${m.nomPrenom}.`,
+        );
         return;
       }
       if (!m.entite.trim()) {
@@ -639,7 +672,9 @@ export default function MembresCommissionsPage() {
       <div className="flex min-h-screen items-center justify-center bg-slate-50">
         <div className="flex flex-col items-center gap-3">
           <div className="h-10 w-10 animate-spin rounded-full border-4 border-emerald-500 border-t-transparent" />
-          <p className="text-sm font-medium text-slate-600">Chargement du tableau de bord...</p>
+          <p className="text-sm font-medium text-slate-600">
+            Chargement du tableau de bord...
+          </p>
         </div>
       </div>
     );
@@ -650,9 +685,12 @@ export default function MembresCommissionsPage() {
       <div className="flex min-h-screen flex-col items-center justify-center bg-slate-50 px-4 text-center">
         <div className="rounded-2xl border border-rose-100 bg-white p-8 shadow-sm max-w-md">
           <ShieldAlert className="mx-auto h-12 w-12 text-rose-500" />
-          <h2 className="mt-4 text-xl font-bold text-slate-900">Accès Refusé</h2>
+          <h2 className="mt-4 text-xl font-bold text-slate-900">
+            Accès Refusé
+          </h2>
           <p className="mt-2 text-sm text-slate-600">
-            Seul le secrétaire de la commission d'ouverture des offres est autorisé à accéder à cet espace de gestion des membres.
+            Seul le secrétaire de la commission d'ouverture des offres est
+            autorisé à accéder à cet espace de gestion des membres.
           </p>
           <button
             onClick={() => router.push("/dashboard")}
@@ -671,7 +709,6 @@ export default function MembresCommissionsPage() {
 
       <div className="zoom-content">
         <div className="mx-auto flex max-w-[1400px] flex-col gap-5 px-4 pb-12 pt-6 md:px-6 lg:pt-8">
-          
           {/* En-tête de la page */}
           <div className="relative flex w-full flex-col justify-between gap-4 overflow-hidden rounded-3xl border border-slate-100 bg-white px-5 py-4 shadow-[0_8px_30px_rgb(0,0,0,0.04)] md:flex-row md:items-center">
             <div className="pointer-events-none absolute right-0 top-0 h-32 w-56 rounded-full bg-gradient-to-br from-emerald-100 to-teal-50 opacity-45 blur-3xl" />
@@ -691,7 +728,7 @@ export default function MembresCommissionsPage() {
                 </div>
               </div>
             </div>
-            
+
             <button
               onClick={() => router.push("/ouverture_offre")}
               className="z-10 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50"
@@ -701,34 +738,50 @@ export default function MembresCommissionsPage() {
           </div>
 
           {/* Résumé rapide des dossiers */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
-            <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Total dossiers</span>
-                <Briefcase className="h-5 w-5 text-slate-400" />
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                  Total dossiers
+                </span>
+                <Briefcase className="h-4 w-4 text-slate-400" />
               </div>
-              <p className="mt-2 text-3xl font-black text-slate-800">{stats.total}</p>
+              <p className="mt-1 text-2xl font-extrabold text-slate-800">
+                {stats.total}
+              </p>
             </div>
-            <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+            <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">À mettre membre</span>
-                <UserX className="h-5 w-5 text-slate-400" />
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                  À mettre membre
+                </span>
+                <UserX className="h-4 w-4 text-slate-400" />
               </div>
-              <p className="mt-2 text-3xl font-black text-slate-700">{stats.none}</p>
+              <p className="mt-1 text-2xl font-extrabold text-slate-700">
+                {stats.none}
+              </p>
             </div>
-            <div className="rounded-2xl border border-amber-100 bg-amber-50/20 p-5 shadow-sm">
+            <div className="rounded-xl border border-amber-100 bg-amber-50/20 p-4 shadow-sm">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-amber-600">En brouillon</span>
-                <Briefcase className="h-5 w-5 text-amber-500" />
+                <span className="text-[11px] font-bold uppercase tracking-wider text-amber-600">
+                  En brouillon
+                </span>
+                <Briefcase className="h-4 w-4 text-amber-500" />
               </div>
-              <p className="mt-2 text-3xl font-black text-amber-700">{stats.draft}</p>
+              <p className="mt-1 text-2xl font-extrabold text-amber-700">
+                {stats.draft}
+              </p>
             </div>
-            <div className="rounded-2xl border border-emerald-100 bg-emerald-50/30 p-5 shadow-sm">
+            <div className="rounded-xl border border-emerald-100 bg-emerald-50/30 p-4 shadow-sm">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-emerald-600">Déjà mis complets</span>
-                <UserCheck className="h-5 w-5 text-emerald-500" />
+                <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600">
+                  Déjà mis complets
+                </span>
+                <UserCheck className="h-4 w-4 text-emerald-500" />
               </div>
-              <p className="mt-2 text-3xl font-black text-emerald-700">{stats.completed}</p>
+              <p className="mt-1 text-2xl font-extrabold text-emerald-700">
+                {stats.completed}
+              </p>
             </div>
           </div>
 
@@ -755,7 +808,9 @@ export default function MembresCommissionsPage() {
                 <div
                   key={section.key}
                   className={`overflow-hidden rounded-2xl border bg-white shadow-sm transition-colors ${
-                    isActive ? "border-slate-300" : "border-slate-200 hover:border-slate-300"
+                    isActive
+                      ? "border-slate-300"
+                      : "border-slate-200 hover:border-slate-300"
                   }`}
                 >
                   {/* Titre du groupe */}
@@ -763,22 +818,30 @@ export default function MembresCommissionsPage() {
                     type="button"
                     onClick={() => togglePanel(section.key)}
                     className={`flex w-full items-center justify-between px-5 py-4 text-left transition-colors ${
-                      isActive ? "border-b border-slate-200 bg-slate-50" : "bg-white hover:bg-slate-50"
+                      isActive
+                        ? "border-b border-slate-200 bg-slate-50"
+                        : "bg-white hover:bg-slate-50"
                     }`}
                   >
                     <div className="flex items-center gap-4">
-                      <div className={`flex h-10 w-10 items-center justify-center rounded-xl border ${section.iconClass}`}>
+                      <div
+                        className={`flex h-10 w-10 items-center justify-center rounded-xl border ${section.iconClass}`}
+                      >
                         <Icon className="h-5 w-5" />
                       </div>
                       <div>
-                        <h3 className="text-sm font-bold text-slate-900">{section.title}</h3>
+                        <h3 className="text-sm font-bold text-slate-900">
+                          {section.title}
+                        </h3>
                         <p className="mt-0.5 text-xs text-slate-500">
                           {section.subtitle}
                         </p>
                       </div>
                       <span
                         className={`ml-1 rounded-full border px-2.5 py-0.5 text-xs font-bold ${
-                          hasRows ? section.badgeClass : "border-slate-200 bg-slate-100 text-slate-400"
+                          hasRows
+                            ? section.badgeClass
+                            : "border-slate-200 bg-slate-100 text-slate-400"
                         }`}
                       >
                         {section.rows.length}
@@ -810,18 +873,27 @@ export default function MembresCommissionsPage() {
                             <thead>
                               <tr className="border-b border-slate-100 bg-slate-50/20 text-[10px] font-black uppercase tracking-wider text-slate-400">
                                 <th className="px-5 py-3">Dossier / DAO</th>
-                                <th className="px-5 py-3">Séance d'ouverture</th>
+                                <th className="px-5 py-3">
+                                  Séance d'ouverture
+                                </th>
                                 <th className="px-5 py-3">Statut séance</th>
                                 <th className="px-5 py-3">État commission</th>
-                                <th className="px-5 py-3 text-right">Actions</th>
+                                <th className="px-5 py-3 text-right">
+                                  Actions
+                                </th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
                               {section.rows.map((row) => (
-                                <tr key={row.market.id} className="hover:bg-slate-50/40">
+                                <tr
+                                  key={row.market.id}
+                                  className="hover:bg-slate-50/40"
+                                >
                                   {/* Référence et objet du DAO */}
                                   <td className="px-5 py-3.5">
-                                    <p className="font-bold text-slate-800">{row.market.reference_number}</p>
+                                    <p className="font-bold text-slate-800">
+                                      {row.market.reference_number}
+                                    </p>
                                     <p className="mt-0.5 text-xs text-slate-500 max-w-md truncate">
                                       {row.market.title}
                                     </p>
@@ -831,10 +903,14 @@ export default function MembresCommissionsPage() {
                                   <td className="px-5 py-3.5 font-semibold text-slate-600">
                                     {row.seance && row.seance.date_seance ? (
                                       <span>
-                                        Le {row.seance.date_seance} à {row.seance.heure_seance || "Non précisée"}
+                                        Le {row.seance.date_seance} à{" "}
+                                        {row.seance.heure_seance ||
+                                          "Non précisée"}
                                       </span>
                                     ) : (
-                                      <span className="text-slate-400 italic">Non programmée</span>
+                                      <span className="text-slate-400 italic">
+                                        Non programmée
+                                      </span>
                                     )}
                                   </td>
 
@@ -868,14 +944,18 @@ export default function MembresCommissionsPage() {
                                     <button
                                       type="button"
                                       onClick={() =>
-                                        handleOpenMembersModal(row.market, row.seance, row.isLocked)
+                                        handleOpenMembersModal(
+                                          row.market,
+                                          row.seance,
+                                          row.isLocked,
+                                        )
                                       }
                                       className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-[11px] font-black uppercase tracking-wider shadow-sm transition-all ${
                                         row.isLocked
                                           ? "border border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100"
                                           : row.membersStatus === "final"
-                                          ? "border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                                          : "border border-transparent bg-slate-900 text-white hover:bg-slate-800"
+                                            ? "border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                                            : "border border-transparent bg-slate-900 text-white hover:bg-slate-800"
                                       }`}
                                     >
                                       {row.isLocked ? (
@@ -886,7 +966,9 @@ export default function MembresCommissionsPage() {
                                       ) : (
                                         <>
                                           <Edit2 className="h-3.5 w-3.5" />
-                                          {row.membersStatus !== "none" ? "Modifier" : "Saisir"}
+                                          {row.membersStatus !== "none"
+                                            ? "Modifier"
+                                            : "Saisir"}
                                         </>
                                       )}
                                     </button>
@@ -903,7 +985,6 @@ export default function MembresCommissionsPage() {
               );
             })}
           </div>
-
         </div>
       </div>
 
@@ -911,7 +992,6 @@ export default function MembresCommissionsPage() {
       {isModalOpen && selectedMarket && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="relative w-full max-w-6xl h-[85vh] max-h-[85vh] flex flex-col rounded-3xl border border-slate-100 bg-white shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-            
             {/* En-tête du popup */}
             <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-6 py-4.5">
               <div>
@@ -939,21 +1019,27 @@ export default function MembresCommissionsPage() {
 
             {/* Contenu du popup */}
             <div className="flex-1 overflow-y-auto p-6">
-              
               {/* Message d'aide ou de verrouillage */}
               {isReadOnly ? (
                 <div className="mb-4 flex gap-3 rounded-2xl border border-slate-200 bg-slate-50/60 p-4 text-xs font-semibold text-slate-600">
                   <Lock className="h-5 w-5 text-slate-400 shrink-0" />
                   <p>
-                    Cette séance a été soumise pour validation ou validée. Les membres de la commission ne peuvent plus être modifiés.
+                    Cette séance a été soumise pour validation ou validée. Les
+                    membres de la commission ne peuvent plus être modifiés.
                   </p>
                 </div>
               ) : (
                 <div className="mb-4 flex gap-3 rounded-2xl border border-emerald-100 bg-emerald-50/20 p-4 text-xs font-semibold text-emerald-700">
                   <AlertCircle className="h-5 w-5 text-emerald-500 shrink-0" />
                   <p>
-                    Renseignez manuellement les membres de la commission. Pour enregistrer définitivement la liste au complet, vous devez renseigner 
-                    <strong className="text-emerald-800"> au moins 3 membres complets</strong> (Nom, Email, CIN, Rôle et Entité).
+                    Renseignez manuellement les membres de la commission. Pour
+                    enregistrer définitivement la liste au complet, vous devez
+                    renseigner
+                    <strong className="text-emerald-800">
+                      {" "}
+                      au moins 3 membres complets
+                    </strong>{" "}
+                    (Nom, Email, CIN, Rôle et Entité).
                   </p>
                 </div>
               )}
@@ -974,22 +1060,30 @@ export default function MembresCommissionsPage() {
 
               {/* Tableau de saisie des membres */}
               <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
-                <table className="w-full text-left border-collapse min-w-[900px]">
+                <table className="w-full text-left border-collapse table-auto">
                   <thead>
                     <tr className="border-b border-slate-200 bg-slate-50 text-[10px] font-black uppercase tracking-wider text-slate-400">
                       <th className="px-4 py-3.5 w-1/4">Nom & Prénom</th>
                       <th className="px-4 py-3.5 w-1/4">Adresse e-mail</th>
-                      <th className="px-4 py-3.5 w-1/5">N° Carte d'identité (CIN)</th>
+                      <th className="px-4 py-3.5 w-1/5">
+                        N° Carte d'identité (CIN)
+                      </th>
                       <th className="px-4 py-3.5 w-1/6">Poste / Rôle</th>
                       <th className="px-4 py-3.5 w-1/6">Entité</th>
-                      {!isReadOnly && <th className="px-4 py-3.5 w-16 text-right">Action</th>}
+                      {!isReadOnly && (
+                        <th className="px-4 py-3.5 w-16 text-right">Action</th>
+                      )}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-xs">
                     {modalMembers.length === 0 ? (
                       <tr>
-                        <td colSpan={isReadOnly ? 5 : 6} className="px-4 py-12 text-center text-slate-400 font-semibold italic">
-                          Aucun membre n'a été ajouté. Cliquez sur "+ Ajouter une ligne".
+                        <td
+                          colSpan={isReadOnly ? 5 : 6}
+                          className="px-4 py-12 text-center text-slate-400 font-semibold italic"
+                        >
+                          Aucun membre n'a été ajouté. Cliquez sur "+ Ajouter
+                          une ligne".
                         </td>
                       </tr>
                     ) : (
@@ -997,103 +1091,125 @@ export default function MembresCommissionsPage() {
                         const isCinInvalid = invalidCinIds.includes(member.id);
 
                         return (
-                        <tr key={member.id} className="hover:bg-slate-50/30">
-                          {/* Nom complet */}
-                          <td className="px-3 py-3">
-                            <input
-                              type="text"
-                              value={member.nomPrenom}
-                              onChange={(e) =>
-                                handleUpdateMemberField(member.id, "nomPrenom", e.target.value)
-                              }
-                              disabled={isReadOnly}
-                              placeholder="Nom complet"
-                              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:border-emerald-500 focus:outline-none disabled:bg-slate-50"
-                            />
-                          </td>
-
-                          {/* Email */}
-                          <td className="px-3 py-3">
-                            <input
-                              type="email"
-                              value={member.email}
-                              onChange={(e) =>
-                                handleUpdateMemberField(member.id, "email", e.target.value)
-                              }
-                              disabled={isReadOnly}
-                              placeholder="exemple@mail.com"
-                              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:border-emerald-500 focus:outline-none disabled:bg-slate-50"
-                            />
-                          </td>
-
-                          {/* CIN */}
-                          <td className="px-3 py-3">
-                            <input
-                              type="text"
-                              value={member.cin}
-                              onChange={(e) =>
-                                handleUpdateMemberField(member.id, "cin", e.target.value)
-                              }
-                              disabled={isReadOnly}
-                              inputMode="numeric"
-                              pattern="[0-9]{12}"
-                              maxLength={12}
-                              placeholder="12 chiffres"
-                              aria-invalid={isCinInvalid}
-                              className={`w-full rounded-xl border bg-white px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none disabled:bg-slate-50 ${
-                                isCinInvalid
-                                  ? "border-rose-400 ring-2 ring-rose-100 focus:border-rose-500"
-                                  : "border-slate-200 focus:border-emerald-500"
-                              }`}
-                            />
-                            {isCinInvalid && (
-                              <p className="mt-1 text-[10px] font-bold text-rose-600">
-                                CIN obligatoire : 12 chiffres exacts.
-                              </p>
-                            )}
-                          </td>
-
-                          {/* Rôle */}
-                          <td className="px-3 py-3">
-                            <input
-                              type="text"
-                              value={member.poste}
-                              onChange={(e) =>
-                                handleUpdateMemberField(member.id, "poste", e.target.value)
-                              }
-                              disabled={isReadOnly}
-                              placeholder="Ex: Membre, Rapporteur..."
-                              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:border-emerald-500 focus:outline-none disabled:bg-slate-50"
-                            />
-                          </td>
-
-                          {/* Entité */}
-                          <td className="px-3 py-3">
-                            <input
-                              type="text"
-                              value={member.entite}
-                              onChange={(e) =>
-                                handleUpdateMemberField(member.id, "entite", e.target.value)
-                              }
-                              disabled={isReadOnly}
-                              placeholder="Ex: UCP / Ministère"
-                              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:border-emerald-500 focus:outline-none disabled:bg-slate-50"
-                            />
-                          </td>
-
-                          {/* Suppression de la ligne */}
-                          {!isReadOnly && (
-                            <td className="px-3 py-3 text-right">
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveMemberRow(member.id)}
-                                className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-colors"
-                              >
-                                <Trash2 className="h-4.5 w-4.5" />
-                              </button>
+                          <tr key={member.id} className="hover:bg-slate-50/30">
+                            {/* Nom complet */}
+                            <td className="px-3 py-3">
+                              <input
+                                type="text"
+                                value={member.nomPrenom}
+                                onChange={(e) =>
+                                  handleUpdateMemberField(
+                                    member.id,
+                                    "nomPrenom",
+                                    e.target.value,
+                                  )
+                                }
+                                disabled={isReadOnly}
+                                placeholder="Nom complet"
+                                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:border-emerald-500 focus:outline-none disabled:bg-slate-50"
+                              />
                             </td>
-                          )}
-                        </tr>
+
+                            {/* Email */}
+                            <td className="px-3 py-3">
+                              <input
+                                type="email"
+                                value={member.email}
+                                onChange={(e) =>
+                                  handleUpdateMemberField(
+                                    member.id,
+                                    "email",
+                                    e.target.value,
+                                  )
+                                }
+                                disabled={isReadOnly}
+                                placeholder="exemple@mail.com"
+                                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:border-emerald-500 focus:outline-none disabled:bg-slate-50"
+                              />
+                            </td>
+
+                            {/* CIN */}
+                            <td className="px-3 py-3">
+                              <input
+                                type="text"
+                                value={member.cin}
+                                onChange={(e) =>
+                                  handleUpdateMemberField(
+                                    member.id,
+                                    "cin",
+                                    e.target.value,
+                                  )
+                                }
+                                disabled={isReadOnly}
+                                inputMode="numeric"
+                                pattern="[0-9]{12}"
+                                maxLength={12}
+                                placeholder="12 chiffres"
+                                aria-invalid={isCinInvalid}
+                                className={`w-full rounded-xl border bg-white px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none disabled:bg-slate-50 ${
+                                  isCinInvalid
+                                    ? "border-rose-400 ring-2 ring-rose-100 focus:border-rose-500"
+                                    : "border-slate-200 focus:border-emerald-500"
+                                }`}
+                              />
+                              {isCinInvalid && (
+                                <p className="mt-1 text-[10px] font-bold text-rose-600">
+                                  CIN obligatoire : 12 chiffres exacts.
+                                </p>
+                              )}
+                            </td>
+
+                            {/* Rôle */}
+                            <td className="px-3 py-3">
+                              <input
+                                type="text"
+                                value={member.poste}
+                                onChange={(e) =>
+                                  handleUpdateMemberField(
+                                    member.id,
+                                    "poste",
+                                    e.target.value,
+                                  )
+                                }
+                                disabled={isReadOnly}
+                                placeholder="Ex: Membre, Rapporteur..."
+                                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:border-emerald-500 focus:outline-none disabled:bg-slate-50"
+                              />
+                            </td>
+
+                            {/* Entité */}
+                            <td className="px-3 py-3">
+                              <input
+                                type="text"
+                                value={member.entite}
+                                onChange={(e) =>
+                                  handleUpdateMemberField(
+                                    member.id,
+                                    "entite",
+                                    e.target.value,
+                                  )
+                                }
+                                disabled={isReadOnly}
+                                placeholder="Ex: UCP / Ministère"
+                                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:border-emerald-500 focus:outline-none disabled:bg-slate-50"
+                              />
+                            </td>
+
+                            {/* Suppression de la ligne */}
+                            {!isReadOnly && (
+                              <td className="px-3 py-3 text-right">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleRemoveMemberRow(member.id)
+                                  }
+                                  className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-colors"
+                                >
+                                  <Trash2 className="h-4.5 w-4.5" />
+                                </button>
+                              </td>
+                            )}
+                          </tr>
                         );
                       })
                     )}
@@ -1123,7 +1239,7 @@ export default function MembresCommissionsPage() {
                   {isReadOnly ? "Fermer" : "Annuler"}
                 </button>
               </div>
-              
+
               {!isReadOnly && (
                 <div className="flex gap-3">
                   <button

@@ -50,6 +50,7 @@ import type {
   OuvertureUser,
   SeanceOuverture,
   UpdateSeancePayload,
+  CommissionMemberPayload,
 } from "@/types/ouvertureOffre";
 import type { ProcurementMarket, ProcedureType } from "@/types/procurement";
 
@@ -62,7 +63,13 @@ type SaveMode =
   | "reject-member"
   | "reject-president";
 type RejectMode = "member" | "president";
-type EnvelopeState = "" | "DEPOSEE" | "MANQUANTE" | "RECU" | "INTEGRE" | "MANQUANT";
+type EnvelopeState =
+  | ""
+  | "DEPOSEE"
+  | "MANQUANTE"
+  | "RECU"
+  | "INTEGRE"
+  | "MANQUANT";
 
 type EditableOffre = {
   localId: string;
@@ -146,8 +153,9 @@ const parseCommissionMembers = (stored: string | null): CommissionMember[] => {
     if (!Array.isArray(parsed)) return [];
 
     return parsed
-      .filter((member): member is Record<string, unknown> =>
-        typeof member === "object" && member !== null,
+      .filter(
+        (member): member is Record<string, unknown> =>
+          typeof member === "object" && member !== null,
       )
       .map((member) => ({
         nomPrenom:
@@ -170,7 +178,8 @@ const mapSeanceMembersToCommissionMembers = (
       member.nom_prenom?.trim() ||
       member.utilisateur_detail.full_name?.trim() ||
       member.utilisateur_detail.username,
-    email: member.utilisateur_detail.email || member.utilisateur_detail.username,
+    email:
+      member.utilisateur_detail.email || member.utilisateur_detail.username,
     cin: member.numero_carte || "",
     poste: member.poste || "",
     entite: member.intitule || "",
@@ -258,7 +267,9 @@ const formatValidationDateTime = (value?: string | null) => {
   return formatDateTime(value);
 };
 
-const getCommissionDecisionLabel = (decision?: CommissionMember["decision"]) => {
+const getCommissionDecisionLabel = (
+  decision?: CommissionMember["decision"],
+) => {
   if (decision === "VALIDEE") return "Validé";
   if (decision === "REJETEE") return "Rejeté";
   return "En attente";
@@ -321,20 +332,26 @@ const buildFormState = (seance: SeanceOuverture): DetailFormState => ({
 });
 
 const getUserLabel = (user: OuvertureUser) =>
-  user.full_name?.trim() || `${user.first_name} ${user.last_name}`.trim() || user.username;
+  user.full_name?.trim() ||
+  `${user.first_name} ${user.last_name}`.trim() ||
+  user.username;
 
 export default function SeanceOuvertureDetail() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const rawParamId = params?.id;
-  const normalizedParamId = Array.isArray(rawParamId) ? rawParamId[0] : rawParamId;
+  const normalizedParamId = Array.isArray(rawParamId)
+    ? rawParamId[0]
+    : rawParamId;
   const currentDetailPath = normalizedParamId
     ? `/ouverture_offre/${normalizedParamId}`
     : "/ouverture_offre";
   const [screenState, setScreenState] = useState<ScreenState>("loading");
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [seance, setSeance] = useState<SeanceOuverture | null>(null);
-  const [linkedMarket, setLinkedMarket] = useState<ProcurementMarket | null>(null);
+  const [linkedMarket, setLinkedMarket] = useState<ProcurementMarket | null>(
+    null,
+  );
   const [availableUsers, setAvailableUsers] = useState<OuvertureUser[]>([]);
   const [formData, setFormData] = useState<DetailFormState | null>(null);
   const [error, setError] = useState("");
@@ -346,13 +363,19 @@ export default function SeanceOuvertureDetail() {
   const [saveMode, setSaveMode] = useState<SaveMode | null>(null);
   const [validationComment, setValidationComment] = useState("");
   const [validationTarget, setValidationTarget] = useState("");
-  const [pendingRejectMode, setPendingRejectMode] = useState<RejectMode | null>(null);
-  const [pendingValidateMode, setPendingValidateMode] = useState<"member" | "president" | null>(null);
+  const [pendingRejectMode, setPendingRejectMode] = useState<RejectMode | null>(
+    null,
+  );
+  const [pendingValidateMode, setPendingValidateMode] = useState<
+    "member" | "president" | null
+  >(null);
   const [isMemberModalOpen, setIsMemberModalOpen] = useState(false);
   const [memberSearch, setMemberSearch] = useState("");
   const [draftMemberIds, setDraftMemberIds] = useState<number[]>([]);
   const [memberModalError, setMemberModalError] = useState("");
-  const [commissionMembers, setCommissionMembers] = useState<CommissionMember[]>([]);
+  const [commissionMembers, setCommissionMembers] = useState<
+    CommissionMember[]
+  >([]);
   const [isCommissionModalOpen, setIsCommissionModalOpen] = useState(false);
 
   useEffect(() => {
@@ -361,7 +384,9 @@ export default function SeanceOuvertureDetail() {
       const normalizedId = Array.isArray(rawId) ? rawId[0] : rawId;
 
       if (!getToken()) {
-        const nextPath = normalizedId ? `/ouverture_offre/${normalizedId}` : "/ouverture_offre";
+        const nextPath = normalizedId
+          ? `/ouverture_offre/${normalizedId}`
+          : "/ouverture_offre";
         router.replace(`/login?next=${encodeURIComponent(nextPath)}`);
         return;
       }
@@ -393,7 +418,8 @@ export default function SeanceOuvertureDetail() {
         setSeance(seanceData);
         setLinkedMarket(
           markets.find(
-            (market) => market.reference_number === seanceData.reference_dossier,
+            (market) =>
+              market.reference_number === seanceData.reference_dossier,
           ) ?? null,
         );
         setAvailableUsers(users);
@@ -401,9 +427,13 @@ export default function SeanceOuvertureDetail() {
 
         // Load manual commission members from localStorage
         const localKey = `ucp_commission_membres_${seanceData.reference_dossier}`;
-        const loadedMembers = parseCommissionMembers(localStorage.getItem(localKey));
+        const loadedMembers = parseCommissionMembers(
+          localStorage.getItem(localKey),
+        );
         const backendMembers = mapSeanceMembersToCommissionMembers(seanceData);
-        setCommissionMembers(mergeCommissionMembers(backendMembers, loadedMembers));
+        setCommissionMembers(
+          mergeCommissionMembers(backendMembers, loadedMembers),
+        );
 
         // Bridge manual members to DB user accounts (by email)
         const matchedIds: number[] = [];
@@ -412,7 +442,8 @@ export default function SeanceOuvertureDetail() {
             if (!m.email) return;
 
             const found = users.find(
-              (u: OuvertureUser) => u.email?.toLowerCase() === m.email?.toLowerCase(),
+              (u: OuvertureUser) =>
+                u.email?.toLowerCase() === m.email?.toLowerCase(),
             );
             if (found) {
               matchedIds.push(found.id);
@@ -427,9 +458,15 @@ export default function SeanceOuvertureDetail() {
         setFormData(initialFormState);
 
         // Check if commission members are complete (status "final" in localStorage)
-        const localStatus = localStorage.getItem(`ucp_commission_membres_status_${seanceData.reference_dossier}`);
+        const localStatus = localStorage.getItem(
+          `ucp_commission_membres_status_${seanceData.reference_dossier}`,
+        );
         const isSecretaire = isSecretaireUser(user);
-        if (isSecretaire && localStatus !== "final" && seanceData.membres.length < 3) {
+        if (
+          isSecretaire &&
+          localStatus !== "final" &&
+          seanceData.membres.length < 3
+        ) {
           setMembersIncomplete(true);
         }
 
@@ -456,9 +493,11 @@ export default function SeanceOuvertureDetail() {
     seance.secretaire === currentUser.id &&
     !isLocked;
   const showMontantColumn = formData?.etape_ouverture === "COMPLETE";
-  const selectedPresidentId = formData?.president ? Number(formData.president) : null;
+  const selectedPresidentId = formData?.president
+    ? Number(formData.president)
+    : null;
   const selectedPresident = selectedPresidentId
-    ? availableUsers.find((user) => user.id === selectedPresidentId) ?? null
+    ? (availableUsers.find((user) => user.id === selectedPresidentId) ?? null)
     : null;
   const deadlineDate = toInputDate(linkedMarket?.deadline);
   const deadlineTime = toInputTime(linkedMarket?.deadline);
@@ -488,13 +527,15 @@ export default function SeanceOuvertureDetail() {
   const currentMember = seance?.membres.find(
     (membre) => membre.utilisateur === currentUser?.id,
   );
-  const presentMembers = seance?.membres.filter((membre) => membre.est_present) ?? [];
+  const presentMembers =
+    seance?.membres.filter((membre) => membre.est_present) ?? [];
   const allPresentMembersDecided =
     presentMembers.length > 0 &&
     presentMembers.every((membre) => membre.decision !== "EN_ATTENTE");
   const canValidateAsMember =
     !!seance &&
-    (seance.statut === "EN_VALIDATION_MEMBRES" || seance.statut === "A_VALIDER") &&
+    (seance.statut === "EN_VALIDATION_MEMBRES" ||
+      seance.statut === "A_VALIDER") &&
     !!currentMember &&
     currentMember.est_present &&
     currentMember.decision === "EN_ATTENTE";
@@ -502,7 +543,8 @@ export default function SeanceOuvertureDetail() {
   const canValidateAsPresident =
     !!seance &&
     !!currentUser &&
-    (seance.statut === "EN_VALIDATION_PRESIDENT" || seance.statut === "A_VALIDER") &&
+    (seance.statut === "EN_VALIDATION_PRESIDENT" ||
+      seance.statut === "A_VALIDER") &&
     seance.president === currentUser.id &&
     allPresentMembersDecided &&
     seance.president_decision === "EN_ATTENTE";
@@ -511,7 +553,8 @@ export default function SeanceOuvertureDetail() {
   const canRejectAsPresident =
     !!seance &&
     isPresidentViewer &&
-    (seance.statut === "EN_VALIDATION_PRESIDENT" || seance.statut === "A_VALIDER") &&
+    (seance.statut === "EN_VALIDATION_PRESIDENT" ||
+      seance.statut === "A_VALIDER") &&
     seance.president_decision === "EN_ATTENTE";
   const hasValidatedAsMember = currentMember?.decision === "VALIDEE";
   const hasRejectedAsMember = currentMember?.decision === "REJETEE";
@@ -528,7 +571,8 @@ export default function SeanceOuvertureDetail() {
   const presidentValidationBlocked =
     !!seance &&
     isPresidentViewer &&
-    (seance.statut === "EN_VALIDATION_MEMBRES" || seance.statut === "A_VALIDER") &&
+    (seance.statut === "EN_VALIDATION_MEMBRES" ||
+      seance.statut === "A_VALIDER") &&
     seance.president_decision === "EN_ATTENTE" &&
     !allPresentMembersDecided;
   const canTakeDecision =
@@ -541,13 +585,36 @@ export default function SeanceOuvertureDetail() {
     : canTakeDecision || presidentValidationBlocked
       ? "Validation de séance"
       : "Détail de séance";
+  const overviewCommissionMembers = commissionMembers.map((member, index) => ({
+    id: index + 1,
+    utilisateur: index + 1,
+    utilisateur_detail: {
+      id: index + 1,
+      username: member.email || member.nomPrenom || `membre-${index + 1}`,
+      email: member.email || "",
+      first_name: "",
+      last_name: "",
+      full_name: member.nomPrenom || member.email || `Membre ${index + 1}`,
+    },
+    nom_prenom: member.nomPrenom || "",
+    numero_carte: member.cin || "",
+    intitule: member.entite || "",
+    poste: member.poste || "",
+    est_present: true,
+    a_valide: !!member.decision && member.decision !== "EN_ATTENTE",
+    decision: member.decision || "EN_ATTENTE",
+    commentaire: member.commentaire || "",
+    date_validation: member.dateValidation || null,
+  })) as SeanceOuverture["membres"];
 
-  const setField = <K extends keyof DetailFormState,>(
+  const setField = <K extends keyof DetailFormState>(
     field: K,
     value: DetailFormState[K],
   ) => {
     if (validationTarget === field) setValidationTarget("");
-    setFormData((current) => (current ? { ...current, [field]: value } : current));
+    setFormData((current) =>
+      current ? { ...current, [field]: value } : current,
+    );
   };
 
   const getValidationFieldClass = (field: string) =>
@@ -578,11 +645,11 @@ export default function SeanceOuvertureDetail() {
     setFormData((current) =>
       current
         ? {
-          ...current,
-          membre_ids: values.filter((id) =>
-            selectedPresidentId ? id !== selectedPresidentId : true,
-          ),
-        }
+            ...current,
+            membre_ids: values.filter((id) =>
+              selectedPresidentId ? id !== selectedPresidentId : true,
+            ),
+          }
         : current,
     );
   };
@@ -626,7 +693,9 @@ export default function SeanceOuvertureDetail() {
 
     setDraftMemberIds((current) => {
       const presidentId = value ? Number(value) : null;
-      return presidentId ? current.filter((memberId) => memberId !== presidentId) : current;
+      return presidentId
+        ? current.filter((memberId) => memberId !== presidentId)
+        : current;
     });
   };
 
@@ -637,11 +706,11 @@ export default function SeanceOuvertureDetail() {
     setFormData((current) =>
       current
         ? {
-          ...current,
-          offres: current.offres.map((offre) =>
-            offre.localId === localId ? { ...offre, ...patch } : offre,
-          ),
-        }
+            ...current,
+            offres: current.offres.map((offre) =>
+              offre.localId === localId ? { ...offre, ...patch } : offre,
+            ),
+          }
         : current,
     );
   };
@@ -661,9 +730,9 @@ export default function SeanceOuvertureDetail() {
     setFormData((current) =>
       current
         ? {
-          ...current,
-          offres: [...current.offres, createEmptyOffre()],
-        }
+            ...current,
+            offres: [...current.offres, createEmptyOffre()],
+          }
         : current,
     );
   };
@@ -671,7 +740,9 @@ export default function SeanceOuvertureDetail() {
   const removeOffreRow = (localId: string) => {
     setFormData((current) => {
       if (!current) return current;
-      const nextOffres = current.offres.filter((offre) => offre.localId !== localId);
+      const nextOffres = current.offres.filter(
+        (offre) => offre.localId !== localId,
+      );
 
       return {
         ...current,
@@ -684,7 +755,9 @@ export default function SeanceOuvertureDetail() {
     currentForm: DetailFormState,
     nextStatus: SeanceOuverture["statut"],
   ): UpdateSeancePayload => {
-    const presidentId = currentForm.president ? Number(currentForm.president) : null;
+    const presidentId = currentForm.president
+      ? Number(currentForm.president)
+      : null;
     const membreIds = Array.from(
       new Set(
         currentForm.membre_ids.filter((memberId) =>
@@ -706,7 +779,7 @@ export default function SeanceOuvertureDetail() {
         enveloppe_financiere: offre.enveloppe_financiere,
         montant_global:
           currentForm.etape_ouverture === "COMPLETE" &&
-            offre.montant_global.trim()
+          offre.montant_global.trim()
             ? offre.montant_global.trim()
             : null,
         observations: offre.observations.trim(),
@@ -724,6 +797,14 @@ export default function SeanceOuvertureDetail() {
         ),
       );
 
+    const commissionPayload: CommissionMemberPayload[] = commissionMembers.map((m) => ({
+      nomPrenom: m.nomPrenom || "",
+      email: m.email || "",
+      cin: m.cin || "",
+      poste: m.poste || "",
+      entite: m.entite || "",
+    }));
+
     return {
       reference_dossier: currentForm.reference_dossier.trim(),
       objet_dossier: currentForm.objet_dossier.trim(),
@@ -740,6 +821,7 @@ export default function SeanceOuvertureDetail() {
         : "",
       document_substitution_present: currentForm.document_substitution_present,
       membre_ids: membreIds,
+      commission_members: commissionPayload,
       offres,
       statut: nextStatus,
     };
@@ -749,15 +831,28 @@ export default function SeanceOuvertureDetail() {
     currentForm: DetailFormState,
     nextStatus: SeanceOuverture["statut"],
   ): ValidationIssue | null => {
+    if (commissionMembers.length < 3) {
+      return {
+        field: "president",
+        message: "La commission doit contenir au moins 3 membres.",
+      };
+    }
+
     if (nextStatus === "EN_VALIDATION_MEMBRES" || nextStatus === "A_VALIDER") {
       if (!currentForm.president) {
         return { field: "president", message: "Choisis un président." };
       }
       if (!currentForm.date_seance) {
-        return { field: "date_seance", message: "Renseigne la date de séance." };
+        return {
+          field: "date_seance",
+          message: "Renseigne la date de séance.",
+        };
       }
       if (!currentForm.heure_seance) {
-        return { field: "heure_seance", message: "Renseigne l'heure de séance." };
+        return {
+          field: "heure_seance",
+          message: "Renseigne l'heure de séance.",
+        };
       }
       if (!currentForm.lieu.trim()) {
         return { field: "lieu", message: "Renseigne le lieu de séance." };
@@ -847,7 +942,9 @@ export default function SeanceOuvertureDetail() {
       );
       router.replace("/ouverture_offre");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Enregistrement impossible.");
+      setError(
+        err instanceof Error ? err.message : "Enregistrement impossible.",
+      );
     } finally {
       setSaveMode(null);
     }
@@ -870,7 +967,9 @@ export default function SeanceOuvertureDetail() {
       );
       router.replace("/ouverture_offre");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Validation membre impossible.");
+      setError(
+        err instanceof Error ? err.message : "Validation membre impossible.",
+      );
     } finally {
       setSaveMode(null);
     }
@@ -893,7 +992,9 @@ export default function SeanceOuvertureDetail() {
       );
       router.replace("/ouverture_offre");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Validation président impossible.");
+      setError(
+        err instanceof Error ? err.message : "Validation président impossible.",
+      );
     } finally {
       setSaveMode(null);
     }
@@ -961,7 +1062,9 @@ export default function SeanceOuvertureDetail() {
       );
       router.replace("/ouverture_offre");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Rejet président impossible.");
+      setError(
+        err instanceof Error ? err.message : "Rejet président impossible.",
+      );
     } finally {
       setSaveMode(null);
     }
@@ -1003,7 +1106,9 @@ export default function SeanceOuvertureDetail() {
       await downloadPV(seance.id, seance.reference_dossier);
       setSuccessMessage("Téléchargement du PV lancé avec succès.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Impossible de télécharger le PV.");
+      setError(
+        err instanceof Error ? err.message : "Impossible de télécharger le PV.",
+      );
     }
   };
 
@@ -1030,11 +1135,21 @@ export default function SeanceOuvertureDetail() {
               <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-50 text-rose-600 shadow-md">
                 <Users className="h-7 w-7" />
               </div>
-              <h2 className="mt-6 text-xl font-black text-slate-900">Commission incomplète</h2>
+              <h2 className="mt-6 text-xl font-black text-slate-900">
+                Commission incomplète
+              </h2>
               <p className="mt-4 text-sm text-slate-600 leading-relaxed">
-                Les membres de la commission pour le dossier <strong className="text-slate-800">{seance?.reference_dossier || "de cette séance"}</strong> ne sont pas encore au complet ou enregistrés définitivement.
+                Les membres de la commission pour le dossier{" "}
+                <strong className="text-slate-800">
+                  {seance?.reference_dossier || "de cette séance"}
+                </strong>{" "}
+                ne sont pas encore au complet ou enregistrés définitivement.
                 <br />
-                <span className="mt-2 block font-semibold text-rose-600">Au moins 3 membres complets doivent être enregistrés définitivement avant de pouvoir ouvrir le dossier d&apos;offres.</span>
+                <span className="mt-2 block font-semibold text-rose-600">
+                  Au moins 3 membres complets doivent être enregistrés
+                  définitivement avant de pouvoir ouvrir le dossier
+                  d&apos;offres.
+                </span>
               </p>
               <div className="mt-8 flex flex-col gap-3">
                 <button
@@ -1042,7 +1157,8 @@ export default function SeanceOuvertureDetail() {
                   onClick={() => router.push("/ouverture_offre/membres")}
                   className="inline-flex justify-center items-center gap-2 rounded-xl bg-slate-900 px-5 py-3 text-xs font-bold text-white shadow-md hover:bg-slate-800 transition-all"
                 >
-                  <Users className="h-4 w-4" /> Configurer les membres de commission
+                  <Users className="h-4 w-4" /> Configurer les membres de
+                  commission
                 </button>
                 <button
                   type="button"
@@ -1065,7 +1181,9 @@ export default function SeanceOuvertureDetail() {
         <TopHeader />
         <div className="mx-auto max-w-[1560px] px-4 py-6 sm:px-6 lg:px-10">
           <div className="rounded-2xl border border-rose-200 bg-white p-8 shadow-sm">
-            <h1 className="text-xl font-bold text-slate-900">Séance indisponible</h1>
+            <h1 className="text-xl font-bold text-slate-900">
+              Séance indisponible
+            </h1>
             <p className="mt-2 text-sm text-slate-600">{error}</p>
             <Link
               href="/ouverture_offre"
@@ -1085,16 +1203,24 @@ export default function SeanceOuvertureDetail() {
       <TopHeader />
 
       <div className="zoom-content mx-auto mt-2 max-w-[1880px] px-2 pb-6 sm:px-3 lg:px-4">
-        <div className={`group relative flex w-full flex-col justify-between overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-[0_8px_24px_rgb(0,0,0,0.035)] md:flex-row md:items-center ${canEdit ? "mb-3 gap-3 p-3" : "mb-2 gap-2 p-3"
-          }`}>
+        <div
+          className={`group relative flex w-full flex-col justify-between overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-[0_8px_24px_rgb(0,0,0,0.035)] md:flex-row md:items-center ${
+            canEdit ? "mb-3 gap-3 p-3" : "mb-2 gap-2 p-3"
+          }`}
+        >
           <div className="absolute right-0 top-0 -z-10 h-64 w-64 rounded-full bg-gradient-to-br from-emerald-100 to-teal-50 opacity-50 blur-3xl transition-transform duration-700 group-hover:scale-110" />
           <div className="flex items-center gap-3">
             <div className="relative">
-              <div className={`flex rotate-3 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-400 text-white shadow-lg shadow-emerald-500/20 transition-all duration-300 group-hover:rotate-6 ${canEdit ? "h-9 w-9" : "h-8 w-8"
-                }`}>
+              <div
+                className={`flex rotate-3 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-400 text-white shadow-lg shadow-emerald-500/20 transition-all duration-300 group-hover:rotate-6 ${
+                  canEdit ? "h-9 w-9" : "h-8 w-8"
+                }`}
+              >
                 <ShieldCheck className="h-4 w-4" />
               </div>
-              {canEdit && <Sparkles className="absolute -right-1 -top-1 h-3 w-3 text-amber-400" />}
+              {canEdit && (
+                <Sparkles className="absolute -right-1 -top-1 h-3 w-3 text-amber-400" />
+              )}
             </div>
             <div>
               <div className="flex flex-wrap items-center gap-2">
@@ -1113,10 +1239,14 @@ export default function SeanceOuvertureDetail() {
                   </span>
                 )}
               </div>
-              <h1 className={`mt-0.5 font-black tracking-tight text-slate-800 ${canEdit ? "text-lg" : "text-base"}`}>
+              <h1
+                className={`mt-0.5 font-black tracking-tight text-slate-800 ${canEdit ? "text-lg" : "text-base"}`}
+              >
                 {formData.reference_dossier || "Ouverture des offres"}
               </h1>
-              <p className={`font-semibold text-slate-500 ${canEdit ? "text-[12px]" : "text-[11px]"}`}>
+              <p
+                className={`font-semibold text-slate-500 ${canEdit ? "text-[12px]" : "text-[11px]"}`}
+              >
                 {formData.objet_dossier || "Objet du DAO à renseigner"}
               </p>
             </div>
@@ -1141,6 +1271,16 @@ export default function SeanceOuvertureDetail() {
               <Users className="h-4 w-4 text-emerald-500" />
               Voir les membres de la commission
             </button>
+            {canEdit && (
+              <button
+                type="button"
+                onClick={() => router.push(`/ouverture_offre/membres?dossier=${encodeURIComponent(seance.reference_dossier)}`)}
+                className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
+              >
+                <Users className="h-4 w-4 text-sky-500" />
+                Gérer les membres
+              </button>
+            )}
             <Link
               href="/ouverture_offre"
               className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
@@ -1212,14 +1352,17 @@ export default function SeanceOuvertureDetail() {
                         onChange={(event) =>
                           setField(
                             "etape_ouverture",
-                            event.target.value as DetailFormState["etape_ouverture"],
+                            event.target
+                              .value as DetailFormState["etape_ouverture"],
                           )
                         }
                         disabled={!canEdit}
                         className={compactSelectClass}
                       >
                         <option value="COMPLETE">Ouverture complète</option>
-                        <option value="ADMIN_TECH">Administrative et technique</option>
+                        <option value="ADMIN_TECH">
+                          Administrative et technique
+                        </option>
                       </select>
                     </label>
 
@@ -1231,7 +1374,9 @@ export default function SeanceOuvertureDetail() {
                       <input
                         type="date"
                         value={formData.date_seance}
-                        onChange={(event) => setField("date_seance", event.target.value)}
+                        onChange={(event) =>
+                          setField("date_seance", event.target.value)
+                        }
                         disabled={!canEdit}
                         min={new Date().toISOString().slice(0, 10)}
                         className={compactInputClass}
@@ -1246,7 +1391,9 @@ export default function SeanceOuvertureDetail() {
                       <input
                         type="time"
                         value={formData.heure_seance}
-                        onChange={(event) => setField("heure_seance", event.target.value)}
+                        onChange={(event) =>
+                          setField("heure_seance", event.target.value)
+                        }
                         disabled={!canEdit}
                         className={compactInputClass}
                       />
@@ -1259,7 +1406,9 @@ export default function SeanceOuvertureDetail() {
                       <span className={labelClass}>Lieu</span>
                       <input
                         value={formData.lieu}
-                        onChange={(event) => setField("lieu", event.target.value)}
+                        onChange={(event) =>
+                          setField("lieu", event.target.value)
+                        }
                         disabled={!canEdit}
                         placeholder="Ex. Salle 3, UCP"
                         className={compactInputClass}
@@ -1273,7 +1422,9 @@ export default function SeanceOuvertureDetail() {
                       <span className={labelClass}>Président</span>
                       <select
                         value={formData.president}
-                        onChange={(event) => handlePresidentChange(event.target.value)}
+                        onChange={(event) =>
+                          handlePresidentChange(event.target.value)
+                        }
                         disabled={!canEdit}
                         className={compactSelectClass}
                       >
@@ -1287,7 +1438,6 @@ export default function SeanceOuvertureDetail() {
                         ))}
                       </select>
                     </label>
-
                   </div>
                 </div>
               </section>
@@ -1305,21 +1455,28 @@ export default function SeanceOuvertureDetail() {
 
                 {!showMontantColumn && (
                   <div className="border-b border-sky-100 bg-sky-50/80 px-4 py-2 text-sm font-semibold text-sky-800">
-                    Aucun montant à saisir pour une ouverture administrative et technique.
+                    Aucun montant à saisir pour une ouverture administrative et
+                    technique.
                   </div>
                 )}
 
                 <div className="overflow-x-auto 2xl:overflow-visible">
-                  <table className="w-full min-w-[1120px] table-fixed text-left">
+                  <table className="w-full table-auto text-left">
                     <thead className="bg-white">
                       <tr className="border-b border-slate-200 text-center text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">
                         <th className="w-10 px-3 py-3">#</th>
                         <th className="w-40 px-2 py-3">Soumissionnaire</th>
-                        <th className="w-64 px-2 py-3">Date & Heure de réception</th>
-                        <th className="w-28 px-2 py-3">Enveloppe administrative</th>
+                        <th className="w-64 px-2 py-3">
+                          Date & Heure de réception
+                        </th>
+                        <th className="w-28 px-2 py-3">
+                          Enveloppe administrative
+                        </th>
                         <th className="w-28 px-2 py-3">Enveloppe technique</th>
                         <th className="w-28 px-2 py-3">Enveloppe financière</th>
-                        {showMontantColumn && <th className="w-28 px-2 py-3">Montant</th>}
+                        {showMontantColumn && (
+                          <th className="w-28 px-2 py-3">Montant</th>
+                        )}
                         <th className="w-56 px-2 py-3">Observation</th>
                         <th className="w-14 px-2 py-3 text-right">Action</th>
                       </tr>
@@ -1341,7 +1498,9 @@ export default function SeanceOuvertureDetail() {
                             <td className="px-3 py-3">
                               <div
                                 data-validation-field={`offre-${offre.localId}-nom`}
-                                className={getValidationFieldClass(`offre-${offre.localId}-nom`)}
+                                className={getValidationFieldClass(
+                                  `offre-${offre.localId}-nom`,
+                                )}
                               >
                                 <input
                                   value={offre.nom_soumissionnaire}
@@ -1385,7 +1544,7 @@ export default function SeanceOuvertureDetail() {
                                     disabled={disableOfferFields}
                                     max={
                                       deadlineDate &&
-                                        offre.date_reception_pli === deadlineDate
+                                      offre.date_reception_pli === deadlineDate
                                         ? deadlineTime || undefined
                                         : undefined
                                     }
@@ -1520,7 +1679,8 @@ export default function SeanceOuvertureDetail() {
                         onChange={(event) =>
                           setField(
                             "etat_scelle",
-                            event.target.value as DetailFormState["etat_scelle"],
+                            event.target
+                              .value as DetailFormState["etat_scelle"],
                           )
                         }
                         disabled={!canEdit}
@@ -1543,12 +1703,16 @@ export default function SeanceOuvertureDetail() {
                         checked={formData.presence_rature}
                         disabled={!canEdit}
                         trueTone="danger"
-                        onChange={(checked) => setField("presence_rature", checked)}
+                        onChange={(checked) =>
+                          setField("presence_rature", checked)
+                        }
                       />
                     </div>
 
                     <div className="grid gap-1 lg:col-span-4">
-                      <span className={labelClass}>Document de substitution</span>
+                      <span className={labelClass}>
+                        Document de substitution
+                      </span>
                       <BinaryChoice
                         trueLabel="Oui"
                         falseLabel="Non"
@@ -1590,7 +1754,9 @@ export default function SeanceOuvertureDetail() {
                     className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     <Save className="h-4 w-4" />
-                    {saveMode === "draft" ? "Enregistrement..." : "Enregistrer brouillon"}
+                    {saveMode === "draft"
+                      ? "Enregistrement..."
+                      : "Enregistrer brouillon"}
                   </button>
                   <button
                     type="button"
@@ -1599,7 +1765,9 @@ export default function SeanceOuvertureDetail() {
                     className="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     <SendHorizontal className="h-4 w-4" />
-                    {saveMode === "submit" ? "Transmission..." : "Mettre à valider"}
+                    {saveMode === "submit"
+                      ? "Transmission..."
+                      : "Mettre à valider"}
                   </button>
                 </section>
               )}
@@ -1617,12 +1785,15 @@ export default function SeanceOuvertureDetail() {
                       </h2>
                       {presidentValidationBlocked && (
                         <p className="mb-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
-                          La validation finale sera disponible après validation de tous les membres présents.
+                          La validation finale sera disponible après validation
+                          de tous les membres présents.
                         </p>
                       )}
                       <textarea
                         value={validationComment}
-                        onChange={(event) => setValidationComment(event.target.value)}
+                        onChange={(event) =>
+                          setValidationComment(event.target.value)
+                        }
                         rows={3}
                         placeholder="Observation obligatoire pour un rejet, facultative pour une validation."
                         className={`${textareaClass} w-full`}
@@ -1634,13 +1805,16 @@ export default function SeanceOuvertureDetail() {
                         <button
                           type="button"
                           onClick={() =>
-                            requestReject(canRejectAsPresident ? "president" : "member")
+                            requestReject(
+                              canRejectAsPresident ? "president" : "member",
+                            )
                           }
                           disabled={!!saveMode}
                           className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-rose-600 px-5 text-sm font-semibold text-white shadow-lg shadow-rose-500/20 transition-all hover:-translate-y-0.5 hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
                         >
                           <X className="h-4 w-4" />
-                          {saveMode === "reject-member" || saveMode === "reject-president"
+                          {saveMode === "reject-member" ||
+                          saveMode === "reject-president"
                             ? "Rejet..."
                             : "Rejeter"}
                         </button>
@@ -1649,7 +1823,9 @@ export default function SeanceOuvertureDetail() {
                         <button
                           type="button"
                           onClick={() =>
-                            requestValidate(canValidateAsPresident ? "president" : "member")
+                            requestValidate(
+                              canValidateAsPresident ? "president" : "member",
+                            )
                           }
                           disabled={!!saveMode}
                           className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 text-sm font-semibold text-white shadow-lg shadow-emerald-500/20 transition-all hover:-translate-y-0.5 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
@@ -1680,7 +1856,8 @@ export default function SeanceOuvertureDetail() {
                           PROCÈS-VERBAL CLÔTURÉ ET SÉCURISÉ
                         </h2>
                         <p className="mt-1 text-xs font-semibold text-slate-500">
-                          Version {seance.pv_document.version} • Signatures numériques validées • Empreinte SHA-256 de contrôle :
+                          Version {seance.pv_document.version} • Signatures
+                          numériques validées • Empreinte SHA-256 de contrôle :
                         </p>
                         <code className="mt-1.5 block max-w-full overflow-x-auto rounded bg-slate-100 px-2 py-1 text-[10px] font-mono text-slate-700 select-all">
                           {seance.pv_document.hash_document}
@@ -1700,7 +1877,15 @@ export default function SeanceOuvertureDetail() {
               )}
 
               <section className="rounded-3xl border border-white/40 bg-white/75 p-4 shadow-[0_8px_32px_rgba(0,0,0,0.05)] backdrop-blur-md">
-                <SeanceOverviewDetails seance={seance} market={linkedMarket} compact />
+                <SeanceOverviewDetails
+                  seance={seance}
+                  market={linkedMarket}
+                  members={overviewCommissionMembers}
+                  presidentLabel={
+                    selectedPresident ? getUserLabel(selectedPresident) : ""
+                  }
+                  compact
+                />
               </section>
 
               <section className="rounded-3xl border border-white/40 bg-white/80 p-5 shadow-[0_8px_32px_rgba(0,0,0,0.05)] backdrop-blur-md">
@@ -1724,7 +1909,9 @@ export default function SeanceOuvertureDetail() {
                         </span>
                         <textarea
                           value={validationComment}
-                          onChange={(event) => setValidationComment(event.target.value)}
+                          onChange={(event) =>
+                            setValidationComment(event.target.value)
+                          }
                           rows={3}
                           placeholder="Observation obligatoire pour un rejet, facultative pour une validation."
                           className={`${textareaClass} w-full`}
@@ -1732,7 +1919,8 @@ export default function SeanceOuvertureDetail() {
                       </label>
                       {presidentValidationBlocked && (
                         <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
-                          La validation finale sera disponible après validation de tous les membres présents.
+                          La validation finale sera disponible après validation
+                          de tous les membres présents.
                         </div>
                       )}
                       <div className="flex flex-wrap justify-end gap-3">
@@ -1740,13 +1928,16 @@ export default function SeanceOuvertureDetail() {
                           <button
                             type="button"
                             onClick={() =>
-                              requestReject(canRejectAsPresident ? "president" : "member")
+                              requestReject(
+                                canRejectAsPresident ? "president" : "member",
+                              )
                             }
                             disabled={!!saveMode}
                             className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-rose-600 px-5 text-sm font-semibold text-white shadow-lg shadow-rose-500/20 transition-all hover:-translate-y-0.5 hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
                           >
                             <X className="h-4 w-4" />
-                            {saveMode === "reject-member" || saveMode === "reject-president"
+                            {saveMode === "reject-member" ||
+                            saveMode === "reject-president"
                               ? "Rejet..."
                               : "Rejeter"}
                           </button>
@@ -1755,7 +1946,9 @@ export default function SeanceOuvertureDetail() {
                           <button
                             type="button"
                             onClick={() =>
-                              requestValidate(canValidateAsPresident ? "president" : "member")
+                              requestValidate(
+                                canValidateAsPresident ? "president" : "member",
+                              )
                             }
                             disabled={!!saveMode}
                             className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 text-sm font-semibold text-white shadow-lg shadow-emerald-500/20 transition-all hover:-translate-y-0.5 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
@@ -1770,10 +1963,11 @@ export default function SeanceOuvertureDetail() {
                     </>
                   ) : hasProcessedByCurrentUser ? (
                     <div
-                      className={`rounded-2xl border px-4 py-3 text-sm font-semibold ${hasRejectedAsMember || hasRejectedAsPresident
+                      className={`rounded-2xl border px-4 py-3 text-sm font-semibold ${
+                        hasRejectedAsMember || hasRejectedAsPresident
                           ? "border-rose-200 bg-rose-50 text-rose-800"
                           : "border-emerald-200 bg-emerald-50 text-emerald-800"
-                        }`}
+                      }`}
                     >
                       {hasRejectedAsMember || hasRejectedAsPresident
                         ? "Rejet déjà enregistré."
@@ -1789,27 +1983,33 @@ export default function SeanceOuvertureDetail() {
                     </div>
                   )}
 
-                  {(hasValidatedAsMember || hasRejectedAsMember) && currentMember?.commentaire && (
-                    <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                        {hasRejectedAsMember ? "Votre motif enregistré" : "Votre observation enregistrée"}
-                      </p>
-                      <p className="mt-2 text-sm leading-relaxed text-slate-700">
-                        {currentMember.commentaire}
-                      </p>
-                    </div>
-                  )}
+                  {(hasValidatedAsMember || hasRejectedAsMember) &&
+                    currentMember?.commentaire && (
+                      <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                          {hasRejectedAsMember
+                            ? "Votre motif enregistré"
+                            : "Votre observation enregistrée"}
+                        </p>
+                        <p className="mt-2 text-sm leading-relaxed text-slate-700">
+                          {currentMember.commentaire}
+                        </p>
+                      </div>
+                    )}
 
-                  {(hasValidatedAsPresident || hasRejectedAsPresident) && seance.president_commentaire && (
-                    <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                        {hasRejectedAsPresident ? "Motif final enregistré" : "Observation finale enregistrée"}
-                      </p>
-                      <p className="mt-2 text-sm leading-relaxed text-slate-700">
-                        {seance.president_commentaire}
-                      </p>
-                    </div>
-                  )}
+                  {(hasValidatedAsPresident || hasRejectedAsPresident) &&
+                    seance.president_commentaire && (
+                      <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                          {hasRejectedAsPresident
+                            ? "Motif final enregistré"
+                            : "Observation finale enregistrée"}
+                        </p>
+                        <p className="mt-2 text-sm leading-relaxed text-slate-700">
+                          {seance.president_commentaire}
+                        </p>
+                      </div>
+                    )}
                 </div>
               </section>
             </>
@@ -1865,9 +2065,7 @@ export default function SeanceOuvertureDetail() {
                 : "membre de commission"
             }
             reference={seance.reference_dossier}
-            loading={
-              saveMode === "member" || saveMode === "president"
-            }
+            loading={saveMode === "member" || saveMode === "president"}
             onCancel={() => setPendingValidateMode(null)}
             onConfirm={confirmPendingValidate}
           />
@@ -1947,7 +2145,7 @@ function CommissionMembersModal({
             </div>
           ) : (
             <div className="overflow-x-auto rounded-2xl border border-slate-200">
-              <table className="w-full min-w-[1080px] text-left">
+              <table className="w-full table-auto text-left">
                 <thead className="bg-slate-50">
                   <tr className="border-b border-slate-200 text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
                     <th className="w-14 px-4 py-3">#</th>
@@ -2118,9 +2316,7 @@ function RejectConfirmModal({
               />
             </label>
             {error && (
-              <p className="text-[11px] font-semibold text-rose-600">
-                {error}
-              </p>
+              <p className="text-[11px] font-semibold text-rose-600">{error}</p>
             )}
           </div>
 
@@ -2200,7 +2396,8 @@ function ValidationConfirmModal({
               Valider cette séance ?
             </h2>
             <p className="mt-1 text-sm font-medium leading-relaxed text-slate-600">
-              Cette validation vaut signature officielle pour votre rôle de {roleLabel}.
+              Cette validation vaut signature officielle pour votre rôle de{" "}
+              {roleLabel}.
             </p>
           </div>
           <button
@@ -2240,9 +2437,7 @@ function ValidationConfirmModal({
               />
             </label>
             {error && (
-              <p className="text-[11px] font-semibold text-rose-600">
-                {error}
-              </p>
+              <p className="text-[11px] font-semibold text-rose-600">{error}</p>
             )}
           </div>
 
@@ -2288,19 +2483,25 @@ function NotificationPopup({
 
   return (
     <div
-      className={`fixed bottom-6 right-6 z-[90] flex w-[min(92vw,31rem)] items-start gap-4 rounded-[22px] border px-5 py-4 shadow-[0_24px_70px_rgba(15,23,42,0.28)] ${isError
+      className={`fixed bottom-6 right-6 z-[90] flex w-[min(92vw,31rem)] items-start gap-4 rounded-[22px] border px-5 py-4 shadow-[0_24px_70px_rgba(15,23,42,0.28)] ${
+        isError
           ? "border-rose-300 bg-[linear-gradient(135deg,#be123c_0%,#e11d48_100%)] text-white"
           : "border-emerald-300 bg-[linear-gradient(135deg,#047857_0%,#10b981_100%)] text-white"
-        }`}
+      }`}
       role="status"
     >
       <div
-        className={`mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border ${isError
+        className={`mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border ${
+          isError
             ? "border-rose-200/30 bg-white/12 text-white"
             : "border-emerald-200/30 bg-white/12 text-white"
-          }`}
+        }`}
       >
-        {isError ? <AlertCircle className="h-5 w-5" /> : <CheckCircle2 className="h-5 w-5" />}
+        {isError ? (
+          <AlertCircle className="h-5 w-5" />
+        ) : (
+          <CheckCircle2 className="h-5 w-5" />
+        )}
       </div>
       <div className="min-w-0 flex-1">
         <p className="text-[15px] font-black tracking-tight text-white">
@@ -2443,8 +2644,8 @@ function MemberSelectionModal({
               Ajouter les membres hors président
             </h2>
             <p className="mt-1 max-w-xl text-xs font-semibold text-slate-500">
-              Le président est géré séparément. Ici, sélectionne les membres présents qui
-              valideront la séance avant lui.
+              Le président est géré séparément. Ici, sélectionne les membres
+              présents qui valideront la séance avant lui.
             </p>
           </div>
           <button
@@ -2463,8 +2664,8 @@ function MemberSelectionModal({
               <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
               <span>
                 Président sélectionné :{" "}
-                <strong className="font-black">{selectedPresidentLabel}</strong>. Il n’apparaît
-                pas dans cette liste pour éviter le double rôle.
+                <strong className="font-black">{selectedPresidentLabel}</strong>
+                . Il n’apparaît pas dans cette liste pour éviter le double rôle.
               </span>
             </div>
           )}
@@ -2497,10 +2698,11 @@ function MemberSelectionModal({
                     key={user.id}
                     type="button"
                     onClick={() => onToggle(user.id)}
-                    className={`flex w-full items-center justify-between gap-4 rounded-2xl border p-3 text-left transition-colors ${isSelected
+                    className={`flex w-full items-center justify-between gap-4 rounded-2xl border p-3 text-left transition-colors ${
+                      isSelected
                         ? "border-emerald-200 bg-emerald-50"
                         : "border-slate-200 bg-white hover:bg-slate-50"
-                      }`}
+                    }`}
                   >
                     <div className="min-w-0">
                       <p className="truncate text-sm font-black text-slate-900">
@@ -2511,10 +2713,11 @@ function MemberSelectionModal({
                       </p>
                     </div>
                     <span
-                      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border ${isSelected
+                      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border ${
+                        isSelected
                           ? "border-emerald-300 bg-emerald-600 text-white"
                           : "border-slate-300 bg-white text-transparent"
-                        }`}
+                      }`}
                     >
                       <CheckCircle2 className="h-4 w-4" />
                     </span>

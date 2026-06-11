@@ -145,7 +145,7 @@ export default function PassationDashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [displayMode, setDisplayMode] = useState<DisplayMode>("status");
-  const [activeSection, setActiveSection] = useState<SectionKey | null>("passation");
+  const [activeSection, setActiveSection] = useState<SectionKey | null>(null);
   const [selectedDemandeId, setSelectedDemandeId] = useState<number | null>(null);
   const [detailViewMode, setDetailViewMode] = useState<DetailViewMode>("detail");
   const [passationModalDemandeId, setPassationModalDemandeId] = useState<number | null>(null);

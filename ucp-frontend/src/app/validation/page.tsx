@@ -132,7 +132,7 @@ export default function ValidationDashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [displayMode, setDisplayMode] = useState<DisplayMode>("status");
-  const [activeSection, setActiveSection] = useState<SectionKey | null>("pending");
+  const [activeSection, setActiveSection] = useState<SectionKey | null>(null);
   const [selectedDemandeId, setSelectedDemandeId] = useState<number | null>(null);
   const [detailViewMode, setDetailViewMode] = useState<DetailViewMode>("detail");
   const [selectedValidationId, setSelectedValidationId] = useState<number | null>(null);

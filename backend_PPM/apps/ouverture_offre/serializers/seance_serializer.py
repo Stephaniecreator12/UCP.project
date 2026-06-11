@@ -224,11 +224,6 @@ class SeanceOuvertureSerializer(serializers.ModelSerializer):
         membre_ids = attrs.get("membre_ids", None)
         commission_members = attrs.get("commission_members", None)
 
-        if membre_ids and president and president.id in membre_ids:
-            raise serializers.ValidationError({
-                "membre_ids": "Le president ne doit pas etre dans la liste des membres presents."
-            })
-
         if commission_members is not None:
             if len(commission_members) < 3:
                 raise serializers.ValidationError({
@@ -239,11 +234,6 @@ class SeanceOuvertureSerializer(serializers.ModelSerializer):
             if len(set(emails)) != len(emails):
                 raise serializers.ValidationError({
                     "commission_members": "Un meme email ne doit pas apparaitre deux fois."
-                })
-            president_email = (getattr(president, "email", "") or "").strip().lower()
-            if president_email and president_email in emails:
-                raise serializers.ValidationError({
-                    "commission_members": "Le president ne doit pas etre dans la liste des membres presents."
                 })
 
         if statut != SeanceOuverture.Statut.BROUILLON:

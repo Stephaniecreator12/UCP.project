@@ -15,6 +15,7 @@ import os
 import socket
 from urllib.parse import urlsplit, urlunsplit
 from dotenv import load_dotenv
+import dj_database_url
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -32,7 +33,7 @@ def env_bool(name, default=False):
 
 def env_int(name, default):
     value = os.getenv(name)
-    if value in [None, ""]:
+    if value is None or value == "":
         return default
 
     try:
@@ -114,6 +115,7 @@ INSTALLED_APPS = [
     'apps.TdrSt',
     'apps.procurement',
     "apps.ouverture_offre",
+    'apps.evaluation_offre',
 ]
 
 MIDDLEWARE = [
@@ -156,8 +158,6 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 if DATABASE_URL:
-    import dj_database_url
-
     DATABASES = {
         "default": dj_database_url.config(
             default=DATABASE_URL,

@@ -31,7 +31,8 @@ urlpatterns = [
     # to replace with a custom login view instead of TokenObtainPairView.
     path("api/login/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("api/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
-    path("api/ouverture/", include("apps.ouverture_offre.urls"))
+    path("api/ouverture/", include("apps.ouverture_offre.urls")),
+    path("api/evaluation/", include("apps.evaluation_offre.urls"))
 ]
 
 if settings.DEBUG:

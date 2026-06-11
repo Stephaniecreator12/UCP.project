@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { CalendarDays, CircleSlash, FileText, Layers3, X } from "lucide-react";
 
 import SeanceOverviewDetails from "@/app/ouverture_offre/components/SeanceOverviewDetails";
@@ -13,6 +13,14 @@ type SeanceOverviewModalProps = {
   market: ProcurementMarket | null;
   stateLabel: string;
   onDownloadPV?: (seanceId: number, referenceDossier: string) => void;
+};
+
+type StoredCommissionMember = {
+  nomPrenom?: string;
+  email?: string;
+  cin?: string;
+  poste?: string;
+  entite?: string;
 };
 
 const statusLabels: Record<SeanceOuverture["statut"], string> = {
@@ -70,6 +78,119 @@ const formatDateTime = (value?: string | null) => {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(parsed);
+};
+
+const COMMISSION_STORAGE_PREFIX = "ucp_commission_membres_";
+
+const parseStoredCommissionMembers = (
+  stored: string | null,
+): StoredCommissionMember[] => {
+  if (!stored) return [];
+
+  try {
+    const parsed: unknown = JSON.parse(stored);
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed
+      .filter((member): member is Record<string, unknown> =>
+        typeof member === "object" && member !== null,
+      )
+      .map((member) => ({
+        nomPrenom:
+          typeof member.nomPrenom === "string" ? member.nomPrenom : undefined,
+        email: typeof member.email === "string" ? member.email : undefined,
+        cin: typeof member.cin === "string" ? member.cin : undefined,
+        poste: typeof member.poste === "string" ? member.poste : undefined,
+        entite: typeof member.entite === "string" ? member.entite : undefined,
+      }));
+  } catch {
+    return [];
+  }
+};
+
+const normalizeEmail = (value?: string | null) => value?.trim().toLowerCase() || "";
+
+const mapStoredMemberToSeanceMember = (
+  member: StoredCommissionMember,
+  index: number,
+): SeanceOuverture["membres"][number] => {
+  const label = member.nomPrenom?.trim() || member.email?.trim() || `Membre ${index + 1}`;
+
+  return {
+    id: -(index + 1),
+    utilisateur: -(index + 1),
+    utilisateur_detail: {
+      id: -(index + 1),
+      username: member.email?.trim() || label,
+      email: member.email?.trim() || "",
+      first_name: "",
+      last_name: "",
+      full_name: label,
+    },
+    nom_prenom: member.nomPrenom?.trim() || "",
+    numero_carte: member.cin?.trim() || "",
+    intitule: member.entite?.trim() || "",
+    poste: member.poste?.trim() || "",
+    est_present: true,
+    a_valide: false,
+    decision: "EN_ATTENTE",
+    commentaire: "",
+    date_validation: null,
+  };
+};
+
+const mergeCommissionMembers = (
+  backendMembers: SeanceOuverture["membres"],
+  storedMembers: SeanceOuverture["membres"],
+): SeanceOuverture["membres"] => {
+  if (backendMembers.length === 0) return storedMembers;
+  if (storedMembers.length === 0) return backendMembers;
+
+  const merged = backendMembers.map((backendMember) => {
+    const backendEmail = normalizeEmail(backendMember.utilisateur_detail.email);
+    const backendName = normalizeEmail(backendMember.nom_prenom || backendMember.utilisateur_detail.full_name);
+
+    const storedMember = storedMembers.find((member) => {
+      const storedEmail = normalizeEmail(member.utilisateur_detail.email);
+      const storedName = normalizeEmail(member.nom_prenom || member.utilisateur_detail.full_name);
+      return (
+        (backendEmail && storedEmail && backendEmail === storedEmail) ||
+        (!backendEmail && backendName && storedName && backendName === storedName)
+      );
+    });
+
+    if (!storedMember) return backendMember;
+
+    return {
+      ...backendMember,
+      nom_prenom: backendMember.nom_prenom || storedMember.nom_prenom,
+      numero_carte: backendMember.numero_carte || storedMember.numero_carte,
+      intitule: backendMember.intitule || storedMember.intitule,
+      poste: backendMember.poste || storedMember.poste,
+    };
+  });
+
+  const mergedEmails = new Set(
+    merged.map((member) => normalizeEmail(member.utilisateur_detail.email)),
+  );
+  const mergedNames = new Set(
+    merged.map((member) =>
+      normalizeEmail(member.nom_prenom || member.utilisateur_detail.full_name),
+    ),
+  );
+
+  const extras = storedMembers.filter((storedMember) => {
+    const storedEmail = normalizeEmail(storedMember.utilisateur_detail.email);
+    const storedName = normalizeEmail(
+      storedMember.nom_prenom || storedMember.utilisateur_detail.full_name,
+    );
+    return (
+      (!storedEmail || !mergedEmails.has(storedEmail)) &&
+      (!storedName || !mergedNames.has(storedName))
+    );
+  });
+
+  return [...merged, ...extras];
 };
 
 function MarketOverviewDetails({ market }: { market: ProcurementMarket }) {
@@ -186,6 +307,19 @@ export default function SeanceOverviewModal({
     };
   }, [onClose, open]);
 
+  const overviewMembers = useMemo(() => {
+    if (!seance) return null;
+    if (typeof window === "undefined") return seance.membres;
+
+    const storedMembers = parseStoredCommissionMembers(
+      window.localStorage.getItem(
+        `${COMMISSION_STORAGE_PREFIX}${seance.reference_dossier}`,
+      ),
+    ).map((member, index) => mapStoredMemberToSeanceMember(member, index));
+
+    return mergeCommissionMembers(seance.membres, storedMembers);
+  }, [seance]);
+
   if (!open || (!seance && !market)) return null;
 
   const referenceLabel = seance?.reference_dossier || market?.reference_number || "N/A";
@@ -254,7 +388,11 @@ export default function SeanceOverviewModal({
 
         <div className="flex-1 overflow-y-auto bg-white px-5 py-5 sm:px-6">
           {seance ? (
-            <SeanceOverviewDetails seance={seance} market={market} />
+            <SeanceOverviewDetails
+              seance={seance}
+              market={market}
+              members={overviewMembers ?? seance.membres}
+            />
           ) : market ? (
             <MarketOverviewDetails market={market} />
           ) : null}

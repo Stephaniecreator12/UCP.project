@@ -1,9 +1,11 @@
-from rest_framework import viewsets
+from rest_framework import viewsets, filters
 from rest_framework.parsers import (
     MultiPartParser,
     FormParser,
     JSONParser
 )
+from django_filters.rest_framework import DjangoFilterBackend
+from apps.procurement.filters.date_filter import ProcurementMarketDateFilter
 from rest_framework.viewsets import ReadOnlyModelViewSet
 from rest_framework.pagination import PageNumberPagination
 from apps.procurement.models.procurement_market import (
@@ -21,7 +23,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import api_view, permission_classes
 from django.shortcuts import get_object_or_404
 from apps.procurement.models.procurement_market import ProcurementMarket
-
+from apps.procurement.permissions.public_permission import BlockPublicUserFromWrite
 class ProcurementMarketViewSet(viewsets.ModelViewSet):
 
     queryset = ProcurementMarket.objects.all().order_by(
@@ -30,7 +32,7 @@ class ProcurementMarketViewSet(viewsets.ModelViewSet):
 
     serializer_class = ProcurementMarketSerializer
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, BlockPublicUserFromWrite]
 
     parser_classes = [
         MultiPartParser,
@@ -48,6 +50,9 @@ class StandardResultsSetPagination(PageNumberPagination):
 class ProcurementMarketListViewSet(ReadOnlyModelViewSet):
     serializer_class = ProcurementMarketListSerializer
     pagination_class = StandardResultsSetPagination
+    filter_backends = [DjangoFilterBackend,filters.SearchFilter]
+    filterset_class = ProcurementMarketDateFilter
+    search_fields = ['title', 'reference_number', 'project_code']
 
     def get_queryset(self):
         return ProcurementMarket.objects.all().prefetch_related(

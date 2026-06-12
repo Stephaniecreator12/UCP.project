@@ -13,7 +13,6 @@ export function middleware(request: NextRequest) {
   if (pathname.startsWith('/auth/login')) {
     return NextResponse.next()
   }
-  /*
   if (
     path.startsWith("/admin") &&
     accessType !== "private"
@@ -22,7 +21,6 @@ export function middleware(request: NextRequest) {
       new URL("/", request.url)
     );
   }
-  */
   return NextResponse.next();
 }
 export const config = {

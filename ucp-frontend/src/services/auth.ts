@@ -19,7 +19,7 @@ export const rhLogin = async (
     controller.abort();
   }, 3000);
   try {
-    const response = await fetch(`${API_RH_URL}/logins`, {
+    const response = await fetch(`${API_RH_URL}/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
@@ -28,8 +28,8 @@ export const rhLogin = async (
     const data = await response.json();
     const accessType = "private"
     if (response.ok) {
-      Cookies.set("access_token", data.access, { expires: 1, secure: process.env.NODE_ENV === 'production' });
-      Cookies.set("refresh_token", data.refresh, { expires: 1, secure: process.env.NODE_ENV === 'production' });
+      Cookies.set("access_token", data.token, { expires: 1, secure: process.env.NODE_ENV === 'production' });
+      Cookies.set("user_info", JSON.stringify(data.user));
       Cookies.set("access_type", accessType, { expires: 1, secure: process.env.NODE_ENV === 'production' });
       return {status:200, success: true};
     }
@@ -88,12 +88,12 @@ export const login = async (
 ): Promise<LoginResult> => {
   try {
     
-    if(isUCPDomain(email)) {
+    //if(isUCPDomain(email)) {
         return await rhLogin(email, password);
-    }
-    else{
+    //}
+    /*else{
       return await publicLogin(email, password);
-    }
+    }*/
   } catch {
     return {
       status: 500,
@@ -108,6 +108,7 @@ export const logout = () => {
   Cookies.remove("access_token");
   Cookies.remove("refresh_token");
   Cookies.remove("access_type");
+  Cookies.remove("user_info");
 };
 
 export const getToken = () => {

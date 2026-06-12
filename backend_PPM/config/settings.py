@@ -155,6 +155,19 @@ CORS_ALLOWED_ORIGINS = [
 "http://localhost:3000",
 "http://127.0.0.1:3000",
 ]
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+    'x-access-type'
+]
+
 
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
@@ -169,7 +182,8 @@ REST_FRAMEWORK = {
     ]
 }
 
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOW_CREDENTIALS = True
 
 from datetime import timedelta
 
@@ -178,6 +192,9 @@ SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(days=1), # Le token durera 24h
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'AUTH_HEADER_TYPES': ('Bearer',),
+    'AUTHENTICATION_TOKEN_CLASSES': (
+        'rest_framework_simplejwt.authentication.StatelessUserAuthentication',
+    ),
 }
 
 # Email configuration

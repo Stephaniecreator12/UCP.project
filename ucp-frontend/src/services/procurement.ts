@@ -155,9 +155,21 @@ export const uploadAnnexDocument = async (
   }
   
 };
-export const getMarkets = async(page: string, search: string = ""): Promise<PaginatedResponse<ProcurementMarket>>=> {
+export const getMarkets = async(
+  page: string, 
+  search: string = "",
+  filters: { publishAfter?: string; publishBefore?: string; deadlineAfter?: string; deadlineBefore?: string } = {}
+): Promise<PaginatedResponse<ProcurementMarket>>=> {
   try {
-    const res = await api.get(`/procurement/market-list/?search=${search}&page=${page}`);
+    const params = new URLSearchParams({
+      page,
+      search,
+      ...(filters.publishAfter && { publish_after: filters.publishAfter }),
+      ...(filters.publishBefore && { publish_before: filters.publishBefore }),
+      ...(filters.deadlineAfter && { deadline_after: filters.deadlineAfter }),
+      ...(filters.deadlineBefore && { deadline_before: filters.deadlineBefore }),
+    });
+    const res = await api.get(`/procurement/market-list/?${params.toString()}`);
     console.log(res.data)
     return res.data; 
   } catch (e) {

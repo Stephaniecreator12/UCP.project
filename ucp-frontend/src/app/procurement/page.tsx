@@ -86,10 +86,9 @@ export default function ProcurementPage({
   }
   useEffect(() => {
     let isMounted = true;
-    const token = getToken();
     const accessType = Cookies.get("access_type")
     const handleGetProfile = async () => {
-      if (accessType === "private" && token) {
+      if (accessType === "private") {
       try {
         const savedUserInfo = Cookies.get("user_info");
         if (savedUserInfo) {
@@ -107,7 +106,7 @@ export default function ProcurementPage({
         console.error("Erreur lors du décodage du token externe :", err);
       }
     } 
-    else if (token) {
+    else if (accessType == "public") {
       try {
         const result = await getme();
         if (isMounted && !result.error) {

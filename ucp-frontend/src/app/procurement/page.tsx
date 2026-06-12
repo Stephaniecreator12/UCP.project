@@ -25,15 +25,25 @@ const formatDate = (dateStr: string) => {
 export default function ProcurementPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; search?: string }>;
 }) {
   const resolvedParams = use(searchParams);
   const currentPage = resolvedParams.page || "1";
+  const currentSearch = resolvedParams.search || "";
 
   const [data, setData] = useState<MarketData | null>(null);
   const [loading, setLoading] = useState(true);
   const [user,setUser] = useState<UserProfileValue | null>(null);
+  const [searchInput, setSearchInput] = useState(currentSearch);
   const router = useRouter();
+  useEffect(() => {
+    setSearchInput(currentSearch);
+  }, [currentSearch]);
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    router.push(`/procurement?page=1&search=${encodeURIComponent(searchInput)}`);
+  };
   const handleViewTrack = async(dossierId:string) => {
     try{
       const token = getToken();
@@ -51,6 +61,7 @@ export default function ProcurementPage({
   }
   useEffect(() => {
     let isMounted = true;
+    
 
     const handleGetProfile = async () => {
       try {
@@ -75,8 +86,9 @@ export default function ProcurementPage({
   }, []);
   useEffect(() => {
     let isMounted = true;
+    setLoading(true);
     
-    getMarkets(currentPage)
+    getMarkets(currentPage, currentSearch)
       .then((res) => {
         if (isMounted) {
           setData(res);
@@ -91,7 +103,7 @@ export default function ProcurementPage({
     return () => {
       isMounted = false;
     };
-  }, [currentPage]);
+  }, [currentPage, currentSearch]);
 
   const handleDownloadDAO = (id: string) => {
   if (!getToken()) {
@@ -151,6 +163,21 @@ const handleToDetailRedirection = (id:string)=>{
       
       <div className="max-w-6xl mx-auto px-4 mt-6">
         <h1 className="text-2xl font-bold text-gray-900 mb-6">Marchés de l UCP</h1>
+        <form onSubmit={handleSearchSubmit} className="w-full md:w-96 flex gap-2">
+            <input 
+              type="text"
+              placeholder="Rechercher par titre, réf, code..."
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"
+            />
+            <button 
+              type="submit" 
+              className="px-4 py-2 bg-gray-800 hover:bg-gray-900 text-white text-sm font-medium rounded-md transition whitespace-nowrap"
+            >
+              🔍 Rechercher
+            </button>
+          </form>
 
         <div className="space-y-4 mb-8">
           {(data.results ?? []).length === 0 ? (
@@ -267,7 +294,7 @@ const handleToDetailRedirection = (id:string)=>{
           <span className="text-sm text-gray-600 font-medium">Page {currentPage} sur {totalPages}</span>
 
           <Link
-            href={`/procurement?page=${Number(currentPage) + 1}`}
+            href={`/procurement?page=${Number(currentPage) + 1}&search=${encodeURIComponent(currentSearch)}`}
             onClick={handlePageChange}
             className={`px-4 py-2 text-sm font-medium border rounded-md text-gray-700 bg-white hover:bg-gray-50 transition ${!data.next ? 'pointer-events-none opacity-40' : ''}`}
           >

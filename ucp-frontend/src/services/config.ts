@@ -3,12 +3,17 @@ import Cookies from 'js-cookie';
 import { AxiosError } from "axios";
 export const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_BASE_URL,
+  withCredentials: true, 
+  xsrfCookieName: 'csrftoken',
+  xsrfHeaderName: 'X-CSRFToken',
 });
 api.interceptors.request.use(async (config) => {
   let token: string | undefined = undefined;
+  let accessType: string | undefined = undefined;
 
   if (typeof window !== "undefined") {
     token = Cookies.get("access_token");
+    accessType = Cookies.get("access_type");
   } else {
     try {
       const { cookies } = await import("next/headers");
@@ -22,6 +27,10 @@ api.interceptors.request.use(async (config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  if (accessType) {
+    config.headers['X-Access-Type'] = accessType;
+  }
+  
 
   return config;
 });

@@ -155,9 +155,9 @@ export const uploadAnnexDocument = async (
   }
   
 };
-export const getMarkets = async(page: string): Promise<PaginatedResponse<ProcurementMarket>>=> {
+export const getMarkets = async(page: string, search: string = ""): Promise<PaginatedResponse<ProcurementMarket>>=> {
   try {
-    const res = await api.get(`/procurement/market-list/?page=${page}`);
+    const res = await api.get(`/procurement/market-list/?search=${search}&page=${page}`);
     console.log(res.data)
     return res.data; 
   } catch (e) {

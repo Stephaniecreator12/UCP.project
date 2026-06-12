@@ -13,17 +13,17 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 from pathlib import Path
 import os 
 from celery.schedules import crontab
-
+from dotenv import load_dotenv
 AUTH_USER_MODEL = 'users.PublicProfile'
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-
+load_dotenv()
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-zs0yxq36mps)t8kk85$n=qhf4uyfx5-$7&j(gz(^)ed-@u9$7r'
+SECRET_KEY = os.environ.get('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -102,6 +102,10 @@ DATABASES = {
             'ENGINE': 'django.db.backends.sqlite3',
             'NAME': ':memory:',
 }
+    },
+    'external_users': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'rh',
     }
 }
 
@@ -176,9 +180,10 @@ CSRF_TRUSTED_ORIGINS = [
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        'apps.users.authentifications.authentification.HybridJWTAuthentication',
         "rest_framework.authentication.SessionAuthentication",
         "rest_framework.authentication.BasicAuthentication",
+        
     ]
 }
 
@@ -191,6 +196,9 @@ SIMPLE_JWT = {
     
     'ACCESS_TOKEN_LIFETIME': timedelta(days=1), # Le token durera 24h
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'SIGNING_KEY': os.environ.get('SECRET_KEY'), 
+    'USER_ID_FIELD': 'id',
+    'USER_ID_CLAIM': 'user_id',
     'AUTH_HEADER_TYPES': ('Bearer',),
     'AUTHENTICATION_TOKEN_CLASSES': (
         'rest_framework_simplejwt.authentication.StatelessUserAuthentication',

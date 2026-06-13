@@ -555,6 +555,7 @@ export default function EvaluationForm({
           width={44}
           height={44}
           className="rounded-2xl border border-slate-200 bg-white object-contain"
+          style={{ width: "auto", height: "auto" }}
         />
         <div>
           <p className="text-sm font-bold text-slate-900">
@@ -1155,8 +1156,14 @@ function ModernPopup({
           <AlertCircle className="h-7 w-7" />
         </div>
         <div className="mt-8 text-center">
-          <h2 className={`text-2xl font-black tracking-tight ${config.titleColor}`}>{title}</h2>
-          <p className="mt-3 text-sm font-semibold leading-relaxed text-slate-700">{message}</p>
+          <h2
+            className={`text-2xl font-black tracking-tight ${config.titleColor}`}
+          >
+            {title}
+          </h2>
+          <p className="mt-3 text-sm font-semibold leading-relaxed text-slate-700">
+            {message}
+          </p>
           {list && list.length > 0 && (
             <div className="mt-4 rounded-3xl border border-slate-200/50 bg-slate-50/55 backdrop-blur-md p-4 text-left text-sm text-slate-700">
               <ul className="space-y-2">

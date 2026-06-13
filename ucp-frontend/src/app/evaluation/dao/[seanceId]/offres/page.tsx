@@ -11,7 +11,7 @@ import {
   Clock,
   Trophy,
 } from "lucide-react";
-import TopHeader from "@/app/components/TopHeader";
+import EvaluatorHeader from "@/app/evaluation/components/EvaluatorHeader";
 import {
   ActionPageShell,
   InlineMessage,
@@ -82,13 +82,13 @@ export default function DaoOffresPage() {
 
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#f8faf9_0%,#f1f5f3_100%)]">
-      <TopHeader />
+      <EvaluatorHeader seanceId={seanceId} />
       <ActionPageShell
         eyebrow="Évaluation des offres"
         title={data?.reference_dossier || "Chargement…"}
-        description={data?.objet_dossier || "Liste des offres à évaluer pour ce DAO."}
-        backHref="/evaluation/login"
-        backLabel="Déconnexion"
+        description={
+          data?.objet_dossier || "Liste des offres à évaluer pour ce DAO."
+        }
         headerActions={
           <Link
             href={`/evaluation/classement/${seanceId}`}
@@ -103,14 +103,14 @@ export default function DaoOffresPage() {
         {loading && <LoadingCard text="Chargement des offres…" />}
 
         {!loading && data && (
-          <div className="space-y-4">
+          <div className="grid gap-4 xl:grid-cols-2">
             {data.offres.map((offre) => {
               const meta = progressionMeta(offre.progression);
               const Icon = meta.icon;
               return (
                 <article
                   key={offre.offre_id}
-                  className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm transition hover:shadow-md"
+                  className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-lg"
                 >
                   <div className="h-1 bg-[linear-gradient(90deg,#0f9f63_0%,#35b27f_100%)]" />
                   <div className="flex flex-wrap items-center justify-between gap-4 p-5 sm:p-6">
@@ -122,7 +122,8 @@ export default function DaoOffresPage() {
                         {offre.nom_soumissionnaire}
                       </h2>
                       <p className="mt-1 text-sm text-slate-500">
-                        {Number(offre.montant_global).toLocaleString("fr-FR")} MGA
+                        {Number(offre.montant_global).toLocaleString("fr-FR")}{" "}
+                        MGA
                         {offre.lot_numero ? ` · Lot ${offre.lot_numero}` : ""}
                       </p>
                       <div className="mt-3 flex flex-wrap gap-2">
@@ -138,16 +139,17 @@ export default function DaoOffresPage() {
                             Consensus {offre.consensus_ecart} pts
                           </span>
                         )}
-                        {!offre.peut_saisir_financiere && offre.progression !== "PAS_COMMENCE" && (
-                          <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-500">
-                            Financière verrouillée
-                          </span>
-                        )}
+                        {!offre.peut_saisir_financiere &&
+                          offre.progression !== "PAS_COMMENCE" && (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-500">
+                              Financière verrouillée
+                            </span>
+                          )}
                       </div>
                     </div>
                     <Link
                       href={`/evaluation/offres/${offre.offre_id}?seance=${seanceId}`}
-                      className="inline-flex items-center gap-2 rounded-full bg-emerald-700 px-5 py-3 text-sm font-bold text-white transition hover:bg-emerald-800"
+                      className="inline-flex items-center gap-2 rounded-full bg-emerald-700 px-5 py-3 text-sm font-bold text-white transition-all duration-200 hover:-translate-y-0.5 hover:bg-emerald-800 hover:shadow-md"
                     >
                       {meta.action}
                       <ArrowRight className="h-4 w-4" />

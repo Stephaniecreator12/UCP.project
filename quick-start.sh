@@ -32,7 +32,7 @@ if command -v tmux &> /dev/null; then
     tmux new-session -d -s "ucp" -x 200 -y 50
     
     # Onglet 1 : Django
-    tmux send-keys -t "ucp" "cd $ROOT_DIR && if [ -f .env ]; then set -a && . ./.env && set +a; fi && source .venv/bin/activate && echo '🟢 Backend Django en cours de démarrage...' && python3 $BACKEND_DIR/manage.py runserver" Enter
+    tmux send-keys -t "ucp" "cd $ROOT_DIR && if [ -f .env ]; then set -a && . ./.env && set +a; fi && source .venv/bin/activate && echo '🟢 Backend Django en cours de démarrage...' && python3 $BACKEND_DIR/manage.py runserver 0.0.0.0:8000" Enter
     sleep 3
     
     # Onglet 2 : Next.js

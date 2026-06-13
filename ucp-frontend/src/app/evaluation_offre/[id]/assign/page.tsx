@@ -51,6 +51,12 @@ function formatDateTime(value?: string | null) {
   });
 }
 
+function formatDeadline(detail: DaoDetail) {
+  return formatDateTime(
+    detail.date_limite_soumission ?? detail.date_seance ?? null,
+  );
+}
+
 const fieldClass =
   "w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-800 focus:border-emerald-400 focus:outline-none focus:ring-4 focus:ring-emerald-50 transition";
 const disabledClass =
@@ -328,7 +334,7 @@ export default function AssignEvaluatorsPage() {
                       Date limite de dépôt des offres
                     </span>
                     <div className={disabledClass}>
-                      {formatDateTime(detail.date_limite_soumission)}
+                      {formatDeadline(detail)}
                     </div>
                   </div>
                   <div>

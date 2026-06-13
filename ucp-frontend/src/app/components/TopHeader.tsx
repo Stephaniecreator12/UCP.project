@@ -17,13 +17,24 @@ export default function TopHeader() {
     router.replace("/login");
     router.refresh();
     setTimeout(() => {
-      if (typeof window !== "undefined" && window.location.pathname !== "/login") {
+      if (
+        typeof window !== "undefined" &&
+        window.location.pathname !== "/login"
+      ) {
         window.location.replace("/login");
       }
     }, 120);
   };
 
+  const isEvaluatorRoute =
+    pathname.startsWith("/evaluation/") || pathname === "/evaluation/login";
   const showAuthenticatedActions = pathname !== "/login";
+  const showMenu = showAuthenticatedActions && !isEvaluatorRoute;
+  const logoHref = isEvaluatorRoute
+    ? "/evaluation/login"
+    : showAuthenticatedActions
+      ? "/formulaire"
+      : "/login";
 
   const handleHeaderMove = (event: MouseEvent<HTMLElement>) => {
     const header = headerRef.current;
@@ -52,34 +63,49 @@ export default function TopHeader() {
         className="relative h-[2cm] overflow-hidden border-b border-slate-200/60 bg-white/90 backdrop-blur-md before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(420px_circle_at_var(--mx)_var(--my),rgba(34,197,94,0.16),transparent_60%)]"
       >
         {/* Ligne de couleur en haut */}
-        <div className="h-[3px] bg-gradient-to-r from-[#22c55e] via-[#1fcf78] to-[#22c55e]" aria-hidden="true" />
+        <div
+          className="h-[3px] bg-gradient-to-r from-[#22c55e] via-[#1fcf78] to-[#22c55e]"
+          aria-hidden="true"
+        />
 
         {/* Orbes décoratives */}
-        <div className="pointer-events-none absolute -top-[52px] -left-[34px] h-[130px] w-[130px] rounded-full bg-[#22c55e]/35 opacity-45 blur-[28px]" aria-hidden="true" />
-        <div className="pointer-events-none absolute -top-[68px] -right-[42px] h-[150px] w-[150px] rounded-full bg-[#7ed7ff]/30 opacity-45 blur-[28px]" aria-hidden="true" />
+        <div
+          className="pointer-events-none absolute -top-[52px] -left-[34px] h-[130px] w-[130px] rounded-full bg-[#22c55e]/35 opacity-45 blur-[28px]"
+          aria-hidden="true"
+        />
+        <div
+          className="pointer-events-none absolute -top-[68px] -right-[42px] h-[150px] w-[150px] rounded-full bg-[#7ed7ff]/30 opacity-45 blur-[28px]"
+          aria-hidden="true"
+        />
 
         <div className="relative z-10 grid h-[calc(2cm-3px)] w-full grid-cols-1 items-center gap-4 px-4 py-0 md:grid-cols-[auto_1fr_auto]">
           {/* Logo & Brand */}
-          <Link href={showAuthenticatedActions ? "/formulaire" : "/login"} className="inline-flex items-center gap-3 no-underline text-inherit">
+          <Link
+            href={logoHref}
+            className="inline-flex items-center gap-3 no-underline text-inherit"
+          >
             <Image
               src="/ucp-sante-logo-color.png"
               alt="Logo UCP"
               width={48}
               height={48}
               className="rounded-xl border border-slate-200 bg-white object-contain"
+              style={{ width: "auto", height: "auto" }}
               priority
             />
             <div className="grid gap-0.5">
               <strong className="text-[0.96rem] font-bold uppercase tracking-[0.04em] text-slate-800">
                 unité de coordination des projets
               </strong>
-              <span className="text-[0.74rem] text-slate-500 tracking-[0.03em]">e-Procurement</span>
+              <span className="text-[0.74rem] text-slate-500 tracking-[0.03em]">
+                e-Procurement
+              </span>
             </div>
           </Link>
 
           {/* Actions - Déconnexion */}
           <div className="justify-self-end">
-            {showAuthenticatedActions && (
+            {showAuthenticatedActions && !isEvaluatorRoute && (
               <button
                 type="button"
                 onClick={handleLogout}
@@ -92,7 +118,7 @@ export default function TopHeader() {
         </div>
       </header>
 
-      {showAuthenticatedActions && (
+      {showMenu && (
         <div className="-mt-px">
           <div className="w-full px-1 py-1">
             <div className="inline-flex">

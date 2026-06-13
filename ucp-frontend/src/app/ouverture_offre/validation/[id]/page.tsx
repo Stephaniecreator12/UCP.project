@@ -404,7 +404,9 @@ function PublicOuvertureValidationContent() {
             ? {
                 ...current,
                 seance: response.seance as PublicValidationContext["seance"],
-                market: response.market ? (response.market as ProcurementMarket) : current.market,
+                market: response.market
+                  ? (response.market as ProcurementMarket)
+                  : current.market,
               }
             : current,
         );
@@ -451,6 +453,7 @@ function PublicOuvertureValidationContent() {
               width={48}
               height={48}
               className="rounded-2xl border border-slate-200 bg-white object-contain p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]"
+              style={{ width: "auto", height: "auto" }}
             />
             <div className="min-w-0">
               <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-emerald-700">
@@ -756,6 +759,7 @@ function ValidationBrand({
           width={78}
           height={78}
           className="object-contain"
+          style={{ width: "auto", height: "auto" }}
         />
       </div>
       <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-emerald-700">

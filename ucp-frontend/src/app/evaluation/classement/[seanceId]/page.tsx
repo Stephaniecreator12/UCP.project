@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { AlertTriangle, CheckCircle2, XCircle } from "lucide-react";
+import EvaluatorHeader from "@/app/evaluation/components/EvaluatorHeader";
 import {
   ActionPageShell,
   InlineMessage,
@@ -47,6 +48,7 @@ export default function ClassementPage() {
 
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#f8faf9_0%,#f1f5f3_100%)]">
+      <EvaluatorHeader seanceId={seanceId} />
       <ActionPageShell
         eyebrow="Classement final"
         title={data?.reference_dossier || "Synthèse DAO"}

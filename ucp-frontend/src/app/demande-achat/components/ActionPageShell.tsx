@@ -15,13 +15,13 @@ export function ActionPageShell({
   eyebrow: string;
   title: string;
   description: string;
-  backHref: string;
-  backLabel: string;
+  backHref?: string;
+  backLabel?: string;
   headerActions?: ReactNode;
   children: ReactNode;
 }) {
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
+    <div className="mx-auto max-w-8xl px-4 py-6 sm:px-6">
       <section className="mb-5 overflow-hidden rounded-[30px] border border-white/70 bg-[linear-gradient(145deg,#ffffff_0%,#f7fbf9_48%,#eff5f1_100%)] shadow-[0_30px_80px_-50px_rgba(15,23,42,0.5)]">
         <div className="h-1 bg-[linear-gradient(90deg,#0f9f63_0%,#35b27f_46%,#d7f1e6_100%)]" />
         <div className="flex flex-wrap items-start justify-between gap-5 px-5 py-6 sm:px-6">
@@ -32,16 +32,20 @@ export function ActionPageShell({
             <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">
               {title}
             </h1>
-            <p className="mt-3 text-sm leading-6 text-slate-600">{description}</p>
+            <p className="mt-3 text-sm leading-6 text-slate-600">
+              {description}
+            </p>
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <Link
-              href={backHref}
-              className="rounded-full border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-            >
-              {backLabel}
-            </Link>
+            {backHref && backLabel ? (
+              <Link
+                href={backHref}
+                className="rounded-full border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              >
+                {backLabel}
+              </Link>
+            ) : null}
             {headerActions}
           </div>
         </div>

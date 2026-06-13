@@ -1142,6 +1142,15 @@ def consolider_decision_finale(offre_id: int, data: dict, user: object):
             "detail": "Tous les évaluateurs doivent compléter l'évaluation financière."
         })
 
+    consensus = _compute_consensus_info(offre)
+    if consensus["alerte"]:
+        raise ValidationError({
+            "detail": (
+                f"Consensus requis — écart de {consensus['ecart_max']} pts entre évaluateurs "
+                f"(seuil 15 pts). Les évaluateurs doivent ajuster leurs notes avant consolidation."
+            ),
+        })
+
     score_tech_moyen = round(sum(scores_tech) / len(scores_tech), 2)
     score_fin_moyen  = round(sum(scores_fin)  / len(scores_fin),  2)
 

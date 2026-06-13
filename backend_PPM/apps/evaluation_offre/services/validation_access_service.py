@@ -63,14 +63,13 @@ def get_evaluation_with_password(offre_id: int, email: str = "", password: str =
     if email:
         evaluations = evaluations.filter(evaluateur_email__iexact=email) | evaluations.filter(evaluateur__email__iexact=email)
 
-    # Exclure lignes sans code
-    evaluations = evaluations.exclude(evaluation_password_hash="")
-
     for candidate in evaluations:
-        if check_password(submitted_password, candidate.evaluation_password_hash):
+        if candidate.evaluation_password_hash and check_password(submitted_password, candidate.evaluation_password_hash):
+            return candidate
+        if candidate.evaluateur and candidate.evaluateur.has_usable_password() and candidate.evaluateur.check_password(submitted_password):
             return candidate
 
-    raise ValidationError({"password": "Code d'évaluation incorrect ou expiré pour cette offre."})
+    raise ValidationError({"password": "Code d'évaluation ou mot de passe incorrect pour cette offre."})
 
 
 def issue_seance_password(assignation: EvaluationSeanceAssignation) -> str:
@@ -98,21 +97,50 @@ def authenticate_seance_assignation(
     if not submitted_password:
         raise ValidationError({"password": "Mot de passe d'accès obligatoire."})
 
+    clean_email = email.strip()
+    
     assignations = (
         EvaluationSeanceAssignation.objects
         .select_related("evaluateur", "seance")
-        .filter(evaluateur_email__iexact=email.strip())
-        .exclude(evaluation_password_hash="")
+        .filter(evaluateur_email__iexact=clean_email)
         .filter(evaluation_password_revoked_at__isnull=True)
     )
+    
     if seance_id:
         assignations = assignations.filter(seance_id=seance_id)
+    
+    # Si aucune assignation trouvée, donner un message spécifique
+    if not assignations.exists():
+        all_with_email = EvaluationSeanceAssignation.objects.filter(
+            evaluateur_email__iexact=clean_email
+        )
+        
+        if seance_id and not all_with_email.filter(seance_id=seance_id).exists():
+            raise ValidationError({
+                "detail": f"Aucun accès trouvé pour cet email dans ce DAO."
+            })
+        
+        if not all_with_email.exists():
+            raise ValidationError({
+                "detail": f"Email '{clean_email}' non trouvé. Vérifiez le mail reçu."
+            })
+        
+        # Si email trouvé mais accès expiré
+        expired = all_with_email.filter(evaluation_password_revoked_at__isnull=False).exists()
+        if expired:
+            raise ValidationError({
+                "detail": "Votre accès a expiré. Contactez l'administrateur."
+            })
 
     for assignation in assignations:
-        if check_password(submitted_password, assignation.evaluation_password_hash):
+        if assignation.evaluation_password_hash and check_password(submitted_password, assignation.evaluation_password_hash):
+            return assignation
+        if assignation.evaluateur and assignation.evaluateur.has_usable_password() and assignation.evaluateur.check_password(submitted_password):
             return assignation
 
-    raise ValidationError({"password": "Email ou mot de passe incorrect, ou accès expiré."})
+    raise ValidationError({
+        "detail": "Code d'accès ou mot de passe incorrect. Vérifiez les informations saisies."
+    })
 
 
 def verify_evaluator_password(user, password: str = "", seance_id: int | None = None) -> bool:

@@ -31,7 +31,7 @@ fi
 # Lancer Django en arrière-plan
 cd "$ROOT_DIR"
 source .venv/bin/activate
-python3 "$BACKEND_DIR/manage.py" runserver &
+python3 "$BACKEND_DIR/manage.py" runserver 0.0.0.0:8000 &
 DJANGO_PID=$!
 
 sleep 2

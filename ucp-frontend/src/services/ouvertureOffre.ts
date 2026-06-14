@@ -234,7 +234,7 @@ export async function validatePresident(
   payload: ValidationPayload,
 ): Promise<SeanceOuverture> {
   const response = await fetch(
-    `/api/ouverture/seances/${id}/valider-president/`,
+    `${API_BASE}/api/ouverture/seances/${id}/valider-president/`,
     {
       method: "POST",
       headers: getAuthHeaders(),
@@ -274,7 +274,7 @@ export async function rejectPresident(
   payload: ValidationPayload,
 ): Promise<SeanceOuverture> {
   const response = await fetch(
-    `/api/ouverture/seances/${id}/rejeter-president/`,
+    `${API_BASE}/api/ouverture/seances/${id}/rejeter-president/`,
     {
       method: "POST",
       headers: getAuthHeaders(),

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { decryptAccess } from "./app/utils/access";
+import { decryptAccess } from "./app/utils/decrypt/access";
 export function middleware(request: NextRequest) {
 
   const path = request.nextUrl.pathname;

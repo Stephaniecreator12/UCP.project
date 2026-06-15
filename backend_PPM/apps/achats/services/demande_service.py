@@ -74,6 +74,10 @@ def list_mes_demandes(user, scope="mine"):
         # "mine" must keep the same meaning for every role: dossiers created
         # by the connected user only.
         qs = qs.filter(demandeur=user)
+    else:
+        from django.db.models import Q
+        # Exclude drafts of other users
+        qs = qs.filter(Q(demandeur=user) | ~Q(statut=DemandeAchat.STATUT_BROUILLON))
 
     from django.db.models import Prefetch
     from apps.achats.models import ValidationDemande, HistoriqueDemande

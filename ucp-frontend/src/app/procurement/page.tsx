@@ -12,6 +12,7 @@ import { trackUserAction } from "@/services/trackAction";
 import { getme } from "@/services/profile";
 import { UserProfileValue } from "@/types/profile";
 import Cookies from "js-cookie";
+import { useAccess } from "@/context/accessContext";
 interface MarketData {
   count: number;
   previous: string | null;
@@ -35,6 +36,7 @@ export default function ProcurementPage({
     deadline_before?: string;
   }>;
 }) {
+  const {accessType} = useAccess();
   const resolvedParams = use(searchParams);
   const currentPage = resolvedParams.page || "1";
   const currentSearch = resolvedParams.search || "";
@@ -86,7 +88,6 @@ export default function ProcurementPage({
   }
   useEffect(() => {
     let isMounted = true;
-    const accessType = Cookies.get("access_type")
     const handleGetProfile = async () => {
       if (accessType === "private") {
       try {

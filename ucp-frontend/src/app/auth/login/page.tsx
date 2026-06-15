@@ -4,33 +4,28 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { getToken, login} from "@/services/auth";
-
+import { useAccess } from '@/context/accessContext';
 const DEFAULT_PUBLIC_REGISTER_ROUTE = "/auth/public/register";
 const DEFAULT_PUBLIC_ROUTE = "/procurement";
 const DEFAULT_PRIVATE_ROUTE = "/admin/dashboard"
 export default function LoginPage() {
+  const { setAccess, accessType } = useAccess();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
-  const [access, setAccess] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('access_type') || "public";
-    }
-    return "public";
-  });
   const router = useRouter();
 
   useEffect(() => {
     const token = getToken();
     if (token) {
-      if(access == "private"){
-        router.push(`${DEFAULT_PRIVATE_ROUTE}`);
-      }
+        if(accessType == "private"){
+          router.push(`${DEFAULT_PRIVATE_ROUTE}`);
+        }
       router.push(`${DEFAULT_PUBLIC_ROUTE}`);
     }
-  }, [access, router]);
+  }, [accessType, router]);
 
 const handleLogin = async (e: React.FormEvent) => {
   e.preventDefault();
@@ -38,10 +33,10 @@ const handleLogin = async (e: React.FormEvent) => {
   setLoading(true);
   setMessage("chargement...");
 
-  const result = await login(email, password);
+  const result = await login(email, password, setAccess);
 
   if (result.success) {
-    if(access == "private"){
+    if(accessType == "private"){
       router.push(`${DEFAULT_PRIVATE_ROUTE}`);
     }
     router.push(`${DEFAULT_PUBLIC_ROUTE}`);

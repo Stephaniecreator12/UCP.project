@@ -1,7 +1,7 @@
-import { CardContent, CardHeader, CardTitle, Card } from "@/app/TdrSt/dashboard/ui/card";
+import { Card, CardHeader, CardTitle, CardContent } from "../card";
 import { UseFormReturn, useWatch } from "react-hook-form";
 import { ProcurementFormValues } from "../../../../../types/procurement";
-import { X, FileText } from "lucide-react";
+import { X, FileText, UploadCloud } from "lucide-react";
 import { getServerFileName } from "@/lib/utils";
 import { useState, useEffect } from "react";
 interface Props {
@@ -32,16 +32,19 @@ export function SubmissionModelSection({ form,initialFileUrl }: Props) {
   } = form;
   const showUploadButton = !files && !serverFileUrl;
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Modèle de soumission</CardTitle>
+    <Card className="shadow-xs border border-slate-200/80 rounded-xl overflow-hidden">
+      <CardHeader className="bg-slate-50/50 border-b border-slate-100 p-5">
+        <CardTitle className="text-base font-bold text-slate-900 tracking-tight">Modèle de soumission</CardTitle>
       </CardHeader>
 
-      <CardContent className="space-y-6">
+      <CardContent className="p-2">
         <div className="flex flex-col gap-4">
           {showUploadButton && (
             <label
-              htmlFor="submission-upload"            >
+              htmlFor="submission-upload"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300 rounded-lg shadow-3xs transition-all duration-150 cursor-pointer w-fit"
+            >
+              <UploadCloud size={16} className="text-slate-500" />
               Ajouter un fichier (.docx)
             </label>
           )}
@@ -64,18 +67,20 @@ export function SubmissionModelSection({ form,initialFileUrl }: Props) {
             }}
           />
           {errors.submission_model && (
-            <p className="text-red-500 text-xs mt-1">{errors.submission_model.message}</p>
+            <p className="text-red-600 font-medium text-xs">⚠️ {errors.submission_model.message}</p>
           )}
           <div className="space-y-2">
             {files && (
-              <div className="flex items-center justify-between p-2 bg-slate-50 rounded-md border">
-                <span className="text-sm truncate max-w-[80%]">
-                  {files.name}
-                </span>
+              <div className="flex items-center justify-between p-3 bg-blue-50/60 border border-blue-100 text-blue-900 rounded-lg shadow-3xs">
+                <div className="flex items-center gap-2.5 text-sm truncate max-w-[80%]">
+                  <FileText size={16} className="text-blue-500 flex-shrink-0" />
+                  <span className="truncate font-medium">{files.name}</span>
+                  <span className="text-[11px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-md font-bold tracking-wide">Nouveau</span>
+                </div>
                 <button
                   type="button"
                   onClick={removeFile}
-                  className="text-red-500 hover:bg-red-50 p-1 rounded-full transition-colors"
+                  className="text-blue-400 hover:text-red-600 hover:bg-red-50 p-1.5 rounded-lg transition-colors"
                 >
                   <X size={16} />
                 </button>
@@ -83,23 +88,23 @@ export function SubmissionModelSection({ form,initialFileUrl }: Props) {
             )}
           </div>
           {!files && serverFileUrl && (
-              <div className="flex items-center justify-between p-2 bg-slate-50 text-slate-800 rounded-md border border-slate-200">
-                <div className="flex items-center gap-2 text-sm truncate max-w-[80%]">
+              <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 shadow-3xs rounded-lg">
+                <div className="flex items-center gap-2.5 text-sm truncate max-w-[80%]">
                   <FileText size={16} className="text-slate-400 flex-shrink-0" />
                   <a 
                     href={serverFileUrl} 
                     target="_blank" 
                     rel="noopener noreferrer" 
-                    className="truncate underline hover:text-slate-600"
+                    className="truncate underline font-medium text-slate-700 hover:text-slate-900"
                   >
                     {getServerFileName(serverFileUrl)}
                   </a>
-                  <span className="text-xs bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded font-medium">Actuel</span>
+                  <span className="text-[11px] bg-slate-200/80 text-slate-600 px-2 py-0.5 rounded-md font-bold tracking-wide">Actuel</span>
                 </div>
                 <button
                   type="button"
                   onClick={removeFile}
-                  className="text-red-500 hover:bg-red-50 p-1 rounded-full transition-colors"
+                  className="text-slate-400 hover:text-red-600 hover:bg-red-50 p-1.5 rounded-lg transition-colors"
                 >
                   <X size={16} />
                 </button>

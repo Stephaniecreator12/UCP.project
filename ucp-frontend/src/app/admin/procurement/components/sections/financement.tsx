@@ -1,17 +1,12 @@
 "use client";
 import { FINANCING_SOURCE_LABELS } from "@/lib/locales/french";
-import {
-  CardContent,
-  CardHeader,
-  CardTitle,
-  Card,
-} from "@/app/TdrSt/dashboard/ui/card";
-import {TextLabel,TextTitle} from "@/app/components/textStyle";
+import { Card, CardHeader, CardTitle, CardContent } from "../card";
+import { TextLabel, TextTitle } from "@/app/components/textStyle";
 import { useWatch } from "react-hook-form";
 import { UseFormReturn } from "react-hook-form";
-import { useEffect} from "react";
+import { useEffect } from "react";
 import { ProcurementFormValues }
-from "../../../../../types/procurement";
+  from "../../../../../types/procurement";
 import { FINANCE_CATALOG } from "@/lib/financeCatalog";
 
 function generateProjectCode(bailleur: string | undefined, optionKey: string | undefined) {
@@ -32,89 +27,94 @@ export function FinancingSection({
   form,
 }: Props) {
 
-  
 
-const selected = useWatch({
-  control: form.control,
-  name: "financing_sources",
-});
-const referenceBailleur = useWatch({
-  control: form.control,
-  name: "reference_bailleur",
-});
-const projectCode = useWatch({
-  control: form.control,
-  name: "project_code",
-});
-const optionKey = useWatch({
-  control: form.control,
-  name: "optionKey",
-});
+
+  const selected = useWatch({
+    control: form.control,
+    name: "financing_sources",
+  });
+  const referenceBailleur = useWatch({
+    control: form.control,
+    name: "reference_bailleur",
+  });
+  const projectCode = useWatch({
+    control: form.control,
+    name: "project_code",
+  });
+  const optionKey = useWatch({
+    control: form.control,
+    name: "optionKey",
+  });
   useEffect(() => {
-  if (!selected) return;
+    if (!selected) return;
 
-  if (selected.length === 1) {
-    form.setValue("reference_bailleur", selected[0]);
-  }
+    if (selected.length === 1) {
+      form.setValue("reference_bailleur", selected[0]);
+    }
 
-  if (selected.length === 0) {
-    form.setValue("reference_bailleur", undefined);
-  }
-  if (referenceBailleur && optionKey) {
-    const code = generateProjectCode(referenceBailleur, optionKey);
+    if (selected.length === 0) {
+      form.setValue("reference_bailleur", undefined);
+    }
+    if (referenceBailleur && optionKey) {
+      const code = generateProjectCode(referenceBailleur, optionKey);
       form.setValue("project_code", code, {
         shouldDirty: true,
         shouldValidate: true,
       });
-  }
-}, [selected,referenceBailleur, form, optionKey]);
-const {
-      register,
-      formState: { errors },
-    } = form;
+    }
+  }, [selected, referenceBailleur, form, optionKey]);
+  const {
+    register,
+    formState: { errors },
+  } = form;
+  const selectClassName = "w-full md:w-1/2 px-3 py-2 text-sm text-slate-800 bg-white border border-slate-200 rounded-lg focus:border-slate-300 focus:bg-slate-50/50 outline-none shadow-3xs transition-all duration-150";
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>
+    <Card className="shadow-xs border border-slate-200/80 rounded-xl overflow-hidden">
+      <CardHeader className="bg-slate-50/50 border-b border-slate-100 p-5">
+        <CardTitle className="text-base font-bold text-slate-900 tracking-tight">
           Financement & conformité bailleur
         </CardTitle>
       </CardHeader>
 
-      <CardContent className="space-y-6">
+      <CardContent className="p-2 space-y-6">
 
-        <div className="flex flex-row flex-wrap items-center gap-6">
-            {Array.from(new Set(FINANCE_CATALOG.map((e) => e.family))).map((family) => {
-              const entry = FINANCE_CATALOG.find((e) => e.family === family);
-              return (
-                <label 
-                  key={family} 
-                  className="flex items-center gap-2 cursor-pointer hover:bg-slate-50 p-1 rounded"
-                >
-                  <input
-                    type="checkbox"
-                    value={family}
-                    className="w-4 h-4"
-                    {...form.register("financing_sources")}
-                  />
-                  <TextLabel text={entry?.familyLabel}>
-                  </TextLabel>
-                </label>
-              );
-            })}
-            {errors.financing_sources && (
-              <p className="text-red-500 text-xs mt-1">{errors.financing_sources.message}</p>
-            )}
-          </div>
+        <div className="flex flex-col">
+        <TextTitle text="Source de financement"></TextTitle>
+        <div className="flex flex-row flex-wrap items-center gap-5 bg-slate-50/50 p-4 border border-slate-100 rounded-xl">
+          {Array.from(new Set(FINANCE_CATALOG.map((e) => e.family))).map((family) => {
+            const entry = FINANCE_CATALOG.find((e) => e.family === family);
+            return (
+              <label
+                key={family}
+                className="flex items-center gap-2.5 cursor-pointer bg-white border border-slate-150 px-3 py-1.5 rounded-lg shadow-3xs hover:bg-slate-50 hover:border-slate-300 transition-all duration-150"
+              >
+                <input
+                  type="checkbox"
+                  value={family}
+                  className="w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-transparent cursor-pointer"
+                  {...form.register("financing_sources")}
+                />
+                <TextLabel text={entry?.familyLabel}>
+                </TextLabel>
+              </label>
+            );
+          })}
+          {errors.financing_sources && (
+            <p className="text-red-600 font-medium text-xs w-full mt-1">⚠️ {errors.financing_sources.message}</p>
+          )}
+        </div>
+          
+        </div>
 
-        
-          <div className="flex flex-col gap-3">
+
+        <div className="flex flex-col gap-2.5">
 
           <TextTitle text="Bailleur référent"></TextTitle>
-            {selected.length > 1? (
+          {selected.length > 1 ? (
             <select
               {...form.register("reference_bailleur")}
-              className="input"
+              className={selectClassName}
             >
               <option value="">Aucun</option>
               {selected.map((item) => (
@@ -126,52 +126,54 @@ const {
                 </option>
               ))}
             </select>
-            ):(
-              <div>
-                {selected.length?
-                <TextLabel text={FINANCING_SOURCE_LABELS[selected[0]]}></TextLabel>:<TextLabel text="Aucun"></TextLabel>}
-              </div>
-            )
-        }
-        {errors.reference_bailleur && (
-          <p className="text-red-500 text-xs mt-1">{errors.reference_bailleur.message}</p>
-        )}
-          </div>
-        <div className="flex flex-col gap-3">
-  <TextTitle text="Libellé budgétaire"></TextTitle>
-  {
-    referenceBailleur?
-    (
-      <select {...form.register("optionKey")} className="input">
-        <option value="">Aucun</option>
-        {FINANCE_CATALOG.filter(c => c.family === referenceBailleur).map((entry) => (
-          <option key={entry.optionKey} value={entry.optionKey}>
-            {entry.optionKey}
-          </option>
-        ))}
-      </select>
-    ):(
-      <div>
-        <TextLabel text="Aucun">
-        </TextLabel>
-      </div>
-      
-    )
-  }
-  {errors.optionKey && (
-    <p className="text-red-500 text-xs mt-1">{errors.optionKey.message}</p>
-  )}
-</div>
+          ) : (
+            <div className="px-3 py-2 bg-slate-50 border border-slate-100 rounded-lg w-fit min-w-[150px] shadow-3xs">
+              {selected.length ?
+                <TextLabel text={FINANCING_SOURCE_LABELS[selected[0]]}></TextLabel> : <TextLabel text="Aucun"></TextLabel>}
+            </div>
+          )
+          }
+          {errors.reference_bailleur && (
+            <p className="text-red-600 font-medium text-xs">⚠️ {errors.reference_bailleur.message}</p>
+          )}
+        </div>
+        <div className="flex flex-col gap-2.5">
+          <TextTitle text="Libellé budgétaire"></TextTitle>
+          {
+            referenceBailleur ?
+              (
+                <select {...form.register("optionKey")} className={selectClassName}>
+                  <option value="">Aucun</option>
+                  {FINANCE_CATALOG.filter(c => c.family === referenceBailleur).map((entry) => (
+                    <option key={entry.optionKey} value={entry.optionKey}>
+                      {entry.optionKey}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div className="px-3 py-2 bg-slate-50 border border-slate-100 rounded-lg w-fit min-w-[150px] shadow-3xs">
+                  <TextLabel text="Aucun">
+                  </TextLabel>
+                </div>
 
-        <div className="flex flex-col gap-3">
+              )
+          }
+          {errors.optionKey && (
+            <p className="text-red-600 font-medium text-xs">⚠️ {errors.optionKey.message}</p>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-2.5">
           <TextTitle text="Code projet"></TextTitle>
-          <TextLabel text={
-            optionKey?projectCode:
-            "Aucun"
+          <div className="px-3 py-2 bg-slate-50 border border-slate-100 rounded-lg w-fit min-w-[150px] shadow-3xs font-mono text-sm text-slate-700 font-bold">
+            <TextLabel text={
+              optionKey ? projectCode :
+                "Aucun"
             }>
-          </TextLabel>
+            </TextLabel>
+          </div>
           {errors.project_code && (
-            <p className="text-red-500 text-xs mt-1">{errors.project_code.message}</p>
+            <p className="text-red-600 font-medium text-xs">⚠️ {errors.project_code.message}</p>
           )}
         </div>
 

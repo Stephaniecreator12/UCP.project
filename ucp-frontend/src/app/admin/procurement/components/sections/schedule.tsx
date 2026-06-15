@@ -1,16 +1,12 @@
 "use client";
 
-import {
-  CardContent,
-  CardHeader,
-  CardTitle,
-  Card,
-} from "@/app/TdrSt/dashboard/ui/card";
+import { Card, CardHeader, CardTitle, CardContent } from "../card";
 
 import { UseFormReturn } from "react-hook-form";
 import { TextTitle } from "@/app/components/textStyle";
 import { ProcurementFormValues }
 from "../../../../../types/procurement";
+import { Calendar, Plus } from "lucide-react";
 interface Props {
   form: UseFormReturn<ProcurementFormValues>;
 }
@@ -47,53 +43,54 @@ export function ScheduleSection({
       inputEl.showPicker();
     }
   };
-  return (
-    <Card>
+  const inputDateStyle = "w-full sm:w-64 px-3 py-2 text-sm font-medium text-slate-800 bg-white border border-slate-200 rounded-lg focus:border-slate-300 focus:bg-slate-50/50 outline-none shadow-3xs transition-all duration-150";
 
-      <CardHeader>
-        <CardTitle>
+  return (
+    <Card className="shadow-xs border border-slate-200/80 rounded-xl overflow-hidden">
+
+      <CardHeader className="bg-slate-50/50 border-b border-slate-100 p-5">
+        <CardTitle className="text-base font-bold text-slate-900 tracking-tight">
           Calendrier & publication
         </CardTitle>
       </CardHeader>
 
-      <CardContent className="space-y-6">
+      <CardContent className="p-2 space-y-6">
 
-        <div className="flex flex-col gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="flex flex-col gap-2.5">
+            <TextTitle text="Date de publication"></TextTitle>
+            <input
+              type="datetime-local"
+              {...form.register("publication_date")}
+              className={inputDateStyle}
+            />
+            {errors.publication_date && (
+              <p className="text-red-600 font-medium text-xs">⚠️ {errors.publication_date.message}</p>
+            )}
+          </div>
 
-          <TextTitle text="Date de publication"></TextTitle>
-
-          <input
-            type="datetime-local"
-            {...form.register("publication_date")}
-            className="input focus:outline-none focus:ring-0 text-md w-[15%]"
-          />
-          {errors.publication_date && (
-            <p className="text-red-500 text-xs mt-1">{errors.publication_date.message}</p>
-          )}
+          <div className="flex flex-col gap-2.5">
+            <TextTitle text="Date limite"></TextTitle>
+            <input
+              type="datetime-local"
+              {...form.register("deadline")}
+              className={inputDateStyle}
+            />
+            {errors.deadline && (
+              <p className="text-red-600 font-medium text-xs">⚠️ {errors.deadline.message}</p>
+            )}
+          </div>
         </div>
 
-        <div className="flex flex-col gap-3">
-
-
-          <TextTitle text="Date limite"></TextTitle>
-          <input
-            type="datetime-local"
-            {...form.register("deadline")}
-            className="input focus:outline-none focus:ring-0 text-md w-[15%]"
-          />
-          {errors.deadline && (
-            <p className="text-red-500 text-xs mt-1">{errors.deadline.message}</p>
-          )}
-        </div>
         {watchCategory === "SERVICES" && (
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3 pt-4 border-t border-slate-100">
             <TextTitle text="Dates prévisionnelles de l’atelier" />
             <label
               onClick={triggerDatePicker}
               htmlFor="dates-atelier-upload"
-              className="cursor-pointer text-sm"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg shadow-3xs transition-all duration-150 cursor-pointer w-fit"
             >
-              Ajouter des dates
+              <Plus size={14} /> Ajouter des dates
             </label>
             <input
               id="dates-atelier-upload"
@@ -103,13 +100,13 @@ export function ScheduleSection({
             />
 
             {errors.dates_atelier && (
-              <p className="text-red-500 text-xs mt-1">
-                {errors.dates_atelier.message}
+              <p className="text-red-600 font-medium text-xs">
+                ⚠️ {errors.dates_atelier.message}
               </p>
             )}
 
             {datesAtelier.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-2">
+              <div className="flex flex-wrap gap-2 mt-1.5">
                 {datesAtelier.map((dateValue, index) => {
                   const dateObj = new Date(dateValue);
                   const formattedDate = isNaN(dateObj.getTime())
@@ -119,14 +116,15 @@ export function ScheduleSection({
                   return (
                     <div
                       key={`${dateValue}-${index}`}
-                      className="flex items-center gap-2 bg-blue-50 text-blue-700 border border-blue-200 px-3 py-1 rounded-full text-sm"
+                      className="inline-flex items-center gap-2 bg-blue-50/60 text-blue-800 border border-blue-100/80 px-3 py-1 rounded-full text-xs font-medium shadow-3xs"
                     >
+                      <Calendar size={12} className="text-blue-500" />
                       <span>{formattedDate}</span>
 
                       <button
                         type="button"
                         onClick={() => handleRemoveDate(index)}
-                        className="text-red-500 hover:text-red-700 font-bold ml-1 focus:outline-none"
+                        className="text-slate-400 hover:text-red-600 font-bold ml-1 transition-colors outline-none text-sm"
                         title="Supprimer cette date"
                       >
                         &times;

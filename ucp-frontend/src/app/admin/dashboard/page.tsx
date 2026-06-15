@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/services/config";
-
+import { Eye, Download, BarChart3, CheckCircle2 } from "lucide-react";
 import StatCard from "@/app/admin/dashboard/components/StatCard";
 import ViewsChart from "@/app/admin/dashboard/components/ViewsChart";
 import DaoDownloadChart from "@/app/admin/dashboard/components/DaoDownloadChart";
@@ -43,8 +43,16 @@ export default function AdminDashboardPage() {
                 setViews(viewsRes.data.data);
                 setDownloads(downloadsRes.data.data);
                 setAnnexes(annexesRes.data.data);
-                setMonitoring(monitoringRes.data.data[0]);
+                setMonitoring(monitoringRes.data.data);
                 setUsers(usersRes.data.data);
+                const rawMonitoring = monitoringRes.data?.data || monitoringRes.data;
+                if (Array.isArray(rawMonitoring)) {
+                    setMonitoring(rawMonitoring.length > 0 ? rawMonitoring[0] : null);
+                } else if (rawMonitoring) {
+                    setMonitoring(rawMonitoring);
+                } else {
+                    setMonitoring(null);
+                }
             }
         );
     }, []);
@@ -65,34 +73,61 @@ export default function AdminDashboardPage() {
             : 0;
 
     return (
-        <div className="p-8 bg-slate-50 min-h-screen">
-            <TopHeader></TopHeader>
+    <div className="w-full min-h-screen bg-slate-50/50 flex flex-col">
+      <div className="w-full bg-white border-b border-slate-200/80">
+        <TopHeader />
+      </div>
 
-            <h1 className="text-3xl font-bold mb-8">
-                Dashboard DAO
-            </h1>
-
-            <div className="grid grid-cols-4 gap-6 mb-8">
-                <StatCard title="Consultations" value={totalViews} />
-                <StatCard title="Téléchargements DAO" value={totalDownloads} />
-                <StatCard title="Conversion" value={`${conversion}%`} />
-                <StatCard
-                    title="Taux clôture"
-                    value={`${monitoring?.closure_rate ?? 0}%`}
-                />
-            </div>
-
-            <div className="grid grid-cols-2 gap-6 mb-8">
-                <ViewsChart data={views} />
-                <DaoDownloadChart data={downloads} />
-            </div>
-
-            <div className="grid grid-cols-2 gap-6 mb-8">
-                <AnnexesTable data={annexes} />
-                <MonitoringPanel data={monitoring} />
-            </div>
-
-            <UsersTraceability users={users} />
+      <div className="w-full flex-1 py-10 px-6 md:px-12 lg:px-16 flex flex-col gap-8">
+        
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+            Tableau de bord d administration
+          </h1>
+          <p className="text-sm text-slate-500 mt-1">
+            Suivi des performances, traçabilité des entreprises et monitoring des Dossiers d Appel d Offres (DAO).
+          </p>
         </div>
-    );
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <StatCard 
+            title="Consultations" 
+            value={totalViews} 
+            description="Total des vues sur les dossiers"
+            icon={<Eye className="text-blue-600" size={20} />}
+          />
+          <StatCard 
+            title="Téléchargements DAO" 
+            value={totalDownloads} 
+            description="Dossiers complets récupérés"
+            icon={<Download className="text-purple-600" size={20} />}
+          />
+          <StatCard 
+            title="Taux de conversion" 
+            value={`${conversion}%`} 
+            description="Ratio Téléchargements / Vues"
+            icon={<BarChart3 className="text-pink-600" size={20} />}
+          />
+          <StatCard
+            title="Taux de clôture"
+            value={`${monitoring?.closure_rate ?? 0}%`}
+            description="Dossiers finalisés à temps"
+            icon={<CheckCircle2 className="text-emerald-600" size={20} />}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <ViewsChart data={views} />
+          <DaoDownloadChart data={downloads} />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <AnnexesTable data={annexes} />
+          <MonitoringPanel data={monitoring} />
+        </div>
+
+        <UsersTraceability users={users} />
+      </div>
+    </div>
+  );
 }

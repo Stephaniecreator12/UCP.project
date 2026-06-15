@@ -61,11 +61,10 @@ export default function ProcurementDetailPage() {
 
         {market ? (
             <div className="space-y-6">
-                {/* En-tête principal mis en avant (Même style que la liste) */}
                 <div className="bg-white p-6 rounded-xl border border-gray-200 border-l-4 border-l-green-600 shadow-md">
                     <div className="flex flex-wrap items-center gap-3 mb-3">
                         <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border ${statusColors[market.status] || "bg-blue-50 text-blue-700 border-blue-100"}`}>
-                            {market.status.toUpperCase()}
+                            {market.status === "CLOSED" ? "clôturé" : market.status === "CANCELLED" ? "annulé" : "publié"}
                         </span>
                         <span className="text-xs font-mono bg-green-50 text-green-800 px-2.5 py-1 rounded-md font-semibold border border-green-100">
                             Réf: {market.reference_number}

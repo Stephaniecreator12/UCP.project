@@ -167,9 +167,8 @@ export default function ProcurementDetailPage() {
                             ) : (
                                 <div className="space-y-2">
                                     {market.technical_documents.map((doc, idx) => (
-                                        <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 hover:bg-green-50/50 rounded-xl border border-gray-100 transition duration-200 group cursor-pointer">
+                                        <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 hover:bg-green-50/50 rounded-xl border border-gray-100 transition duration-200 group">
                                             <span className="break-all text-xs font-medium text-gray-700 group-hover:text-green-800 truncate max-w-[70%]">📄 {doc.file.split("/").pop()}</span>
-                                            <span className="text-xs font-bold text-green-700 underline opacity-80 group-hover:opacity-100">Télécharger</span>
                                         </div>
                                     ))}
                                 </div>
@@ -183,9 +182,8 @@ export default function ProcurementDetailPage() {
                             ) : (
                                 <div className="space-y-2">
                                     {market.annexes.map((annexe, idx) => (
-                                        <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 hover:bg-green-50/50 rounded-xl border border-gray-100 transition duration-200 group cursor-pointer">
+                                        <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 hover:bg-green-50/50 rounded-xl border border-gray-100 transition duration-200 group">
                                             <span className="break-all text-xs font-medium text-gray-700 group-hover:text-green-800 truncate max-w-[70%]">📎 {annexe.file.split("/").pop()}</span>
-                                            <span className="text-xs font-bold text-green-700 underline opacity-80 group-hover:opacity-100">Télécharger</span>
                                         </div>
                                     ))}
                                 </div>

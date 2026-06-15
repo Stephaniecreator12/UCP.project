@@ -1,6 +1,7 @@
 import axios from "axios";
 import Cookies from 'js-cookie';
 import { AxiosError } from "axios";
+import { decryptAccess } from "@/utils/access";
 export const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_BASE_URL,
   withCredentials: true, 
@@ -9,20 +10,22 @@ export const api = axios.create({
 });
 api.interceptors.request.use(async (config) => {
   let token: string | undefined = undefined;
-  let accessType: string | undefined = undefined;
+  let rawAccessType: string | undefined = undefined;
 
   if (typeof window !== "undefined") {
     token = Cookies.get("access_token");
-    accessType = Cookies.get("access_type");
+    rawAccessType = Cookies.get("access_type");
   } else {
     try {
       const { cookies } = await import("next/headers");
       const cookieStore = await cookies();
       token = cookieStore.get("access_token")?.value;
+      rawAccessType = cookieStore.get("access_type")?.value;
     } catch (e) {
       console.error("Impossible de lire les cookies sur le serveur", e);
     }
   }
+  const accessType = decryptAccess(rawAccessType);
 
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -45,21 +48,23 @@ api.interceptors.response.use(
       console.log("👉 [INTERCEPTOR] Une erreur est détectée ! Statut :", error.response?.status);
       
       let refreshToken: string | undefined = undefined;
-      let accessType: string | undefined = undefined;
+      let rawAccessType: string | undefined = undefined;
 
       if (typeof window !== "undefined") {
         refreshToken = Cookies.get("refresh_token");
-        accessType = Cookies.get("access_type");
+        rawAccessType = Cookies.get("access_type");
       } else {
         try {
           const { cookies } = await import("next/headers");
           const cookieStore = await cookies();
           refreshToken = cookieStore.get("refresh_token")?.value;
-          accessType = cookieStore.get("access_type")?.value;
+          rawAccessType = cookieStore.get("access_type")?.value;
         } catch (e) {
           console.error("Erreur lecture cookies serveur", e);
         }
       }
+      const accessType = decryptAccess(rawAccessType);
+
 
       if (refreshToken) {
         try {

@@ -2,15 +2,15 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from "next/navigation";
 import { deleteMarketById } from '@/services/procurement';
-import Cookies from 'js-cookie';
+import { useAccess } from '@/context/accessContext';
 interface DeleteMarketButtonProps {
   marketId: string;
   marketTitle: string;
 }
 
 export const DeleteMarketButton: React.FC<DeleteMarketButtonProps> = ({ marketId, marketTitle }) => {
+  const {accessType} = useAccess()
   const router = useRouter();
-  const accessType = Cookies.get("access_type");
   const [isDeleting, setIsDeleting] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);

@@ -1,14 +1,14 @@
 "use client";
 import React from 'react';
 import { useRouter } from "next/navigation";
-import Cookies from 'js-cookie';
+import { useAccess } from '@/context/accessContext';
 interface UpdateMarketButtonProps {
   marketId: string;
 }
 
 export const UpdateMarketButton: React.FC<UpdateMarketButtonProps> = ({ marketId }) => {
   const router = useRouter();
-  const accessType = Cookies.get("access_type");
+  const {accessType} = useAccess()
 
   return (
     <>

@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-
+import { decryptAccess } from "./app/utils/access";
 export function middleware(request: NextRequest) {
 
   const path = request.nextUrl.pathname;
 
-  const accessType =
+  const rawAccessType =
     request.cookies.get("access_type")?.value;
+  const accessType = decryptAccess(rawAccessType);
 
   const token =
     request.cookies.get("access_token")?.value;

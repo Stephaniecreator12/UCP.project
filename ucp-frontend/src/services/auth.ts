@@ -1,5 +1,6 @@
 import Cookies from 'js-cookie';
 import { API_BASE_URL, API_RH_URL } from "./api";
+
 interface LoginResult {
   status: number;
   success?: boolean;
@@ -13,6 +14,7 @@ interface RegisterResult {
 export const rhLogin = async (
   email: string,
   password: string,
+  setAccess: (access: string) => void
 ): Promise<LoginResult> => {
   const controller = new AbortController();
   const timeout = setTimeout(() => {
@@ -30,7 +32,7 @@ export const rhLogin = async (
     if (response.ok) {
       Cookies.set("access_token", data.token, { expires: 1, secure: process.env.NODE_ENV === 'production' });
       Cookies.set("user_info", JSON.stringify(data.user));
-      Cookies.set("access_type", accessType, { expires: 1, secure: process.env.NODE_ENV === 'production' });
+      setAccess(accessType);
       return {status:200, success: true};
     }
     if(response.status == 400){
@@ -52,6 +54,7 @@ export const rhLogin = async (
 export const publicLogin = async (
   email: string,
   password: string,
+  setAccess: (access: string) => void
 ): Promise<LoginResult> => {
   try {
     const response = await fetch(`${API_BASE_URL}/public/login/`, {
@@ -64,7 +67,7 @@ export const publicLogin = async (
     if (response.ok) {
       Cookies.set("access_token", data.access, { expires: 1, secure: process.env.NODE_ENV === 'production' });
       Cookies.set("refresh_token", data.refresh, { expires: 1, secure: process.env.NODE_ENV === 'production' });
-      Cookies.set("access_type", accessType, { expires: 1, secure: process.env.NODE_ENV === 'production' });
+      setAccess(accessType);
       return {status:200, success: true};
     }
     if(response.status == 404){
@@ -85,11 +88,12 @@ export const publicLogin = async (
 export const login = async (
   email: string,
   password: string,
+  setAccess: (access: string) => void
 ): Promise<LoginResult> => {
   try {
     
     //if(isUCPDomain(email)) {
-        return await rhLogin(email, password);
+        return await rhLogin(email, password, setAccess);
     //}
     /*else{
       return await publicLogin(email, password);

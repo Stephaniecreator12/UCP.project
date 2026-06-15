@@ -16,10 +16,13 @@ export async function GET(
   const { id } = resolvedParams;
   const cookieStore = await cookies();
   const token = cookieStore.get("access_token")?.value;
+  const accessTyê = cookieStore.get("access_type")?.value;
+  const 
   if (!token) {
     return NextResponse.json({ message: "Non authentifié" }, { status: 401 });
   }
   let user;
+  if()
 try {
   const result = await getme();
   if (!result.error) {

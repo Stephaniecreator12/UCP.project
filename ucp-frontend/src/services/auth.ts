@@ -31,7 +31,9 @@ export const rhLogin = async (
     const accessType = "private"
     if (response.ok) {
       Cookies.set("access_token", data.token, { expires: 1, secure: process.env.NODE_ENV === 'production' });
-      Cookies.set("user_info", JSON.stringify(data.user));
+      const stringUser = JSON.stringify(data.user); 
+      const encryptedUser = CryptoJS.AES.encrypt(stringUser, process.env.NEXT_PUBLIC_COOKIE_SECRET || 'default_secret_key').toString();
+      Cookies.set("user_info", encryptedUser, { expires: 1, secure: process.env.NODE_ENV === 'production', sameSite: 'strict' });
       setAccess(accessType);
       return {status:200, success: true};
     }
@@ -92,12 +94,12 @@ export const login = async (
 ): Promise<LoginResult> => {
   try {
     
-    //if(isUCPDomain(email)) {
+    if(isUCPDomain(email)) {
         return await rhLogin(email, password, setAccess);
-    //}
-    /*else{
-      return await publicLogin(email, password);
-    }*/
+    }
+    else{
+      return await publicLogin(email, password, setAccess);
+    }
   } catch {
     return {
       status: 500,

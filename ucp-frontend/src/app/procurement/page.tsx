@@ -36,7 +36,7 @@ export default function ProcurementPage({
     deadline_before?: string;
   }>;
 }) {
-  const {accessType} = useAccess();
+  const {accessType, userInfo} = useAccess();
   const resolvedParams = use(searchParams);
   const currentPage = resolvedParams.page || "1";
   const currentSearch = resolvedParams.search || "";
@@ -91,15 +91,12 @@ export default function ProcurementPage({
     const handleGetProfile = async () => {
       if (accessType === "private") {
       try {
-        const savedUserInfo = Cookies.get("user_info");
-        if (savedUserInfo) {
-          const parsedUser = JSON.parse(savedUserInfo);
-          
+        if (userInfo) {          
           if (isMounted) {
             setUser({
-              id: parsedUser.personnel_id,
-              email: parsedUser.email,
-              role: parsedUser.role
+              id: String(userInfo.personnel_id),
+              email: userInfo.email,
+              role: userInfo.role
             } as UserProfileValue);
           }
         }

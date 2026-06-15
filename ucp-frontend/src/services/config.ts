@@ -1,7 +1,7 @@
 import axios from "axios";
 import Cookies from 'js-cookie';
 import { AxiosError } from "axios";
-import { decryptAccess } from "@/utils/access";
+import { decryptAccess } from "@/app/utils/decrypt/access";
 export const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_BASE_URL,
   withCredentials: true, 

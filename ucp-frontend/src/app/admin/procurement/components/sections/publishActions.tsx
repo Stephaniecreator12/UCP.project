@@ -15,7 +15,6 @@ export function PublishActions({ form, onPublish }: Props) {
   const [globalError, setGlobalError] = useState("");
   const handleSubmit = async (values: ProcurementFormValues) => {
     setGlobalError("");
-    console.log("Données à envoyer :", values);
     const res = await onPublish(values);
 
     if (res.error) {

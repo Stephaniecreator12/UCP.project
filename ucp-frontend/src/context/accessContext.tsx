@@ -1,14 +1,20 @@
 'use client';
 
 import React, { createContext, useContext, useState } from 'react';
-import { decryptAccess } from '@/utils/access'; 
+import { decryptAccess } from '@/app/utils/decrypt/access'; 
 import Cookies from 'js-cookie';
 import CryptoJS from 'crypto-js';
+import { decryptUserInfo } from '@/app/utils/decrypt/userInfo';
 
 const SECRET_KEY = process.env.NEXT_PUBLIC_COOKIE_SECRET || 'ma_cle_front_back';
-
+interface UserInfo {
+  personnel_id: number;
+  email: string;
+  role: string;
+}
 interface AccessContextType {
   accessType: string | null;
+  userInfo: UserInfo | null;
   setAccess: (newAccess: string) => void; 
   logout: () => void;          
 }
@@ -17,6 +23,7 @@ const AccessContext = createContext<AccessContextType | undefined>(undefined);
 
 export function AccessProvider({ children }: { children: React.ReactNode }) {
   const [accessType, setAccessType] = useState<string | null>(() => decryptAccess());
+  const [userInfo, setUserInfo] = useState<UserInfo | null>(() => decryptUserInfo());
 
   const setAccess = (newAccess: string) => {
     const encryptedAccess = CryptoJS.AES.encrypt(newAccess, SECRET_KEY).toString();
@@ -28,15 +35,18 @@ export function AccessProvider({ children }: { children: React.ReactNode }) {
     });
 
     setAccessType(newAccess);
+    setUserInfo(decryptUserInfo());
   };
 
   const logout = () => {
     Cookies.remove('access_type');
+    Cookies.remove('user_info');
     setAccessType(null);
+    setUserInfo(null);
   };
 
   return (
-    <AccessContext.Provider value={{ accessType, setAccess, logout }}>
+    <AccessContext.Provider value={{ accessType, userInfo, setAccess, logout }}>
       {children}
     </AccessContext.Provider>
   );

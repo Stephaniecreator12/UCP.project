@@ -170,7 +170,6 @@ export const getMarkets = async(
       ...(filters.deadlineBefore && { deadline_before: filters.deadlineBefore }),
     });
     const res = await api.get(`/procurement/market-list/?${params.toString()}`);
-    console.log(res.data)
     return res.data; 
   } catch (e) {
     console.error("Erreur API getMarkets:", e);

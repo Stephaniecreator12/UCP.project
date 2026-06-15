@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  CardContent,
-  CardHeader,
-  CardTitle,
-  Card,
-} from "@/app/TdrSt/dashboard/ui/card";
+import { Card, CardHeader, CardTitle, CardContent } from "../card";
 import { TextTitle} from "@/app/components/textStyle";
 import { UseFormReturn } from "react-hook-form";
 
@@ -22,80 +17,83 @@ export function BasicInfoSection({
     register,
     formState: { errors },
   } = form;
+  const inputClassName = "w-full px-3 py-2.5 text-sm font-medium text-slate-800 bg-white border border-slate-200 rounded-lg focus:border-slate-300 focus:bg-slate-50/50 focus:outline-none shadow-3xs transition-all duration-150 placeholder:text-slate-400";
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>
+    <Card className="shadow-xs border border-slate-200/80 rounded-xl overflow-hidden">
+      <CardHeader className="bg-slate-50/50 border-b border-slate-100 p-5">
+        <CardTitle className="text-base font-bold text-slate-900 tracking-tight">
           Section A — Informations du marché
         </CardTitle>
       </CardHeader>
 
-      <CardContent className="space-y-6">
+      <CardContent className="p-2 space-y-6">
 
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2.5">
           <TextTitle text="Intitulé du marché"></TextTitle>
           <input
             {...form.register("title")}
-            className="input focus:outline-none focus:ring-0 text-md"
+            className={inputClassName}
             placeholder="Saisir l'intitulé du marché"
           />
           {errors.title && (
-            <p className="text-red-500 text-xs mt-1">{errors.title.message}</p>
+            <p className="text-red-600 font-medium text-xs">⚠️ {errors.title.message}</p>
           )}
         </div>
 
-        <div className="flex flex-col gap-3">
-          <TextTitle text="Type de procédure"></TextTitle>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div className="flex flex-col gap-2.5">
+            <TextTitle text="Type de procédure"></TextTitle>
 
-          <select
-            {...form.register("procedure_type")}
-            className="input"
-          >
-            <option value="">Aucun</option>
-            <option value="AOI">
-              AOI
-            </option>
+            <select
+              {...form.register("procedure_type")}
+              className={inputClassName}
+            >
+              <option value="">Aucun</option>
+              <option value="AOI">
+                AOI
+              </option>
 
-            <option value="AON">
-              AON
-            </option>
+              <option value="AON">
+                AON
+              </option>
 
-            <option value="DC">
-              DC
-            </option>
+              <option value="DC">
+                DC
+              </option>
 
-            <option value="GRE_A_GRE">
-              Gré à gré
-            </option>
-          </select>
-          {errors.procedure_type && (
-            <p className="text-red-500 text-xs mt-1">{errors.procedure_type.message}</p>
-          )}
-        </div>
+              <option value="GRE_A_GRE">
+                Gré à gré
+              </option>
+            </select>
+            {errors.procedure_type && (
+              <p className="text-red-600 font-medium text-xs">⚠️ {errors.procedure_type.message}</p>
+            )}
+          </div>
 
-        <div className="flex flex-col gap-3">
-          <TextTitle text="Catégorie"></TextTitle>
+          <div className="flex flex-col gap-2.5">
+            <TextTitle text="Catégorie"></TextTitle>
 
-          <select
-            {...form.register("category")}
-            className="input"
-          >
-            <option value="">Aucun</option>
-            <option value="BIENS">
-              Biens
-            </option>
+            <select
+              {...form.register("category")}
+              className={inputClassName}
+            >
+              <option value="">Aucun</option>
+              <option value="BIENS">
+                Biens
+              </option>
 
-            <option value="SERVICES">
-              Services
-            </option>
+              <option value="SERVICES">
+                Services
+              </option>
 
-            <option value="INFRA">
-              Infrastructures
-            </option>
-          </select>
-          {errors.category && (
-            <p className="text-red-500 text-xs mt-1">{errors.category.message}</p>
-          )}
+              <option value="INFRA">
+                Infrastructures
+              </option>
+            </select>
+            {errors.category && (
+              <p className="text-red-600 font-medium text-xs">⚠️ {errors.category.message}</p>
+            )}
+          </div>
         </div>
 
       </CardContent>

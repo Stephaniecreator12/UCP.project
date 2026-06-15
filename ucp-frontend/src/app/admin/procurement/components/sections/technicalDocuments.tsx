@@ -1,9 +1,9 @@
-import { CardContent, CardHeader, CardTitle, Card } from "@/app/TdrSt/dashboard/ui/card";
+import { Card, CardHeader, CardTitle, CardContent } from "../card";
 import { UseFormReturn, useWatch } from "react-hook-form";
 import { ProcurementFormValues, TechnicalDocument } from "../../../../../types/procurement";
-import { X, FileText } from "lucide-react";
+import { X, FileText,UploadCloud } from "lucide-react";
 import { getServerFileName } from "@/lib/utils";
-import { useState,useEffect } from "react";
+import { useState } from "react";
 interface Props {
   form: UseFormReturn<ProcurementFormValues>;
   initialDocuments?: TechnicalDocument[];
@@ -28,17 +28,18 @@ export function TechnicalDocumentsSection({ form, initialDocuments }: Props) {
     formState: { errors },
   } = form;
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Dossier technique</CardTitle>
+    <Card className="shadow-xs border border-slate-200/80 rounded-xl overflow-hidden">
+      <CardHeader className="bg-slate-50/50 border-b border-slate-100 p-5">
+        <CardTitle className="text-base font-bold text-slate-900 tracking-tight">Dossier technique</CardTitle>
       </CardHeader>
 
-      <CardContent className="space-y-6">
+      <CardContent className="p-2 space-y-5">
         <div className="flex flex-col gap-4">
           <label
             htmlFor="technical-file-upload"
-            className="cursor-pointer inline-flex items-center w-fit text-sm"
+            className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300 rounded-lg shadow-3xs transition-all duration-150 cursor-pointer w-fit"
           >
+            <UploadCloud size={16} className="text-slate-500" />
             Ajouter des fichiers (.pdf)
           </label>
           <input
@@ -46,9 +47,7 @@ export function TechnicalDocumentsSection({ form, initialDocuments }: Props) {
             type="file"
             accept=".pdf"
             multiple
-            className="hidden cursor-pointer w-full text-sm text-slate-500
-              file:rounded-full file:border-0
-              file:text-sm file:font-semibold"
+            className="hidden"
             onChange={(e) => {
               if (!e.target.files) return;
               const newFiles = Array.from(e.target.files);
@@ -60,31 +59,31 @@ export function TechnicalDocumentsSection({ form, initialDocuments }: Props) {
             }
           />
           {errors.technicalFiles && (
-            <p className="text-red-500 text-xs mt-1">{errors.technicalFiles.message}</p>
+            <p className="text-red-600 font-medium text-xs">⚠️ {errors.technicalFiles.message}</p>
           )}
-          <div className="space-y-2">
+          <div className="space-y-2.5">
             {serverDocs.map((doc) => (
-              <div key={`server-tech-${doc.id}`} className="flex items-center justify-between p-2 bg-slate-50 rounded-md border">
-                <div className="flex items-center gap-2 text-sm truncate max-w-[80%]">
+              <div key={`server-tech-${doc.id}`} className="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 shadow-3xs rounded-lg">
+                <div className="flex items-center gap-2.5 text-sm truncate max-w-[80%]">
                   <FileText size={16} className="text-slate-400 flex-shrink-0" />
-                  <a href={doc.file} target="_blank" rel="noreferrer" className="underline truncate hover:text-slate-600">
+                  <a href={doc.file} target="_blank" rel="noreferrer" className="underline truncate font-medium text-slate-700 hover:text-slate-900">
                     {getServerFileName(doc.file)}
                   </a>
-                  <span className="text-xs bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded font-medium">Actuel</span>
+                  <span className="text-[11px] bg-slate-200/80 text-slate-600 px-2 py-0.5 rounded-md font-bold tracking-wide">Actuel</span>
                 </div>
-                <button type="button" onClick={() => removeServerFile(doc.id)} className="text-red-500 hover:bg-red-50 p-1 rounded-full">
+                <button type="button" onClick={() => removeServerFile(doc.id)} className="text-slate-400 hover:text-red-600 hover:bg-red-50 p-1.5 rounded-lg transition-colors">
                   <X size={16} />
                 </button>
               </div>
             ))}
             {(files || []).map((file: File, index: number) => (
-              <div key={`local-tech-${file.name}-${index}`} className="flex items-center justify-between p-2 bg-blue-50 border border-blue-200 text-blue-900 rounded-md">
-                <div className="flex items-center gap-2 text-sm truncate max-w-[80%]">
+              <div key={`local-tech-${file.name}-${index}`} className="flex items-center justify-between p-3 bg-blue-50/60 border border-blue-100 text-blue-900 rounded-lg shadow-3xs">
+                <div className="flex items-center gap-2.5 text-sm truncate max-w-[80%]">
                   <FileText size={16} className="text-blue-500 flex-shrink-0" />
-                  <span className="truncate">{file.name}</span>
-                  <span className="text-xs bg-blue-200 text-blue-800 px-1.5 py-0.5 rounded font-medium">Nouveau</span>
+                  <span className="truncate font-medium text-blue-900">{file.name}</span>
+                  <span className="text-[11px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-md font-bold tracking-wide">Nouveau</span>
                 </div>
-                <button type="button" onClick={() => removeLocalFile(index)} className="text-red-500 hover:bg-red-50 p-1 rounded-full">
+                <button type="button" onClick={() => removeLocalFile(index)} className="text-blue-400 hover:text-red-600 hover:bg-red-50 p-1.5 rounded-lg transition-colors">
                   <X size={16} />
                 </button>
               </div>

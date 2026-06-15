@@ -61,19 +61,23 @@ export function PublishActionsById({ form,id, onPublish }: Props) {
   };
 
   return (
-    <div>
-      
+    <div className="flex flex-col gap-4 pt-2">
+      {globalError && (
+        <div className="p-3.5 bg-red-50 border border-red-200 text-red-700 text-sm font-semibold rounded-lg shadow-3xs max-w-2xl">
+          ⚠️ {globalError}
+        </div>
+      )}
+
       <button
       type="button"
         onClick={()=>{
           form.clearErrors();
           form.handleSubmit(handleSubmit)();
         }}
-        className="btn-primary"
+        className="inline-flex items-center justify-center px-5 py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition-all duration-150 w-full md:w-fit"
       >
         Publier sur le portail
       </button>
-      {globalError && <p className="text-red-600 mb-4 font-bold">{globalError}</p>}
     </div>
     
   );

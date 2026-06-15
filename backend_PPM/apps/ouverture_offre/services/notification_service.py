@@ -105,7 +105,7 @@ def _send_email(subject, body, recipient, html_body):
         reply_to=getattr(settings, "OUVERTURE_NOTIFICATION_REPLY_TO", None) or None,
     )
     message.attach_alternative(html_body, "text/html")
-    return message.send(fail_silently=True)
+    return message.send(fail_silently=False)
 
 
 def _send_validation_requests(seance: SeanceOuverture, recipient_credentials):

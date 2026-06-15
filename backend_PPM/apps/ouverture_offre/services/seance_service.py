@@ -90,6 +90,9 @@ def create_seance(validated_data, user):
     else:
         replace_members(seance, membre_ids)
     replace_offres(seance, offres_data)
+    if seance.statut == SeanceOuverture.Statut.EN_VALIDATION_MEMBRES:
+        reset_validation_state(seance)
+        notify_members_validation_requested(seance)
     return seance
 
 

@@ -31,10 +31,12 @@ def _frontend_url(path):
 
 def _validation_url(seance, role_key, email):
     query = urlencode({
+        "validation": "ouverture",
+        "seance": seance.id,
         "role": role_key,
         "email": email,
     })
-    return _frontend_url(f"/ouverture_offre/validation/{seance.id}?{query}")
+    return _frontend_url(f"/login?{query}")
 
 
 def _user_name(user):

@@ -1,6 +1,6 @@
 import Cookies from 'js-cookie';
 import { API_BASE_URL, API_RH_URL } from "./api";
-
+import CryptoJS from 'crypto-js';
 interface LoginResult {
   status: number;
   success?: boolean;
@@ -16,17 +16,12 @@ export const rhLogin = async (
   password: string,
   setAccess: (access: string) => void
 ): Promise<LoginResult> => {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => {
-    controller.abort();
-  }, 3000);
   try {
     const response = await fetch(`${API_RH_URL}/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
     });
-    clearTimeout(timeout);
     const data = await response.json();
     const accessType = "private"
     if (response.ok) {
@@ -49,7 +44,6 @@ export const rhLogin = async (
       message: data.message || "Identifiants introuvable",
     }
   } catch {
-    clearTimeout(timeout);
     return { status: 500,success: false, message: "serveur RH inaccessible" };
   }
 };
@@ -94,12 +88,13 @@ export const login = async (
 ): Promise<LoginResult> => {
   try {
     
-    if(isUCPDomain(email)) {
+    //if(isUCPDomain(email)) {
         return await rhLogin(email, password, setAccess);
-    }
+    //}
+    /*
     else{
       return await publicLogin(email, password, setAccess);
-    }
+    }*/
   } catch {
     return {
       status: 500,

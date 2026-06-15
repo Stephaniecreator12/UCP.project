@@ -8,8 +8,6 @@ export function middleware(request: NextRequest) {
     request.cookies.get("access_type")?.value;
   const accessType = decryptAccess(rawAccessType);
 
-  const token =
-    request.cookies.get("access_token")?.value;
   const { pathname } = request.nextUrl
   if (pathname.startsWith('/auth/login')) {
     return NextResponse.next()

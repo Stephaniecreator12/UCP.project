@@ -94,7 +94,7 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'passation_db',
-        'USER': 'postgres',
+        'USER': 'passation_manager',
         'PASSWORD': 'passation',
         'HOST': 'localhost',
         'PORT': '5432',

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useAccess } from "@/context/accessContext";
 
 type MenuLink = {
   label: string;
@@ -15,7 +16,8 @@ const LINKS: MenuLink[] = [
   { label: "PPM", href: "/formulaire", match: (pathname) => pathname === "/formulaire" },
   { label: "Dashboard", href: "/dashboard", match: (pathname) => pathname === "/dashboard" },
   { label: "TdR / ST", href: "/TdrSt/formulaire", match: (pathname) => pathname === "/TdrSt/formulaire" },
-  { label: "e-Procurement", href: "/procurement", match: (pathname) => pathname === "/procurement" }
+  { label: "e-Procurement", href: "/procurement", match: (pathname) => pathname === "/procurement" },
+  { label: "Admin", href: "/admin", match: (pathname) => pathname === "/admin" },
 ];
 
 export default function Menu({ className = "" }: { className?: string }) {
@@ -99,6 +101,7 @@ export default function Menu({ className = "" }: { className?: string }) {
   };
 
   if (!showAuthenticatedActions) return null;
+  const {accessType} = useAccess();
 
   return (
     <div 
@@ -161,19 +164,26 @@ export default function Menu({ className = "" }: { className?: string }) {
             {LINKS.map((item) => {
               const isActive = item.match(pathname);
               return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  role="menuitem"
-                  className={`block px-4 py-2.5 text-sm transition-colors ${
-                    isActive
-                      ? "bg-gray-100 text-gray-900 font-medium"
-                      : "text-gray-700 hover:bg-gray-200 hover:text-gray-900"
-                  }`}
-                  onClick={() => setOpen(false)}
+                <div
+                 key={item.href}
                 >
-                  {item.label}
-                </Link>
+                  {
+                    accessType == 'private' && 
+                    <Link
+                      href={item.href}
+                      role="menuitem"
+                      className={`block px-4 py-2.5 text-sm transition-colors ${
+                        isActive
+                          ? "bg-gray-100 text-gray-900 font-medium"
+                          : "text-gray-700 hover:bg-gray-200 hover:text-gray-900"
+                      }`}
+                      onClick={() => setOpen(false)}
+                    >
+                      {item.label}
+                    </Link>
+                  }
+                </div>
+                
               );
             })}
           </div>

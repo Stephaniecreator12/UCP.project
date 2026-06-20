@@ -34,7 +34,7 @@ urlpatterns = [
     path("api/logs/individual/", IndividualTraceabilityAPIView.as_view(), name="individual-traceability"),
     path('api/procurement/', include('apps.procurement.urls')),
     path('market/<path:reference_number>/download-dao/', DownloadDAOView.as_view(), name='download-dao'),
-    
+    path('api/evaluations/', include('apps.evaluations.urls')),
     
     path('api/auth/verify-email/', verifier_email_view, name='api_verify_email'),
     #path("URL", fonction_qui_repond, name="nom")

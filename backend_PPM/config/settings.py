@@ -50,7 +50,8 @@ INSTALLED_APPS = [
     'apps.ppm',
     'apps.TdrSt',
     'apps.procurement',
-    'apps.log'
+    'apps.log',
+    'apps.evaluations',
 ]
 
 MIDDLEWARE = [

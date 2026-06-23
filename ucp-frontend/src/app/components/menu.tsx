@@ -10,6 +10,7 @@ type MenuLink = {
   label: string;
   href: string;
   match: (pathname: string) => boolean;
+  requiresPrivate?:boolean;
 };
 
 const LINKS: MenuLink[] = [
@@ -17,7 +18,7 @@ const LINKS: MenuLink[] = [
   { label: "Dashboard", href: "/dashboard", match: (pathname) => pathname === "/dashboard" },
   { label: "TdR / ST", href: "/TdrSt/formulaire", match: (pathname) => pathname === "/TdrSt/formulaire" },
   { label: "e-Procurement", href: "/procurement", match: (pathname) => pathname === "/procurement" },
-  { label: "Admin", href: "/admin", match: (pathname) => pathname === "/admin" },
+  { label: "Admin", href: "/admin", match: (pathname) => pathname === "/admin", requiresPrivate: true },
 ];
 
 export default function Menu({ className = "" }: { className?: string }) {
@@ -101,11 +102,11 @@ export default function Menu({ className = "" }: { className?: string }) {
   };
 
   if (!showAuthenticatedActions) return null;
-  const {accessType} = useAccess();
+  const { accessType } = useAccess();
 
   return (
-    <div 
-      ref={rootRef} 
+    <div
+      ref={rootRef}
       className={`relative inline-flex ${className}`}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
@@ -121,13 +122,13 @@ export default function Menu({ className = "" }: { className?: string }) {
       >
         <span className="relative z-10 leading-none flex items-center gap-2.5 ">
           Menu
-          <svg 
+          <svg
             className={`w-3 h-3 text-slate-400 transition-transform duration-200 ${open ? "" : "rotate-180"}`}
-            viewBox="0 0 24 24" 
-            fill="none" 
-            stroke="currentColor" 
-            strokeWidth="2.5" 
-            strokeLinecap="round" 
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
             strokeLinejoin="round"
           >
             <polyline points="6 9 12 15 18 9"></polyline>
@@ -160,33 +161,30 @@ export default function Menu({ className = "" }: { className?: string }) {
           className="fixed  w-[200px] overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg animate-in fade-in slide-in-from-top-2 duration-200"
           style={{ left: menuPos.left, top: menuPos.top + 8 }}
         >
-          <div className="py-1">
-            {LINKS.map((item) => {
-              const isActive = item.match(pathname);
-              return (
-                <div
-                 key={item.href}
+          {LINKS.map((item) => {
+            if (item.requiresPrivate && accessType !== 'private') {
+              return null;
+            }
+
+            const isActive = item.match(pathname);
+
+            return (
+              <div key={item.href}>
+                <Link
+                  href={item.href}
+                  role="menuitem"
+                  className={`block px-4 py-2.5 text-sm transition-colors ${isActive
+                      ? "bg-gray-100 text-gray-900 font-medium"
+                      : "text-gray-700 hover:bg-gray-200 hover:text-gray-900"
+                    }`}
+                  onClick={() => setOpen(false)}
                 >
-                  {
-                    accessType == 'private' && 
-                    <Link
-                      href={item.href}
-                      role="menuitem"
-                      className={`block px-4 py-2.5 text-sm transition-colors ${
-                        isActive
-                          ? "bg-gray-100 text-gray-900 font-medium"
-                          : "text-gray-700 hover:bg-gray-200 hover:text-gray-900"
-                      }`}
-                      onClick={() => setOpen(false)}
-                    >
-                      {item.label}
-                    </Link>
-                  }
-                </div>
-                
-              );
-            })}
-          </div>
+                  {item.label}
+                </Link>
+              </div>
+            );
+          })}
+
         </div>,
         document.body
       )}

@@ -106,7 +106,11 @@ DATABASES = {
     },
     'external_users': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'rh',
+        'NAME': os.environ.get('RH_DB_NAME'),
+        'USER': os.environ.get('RH_DB_USER'),
+        'PASSWORD': os.environ.get('RH_DB_PASSWORD'),
+        'HOST': os.environ.get('RH_DB_HOST'),
+        'PORT': os.environ.get('RH_DB_PORT'),
     }
 }
 

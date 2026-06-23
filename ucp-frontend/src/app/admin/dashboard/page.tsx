@@ -11,6 +11,7 @@ import MonitoringPanel from "@/app/admin/dashboard/components/MonitoringPanel";
 import UsersTraceability from "@/app/admin/dashboard/components/UsersTraceability";
 import { getToken } from "@/services/auth";
 import TopHeader from "@/app/components/TopHeader";
+import { useRouter } from "next/navigation";
 import {
     ViewCount,
     DaoDownload,
@@ -18,7 +19,9 @@ import {
     MonitoringData,
     UserTraceability
 } from "@/types/adminDashboard";
+import { ArrowLeft } from "lucide-react"
 export default function AdminDashboardPage() {
+  const router = useRouter();
     const [views, setViews] = useState<ViewCount[]>([]);
     const [downloads, setDownloads] = useState<DaoDownload[]>([]);
     const [annexes, setAnnexes] = useState<AnnexeRatio[]>([]);
@@ -71,6 +74,10 @@ export default function AdminDashboardPage() {
         totalViews > 0
             ? ((totalDownloads / totalViews) * 100).toFixed(2)
             : 0;
+    
+    const handleAdminPageRedirection = () => {
+       router.replace("/admin");
+    }
 
     return (
     <div className="w-full min-h-screen bg-slate-50/50 flex flex-col">
@@ -79,6 +86,13 @@ export default function AdminDashboardPage() {
       </div>
 
       <div className="w-full flex-1 py-10 px-6 md:px-12 lg:px-16 flex flex-col gap-8">
+        <button
+            type="button"
+            onClick={() => handleAdminPageRedirection()}
+            className="inline-flex w-[17%] items-center gap-2 px-4 py-2.5 text-sm font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg shadow-2xs hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 transition-all duration-150 cursor-pointer"
+          ><ArrowLeft size={16} className="text-slate-400 group-hover:text-slate-600" />
+            Retour vers la page administrative
+          </button>
         
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">

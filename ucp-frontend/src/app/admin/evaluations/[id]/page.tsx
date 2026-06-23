@@ -82,7 +82,7 @@ export default function EvaluationDossierPage({ params }: { params: { id: string
     <div className="w-full min-h-screen bg-gray-50/60 pb-16 font-sans p-2.5">
       <div className="mx-auto px-4 mt-8 max-w-4xl">
         <Link
-          href="/evaluations"
+          href="/admin/evaluations"
           className="text-sm text-green-700 hover:text-green-900 font-medium inline-flex items-center gap-1 mb-4"
         >
           ← Retour à la liste des évaluations

@@ -9,7 +9,7 @@ node_modules/
 **/node_modules/
 
 media/
-
+!**/pv_documents/.gitkeep
 !**/annex_documents/.gitkeep
 !**/submission_models/.gitkeep
 !**/tdr_st/.gitkeep

@@ -1,19 +1,3 @@
-<<<<<<< HEAD
-export function TextLabel({text} : {text:string | undefined}){
-    return(
-    <span className="text-md font-medium leading-none">
-        {text}
-        </span>
-    )
-}
-export function TextTitle({text} : {text:string | undefined}){
-    return(
-    <span className="text-lg font-semibold leading-none">
-        {text}
-        </span>
-    )
-}
-=======
 type TextBlockProps = {
   text?: string | null;
   children?: React.ReactNode;
@@ -34,4 +18,3 @@ export function TextLabel({ text, children }: TextBlockProps) {
     </span>
   );
 }
->>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d

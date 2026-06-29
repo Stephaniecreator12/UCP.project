@@ -1,10 +1,3 @@
-<<<<<<< HEAD
-import { FinancingSource } from "@/types/procurement";
-export type FinanceCatalogEntry = {
-  optionKey: string;
-  value: string;
-  family: FinancingSource;
-=======
 "use client";
 
 export type FinanceFamily = "FM" | "GAVI" | "BM";
@@ -13,31 +6,16 @@ export type FinanceCatalogEntry = {
   optionKey: string;
   value: string;
   family: FinanceFamily;
->>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d
   familyLabel: string;
   sourceLabel: string;
   budgetLabel: string;
   subvention: string;
 };
-<<<<<<< HEAD
-=======
-
-export const FINANCE_FAMILY_OPTIONS = [
-  { value: "FM", label: "Fonds mondial" },
-  { value: "GAVI", label: "Alliance GAVI" },
-  { value: "BM", label: "Banque mondiale" },
-] as const;
-
->>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d
 export const FINANCE_CATALOG: readonly FinanceCatalogEntry[] = [
   {
     optionKey: "SRPS_CS7_FM",
     value: "SRPS_CS7_FM",
-<<<<<<< HEAD
-    family: "GLOBAL_FUND",
-=======
     family: "FM",
->>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d
     familyLabel: "Fonds mondial",
     sourceLabel: "Fonds mondial",
     budgetLabel: "SRPS / CS7",
@@ -82,11 +60,7 @@ export const FINANCE_CATALOG: readonly FinanceCatalogEntry[] = [
   {
     optionKey: "PARN2_BM_P175110",
     value: "PARN2_BM",
-<<<<<<< HEAD
-    family: "WORLD_BANK",
-=======
     family: "BM",
->>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d
     familyLabel: "Banque mondiale",
     sourceLabel: "Banque mondiale",
     budgetLabel: "PARN2",
@@ -95,11 +69,7 @@ export const FINANCE_CATALOG: readonly FinanceCatalogEntry[] = [
   {
     optionKey: "PARN2_BM_PAD4924",
     value: "PARN2_BM",
-<<<<<<< HEAD
-    family: "WORLD_BANK",
-=======
     family: "BM",
->>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d
     familyLabel: "Banque mondiale",
     sourceLabel: "Banque mondiale",
     budgetLabel: "PARN2",
@@ -108,19 +78,12 @@ export const FINANCE_CATALOG: readonly FinanceCatalogEntry[] = [
   {
     optionKey: "PPSB_BM_P174903",
     value: "PPSB_BM",
-<<<<<<< HEAD
-    family: "WORLD_BANK",
-=======
     family: "BM",
->>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d
     familyLabel: "Banque mondiale",
     sourceLabel: "Banque mondiale",
     budgetLabel: "PPSB",
     subvention: "P174903",
   },
-<<<<<<< HEAD
-] as const;
-=======
 ] as const;
 
 const normalizeFinanceToken = (value: string) =>
@@ -182,4 +145,3 @@ export const findFinanceCatalogEntry = (
     }) ?? null
   );
 };
->>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d

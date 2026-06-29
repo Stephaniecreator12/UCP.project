@@ -4,9 +4,9 @@ export default function AdminDashboardPage() {
   const adminModules = [
     {
       id: "dashboard",
-      title: "Tableau de Bord",
+      title: "Tableau de Bord de suivi",
       description: "Vue d'ensemble des statistiques, indicateurs clés et activités récentes de l'UCP.",
-      href: "/admin/dashboard",
+      href: "/admin/log-dashboard",
       icon: "📊",
       isActive: true,
     },
@@ -14,7 +14,7 @@ export default function AdminDashboardPage() {
       id: "procurement",
       title: "Gestion des Marchés",
       description: "Création, gestion et suivi des dossiers d'appel d'offres (DAO) et des contrats.",
-      href: "/procurement/",
+      href: "/procurement",
       icon: "📁",
       isActive: true,
     },
@@ -22,8 +22,88 @@ export default function AdminDashboardPage() {
       id: "evaluations",
       title: "Évaluations",
       description: "Suivi des évaluations des offres, notations et commissions d'attribution.",
-      href: "/admin/evaluations",
+      href: "/admin/evaluation",
       icon: "📋",
+      isActive: true,
+    },
+    {
+      id: "components",
+      title: "Composants Communs",
+      description: "Gestion des éléments d'interface réutilisables du panneau d'administration.",
+      href: "/admin/components",
+      icon: "🧩",
+      isActive: true,
+    },
+    {
+      id: "demande-achat",
+      title: "Demandes d'Achat",
+      description: "Suivi, validation et traitement des expressions de besoins et demandes d'achats.",
+      href: "/admin/demande-achat",
+      icon: "🛒",
+      isActive: true,
+    },
+    {
+      id: "evaluation_offre",
+      title: "Évaluation des Offres",
+      description: "Analyse approfondie, comparaison technique et financière des offres soumises.",
+      href: "/admin/evaluation_offre",
+      icon: "⚖️",
+      isActive: true,
+    },
+    {
+      id: "log-dashboard",
+      title: "Logs & Historique",
+      description: "Suivi des connexions, des modifications du système et de l'historique des actions.",
+      href: "/admin/log-dashboard",
+      icon: "📜",
+      isActive: true,
+    },
+    {
+      id: "logistique",
+      title: "Logistique",
+      description: "Gestion de la chaîne logistique, du matériel, du stockage et des livraisons.",
+      href: "/admin/logistique",
+      icon: "🚚",
+      isActive: true,
+    },
+    {
+      id: "marche",
+      title: "Suivi des Marchés",
+      description: "Registre officiel, exécution des contrats et cycle de vie des marchés publics.",
+      href: "/admin/marche",
+      icon: "💼",
+      isActive: true,
+    },
+    {
+      id: "ouverture_offre",
+      title: "Ouverture des Offres",
+      description: "Gestion des séances d'ouverture des plis et enregistrement des candidatures.",
+      href: "/admin/ouverture_offre",
+      icon: "🔓",
+      isActive: true,
+    },
+    {
+      id: "passation",
+      title: "Passation des Marchés",
+      description: "Planification, procédures de passation et conformité réglementaire.",
+      href: "/admin/passation",
+      icon: "🤝",
+      isActive: true,
+    },
+    {
+      id: "tdrst",
+      title: "TDR & Spécifications",
+      description: "Gestion des Termes de Référence (TDR) et des Spécifications Techniques.",
+      href: "/admin/TdrSt",
+      icon: "📝",
+      isActive: true,
+    },
+    {
+      id: "validation",
+      title: "Validation & Approbation",
+      description: "Circuit de signature, visas réglementaires et validations des étapes.",
+      href: "/admin/validation",
+      icon: "✅",
       isActive: true,
     },
   ];
@@ -32,7 +112,7 @@ export default function AdminDashboardPage() {
     <div className="w-full min-h-screen bg-gray-50/60 pb-16 font-sans p-2.5">
       <TopHeader></TopHeader>
 
-      <div className="max-w-7xl mx-auto px-4 mt-8">
+      <div className="max-w-[1800px] mx-auto px-8 mt-10">
         {/* En-tête de la page */}
         <div className="flex flex-col sm:flex-row w-full justify-between items-start sm:items-center gap-4 mb-10 border-b border-gray-200 pb-6">
           <div>
@@ -52,7 +132,7 @@ export default function AdminDashboardPage() {
         </div>
 
         {/* Grille des modules (Routes) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-10">
           {adminModules.map((module) => (
             <Link
               key={module.id}
@@ -61,7 +141,7 @@ export default function AdminDashboardPage() {
                 module.isActive 
                   ? "border-t-green-600 bg-white hover:border-green-600/40 hover:shadow-xl hover:-translate-y-1 cursor-pointer" 
                   : "border-t-gray-300 bg-gray-50 opacity-75 cursor-not-allowed"
-              } p-6 rounded-xl shadow-md transition-all duration-300 ease-in-out relative overflow-hidden group`}
+              } p-8 rounded-2xl min-h-[320px] flex flex-col justify-between shadow-md transition-all duration-300 ease-in-out relative overflow-hidden group`}
             >
               <div className="flex items-start gap-4 mb-4">
                 <div className={`p-3 rounded-lg ${module.isActive ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'} text-2xl shadow-2xs`}>

@@ -1,2 +1,6 @@
 venv/
 .venv/
+.continue/
+.vscode/
+*.pyc
+__pycache__/

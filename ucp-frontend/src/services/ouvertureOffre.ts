@@ -13,6 +13,7 @@ import type {
 import type { ProcurementMarket } from "@/types/procurement";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+console.log("[ouvertureOffre] API_BASE configured as:", API_BASE);
 const PUBLIC_VALIDATION_SESSION_KEY = "ucp.ouverture.publicValidation";
 const PUBLIC_VALIDATION_SESSION_TTL_MS = 30 * 60 * 1000;
 
@@ -99,7 +100,11 @@ const readErrorMessage = async (response: Response): Promise<string> => {
     return "Le backend ou la base de données est indisponible. Vérifie que Django et PostgreSQL sont lancés.";
   }
 
-  return `Erreur API ouverture (HTTP ${response.status}).`;
+  if (response.status === 0 || response.statusText === "Failed to fetch") {
+    return `Erreur réseau : impossible d'accéder à ${API_BASE}. Vérifie que le backend est accessible depuis ton réseau.`;
+  }
+
+  return `Erreur API ouverture (HTTP ${response.status}). URL: ${response.url}`;
 };
 
 const formatApiErrorPayload = (
@@ -337,20 +342,47 @@ export async function openPublicValidationSession(
   id: number,
   payload: PublicValidationAccessPayload,
 ): Promise<PublicValidationContext> {
-  const response = await fetch(
-    `${API_BASE}/api/ouverture/seances/${id}/validation-acces/`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    },
-  );
+  try {
+    console.log(
+      `[openPublicValidationSession] Posting to: ${API_BASE}/api/ouverture/seances/${id}/validation-acces/`,
+      {
+        role: payload.role,
+        email: payload.email,
+      },
+    );
+    const response = await fetch(
+      `${API_BASE}/api/ouverture/seances/${id}/validation-acces/`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      },
+    );
 
-  if (!response.ok) {
-    throw new Error(await readErrorMessage(response));
+    console.log(
+      `[openPublicValidationSession] Response status: ${response.status}`,
+    );
+
+    if (!response.ok) {
+      throw new Error(await readErrorMessage(response));
+    }
+
+    return (await response.json()) as PublicValidationContext;
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    console.error(
+      `[openPublicValidationSession] Error: ${errorMsg}`,
+      "seanceId:",
+      id,
+      "role:",
+      payload.role,
+      "email:",
+      payload.email,
+      "fullError:",
+      err,
+    );
+    throw err;
   }
-
-  return (await response.json()) as PublicValidationContext;
 }
 
 export async function submitPublicValidationDecision(

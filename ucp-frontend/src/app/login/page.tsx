@@ -38,12 +38,22 @@ export default function LoginPage() {
 function LoginPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  
-  const validationRequest = getValidationRequest(searchParams);
+  const initialValidationRequest =
+    getValidationRequest(searchParams) ??
+    (typeof window !== "undefined"
+      ? getValidationRequestFromSearchParams(
+          new URLSearchParams(window.location.search),
+        )
+      : null);
+  const [fallbackValidationRequest, setFallbackValidationRequest] =
+    useState<ValidationLoginRequest | null>(initialValidationRequest);
+
+  const validationRequest =
+    getValidationRequest(searchParams) ?? fallbackValidationRequest;
   const validationSeanceId = validationRequest?.seanceId ?? null;
   const validationRole = validationRequest?.role ?? null;
   const validationEmail = validationRequest?.email ?? "";
-  const isValidationLogin = validationSeanceId !== null && !!validationRole;
+  const isValidationLogin = validationSeanceId !== null;
 
   const evaluationRequest = getEvaluationRequest(searchParams);
   const evaluationOffreId = evaluationRequest?.offreId ?? null;
@@ -51,8 +61,13 @@ function LoginPageContent() {
   const isEvaluationLogin = evaluationOffreId !== null;
 
   const nextPath = getSafeNextPath(searchParams.get("next"));
-  const [username, setUsername] = useState(isEvaluationLogin ? evaluationEmail : validationEmail);
+  const [username, setUsername] = useState(
+    isEvaluationLogin ? evaluationEmail : validationEmail,
+  );
   const [password, setPassword] = useState("");
+  const [selectedRole, setSelectedRole] = useState<PublicValidationRole>(
+    validationRole ?? "membre",
+  );
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -69,12 +84,26 @@ function LoginPageContent() {
       // does not stay visible once a session already exists.
       redirectTo(router, nextPath ?? getLandingRouteForUser(currentUser));
     }
-  }, [
-    nextPath,
-    router,
-    isValidationLogin,
-    isEvaluationLogin,
-  ]);
+  }, [nextPath, router, isValidationLogin, isEvaluationLogin]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (getValidationRequest(searchParams)) return;
+
+    const urlSearch = new URLSearchParams(window.location.search);
+    const request = getValidationRequestFromSearchParams(urlSearch);
+    if (request) {
+      setFallbackValidationRequest(request);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (!validationRequest) return;
+    setSelectedRole(validationRequest.role ?? "membre");
+    if (validationRequest.email) {
+      setUsername(validationRequest.email);
+    }
+  }, [validationRequest]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -86,7 +115,7 @@ function LoginPageContent() {
     const cleanUsername = username.trim();
     const cleanPassword = password.trim();
 
-    if (isValidationLogin && validationSeanceId !== null && validationRole) {
+    if (isValidationLogin && validationSeanceId !== null) {
       if (!cleanUsername || !cleanPassword) {
         setError("Saisissez l'email et le mot de passe reçus par mail.");
         setIsSubmitting(false);
@@ -94,14 +123,11 @@ function LoginPageContent() {
       }
 
       try {
-        const context = await openPublicValidationSession(
-          validationSeanceId,
-          {
-            role: validationRole,
-            email: cleanUsername,
-            password: cleanPassword,
-          },
-        );
+        const context = await openPublicValidationSession(validationSeanceId, {
+          role: selectedRole,
+          email: cleanUsername,
+          password: cleanPassword,
+        });
         savePublicValidationSession({
           seanceId: validationSeanceId,
           role: context.role,
@@ -120,7 +146,19 @@ function LoginPageContent() {
         );
         return;
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Accès validation impossible.");
+        const errorMsg =
+          err instanceof Error ? err.message : "Accès validation impossible.";
+        console.error(
+          "Validation login failed:",
+          errorMsg,
+          "seanceId:",
+          validationSeanceId,
+          "role:",
+          selectedRole,
+          "error:",
+          err,
+        );
+        setError(errorMsg);
         setIsSubmitting(false);
         return;
       }
@@ -134,15 +172,23 @@ function LoginPageContent() {
       }
 
       try {
-        await accessEvaluationByCode(evaluationOffreId, cleanUsername, cleanPassword);
-        
+        await accessEvaluationByCode(
+          evaluationOffreId,
+          cleanUsername,
+          cleanPassword,
+        );
+
         redirectTo(
           router,
           `/evaluation_offre/${evaluationOffreId}/evaluate?email=${encodeURIComponent(cleanUsername)}&code=${encodeURIComponent(cleanPassword)}`,
         );
         return;
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Code d'accès ou email invalide.");
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Code d'accès ou email invalide.",
+        );
         setIsSubmitting(false);
         return;
       }
@@ -194,10 +240,18 @@ function LoginPageContent() {
               />
             </div>
             <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-emerald-700">
-              {isValidationLogin ? "Accès validateur DAO" : isEvaluationLogin ? "Évaluation d'Offre" : "e-Procurement Platform"}
+              {isValidationLogin
+                ? "Accès validateur DAO"
+                : isEvaluationLogin
+                  ? "Évaluation d'Offre"
+                  : "e-Procurement Platform"}
             </p>
             <h1 className="mt-3 text-3xl font-bold text-slate-900">
-              {isValidationLogin ? "Validation DAO" : isEvaluationLogin ? "Évaluation d'Offre" : "Connexion"}
+              {isValidationLogin
+                ? "Validation DAO"
+                : isEvaluationLogin
+                  ? "Évaluation d'Offre"
+                  : "Connexion"}
             </h1>
             <div className="login-line-glow mx-auto mt-3 h-px w-24 bg-[linear-gradient(90deg,rgba(34,197,94,0),rgba(34,197,94,0.8),rgba(34,197,94,0))]" />
           </div>
@@ -215,18 +269,44 @@ function LoginPageContent() {
           )}
 
           <form onSubmit={handleLogin} className="space-y-5">
+            {isValidationLogin && (
+              <div>
+                <label className="mb-2 block text-sm font-bold text-slate-700">
+                  Rôle
+                </label>
+                <select
+                  value={selectedRole}
+                  disabled={isSubmitting || !!validationRole}
+                  onChange={(e) =>
+                    setSelectedRole(e.target.value as PublicValidationRole)
+                  }
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/10"
+                >
+                  <option value="membre">Membre</option>
+                  <option value="president">Président</option>
+                </select>
+                <p className="mt-2 text-xs text-slate-500">
+                  {validationRole
+                    ? "Rôle déterminé par le lien de validation."
+                    : "Choisissez votre rôle si le lien ne l’a pas fourni."}
+                </p>
+              </div>
+            )}
+
             <div>
               <label className="mb-2 block text-sm font-bold text-slate-700">
-                {(isValidationLogin || isEvaluationLogin) ? "Email" : "Nom d'utilisateur"}
+                {isValidationLogin || isEvaluationLogin
+                  ? "Email"
+                  : "Nom d'utilisateur"}
               </label>
               <input
-                type={(isValidationLogin || isEvaluationLogin) ? "email" : "text"}
+                type={isValidationLogin || isEvaluationLogin ? "email" : "text"}
                 className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/10 placeholder:text-slate-400"
                 value={username}
                 disabled={isSubmitting}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder={
-                  (isValidationLogin || isEvaluationLogin)
+                  isValidationLogin || isEvaluationLogin
                     ? "Saisir l'email reçu dans le mail"
                     : "Saisir votre nom d'utilisateur"
                 }
@@ -235,7 +315,11 @@ function LoginPageContent() {
 
             <div>
               <label className="mb-2 block text-sm font-bold text-slate-700">
-                {isValidationLogin ? "Mot de passe reçu par mail" : isEvaluationLogin ? "Code d'accès reçu par mail" : "Mot de passe"}
+                {isValidationLogin
+                  ? "Mot de passe reçu par mail"
+                  : isEvaluationLogin
+                    ? "Code d'accès reçu par mail"
+                    : "Mot de passe"}
               </label>
               <div className="relative">
                 <input
@@ -248,8 +332,8 @@ function LoginPageContent() {
                     isValidationLogin
                       ? "Saisir le mot de passe du mail"
                       : isEvaluationLogin
-                      ? "Saisir le code d'accès du mail"
-                      : "Saisir votre mot de passe"
+                        ? "Saisir le code d'accès du mail"
+                        : "Saisir votre mot de passe"
                   }
                 />
                 <button
@@ -263,11 +347,7 @@ function LoginPageContent() {
                   }
                 >
                   {showPassword ? (
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      className="h-4 w-4"
-                    >
+                    <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
                       <path
                         d="M3 3l18 18"
                         stroke="currentColor"
@@ -296,11 +376,7 @@ function LoginPageContent() {
                       />
                     </svg>
                   ) : (
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      className="h-4 w-4"
-                    >
+                    <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
                       <path
                         d="M2 12c.5-4 4.5-8 10-8s9.5 4 10 8c-.5 4-4.5 8-10 8S2.5 16 2 12z"
                         stroke="currentColor"
@@ -327,14 +403,14 @@ function LoginPageContent() {
               className="mt-2 inline-flex w-full items-center justify-center rounded-2xl bg-[#166534] px-4 py-3 text-sm font-bold tracking-wide text-white shadow-[0_16px_30px_-20px_rgba(22,101,52,0.65)] transition hover:bg-[#14532d] disabled:cursor-not-allowed disabled:bg-slate-400"
             >
               {isSubmitting
-                ? (isValidationLogin || isEvaluationLogin)
+                ? isValidationLogin || isEvaluationLogin
                   ? "Vérification..."
                   : "Connexion..."
                 : isValidationLogin
                   ? "Accéder à la validation"
                   : isEvaluationLogin
-                  ? "Accéder à l'évaluation"
-                  : "Se connecter"}
+                    ? "Accéder à l'évaluation"
+                    : "Se connecter"}
             </button>
           </form>
 
@@ -381,22 +457,32 @@ const getSafeNextPath = (value: string | null) => {
 
 type ValidationLoginRequest = {
   seanceId: number;
-  role: PublicValidationRole;
+  role?: PublicValidationRole;
   email: string;
 };
 
 const getValidationRequest = (
   searchParams: ReturnType<typeof useSearchParams>,
 ): ValidationLoginRequest | null => {
-  if (getQueryParam(searchParams, "validation") !== "ouverture") return null;
+  const validation = getQueryParam(searchParams, "validation")
+    ?.trim()
+    .toLowerCase();
+  if (validation !== "ouverture") return null;
 
-  const seance = getQueryParam(searchParams, "seance");
-  const roleParam = getQueryParam(searchParams, "role");
-  const email = getQueryParam(searchParams, "email") ?? "";
+  const seance =
+    getQueryParam(searchParams, "seance") ??
+    getQueryParam(searchParams, "seance_id");
+  const roleParam =
+    getQueryParam(searchParams, "role") ??
+    getQueryParam(searchParams, "role_key");
+  const email =
+    getQueryParam(searchParams, "email") ??
+    getQueryParam(searchParams, "courriel") ??
+    "";
   const seanceId = Number(seance);
   const role = getRole(roleParam);
 
-  if (!seance || !Number.isInteger(seanceId) || seanceId <= 0 || !role) {
+  if (!seance || !Number.isInteger(seanceId) || seanceId <= 0) {
     return null;
   }
 
@@ -412,8 +498,36 @@ const getQueryParam = (
   key: string,
 ) => searchParams.get(key) ?? searchParams.get(`amp;${key}`);
 
-const getRole = (value: string | null): PublicValidationRole | null =>
-  value === "membre" || value === "president" ? value : null;
+const getRole = (value: string | null): PublicValidationRole | null => {
+  if (!value) return null;
+  const normalized = value.trim().toLowerCase();
+  return normalized === "membre" || normalized === "president"
+    ? normalized
+    : null;
+};
+
+const getValidationRequestFromSearchParams = (
+  searchParams: URLSearchParams,
+): ValidationLoginRequest | null => {
+  const validation = searchParams.get("validation")?.trim().toLowerCase();
+  if (validation !== "ouverture") return null;
+
+  const seance = searchParams.get("seance") ?? searchParams.get("seance_id");
+  const roleParam = searchParams.get("role") ?? searchParams.get("role_key");
+  const email = searchParams.get("email") ?? searchParams.get("courriel") ?? "";
+  const seanceId = Number(seance);
+  const role = getRole(roleParam);
+
+  if (!seance || !Number.isInteger(seanceId) || seanceId <= 0) {
+    return null;
+  }
+
+  return {
+    seanceId,
+    role,
+    email,
+  };
+};
 
 const redirectTo = (
   router: ReturnType<typeof useRouter>,

@@ -1,5 +1,7 @@
 # routeur principal de Django.
 
+from django.conf import settings
+from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import path, include, re_path
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
@@ -19,7 +21,20 @@ from apps.log.views.annexe_ratio_view import AnnexeDownloadRatioAPIView
 from apps.log.views.download_count_view import DAODownloadCountAPIView
 from apps.log.views.individual_traceability_view import IndividualTraceabilityAPIView
 from apps.log.views.operational_monitoring_view import OperationalMonitoringAPIView
+from django.urls import path, include
+from django.http import JsonResponse
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+
+def home_view(request):
+    return JsonResponse({
+        "status": "online",
+        "message": "UCP Backend API is running successfully!",
+        "admin_panel": "/admin/",
+        "project": "e-Proc UCP"
+    })
+
 urlpatterns = [
+    path("", home_view, name="home"),
     path("admin/", admin.site.urls),
     path("api/public/login/", PublicLoginView.as_view(), name="public_login"),
     path("api/ppm/", include("apps.ppm.urls")),
@@ -40,9 +55,17 @@ urlpatterns = [
     #path("URL", fonction_qui_repond, name="nom")
     path("api/login/", TokenObtainPairView.as_view(), name="token_obtain_pair"),#login → créer un token
     path("api/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),#refresh → renouveler le token
+    if settings.DEBUG:
+    urlpatterns.insert(0, re_path(r"^media/tdr_st/(?P<path>.*)$", serve_tdr_st_media))
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    path("api/achats/", include("apps.achats.urls")),
+    # Current login uses the stock JWT endpoint.
+    # If one day access must be enforced by email domain on the backend
+    # (for example allow "@ucp" here and reject others), this is the route
+    # to replace with a custom login view instead of TokenObtainPairView.
+    path("api/ouverture/", include("apps.ouverture_offre.urls")),
+    path("api/evaluation/", include("apps.evaluation_offre.urls"))
 ]
 
-# Servir les fichiers uploadés (PDF) en développement uniquement
 if settings.DEBUG:
-    urlpatterns.insert(0, re_path(r"^media/tdr_st/(?P<path>.*)$", serve_tdr_st_media))
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

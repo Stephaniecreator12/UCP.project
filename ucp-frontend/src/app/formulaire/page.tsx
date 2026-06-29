@@ -1,11 +1,18 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { Plus } from "lucide-react";
 import SidebarMenu from "@/app/components/SidebarMenu";
 import GridTable from "@/app/components/GridTable";
 import TopHeader from "@/app/components/TopHeader";
-import { getToken } from "@/services/auth";
+import {
+  getCurrentUser,
+  getLandingRouteForUser,
+  getToken,
+  isAgentAchatUser,
+  isValidatorUser,
+} from "@/services/auth";
 import { MenuItemType, GridRow } from "@/types/grid";
 import { TABLE_CONFIGS } from "@/config/tableConfigs";
 import {
@@ -131,11 +138,26 @@ const loadData = useCallback(async (): Promise<GridRow[]> => {
 }, [activeMenu, config.columns]);
 
   useEffect(() => {
-    if (!getToken()) router.replace("/login");
+    if (!getToken()) {
+      router.replace("/login");
+      return;
+    }
+
+    const currentUser = getCurrentUser();
+    if (isValidatorUser(currentUser) || isAgentAchatUser(currentUser)) {
+      router.replace(getLandingRouteForUser(currentUser));
+    }
   }, [router]);
 
   useEffect(() => {
-    if (getToken()) loadData();
+    const currentUser = getCurrentUser();
+    if (
+      getToken() &&
+      !isValidatorUser(currentUser) &&
+      !isAgentAchatUser(currentUser)
+    ) {
+      loadData();
+    }
   }, [loadData]);
 
   useEffect(() => {
@@ -290,30 +312,49 @@ const handleRowSave = async (row: GridRow) => {
 
 
   return (
-    <div className="h-screen overflow-hidden bg-[radial-gradient(circle_at_10%_0%,#f6faf8_0%,transparent_25%),linear-gradient(180deg,#eceeef_0%,#e8eaed_100%)] text-[#17212e] font-sans">
+    <div className="min-h-dvh overflow-x-hidden overflow-y-auto bg-[radial-gradient(circle_at_10%_0%,#f6faf8_0%,transparent_25%),linear-gradient(180deg,#eceeef_0%,#e8eaed_100%)] text-[#17212e] font-sans min-[1151px]:h-screen min-[1151px]:overflow-hidden">
       <TopHeader />
-      <div className="page-enter grid grid-cols-[auto_minmax(0,1fr)] max-[1150px]:grid-cols-1 gap-2 p-2 overflow-hidden">
+      <div className="page-enter grid grid-cols-[auto_minmax(0,1fr)] gap-2 p-2 max-[1150px]:grid-cols-1 min-[1151px]:overflow-hidden">
         <div className="page-enter-up" style={{ animationDelay: "0.08s" }}>
           <SidebarMenu activeMenu={activeMenu} onMenuSelect={setActiveMenu} />
         </div>
 
-        <main className="page-enter-up min-w-0 p-3 border border-[#d9dee3] rounded-[14px] bg-white shadow-[0_18px_36px_-30px_rgba(34,44,52,0.5)] overflow-hidden flex flex-col py-2" style={{ animationDelay: "0.14s", position: "relative", height: "calc(100vh - 15px)" }}>
-          <header className="page-enter-up relative grid grid-cols-[minmax(0,1fr)_auto] max-[900px]:grid-cols-1 gap-4 pt-[0.95rem] px-4 pb-4 border border-[#d9dee3] rounded-[14px] bg-white shadow-[0_18px_36px_-30px_rgba(34,44,52,0.5)]" style={{ animationDelay: "0.2s" }}>
-            <div className="absolute top-0 inset-x-0 h-1 rounded-t-[14px] bg-gradient-to-r from-[#0ea85b] to-[#57d18d]" aria-hidden="true" />
-            
+        <main
+          className="page-enter-up flex min-w-0 flex-col rounded-[14px] border border-[#d9dee3] bg-white p-3 py-2 shadow-[0_18px_36px_-30px_rgba(34,44,52,0.5)] max-[1150px]:min-h-0 min-[1151px]:h-[calc(100vh-15px)] min-[1151px]:overflow-hidden"
+          style={{ animationDelay: "0.14s", position: "relative" }}
+        >
+          <header
+            className="page-enter-up relative grid grid-cols-[minmax(0,1fr)_auto] gap-4 rounded-[14px] border border-[#d9dee3] bg-white px-4 pb-4 pt-[0.95rem] shadow-[0_18px_36px_-30px_rgba(34,44,52,0.5)] max-[900px]:grid-cols-1"
+            style={{ animationDelay: "0.2s" }}
+          >
+            <div
+              className="absolute inset-x-0 top-0 h-1 rounded-t-[14px] bg-gradient-to-r from-[#0ea85b] to-[#57d18d]"
+              aria-hidden="true"
+            />
+
             <div>
-              <p className="m-0 text-[#627080] text-[0.7rem] tracking-[0.05em] uppercase">Passation de marchés</p>
-              <h1 className="my-[0.32rem] font-bold text-[1.3rem] text-[#0c7340] tracking-[0.05em]">{config.label}</h1>
+              <p className="m-0 text-[0.7rem] uppercase tracking-[0.05em] text-[#627080]">
+                Passation de marchés
+              </p>
+              <h1 className="my-[0.32rem] text-[1.3rem] font-bold tracking-[0.05em] text-[#0c7340]">
+                {config.label}
+              </h1>
             </div>
-            
-            <div className="grid grid-cols-[auto_auto] max-[900px]:grid-cols-1 gap-[0.65rem] justify-end">
-              <div className="border border-[#d9dee3] rounded-xl bg-[#f6f7f8] py-[5px] px-[0.7rem] w-[138px] max-[900px]:w-full">
-                <span className="m-0 text-[#627080] text-[0.7rem] tracking-[0.05em] uppercase">Marchés</span>
-                <strong className="block mt-[0.06rem] text-[#0c7340]">{rows.length}</strong>
+
+            <div className="grid grid-cols-[auto_auto] justify-end gap-[0.65rem] max-[900px]:grid-cols-1">
+              <div className="w-[138px] rounded-xl border border-[#d9dee3] bg-[#f6f7f8] px-[0.7rem] py-[5px] max-[900px]:w-full">
+                <span className="m-0 text-[0.7rem] uppercase tracking-[0.05em] text-[#627080]">
+                  Marchés
+                </span>
+                <strong className="mt-[0.06rem] block text-[#0c7340]">{rows.length}</strong>
               </div>
-              <div className="border border-[#d9dee3] rounded-xl bg-[#f6f7f8] py-[5px] px-[0.7rem] w-[253px] max-[900px]:w-full">
-                <span className="m-0 text-[#627080] text-[0.7rem] tracking-[0.05em] uppercase">Montant total estimatif (Ar)</span>
-                <strong className="block mt-[0.06rem] text-[#0c7340]">{totalEstimatedAmountDisplay}</strong>
+              <div className="w-[253px] rounded-xl border border-[#d9dee3] bg-[#f6f7f8] px-[0.7rem] py-[5px] max-[900px]:w-full">
+                <span className="m-0 text-[0.7rem] uppercase tracking-[0.05em] text-[#627080]">
+                  Montant total estimatif (Ar)
+                </span>
+                <strong className="mt-[0.06rem] block text-[#0c7340]">
+                  {totalEstimatedAmountDisplay}
+                </strong>
               </div>
             </div>
           </header>
@@ -321,7 +362,7 @@ const handleRowSave = async (row: GridRow) => {
           {/* SaveMessage en bas Ã  droite, animÃ© droite -> gauche */}
           {saveMessage && (
             <div
-              className={`fixed z-[100] right-6 bottom-[20px] min-w-[220px] max-w-[340px] border rounded-[10px] py-[0.65rem] px-[0.8rem] font-semibold shadow-lg transition-opacity duration-200 animate-saveMessageSlide ${
+              className={`fixed bottom-[20px] right-6 z-[100] min-w-[220px] max-w-[340px] rounded-[10px] border px-[0.8rem] py-[0.65rem] font-semibold shadow-lg transition-opacity duration-200 animate-saveMessageSlide ${
                 saveMessage.type === "success" || saveMessage.type === "warning"
                   ? "bg-[#e6f8ef] border-[#bce9cd] text-[#0c6f3d]"
                   : "bg-[#fde9e9] border-[#f6c8c8] text-[#8d2525]"
@@ -332,8 +373,11 @@ const handleRowSave = async (row: GridRow) => {
             </div>
           )}
 
-          <div className="page-enter-up mt-[0.9rem] overflow-hidden grid grid-rows-[minmax(0,1fr)_auto] min-h-0 border border-[#d9dee3] rounded-[14px] bg-white shadow-[0_18px_36px_-30px_rgba(34,44,52,0.5)] flex-1" style={{ animationDelay: "0.28s", display: "flex", flexDirection: "column" }}>
-            <div className="min-h-0 max-h-[80vh] overflow-hidden flex-1">
+          <div
+            className="page-enter-up mt-[0.9rem] flex min-h-0 flex-1 flex-col overflow-hidden rounded-[14px] border border-[#d9dee3] bg-white shadow-[0_18px_36px_-30px_rgba(34,44,52,0.5)]"
+            style={{ animationDelay: "0.28s" }}
+          >
+            <div className="min-h-0 flex-1 overflow-hidden max-[1150px]:max-h-none min-[1151px]:max-h-[80vh]">
               <GridTable
                 columns={columnsForGrid}
                 rows={rows}
@@ -345,30 +389,33 @@ const handleRowSave = async (row: GridRow) => {
                 isLoading={isLoading || isSaving}
               />
             </div>
-            
-            {/* Barre Ajouter une ligne Desktop */}
-            <div className="relative z-50 min-h-[58px] flex items-center justify-start py-[10px] px-[14px] border-t border-[rgba(171,187,177,0.7)] bg-[linear-gradient(180deg,rgba(246,250,248,0.98),rgba(236,243,239,0.98))] max-[900px]:hidden">
+
+            <div className="relative z-50 flex min-h-[58px] items-center justify-start border-t border-[rgba(171,187,177,0.7)] bg-[linear-gradient(180deg,rgba(246,250,248,0.98),rgba(236,243,239,0.98))] px-[14px] py-[10px] max-[900px]:hidden">
               <button
                 type="button"
-                className="inline-flex items-center gap-[0.44rem] py-[0.52rem] px-4 rounded-full font-bold transition-all duration-200 border border-[#76cba0] bg-[linear-gradient(180deg,#15ba66,#078848)] text-white disabled:opacity-55 disabled:cursor-not-allowed"
+                className="inline-flex items-center gap-[0.44rem] rounded-full border border-[#76cba0] bg-[linear-gradient(180deg,#15ba66,#078848)] px-4 py-[0.52rem] font-bold text-white transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-55"
                 onClick={handleAddRow}
                 disabled={isLoading || isSaving || hasUnsavedRow}
               >
-                <span className="text-[1rem] leading-none" aria-hidden="true">+</span>
+                <Plus className="h-4 w-4" />
                 <span>Ajouter une ligne</span>
               </button>
             </div>
           </div>
 
           {/* Bouton Flottant Ajouter une ligne Mobile */}
-          <div className="page-enter-up hidden max-[900px]:block fixed right-4 bottom-4 z-50" style={{ animationDelay: "0.34s" }} aria-hidden="false">
+          <div
+            className="page-enter-up fixed right-4 bottom-4 z-50 hidden max-[900px]:block"
+            style={{ animationDelay: "0.34s" }}
+            aria-hidden="false"
+          >
             <button
               type="button"
-              className="inline-flex items-center gap-[0.44rem] py-[0.52rem] px-4 rounded-full font-bold transition-all duration-200 border border-[#76cba0] bg-[linear-gradient(180deg,#15ba66,#078848)] text-white shadow-lg disabled:opacity-55 disabled:cursor-not-allowed"
+              className="inline-flex items-center gap-[0.44rem] rounded-full border border-[#76cba0] bg-[linear-gradient(180deg,#15ba66,#078848)] px-4 py-[0.52rem] font-bold text-white shadow-lg transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-55"
               onClick={handleAddRow}
               disabled={isLoading || isSaving || hasUnsavedRow}
             >
-              <span className="text-[1rem] leading-none" aria-hidden="true">+</span>
+              <Plus className="h-4 w-4" />
               <span>Ajouter une ligne</span>
             </button>
           </div>
@@ -445,4 +492,3 @@ const handleRowSave = async (row: GridRow) => {
     </div>
   );
 }
-

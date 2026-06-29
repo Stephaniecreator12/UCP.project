@@ -348,15 +348,15 @@ export default function DashboardPage() {
             {/* Card Montant total */}
             <div className="bg-white px-5 py-3 rounded-2xl border border-[#d9dee3] shadow-sm flex items-center gap-3">
              <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600">
-              <svg 
-                className="w-6 h-6" 
-                viewBox="0 0 24 24" 
-                fill="none" 
-                stroke="currentColor" 
-                strokeWidth="2" 
-                strokeLinecap="round" 
+              <svg
+                className="w-6 h-6"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
                 strokeLinejoin="round"
-                >
+              >
                 <path d="M11 15h2a2 2 0 1 0 0-4h-3c-.6 0-1.1.2-1.4.6L3 17" />
                 <path d="m7 21 1.6-1.4c.3-.4.8-.6 1.4-.6h4c1.1 0 2.1-.4 2.8-1.2l4.6-5.4a2 2 0 0 0-3-2.7L15 13" />
                 <path d="M5 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" />
@@ -366,9 +366,9 @@ export default function DashboardPage() {
               <div>
                 <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Montant Total</div>
                 <div className="text-[1.3rem] font-black text-slate-800 count-animate">
-                  <AnimatedNumber 
-                    value={totalMontant} 
-                    duration={900} 
+                  <AnimatedNumber
+                    value={totalMontant}
+                    duration={900}
                     delay={200}
                     formatter={(val) => new Intl.NumberFormat("fr-FR", { style: "currency", currency: "MGA", maximumFractionDigits: 0 }).format(val)}
                   />

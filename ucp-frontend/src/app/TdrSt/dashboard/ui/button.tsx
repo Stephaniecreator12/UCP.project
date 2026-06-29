@@ -1,4 +1,5 @@
 import * as React from "react"
+<<<<<<< HEAD
 import { Slot } from "@radix-ui/react-slot"
 import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
@@ -41,9 +42,54 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     const Comp = asChild ? Slot : "button"
     return (
       <Comp className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...props} />
+=======
+import { cn } from "@/lib/utils"
+
+const baseClasses =
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-500/15 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0"
+
+const variantClasses = {
+  default: "bg-emerald-600 text-white shadow-sm hover:bg-emerald-700",
+  destructive: "bg-rose-600 text-white shadow-sm hover:bg-rose-700",
+  outline: "border border-slate-200 bg-white text-slate-800 shadow-sm hover:bg-slate-50",
+  secondary: "bg-slate-100 text-slate-800 shadow-sm hover:bg-slate-200",
+  ghost: "text-slate-800 hover:bg-slate-100",
+  link: "text-emerald-700 underline-offset-4 hover:underline",
+  ucp: "bg-emerald-600 text-white shadow-sm hover:bg-emerald-700",
+}
+
+const sizeClasses = {
+  default: "h-10 px-4",
+  sm: "h-9 px-4 text-sm",
+  lg: "h-11 px-6 text-base",
+  icon: "h-10 w-10",
+}
+
+type ButtonVariant = keyof typeof variantClasses
+type ButtonSize = keyof typeof sizeClasses
+
+export interface ButtonProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: ButtonVariant
+  size?: ButtonSize
+}
+
+const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ className, variant = "default", size = "default", ...props }, ref) => {
+    return (
+      <button
+        className={cn(baseClasses, variantClasses[variant], sizeClasses[size], className)}
+        ref={ref}
+        {...props}
+      />
+>>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d
     )
   },
 )
 Button.displayName = "Button"
 
+<<<<<<< HEAD
 export { Button, buttonVariants }
+=======
+export { Button }
+>>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d

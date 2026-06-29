@@ -22,6 +22,7 @@ class FinalDecisionSerializer(serializers.Serializer):
     )
     observations = serializers.CharField(required=False, allow_blank=True)
 
+<<<<<<< HEAD
 
 class AnoDecisionSerializer(serializers.Serializer):
     decision = serializers.ChoiceField(
@@ -31,3 +32,5 @@ class AnoDecisionSerializer(serializers.Serializer):
         ]
     )
     observations = serializers.CharField(required=False, allow_blank=True)
+=======
+>>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d

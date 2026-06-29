@@ -8,6 +8,70 @@ from django.db.models.functions import ExtractMonth
 from django.utils import timezone
 
 from apps.TdrSt.models.TdrSt import TdrStDocument, TdrStValidationAction
+<<<<<<< HEAD
+=======
+from apps.TdrSt.services.schema_compat import (
+    MISSING_TDR_LINK_MIGRATION_MESSAGE,
+    has_tdr_demande_link_column,
+)
+
+FINANCE_SOURCE_LABELS = {
+    "SRPS_CS7_FM": "Fonds mondial",
+    "RSS3_GAVI": "Alliance GAVI",
+    "FAE_GAVI": "Alliance GAVI",
+    "CDS_GAVI": "Alliance GAVI",
+    "VAR_GAVI": "Alliance GAVI",
+    "PARN2_BM": "Banque mondiale",
+    "PPSB_BM": "Banque mondiale",
+    "FM": "Fonds mondial",
+    "GAVI": "Alliance GAVI",
+    "BM": "Banque mondiale",
+    "FONDS MONDIAL": "Fonds mondial",
+    "BANQUE MONDIALE": "Banque mondiale",
+    "ALLIANCE GAVI": "Alliance GAVI",
+}
+
+
+def _normalize_financement_source(value) -> str | None:
+    if not isinstance(value, str):
+        return None
+
+    token = value.strip().upper().replace("/", " ").replace("-", " ")
+    token = " ".join(token.split())
+    if not token:
+        return None
+
+    for key, label in FINANCE_SOURCE_LABELS.items():
+        if token == key or token.replace(" ", "_") == key:
+            return label
+
+    if "GAVI" in token:
+        return "Alliance GAVI"
+    if "MONDIALE" in token or token.startswith("PARN2") or token.startswith("PPSB"):
+        return "Banque mondiale"
+    if "FONDS MONDIAL" in token or token.startswith("SRPS"):
+        return "Fonds mondial"
+
+    return None
+
+
+def _iter_financement_values(raw_sources):
+    if isinstance(raw_sources, str):
+        if raw_sources.strip():
+            yield raw_sources
+        return
+
+    if isinstance(raw_sources, list):
+        for source in raw_sources:
+            if isinstance(source, str) and source.strip():
+                yield source
+            elif isinstance(source, dict):
+                for key in ("nom", "value", "label"):
+                    nested = source.get(key)
+                    if isinstance(nested, str) and nested.strip():
+                        yield nested
+                        break
+>>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d
 
 
 class DashboardAPIView(APIView):
@@ -16,6 +80,15 @@ class DashboardAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+<<<<<<< HEAD
+=======
+        if not has_tdr_demande_link_column():
+            return Response(
+                {"detail": MISSING_TDR_LINK_MIGRATION_MESSAGE},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+>>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d
         try:
             stats = self.get_dashboard_stats()
             return Response(stats)
@@ -69,6 +142,7 @@ class DashboardAPIView(APIView):
 
     def count_financement_sources(self):
         sources_set = set()
+<<<<<<< HEAD
         valid_sources = ["Fonds mondial", "Banque mondiale", "Alliance GAVI"]
         
         for doc in TdrStDocument.objects.exclude(sources_financement=[]):
@@ -83,6 +157,14 @@ class DashboardAPIView(APIView):
                 elif isinstance(source, dict) and "nom" in source:
                     if source["nom"] in valid_sources:
                         sources_set.add(source["nom"])
+=======
+
+        for doc in TdrStDocument.objects.exclude(sources_financement=[]):
+            for source in _iter_financement_values(doc.sources_financement):
+                normalized = _normalize_financement_source(source)
+                if normalized:
+                    sources_set.add(normalized)
+>>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d
         return len(sources_set)
 
     def get_monthly_data(self, docs_year):
@@ -115,6 +197,7 @@ class DashboardAPIView(APIView):
     def get_documents_by_source(self):
         from collections import Counter
         source_counter = Counter()
+<<<<<<< HEAD
         
         valid_sources = ["Fonds mondial", "Banque mondiale", "Alliance GAVI"]
         
@@ -132,6 +215,14 @@ class DashboardAPIView(APIView):
                 elif isinstance(source, dict) and "nom" in source:
                     if source["nom"] in valid_sources:
                         source_counter[source["nom"]] += 1
+=======
+
+        for doc in TdrStDocument.objects.exclude(sources_financement=[]):
+            for source in _iter_financement_values(doc.sources_financement):
+                normalized = _normalize_financement_source(source)
+                if normalized:
+                    source_counter[normalized] += 1
+>>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d
         
         documents_by_source = [
             {"source": source, "documents": count, "fullMark": 0}
@@ -245,4 +336,8 @@ class DashboardAPIView(APIView):
         with connection.cursor() as cursor:
             cursor.execute(query)
             result = cursor.fetchone()
+<<<<<<< HEAD
             return float(result[0]) if result and result[0] else None
+=======
+            return float(result[0]) if result and result[0] else None
+>>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d

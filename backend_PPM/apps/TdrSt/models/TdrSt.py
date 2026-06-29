@@ -188,8 +188,3 @@ class TdrStValidationAction(models.Model):
     class Meta:
         db_table = "tdr_st_validation_action"
         ordering = ["-horodatage"] 
-<<<<<<< HEAD
-
-
-=======
->>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d

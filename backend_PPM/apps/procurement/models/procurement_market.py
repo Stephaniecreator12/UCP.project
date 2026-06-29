@@ -24,9 +24,9 @@ class PublicationStatus(models.TextChoices):
 
 
 class FinancingSource(models.TextChoices):
-    GLOBAL_FUND = "GLOBAL_FUND", "Fonds Mondial"
+    FM = "FM", "Fonds Mondial"
     GAVI = "GAVI", "Alliance Gavi"
-    WORLD_BANK = "WORLD_BANK", "Banque Mondiale"
+    BM = "BM", "Banque Mondiale"
 
 
 

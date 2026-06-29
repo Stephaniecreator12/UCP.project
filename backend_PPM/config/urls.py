@@ -48,16 +48,11 @@ urlpatterns = [
     path("api/logs/track", TrackActionView.as_view(), name="track-action"),
     path("api/logs/individual/", IndividualTraceabilityAPIView.as_view(), name="individual-traceability"),
     path('api/procurement/', include('apps.procurement.urls')),
-    path('market/<path:reference_number>/download-dao/', DownloadDAOView.as_view(), name='download-dao'),
-    path('api/evaluations/', include('apps.evaluations.urls')),
-    
+    path('market/<path:reference_number>/download-dao/', DownloadDAOView.as_view(), name='download-dao'),    
     path('api/auth/verify-email/', verifier_email_view, name='api_verify_email'),
     #path("URL", fonction_qui_repond, name="nom")
     path("api/login/", TokenObtainPairView.as_view(), name="token_obtain_pair"),#login → créer un token
     path("api/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),#refresh → renouveler le token
-    if settings.DEBUG:
-    urlpatterns.insert(0, re_path(r"^media/tdr_st/(?P<path>.*)$", serve_tdr_st_media))
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     path("api/achats/", include("apps.achats.urls")),
     # Current login uses the stock JWT endpoint.
     # If one day access must be enforced by email domain on the backend

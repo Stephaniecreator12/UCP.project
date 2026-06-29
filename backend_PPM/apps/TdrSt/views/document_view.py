@@ -17,13 +17,10 @@ from apps.TdrSt.serializers.document_serializer import (
     TdrStDocumentReadSerializer,
     TdrStDocumentWriteSerializer,
 )
-<<<<<<< HEAD
-=======
 from apps.TdrSt.services.schema_compat import (
     MISSING_TDR_LINK_MIGRATION_MESSAGE,
     has_tdr_demande_link_column,
 )
->>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d
 from apps.TdrSt.services.TdrStService import (
     create_document,
     list_my_documents,
@@ -33,11 +30,6 @@ from apps.TdrSt.services.TdrStService import (
 )
 
 
-<<<<<<< HEAD
-@api_view(["POST"])
-@permission_classes([IsAuthenticated, CanCreateDocument])
-def create_document_view(request):
-=======
 def _missing_link_response():
     return Response(
         {"detail": MISSING_TDR_LINK_MIGRATION_MESSAGE},
@@ -51,7 +43,6 @@ def create_document_view(request):
     if not has_tdr_demande_link_column():
         return _missing_link_response()
 
->>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d
     serializer = TdrStDocumentWriteSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
 
@@ -62,12 +53,9 @@ def create_document_view(request):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated, CanListMyDocuments])
 def my_documents_view(request):
-<<<<<<< HEAD
-=======
     if not has_tdr_demande_link_column():
         return _missing_link_response()
 
->>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d
     docs = list_my_documents(request.user)
     return Response(TdrStDocumentReadSerializer(docs, many=True).data)
 
@@ -75,12 +63,9 @@ def my_documents_view(request):
 @api_view(["GET", "PATCH"])
 @permission_classes([IsAuthenticated])
 def document_detail_view(request, id: int):
-<<<<<<< HEAD
-=======
     if not has_tdr_demande_link_column():
         return _missing_link_response()
 
->>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d
     doc = get_object_or_404(TdrStDocument, id=id)
     perm = CanReadDocument()
     if not perm.has_object_permission(request, None, doc):
@@ -89,11 +74,7 @@ def document_detail_view(request, id: int):
     if request.method == "GET":
         return Response(TdrStDocumentReadSerializer(doc).data)
 
-<<<<<<< HEAD
-    # PATCH: only initiateur can edit in BROUILLON / A_REVOIR (enforced in service).
-=======
     # PATCH: only demandeur can edit in BROUILLON / A_REVOIR (enforced in service).
->>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d
     serializer = TdrStDocumentWriteSerializer(doc, data=request.data, partial=True)
     serializer.is_valid(raise_exception=True)
     doc = update_document(doc, serializer.validated_data, request.user)
@@ -103,12 +84,6 @@ def document_detail_view(request, id: int):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def submit_document_view(request, id: int):
-<<<<<<< HEAD
-    doc = get_object_or_404(TdrStDocument, id=id)
-    # Vérifier que l'utilisateur est l'initiateur
-    if doc.initiateur != request.user:
-        return Response({"detail": "Seul l'initiateur peut soumettre ce document."}, 
-=======
     if not has_tdr_demande_link_column():
         return _missing_link_response()
 
@@ -116,7 +91,6 @@ def submit_document_view(request, id: int):
     # Vérifier que l'utilisateur est le demandeur
     if doc.demandeur != request.user:
         return Response({"detail": "Seul le demandeur peut soumettre ce document."}, 
->>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d
                        status=status.HTTP_403_FORBIDDEN)
     # Vérifier le statut (BROUILLON ou A_REVOIR)
     if doc.statut not in (TdrStDocument.Statut.BROUILLON, TdrStDocument.Statut.A_REVOIR):
@@ -129,12 +103,9 @@ def submit_document_view(request, id: int):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated, CanSubmitOrUploadOwnDocument])
 def suspend_document_view(request, id: int):
-<<<<<<< HEAD
-=======
     if not has_tdr_demande_link_column():
         return _missing_link_response()
 
->>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d
     doc = get_object_or_404(TdrStDocument, id=id)
     perm = CanSubmitOrUploadOwnDocument()
     if not perm.has_object_permission(request, None, doc):
@@ -150,12 +121,9 @@ def suspend_document_view(request, id: int):
 def upload_pdf_view(request, id: int):
     from apps.TdrSt.services.TdrStService import add_new_file_version
 
-<<<<<<< HEAD
-=======
     if not has_tdr_demande_link_column():
         return _missing_link_response()
 
->>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d
     doc = get_object_or_404(TdrStDocument, id=id)
     perm = CanSubmitOrUploadOwnDocument()
     if not perm.has_object_permission(request, None, doc):

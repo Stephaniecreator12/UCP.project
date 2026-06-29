@@ -119,10 +119,7 @@ INSTALLED_APPS = [
     'apps.TdrSt',
     'apps.procurement',
     'apps.log',
-    'apps.evaluations',
     'apps.achats',
-    'apps.TdrSt',
-    'apps.procurement',
     "apps.ouverture_offre",
     'apps.evaluation_offre',
 ]
@@ -179,7 +176,7 @@ else:
         'default': {
             'ENGINE': os.getenv("DB_ENGINE", 'django.db.backends.postgresql'),
             'NAME': os.getenv("DB_NAME", 'passation_db'),
-            'USER': os.getenv("DB_USER", 'postgres'),
+            'USER': os.getenv("DB_USER", 'passation_manager'),
             'PASSWORD': os.getenv("DB_PASSWORD", 'passation'),
             'HOST': os.getenv("DB_HOST", 'localhost'),
             'PORT': os.getenv("DB_PORT", '5432'),

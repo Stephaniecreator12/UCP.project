@@ -4,3 +4,8 @@ venv/
 .vscode/
 *.pyc
 __pycache__/
+# Node
+node_modules/
+**/node_modules/
+.codex/
+.agents/

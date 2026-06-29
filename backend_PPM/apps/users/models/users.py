@@ -4,12 +4,21 @@ from django.db import models
 
 class UserProfile(models.Model):
     class Role(models.TextChoices):
+<<<<<<< HEAD
         INITIATEUR = "initiateur", "Initiateur"
         VERIFICATEUR_TECHNIQUE = "verificateur_technique", "Vérificateur technique"
         APPROBATEUR_FINAL = "approbateur_final", "Approbateur final"
         BAILLEUR = "bailleur", "Bailleur"
         AUDITEUR = "auditeur", "Auditeur"
 
+=======
+        DEMANDEUR = "demandeur", "Demandeur"
+        VERIFICATEUR_TECHNIQUE = "verificateur_technique", "Vérificateur technique"
+        APPROBATEUR_FINAL = "approbateur_final", "Approbateur final"
+        AUDITEUR = "auditeur", "Auditeur"
+
+        
+>>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d
 
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
@@ -19,7 +28,11 @@ class UserProfile(models.Model):
     role = models.CharField(
         max_length=32,
         choices=Role.choices,
+<<<<<<< HEAD
         default=Role.INITIATEUR,
+=======
+        default=Role.DEMANDEUR,
+>>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d
         db_index=True,
     )
 

@@ -17,7 +17,10 @@ const getBackendBase = (): string => {
     process.env.BACKEND_URL ||
     process.env.NEXT_PUBLIC_BACKEND_URL ||
     "http://127.0.0.1:8000";
-  return raw.replace(/\/+$/, "");
+
+  // Accept either a pure backend origin (`http://host:8000`) or a value
+  // mistakenly ending with `/api`, since the proxied path already contains it.
+  return raw.replace(/\/+$/, "").replace(/\/api$/i, "");
 };
 
 async function proxy(request: Request): Promise<Response> {
@@ -47,12 +50,30 @@ async function proxy(request: Request): Promise<Response> {
     if (buf && buf.byteLength > 0) body = Buffer.from(buf);
   }
 
+<<<<<<< HEAD:ucp-frontend/src/app/api/TdrSt/[...path]/route.ts
   const upstream = await fetch(target, {
     method,
     headers: upstreamHeaders,
     body,
     redirect: "manual",
   });
+=======
+  let upstream: Response;
+  try {
+    upstream = await fetch(target, {
+      method,
+      headers: upstreamHeaders,
+      body,
+      redirect: "manual",
+    });
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    return Response.json(
+      { error: "Backend indisponible", target, detail },
+      { status: 502 },
+    );
+  }
+>>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d:ucp-frontend/src/app/api/[...path]/route.ts
 
   const responseHeaders = new Headers(upstream.headers);
   for (const h of HOP_BY_HOP_HEADERS) responseHeaders.delete(h);

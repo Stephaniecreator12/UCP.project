@@ -18,6 +18,63 @@ AUTH_USER_MODEL = 'users.PublicProfile'
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv()
+import socket
+from urllib.parse import urlsplit, urlunsplit
+from dotenv import load_dotenv
+import dj_database_url
+
+# Build paths inside the project like this: BASE_DIR / 'subdir'.
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load environment variables from .env file
+load_dotenv(os.path.join(BASE_DIR.parent, '.env'))
+
+def env_bool(name, default=False):
+    value = os.getenv(name)
+    if value is None:
+        return default
+
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def env_int(name, default):
+    value = os.getenv(name)
+    if value is None or value == "":
+        return default
+
+    try:
+        return int(value)
+    except ValueError:
+        return default
+
+
+def env_list(name, default=""):
+    raw = os.getenv(name, default)
+    return [item.strip() for item in raw.split(",") if item.strip()]
+
+
+def _get_lan_ip():
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            sock.connect(("8.8.8.8", 80))
+            return sock.getsockname()[0]
+    except OSError:
+        return ""
+
+
+def _resolve_frontend_app_url():
+    raw_url = os.getenv("FRONTEND_APP_URL", "http://localhost:3000").rstrip("/")
+    parsed = urlsplit(raw_url)
+
+    if DEBUG and parsed.hostname in {"localhost", "127.0.0.1", "0.0.0.0"}:
+        lan_host = os.getenv("FRONTEND_LAN_HOST", "").strip() or _get_lan_ip()
+        if lan_host:
+            port = parsed.port or 3000
+            netloc = f"{lan_host}:{port}" if port else lan_host
+            return urlunsplit((parsed.scheme or "http", netloc, parsed.path, "", "")).rstrip("/")
+
+    return raw_url
+
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
@@ -26,9 +83,20 @@ load_dotenv()
 SECRET_KEY = os.environ.get('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = env_bool("DEBUG", True)
 
-ALLOWED_HOSTS = ['192.168.90.167', 'localhost', '127.0.0.1', '*']
+FRONTEND_APP_URL = _resolve_frontend_app_url()
+FRONTEND_URL = FRONTEND_APP_URL
+
+ALLOWED_HOSTS = env_list(
+    "ALLOWED_HOSTS",
+    "192.168.90.167,localhost,127.0.0.1",
+)
+RENDER_EXTERNAL_HOSTNAME = os.getenv("RENDER_EXTERNAL_HOSTNAME")
+if RENDER_EXTERNAL_HOSTNAME and RENDER_EXTERNAL_HOSTNAME not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
+if DEBUG and "*" not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append("*")
 
 # Application definition
 
@@ -52,6 +120,11 @@ INSTALLED_APPS = [
     'apps.procurement',
     'apps.log',
     'apps.evaluations',
+    'apps.achats',
+    'apps.TdrSt',
+    'apps.procurement',
+    "apps.ouverture_offre",
+    'apps.evaluation_offre',
 ]
 
 MIDDLEWARE = [
@@ -66,6 +139,8 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+if not DEBUG:
+    MIDDLEWARE.insert(3, "whitenoise.middleware.WhiteNoiseMiddleware")
 
 ROOT_URLCONF = 'config.urls'
 
@@ -90,21 +165,30 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
-
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'passation_db',
-        'USER': 'passation_manager',
-        'PASSWORD': 'passation',
-        'HOST': 'localhost',
-        'PORT': '5432',
-        'TEST': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': ':memory:',
-}
-    },
-    'external_users': {
+DATABASE_URL = os.getenv("DATABASE_URL")
+if DATABASE_URL:
+    DATABASES = {
+        "default": dj_database_url.config(
+            default=DATABASE_URL,
+            conn_max_age=600,
+            conn_health_checks=True,
+        )
+    }
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': os.getenv("DB_ENGINE", 'django.db.backends.postgresql'),
+            'NAME': os.getenv("DB_NAME", 'passation_db'),
+            'USER': os.getenv("DB_USER", 'postgres'),
+            'PASSWORD': os.getenv("DB_PASSWORD", 'passation'),
+            'HOST': os.getenv("DB_HOST", 'localhost'),
+            'PORT': os.getenv("DB_PORT", '5432'),
+            'TEST': {
+                'ENGINE': 'django.db.backends.sqlite3',
+                'NAME': ':memory:',
+            }
+            },
+            'external_users': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': os.environ.get('RH_DB_NAME'),
         'USER': os.environ.get('RH_DB_USER'),
@@ -112,7 +196,8 @@ DATABASES = {
         'HOST': os.environ.get('RH_DB_HOST'),
         'PORT': os.environ.get('RH_DB_PORT'),
     }
-}
+    }
+        
 
 
 # Password validation
@@ -153,6 +238,18 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / "staticfiles"
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
+if not DEBUG:
+    STORAGES = {
+        "default": {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        },
+    }
 
 # Media (uploads) - nécessaire pour servir les PDF téléversés en développement
 MEDIA_URL = "/media/"
@@ -160,10 +257,6 @@ MEDIA_ROOT = BASE_DIR / "media"
 
 #autoriser acces a front
 
-CORS_ALLOWED_ORIGINS = [
-"http://localhost:3000",
-"http://127.0.0.1:3000",
-]
 CORS_ALLOW_HEADERS = [
     'accept',
     'accept-encoding',
@@ -178,10 +271,22 @@ CORS_ALLOW_HEADERS = [
 ]
 
 
-CSRF_TRUSTED_ORIGINS = [
+DEFAULT_FRONTEND_ORIGINS = ",".join([
+    FRONTEND_APP_URL,
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-]
+    "http://localhost:3001",
+    "http://127.0.0.1:3001",
+])
+
+CORS_ALLOWED_ORIGINS = env_list(
+    "CORS_ALLOWED_ORIGINS",
+    DEFAULT_FRONTEND_ORIGINS,
+)
+CSRF_TRUSTED_ORIGINS = env_list(
+    "CSRF_TRUSTED_ORIGINS",
+    DEFAULT_FRONTEND_ORIGINS,
+)
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
@@ -194,8 +299,8 @@ REST_FRAMEWORK = {
     "PAGE_SIZE": 10,
 }
 
-CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_ALL_ORIGINS = env_bool("CORS_ALLOW_ALL_ORIGINS", DEBUG)
 
 from datetime import timedelta
 
@@ -213,13 +318,6 @@ SIMPLE_JWT = {
 }
 
 # Email configuration
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'  # ou ton serveur SMTP
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'oriahrakotomavo90@gmail.com'
-EMAIL_HOST_PASSWORD = 'cxemjjxllooxtons'
-DEFAULT_FROM_EMAIL = 'TDR/ST <oriahrakotomavo90@gmail.com>'
 
 # Frontend URL pour les liens
 FRONTEND_URL = 'http://localhost:3000'  # À adapter en production
@@ -256,3 +354,60 @@ CELERY_BEAT_SCHEDULE = {
 }
 from zoneinfo import available_timezones
 print("Indian/Antananarivo" in available_timezones())
+
+EMAIL_BACKEND = os.getenv(
+    "EMAIL_BACKEND",
+    "django.core.mail.backends.console.EmailBackend",
+)
+EMAIL_HOST = os.getenv("EMAIL_HOST", "localhost")
+EMAIL_PORT = env_int("EMAIL_PORT", 587)
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = env_bool(
+    "EMAIL_USE_TLS",
+    EMAIL_BACKEND == "django.core.mail.backends.smtp.EmailBackend",
+)
+EMAIL_USE_SSL = env_bool("EMAIL_USE_SSL", False)
+EMAIL_TIMEOUT = env_int("EMAIL_TIMEOUT", 10)
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "noreply@ucp.local")
+SERVER_EMAIL = os.getenv("SERVER_EMAIL", DEFAULT_FROM_EMAIL)
+
+ACHATS_NOTIFICATION_EMAILS_ENABLED = env_bool(
+    "ACHATS_NOTIFICATION_EMAILS_ENABLED",
+    True,
+)
+ACHATS_EMAIL_SUBJECT_PREFIX = os.getenv(
+    "ACHATS_EMAIL_SUBJECT_PREFIX",
+    "[UCP Achats] ",
+)
+ACHATS_NOTIFICATION_REPLY_TO = env_list("ACHATS_NOTIFICATION_REPLY_TO")
+TDRST_NOTIFICATION_EMAILS_ENABLED = env_bool(
+    "TDRST_NOTIFICATION_EMAILS_ENABLED",
+    True,
+)
+TDRST_EMAIL_SUBJECT_PREFIX = os.getenv(
+    "TDRST_EMAIL_SUBJECT_PREFIX",
+    "[UCP TDR/ST] ",
+)
+TDRST_NOTIFICATION_REPLY_TO = env_list("TDRST_NOTIFICATION_REPLY_TO")
+OUVERTURE_NOTIFICATION_EMAILS_ENABLED = env_bool(
+    "OUVERTURE_NOTIFICATION_EMAILS_ENABLED",
+    True,
+)
+OUVERTURE_EMAIL_SUBJECT_PREFIX = os.getenv(
+    "OUVERTURE_EMAIL_SUBJECT_PREFIX",
+    "[UCP Ouverture] ",
+)
+OUVERTURE_NOTIFICATION_REPLY_TO = env_list("OUVERTURE_NOTIFICATION_REPLY_TO")
+
+EXTERNAL_PERSONNEL_API_URL = os.getenv("EXTERNAL_PERSONNEL_API_URL", "")
+EXTERNAL_PERSONNEL_API_TOKEN = os.getenv("EXTERNAL_PERSONNEL_API_TOKEN", "")
+EXTERNAL_PERSONNEL_API_AUTH_HEADER = os.getenv(
+    "EXTERNAL_PERSONNEL_API_AUTH_HEADER",
+    "Authorization",
+)
+EXTERNAL_PERSONNEL_API_AUTH_SCHEME = os.getenv(
+    "EXTERNAL_PERSONNEL_API_AUTH_SCHEME",
+    "Bearer",
+)
+EXTERNAL_PERSONNEL_API_TIMEOUT = env_int("EXTERNAL_PERSONNEL_API_TIMEOUT", 15)

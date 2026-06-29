@@ -52,10 +52,18 @@ class TdrStDocument(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    initiateur = models.ForeignKey(
+    demandeur = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
         related_name="tdr_st_documents",
+        db_column="initiateur_id",
+    )
+    demande_achat = models.OneToOneField(
+        "achats.DemandeAchat",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="tdr_st_document",
     )
     unite_technique = models.CharField(max_length=255)
 
@@ -78,7 +86,7 @@ class TdrStDocument(models.Model):
 
     sources_financement = models.JSONField(default=list)
     numero_subvention = models.CharField(max_length=100, blank=True)
-    ligne_budgetaire = models.CharField(max_length=100)
+    ligne_budgetaire = models.CharField(max_length=100, blank=True)
     montant_estime_usd = models.DecimalField(max_digits=14, decimal_places=2)
 
     seuil_passation = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
@@ -180,5 +188,8 @@ class TdrStValidationAction(models.Model):
     class Meta:
         db_table = "tdr_st_validation_action"
         ordering = ["-horodatage"] 
+<<<<<<< HEAD
 
 
+=======
+>>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d

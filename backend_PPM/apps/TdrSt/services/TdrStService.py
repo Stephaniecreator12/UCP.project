@@ -9,6 +9,13 @@ from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
 from apps.TdrSt.models.TdrSt import TdrStDocument, TdrStDocumentFileVersion, TdrStValidationAction
+<<<<<<< HEAD
+=======
+from apps.TdrSt.services.schema_compat import (
+    MISSING_TDR_LINK_MIGRATION_MESSAGE,
+    has_tdr_demande_link_column,
+)
+>>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d
 
 # IMPORTS POUR LES EMAILS
 from apps.TdrSt.services.emailService import (
@@ -16,11 +23,24 @@ from apps.TdrSt.services.emailService import (
     send_tech_decision_email,
     send_demande_final_approve_email,
     send_final_decision_email,
+<<<<<<< HEAD
     send_ano_request_email,
     send_ano_decision_email,
     send_document_suspended_email,
 )
 
+=======
+    send_document_suspended_email,
+)
+
+LOCKED_DEMANDE_FIELDS = {
+    "unite_technique",
+    "intitule",
+    "reference_ptba",
+    "montant_estime_usd",
+}
+
+>>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d
 
 def _default_seuil_passation_usd() -> Decimal:
     """
@@ -77,7 +97,35 @@ def _build_numero_document(doc: TdrStDocument) -> str:
 
 @transaction.atomic
 def create_document(validated_data: dict, user) -> TdrStDocument:
+<<<<<<< HEAD
     doc = TdrStDocument.objects.create(initiateur=user, **validated_data)
+=======
+    demande_achat_id = validated_data.pop("demande_achat_id", None)
+    demande_achat = None
+
+    if not has_tdr_demande_link_column():
+        raise ValidationError({"detail": MISSING_TDR_LINK_MIGRATION_MESSAGE})
+
+    if demande_achat_id:
+        from apps.achats.models import DemandeAchat
+
+        demande_achat = DemandeAchat.objects.select_related("demandeur").filter(
+            id=demande_achat_id
+        ).first()
+        if not demande_achat:
+            raise ValidationError({"demande_achat_id": "Le dossier état de besoin est introuvable."})
+        if getattr(demande_achat, "demandeur_id", None) != getattr(user, "id", None):
+            raise ValidationError({"detail": "Seul le demandeur du dossier peut créer son TDR/ST lié."})
+
+        try:
+            existing_document = demande_achat.tdr_st_document
+        except Exception:
+            existing_document = None
+        if existing_document is not None:
+            return existing_document
+
+    doc = TdrStDocument.objects.create(demandeur=user, demande_achat=demande_achat, **validated_data)
+>>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d
     doc.numero_document = _build_numero_document(doc)
     doc.save(update_fields=["numero_document"])
 
@@ -86,11 +134,24 @@ def create_document(validated_data: dict, user) -> TdrStDocument:
 
 @transaction.atomic
 def update_document(doc: TdrStDocument, validated_data: dict, user) -> TdrStDocument:
+<<<<<<< HEAD
     if getattr(doc, "initiateur_id", None) != getattr(user, "id", None):
         raise ValidationError({"detail": "Seul l'initiateur peut modifier ce document."})
     if doc.statut not in (TdrStDocument.Statut.BROUILLON, TdrStDocument.Statut.A_REVOIR):
         raise ValidationError({"statut": "Modification autorisée uniquement en brouillon/à revoir."})
 
+=======
+    if getattr(doc, "demandeur_id", None) != getattr(user, "id", None):
+        raise ValidationError({"detail": "Seul le demandeur peut modifier ce document."})
+    if doc.statut not in (TdrStDocument.Statut.BROUILLON, TdrStDocument.Statut.A_REVOIR):
+        raise ValidationError({"statut": "Modification autorisée uniquement en brouillon/à revoir."})
+
+    if doc.demande_achat_id:
+        for locked_field in LOCKED_DEMANDE_FIELDS:
+            if locked_field in validated_data:
+                validated_data[locked_field] = getattr(doc, locked_field)
+
+>>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d
     for key, value in validated_data.items():
         setattr(doc, key, value)
     doc.save()
@@ -98,14 +159,37 @@ def update_document(doc: TdrStDocument, validated_data: dict, user) -> TdrStDocu
     return doc
 
 
+<<<<<<< HEAD
 def list_my_documents(user):
     return TdrStDocument.objects.filter(initiateur=user).select_related("fichier_courant")
+=======
+def _validate_document_ready_for_submission(doc: TdrStDocument) -> None:
+    errors: dict[str, str] = {}
+
+    if not doc.sources_financement:
+        errors["sources_financement"] = "La source de financement doit être renseignée avant soumission."
+    if not (doc.ligne_budgetaire or "").strip():
+        errors["ligne_budgetaire"] = "La ligne budgétaire doit être renseignée avant soumission."
+    if not (doc.numero_subvention or "").strip():
+        errors["numero_subvention"] = "Le numéro de subvention doit être renseigné avant soumission."
+
+    if errors:
+        raise ValidationError(errors)
+
+
+def list_my_documents(user):
+    return TdrStDocument.objects.filter(demandeur=user).select_related("fichier_courant", "demande_achat")
+>>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d
 
 
 def list_pending_tech():
     return (
         TdrStDocument.objects.filter(statut=TdrStDocument.Statut.SOUMIS)
+<<<<<<< HEAD
         .select_related("initiateur", "fichier_courant")
+=======
+        .select_related("demandeur", "fichier_courant", "demande_achat")
+>>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d
         .order_by("-created_at")
     )
 
@@ -123,7 +207,11 @@ def _list_role_documents_with_history(*, pending_qs, treated_etape: str, user=No
     return (
         (pending_qs | treated)
         .distinct()
+<<<<<<< HEAD
         .select_related("initiateur", "fichier_courant")
+=======
+        .select_related("demandeur", "fichier_courant", "demande_achat")
+>>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d
         .order_by("-updated_at")
     )
 
@@ -150,14 +238,22 @@ def list_tech_documents(user):
     )
 
     return (pending | treated | resubmitted).distinct().select_related(
+<<<<<<< HEAD
         "initiateur", "fichier_courant"
+=======
+        "demandeur", "fichier_courant", "demande_achat"
+>>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d
     ).order_by("-updated_at")
 
 
 def list_pending_final():
     return (
         TdrStDocument.objects.filter(statut=TdrStDocument.Statut.EN_VALIDATION)
+<<<<<<< HEAD
         .select_related("initiateur", "fichier_courant")
+=======
+        .select_related("demandeur", "fichier_courant", "demande_achat")
+>>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d
         .order_by("-created_at")
     )
 
@@ -175,6 +271,7 @@ def list_final_documents(user):
         user=None,
     )
 
+<<<<<<< HEAD
 
 def list_bailleur_documents():
     return (
@@ -201,6 +298,8 @@ def list_bailleur_documents_all(user):
     )
 
 
+=======
+>>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d
 def list_auditeur_documents():
     """
     Pour les auditeurs (lecture seule, a posteriori) :
@@ -217,7 +316,11 @@ def list_auditeur_documents():
                 TdrStDocument.Statut.SUSPENDU,
             )
         )
+<<<<<<< HEAD
         .select_related("initiateur", "fichier_courant")
+=======
+        .select_related("demandeur", "fichier_courant", "demande_achat")
+>>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d
         .prefetch_related("actions_validation__acteur")  # Section G — traçabilité complète
         .order_by("-updated_at")
     )
@@ -225,12 +328,22 @@ def list_auditeur_documents():
 
 @transaction.atomic
 def submit_document(doc: TdrStDocument, user) -> TdrStDocument:
+<<<<<<< HEAD
     if getattr(doc, "initiateur_id", None) != getattr(user, "id", None):
         raise ValidationError({"detail": "Seul l'initiateur peut soumettre ce document."})
+=======
+    if getattr(doc, "demandeur_id", None) != getattr(user, "id", None):
+        raise ValidationError({"detail": "Seul le demandeur peut soumettre ce document."})
+>>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d
     
     # Autoriser la soumission depuis BROUILLON ou A_REVOIR
     if doc.statut not in (TdrStDocument.Statut.BROUILLON, TdrStDocument.Statut.A_REVOIR):
         raise ValidationError({"statut": "Seuls les brouillons/à revoir peuvent être soumis."})
+<<<<<<< HEAD
+=======
+
+    _validate_document_ready_for_submission(doc)
+>>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d
     
     # Passer en SOUMIS (même si c'était A_REVOIR)
     doc.statut = TdrStDocument.Statut.SOUMIS
@@ -275,7 +388,11 @@ def tech_decide(doc: TdrStDocument, user, decision: str, observations: str = "")
     doc.statut = next_statut
     doc.save(update_fields=["statut", "updated_at"])
     
+<<<<<<< HEAD
     # Envoyer l'email à l'initiateur
+=======
+    # Envoyer l'email au demandeur
+>>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d
     send_tech_decision_email(doc, decision, observations)
     
     # Si le document passe en validation finale, notifier les approbateurs
@@ -291,6 +408,7 @@ def final_decide(doc: TdrStDocument, user, decision: str, observations: str = ""
         raise ValidationError({"statut": "Décision finale impossible pour ce statut."})
 
     if decision == TdrStValidationAction.Decision.APPROUVE:
+<<<<<<< HEAD
         next_statut = (
             TdrStDocument.Statut.EN_ATTENTE_ANO if requires_ano(doc) else TdrStDocument.Statut.VALIDE
         )
@@ -298,6 +416,13 @@ def final_decide(doc: TdrStDocument, user, decision: str, observations: str = ""
         next_statut = TdrStDocument.Statut.REJETE
     else:
         raise ValidationError({"decision": "Décision finale invalide."})
+=======
+      next_statut = TdrStDocument.Statut.VALIDE
+    elif decision == TdrStValidationAction.Decision.REJETE:
+      next_statut = TdrStDocument.Statut.REJETE
+    else:
+      raise ValidationError({"decision": "Décision finale invalide."})
+>>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d
 
     TdrStValidationAction.objects.create(
         document=doc,
@@ -312,12 +437,45 @@ def final_decide(doc: TdrStDocument, user, decision: str, observations: str = ""
     doc.save(update_fields=["statut", "updated_at"])
     
     # ENVOI DES EMAILS SELON LE CAS
+<<<<<<< HEAD
     if decision == TdrStValidationAction.Decision.APPROUVE and requires_ano(doc):
         print(f"[EMAIL] Envoi email aux bailleurs pour demande ANO - document {doc.numero_document}")
         send_ano_request_email(doc)
     else:
         print(f"[EMAIL] Envoi email à l'initiateur pour décision finale - document {doc.numero_document}")
         send_final_decision_email(doc, decision, observations)
+=======
+    if decision == TdrStValidationAction.Decision.APPROUVE:
+        print(f"[EMAIL] Envoi email au demandeur pour décision finale - document {doc.numero_document}")
+        send_final_decision_email(doc, decision, observations)
+        if doc.demande_achat_id:
+            from apps.achats.services.demande_service import submit_demande
+
+            demande = doc.demande_achat
+            funding_code = ""
+            if isinstance(doc.sources_financement, list) and doc.sources_financement:
+                funding_code = str(doc.sources_financement[0] or "").strip()
+            if not funding_code:
+                funding_code = (doc.ligne_budgetaire or "").strip()
+
+            demande.source_financement = funding_code
+            demande.ligne_budgetaire = (doc.ligne_budgetaire or funding_code or "").strip()
+            demande.numero_subvention = (doc.numero_subvention or "").strip()
+            demande.save(
+                update_fields=[
+                    "source_financement",
+                    "ligne_budgetaire",
+                    "numero_subvention",
+                    "updated_at",
+                ]
+            )
+
+            if demande.demandeur and demande.statut in (
+                demande.STATUT_BROUILLON,
+                demande.STATUT_A_COMPLETER,
+            ):
+                submit_demande(demande, demande.demandeur)
+>>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d
     
     return doc
 
@@ -337,6 +495,7 @@ def requires_ano(doc: TdrStDocument) -> bool:
 
 
 @transaction.atomic
+<<<<<<< HEAD
 def bailleur_decide(doc: TdrStDocument, user, decision: str, observations: str = "") -> TdrStDocument:
     if doc.statut != TdrStDocument.Statut.EN_ATTENTE_ANO:
         raise ValidationError({"statut": "Décision ANO impossible pour ce statut."})
@@ -368,6 +527,8 @@ def bailleur_decide(doc: TdrStDocument, user, decision: str, observations: str =
 
 
 @transaction.atomic
+=======
+>>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d
 def suspendre_document(doc: TdrStDocument, user, observations: str = "") -> TdrStDocument:
     if doc.statut == TdrStDocument.Statut.SUSPENDU:
         raise ValidationError({"statut": "Le document est déjà suspendu."})
@@ -387,16 +548,26 @@ def suspendre_document(doc: TdrStDocument, user, observations: str = "") -> TdrS
         meta={"action": "SUSPEND"},
     )
     
+<<<<<<< HEAD
     # ENVOI EMAIL À L'INITIATEUR POUR SUSPENSION
     print(f"[EMAIL] Envoi email à l'initiateur pour suspension - document {doc.numero_document}")
+=======
+    # ENVOI EMAIL AU DEMANDEUR POUR SUSPENSION
+    print(f"[EMAIL] Envoi email au demandeur pour suspension - document {doc.numero_document}")
+>>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d
     send_document_suspended_email(doc, observations)
 
     return doc
 
 @transaction.atomic
 def add_new_file_version(doc: TdrStDocument, uploaded_file, user) -> TdrStDocumentFileVersion:
+<<<<<<< HEAD
     if getattr(doc, "initiateur_id", None) != getattr(user, "id", None):
         raise ValidationError({"detail": "Seul l'initiateur peut téléverser une version."})
+=======
+    if getattr(doc, "demandeur_id", None) != getattr(user, "id", None):
+        raise ValidationError({"detail": "Seul le demandeur peut téléverser une version."})
+>>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d
     if doc.statut not in (TdrStDocument.Statut.BROUILLON, TdrStDocument.Statut.A_REVOIR):
         raise ValidationError({"statut": "Téléversement autorisé uniquement en brouillon/à revoir."})
     
@@ -438,4 +609,8 @@ def add_new_file_version(doc: TdrStDocument, uploaded_file, user) -> TdrStDocume
     doc.version = next_version
     doc.save(update_fields=["fichier_courant", "version", "updated_at"])
 
+<<<<<<< HEAD
     return version_obj
+=======
+    return version_obj
+>>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d

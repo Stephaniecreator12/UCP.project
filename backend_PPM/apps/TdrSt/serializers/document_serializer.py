@@ -4,9 +4,12 @@ from apps.TdrSt.models.TdrSt import TdrStDocument, TdrStDocumentFileVersion, Tdr
 
 
 class TdrStDocumentWriteSerializer(serializers.ModelSerializer):
+    demande_achat_id = serializers.IntegerField(required=False, write_only=True)
+
     class Meta:
         model = TdrStDocument
         fields = [
+            "demande_achat_id",
             "unite_technique",
             "type_document",
             "categorie_activite",
@@ -22,6 +25,10 @@ class TdrStDocumentWriteSerializer(serializers.ModelSerializer):
             "montant_estime_usd",
             "procedure_envisagee",
         ]
+        extra_kwargs = {
+            "ligne_budgetaire": {"required": False, "allow_blank": True},
+            "numero_subvention": {"required": False, "allow_blank": True},
+        }
 
     def validate(self, attrs):
         periode_debut = attrs.get("periode_debut")
@@ -69,7 +76,9 @@ class TdrStValidationActionSerializer(serializers.ModelSerializer):
 
 
 class TdrStDocumentReadSerializer(serializers.ModelSerializer):
-    initiateur_username = serializers.CharField(source="initiateur.username", read_only=True)
+    demandeur_username = serializers.CharField(source="demandeur.username", read_only=True)
+    demande_achat_id = serializers.IntegerField(read_only=True)
+    demande_achat_numero = serializers.CharField(source="demande_achat.numero_demande", read_only=True)
     versions_fichier = TdrStDocumentFileVersionSerializer(many=True, read_only=True)
     fichier_courant = TdrStDocumentFileVersionSerializer(read_only=True)
     actions_validation = serializers.SerializerMethodField()
@@ -93,8 +102,10 @@ class TdrStDocumentReadSerializer(serializers.ModelSerializer):
             "version",
             "created_at",
             "updated_at",
-            "initiateur",
-            "initiateur_username",
+            "demandeur",
+            "demandeur_username",
+            "demande_achat_id",
+            "demande_achat_numero",
             "unite_technique",
             "statut",
             "type_document",

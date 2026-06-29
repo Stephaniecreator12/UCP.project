@@ -46,7 +46,7 @@ export default function SidebarMenu({
 }: SidebarMenuProps) {
   return (
 <aside 
-  className="h-[calc(100vh-15px)] w-[200px] flex flex-col border border-[#d9dee3] rounded-[14px] bg-white shadow-[0_18px_36px_-30px_rgba(34,44,52,0.5)] p-4 max-[1150px]:static"
+  className="flex w-[200px] flex-col rounded-[14px] border border-[#d9dee3] bg-white p-4 shadow-[0_18px_36px_-30px_rgba(34,44,52,0.5)] max-[1150px]:static max-[1150px]:w-full min-[1151px]:h-[calc(100vh-15px)]"
 >      <div className="p-2 mb-2">
         <div className="h-[3px] rounded-full bg-gradient-to-r from-[#0ea85b] to-[#67d89f]" aria-hidden="true" />
       </div>

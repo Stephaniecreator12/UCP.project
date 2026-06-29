@@ -1,15 +1,10 @@
-<<<<<<< HEAD
 import { JetBrains_Mono, Manrope, Space_Grotesk } from "next/font/google";
-=======
 import type { Metadata } from "next";
->>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d
 import "./globals.css";
 import { AccessProvider } from "@/context/accessContext";
 
-<<<<<<< HEAD
 const manrope = Manrope({
   variable: "--font-ui",
-  subsets: ["latin"],
 });
 
 const spaceGrotesk = Space_Grotesk({
@@ -22,14 +17,6 @@ const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
 });
 
-import type { Metadata } from "next";
-
-=======
->>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d
-export const metadata: Metadata = {
-  title: "UCP - Passation de marchés",
-};
-
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -37,7 +24,6 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" data-theme="light">
-<<<<<<< HEAD
       <body
         className={`${manrope.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable} antialiased`}
       >
@@ -45,9 +31,6 @@ export default function RootLayout({
           {children}
         </AccessProvider>
       </body>
-=======
-      <body className="antialiased">{children}</body>
->>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d
     </html>
   );
 }

@@ -16,33 +16,21 @@ export default function TopHeader() {
   const handleLogout = () => {
     logout();
     setTimeout(() => {
-<<<<<<< HEAD
       if (typeof window !== "undefined" && window.location.pathname !== `${DEFAULT_AFTER_LOGOUT_ROUTE}`) {
         window.location.replace(`${DEFAULT_AFTER_LOGOUT_ROUTE}`);
-=======
-      if (
-        typeof window !== "undefined" &&
-        window.location.pathname !== "/login"
-      ) {
-        window.location.replace("/login");
->>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d
       }
     }, 120);
   };
 
-<<<<<<< HEAD
   const showAuthenticatedActions = pathname !== `${DEFAULT_AFTER_LOGOUT_ROUTE}`;
-=======
   const isEvaluatorRoute =
     pathname.startsWith("/evaluation/") || pathname === "/evaluation/login";
-  const showAuthenticatedActions = pathname !== "/login";
   const showMenu = showAuthenticatedActions && !isEvaluatorRoute;
   const logoHref = isEvaluatorRoute
     ? "/evaluation/login"
     : showAuthenticatedActions
       ? "/formulaire"
       : "/login";
->>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d
 
   const handleHeaderMove = (event: MouseEvent<HTMLElement>) => {
     const header = headerRef.current;

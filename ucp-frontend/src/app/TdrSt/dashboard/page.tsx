@@ -1,10 +1,6 @@
 "use client";
 
-<<<<<<< HEAD
-import { useEffect, useState } from "react";
-=======
 import { useCallback, useEffect, useState } from "react";
->>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d
 import TopHeader from "@/app/components/TopHeader";
 import { DocumentsBarChart } from "@/TdrSt/dashboard/components/documents-bar-chart";
 import { DocumentsPieChart } from "@/TdrSt/dashboard/components/documents-pie-chart";
@@ -35,13 +31,6 @@ export default function DashboardPage() {
 
   const asTrend = (value: number) => ({ value, isPositive: value >= 0 });
 
-<<<<<<< HEAD
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
-
-=======
->>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d
   const getAccessToken = () => {
     // JWT access token est stocké ici
     return localStorage.getItem("access_token");
@@ -71,11 +60,7 @@ export default function DashboardPage() {
     return null;
   };
 
-<<<<<<< HEAD
-  const fetchDashboardData = async () => {
-=======
   const fetchDashboardData = useCallback(async () => {
->>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d
     try {
       setLoading(true);
       setError(null);
@@ -130,15 +115,11 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
-<<<<<<< HEAD
-  };
-=======
   }, []);
 
   useEffect(() => {
     void fetchDashboardData();
   }, [fetchDashboardData]);
->>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d
 
   if (loading) {
     return (

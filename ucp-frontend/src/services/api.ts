@@ -3,12 +3,8 @@
  * Ce service gère désormais les 3 types de marchés : Travaux, Biens, Consultance
  */
 export const API_BASE_URL =
-<<<<<<< HEAD
   process.env.NEXT_PUBLIC_API_BASE_URL;
 export const API_RH_URL = process.env.NEXT_PUBLIC_API_RH_URL
-=======
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
->>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d
 const SESSION_EXPIRED_MESSAGE = "Session expirée. Connecte-toi puis réessaie.";
 
 const clearSessionAndRedirectToLogin = () => {
@@ -886,8 +882,6 @@ export async function stopProcurement(
   return { statut: data.statut || "Arrêté" };
 }
 
-<<<<<<< HEAD
-=======
 // ---------------------------------------------------------------------------
 // Achats (Demandes d'achat + Validation)
 // ---------------------------------------------------------------------------
@@ -1278,4 +1272,3 @@ export async function decideDemandeAchat(
 
   return mapDemandeFromBackend(backend);
 }
->>>>>>> 7b486334ce89722f0fe5f9ac46339b85f31f2c7d

@@ -1,5 +1,5 @@
 "use client";
-
+import { useAccess } from "@/context/accessContext";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -25,38 +25,72 @@ import {
   isValidatorUser,
 } from "@/services/auth";
 
+type Role = "finance" | "validator" | "agent" | "marche";
+
+type AccessType = "public" | "private";
+
 type MenuLink = {
   label: string;
   href: string;
+  access: AccessType;
+  roles?: ("finance" | "validator" | "agent" | "marche" |"default")[];
   match: (pathname: string) => boolean;
 };
 
-// Centralisation de tous les types de liens par rôles utilisateur
-const ROLE_BASED_LINKS: Record<"default" | "validator" | "finance" | "agent" | "marche", MenuLink[]> = {
-  default: [
-    { label: "procurement", href: "/procurement", match: (p) => p === "/procurement" || p.startsWith("/procurement/") },
-  ], // Vif pour l'espace public
-  finance: [
-    { label: "Validation", href: "/personnel/validation", match: (p) => p === "/personnel/validation" || p.startsWith("/personnel/validation/") },
-    { label: "TDR", href: "/personnel/TdrSt", match: (p) => p === "/personnel/TdrSt" || p.startsWith("/personnel/TdrSt/") },
-  ],
-  validator: [
-    { label: "Validation", href: "/personnel/validation", match: (p) => p === "/personnel/validation" || p.startsWith("/personnel/validation/") },
-    { label: "TDR", href: "/personnel/TdrSt", match: (p) => p === "/personnel/TdrSt" || p.startsWith("/personnel/TdrSt/") },
-  ],
-  agent: [
-    { label: "Passation", href: "/personnel/passation", match: (p) => p === "/personnel/passation" || p.startsWith("/personnel/passation/") },
-  ],
-  marche: [
-    { label: "Marché", href: "/personnel/marche", match: (p) => p === "/personnel/marche" || p.startsWith("/personnel/marche/") || p === "/personnel/logistique" || p.startsWith("/personnel/logistique/") },
-  ],
-};
+const MENU_LINKS: MenuLink[] = [
+  {
+    label: "Procurement",
+    href: "/procurement",
+    access: "public",
+    match: (p) => p.startsWith("/procurement"),
+  },
+  {
+    label: "Suivi Procurement",
+    href: "/personnel/log-dashboard",
+    access: "private",
+    roles: ["default"],
+    match: (p) => p.startsWith("/personnel/validation"),
+  },
 
+  {
+    label: "Validation",
+    href: "/personnel/validation",
+    access: "private",
+    roles: ["validator", "finance"],
+    match: (p) => p.startsWith("/personnel/validation"),
+  },
+
+  {
+    label: "TDR",
+    href: "/personnel/TdrSt",
+    access: "private",
+    roles: ["validator", "finance"],
+    match: (p) => p.startsWith("/personnel/TdrSt"),
+  },
+
+  {
+    label: "Passation",
+    href: "/personnel/passation",
+    access: "private",
+    roles: ["agent"],
+    match: (p) => p.startsWith("/personnel/passation"),
+  },
+
+  {
+    label: "Marché",
+    href: "/personnel/marche",
+    access: "private",
+    roles: ["marche"],
+    match: (p) =>
+      p.startsWith("/personnel/marche") ||
+      p.startsWith("/personnel/logistique"),
+  },
+];
 const getMenuIcon = (href: string) => {
-  if (href === "/dashboard") return LayoutDashboard;
-  if (href === "/demande-achat") return ShoppingBasket;
-  if (href === "/TdrSt" || href === "/validation") return FileCheck2;
-  if (href === "/passation" || href === "/marche") return BriefcaseBusiness;
+  if (href === "/personnel/dashboard") return LayoutDashboard;
+  if (href === "/personnel/demande-achat") return ShoppingBasket;
+  if (href === "/personnel/TdrSt" || href === "/validation") return FileCheck2;
+  if (href === "/personnel/passation" || href === "/marche") return BriefcaseBusiness;
   return ClipboardList;
 };
 
@@ -115,7 +149,37 @@ export default function Menu({ className = "" }: { className?: string }) {
   }, [open]);
 
   // Récupération directe des liens mappés depuis notre structure centralisée
-  const links = ROLE_BASED_LINKS[userMode] || [];
+  // Récupération directe des liens mappés depuis notre structure centralisée
+  const { accessType, userInfo } = useAccess();
+
+  const role = getUserMode(getCurrentUser());
+
+  const links = MENU_LINKS.filter((link) => {
+
+    // PUBLIC
+    if (accessType === "public") {
+        return link.access === "public";
+    }
+
+    // PRIVATE
+    if (accessType === "private") {
+
+        // Pas de rôle => tous les liens
+        if (role === "default") {
+            return true;
+        }
+
+        // Les liens publics sont visibles par tout le monde
+        if (link.access === "public") {
+            return true;
+        }
+
+        // Les liens privés sont filtrés par rôle
+        return link.roles?.includes(role) ?? false;
+    }
+
+    return false;
+});
 
   if (!showAuthenticatedActions) return null;
   const handleToggleMenu = () => {
@@ -150,8 +214,8 @@ export default function Menu({ className = "" }: { className?: string }) {
         role="menu"
         aria-labelledby={buttonId}
         className={`absolute top-full left-0 z-50 mt-2 w-[240px] overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xl transition-all duration-200 origin-top-left flex flex-col ${open
-            ? "visible opacity-100 scale-100 translate-y-0"
-            : "invisible opacity-0 scale-95 -translate-y-1"
+          ? "visible opacity-100 scale-100 translate-y-0"
+          : "invisible opacity-0 scale-95 -translate-y-1"
           }`}
         style={{
           // Suppression du 60vh. Le menu fait désormais la taille exacte de son contenu.
@@ -180,8 +244,8 @@ export default function Menu({ className = "" }: { className?: string }) {
                       href={item.href}
                       role="menuitem"
                       className={`group/item flex items-center gap-3 rounded-xl py-2.5 px-3.5 text-left text-sm font-medium transition-all duration-150 outline-none ${isActive
-                          ? "bg-emerald-50/80 text-emerald-700 font-semibold shadow-sm"
-                          : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                        ? "bg-emerald-50/80 text-emerald-700 font-semibold shadow-sm"
+                        : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                         }`}
                       onClick={() => setOpen(false)}
                     >

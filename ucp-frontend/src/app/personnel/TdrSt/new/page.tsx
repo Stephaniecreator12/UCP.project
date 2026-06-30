@@ -148,7 +148,7 @@ function TdrStNewPageContent() {
   useEffect(() => {
     const token = getToken();
     if (!token) {
-      router.replace("/login");
+      router.replace("/auth/login");
       return;
     }
 
@@ -240,7 +240,7 @@ function TdrStNewPageContent() {
   }, [demandeId, documentId, requestedDocumentType, router]);
 
   const handleBack = () => {
-    router.push("/TdrSt/formulaire");
+    router.push("/personnel/TdrSt/formulaire");
   };
 
   const handleChange = <K extends keyof TdrStFormState>(key: K, value: TdrStFormState[K]) => {

@@ -7,7 +7,7 @@ import { getToken, login } from "@/services/auth";
 import { useAccess } from '@/context/accessContext';
 const DEFAULT_PUBLIC_REGISTER_ROUTE = "/auth/public/register";
 const DEFAULT_PUBLIC_ROUTE = "/procurement";
-const DEFAULT_PRIVATE_ROUTE = "/admin/dashboard"
+const DEFAULT_PRIVATE_ROUTE = "/personnel/log-dashboard"
 export default function LoginPage() {
   const { setAccess, accessType } = useAccess();
   const [email, setEmail] = useState("");
@@ -36,6 +36,7 @@ export default function LoginPage() {
     if (result.success) {
       if (accessType == "private") {
         router.push(`${DEFAULT_PRIVATE_ROUTE}`);
+        return;
       }
       router.push(`${DEFAULT_PUBLIC_ROUTE}`);
       return;

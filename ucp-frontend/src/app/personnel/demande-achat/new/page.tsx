@@ -499,7 +499,7 @@ export default function NouvelleDemandePage() {
   const isServiceRequest = typeDemande === "PETITS_SERVICES";
   
   useEffect(() => {
-    if (!getToken()) return router.replace("/login");
+    if (!getToken()) return router.replace("/auth/login");
     const u = getCurrentUser(); 
     if (isValidatorUser(u) || isAgentAchatUser(u) || isFinanceUser(u)) router.replace(getLandingRouteForUser(u));
   }, [router]);
@@ -648,7 +648,7 @@ export default function NouvelleDemandePage() {
       if (choice === "DIRECT_VALIDATION") {
         await submitDemandeAchat(res.id);
         setNotification({message: "État de besoins soumis avec succès !", type: 'success'});
-        setTimeout(() => router.push("/demande-achat/dashboard"), 1200);
+        setTimeout(() => router.push("/personnel/demande-achat/dashboard"), 1200);
         return;
       }
 
@@ -828,7 +828,7 @@ export default function NouvelleDemandePage() {
               </div>
            </div>
            
-           <button type="button" onClick={() => router.push("/demande-achat/dashboard")} className="flex items-center gap-2 px-4 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all hover:scale-105 active:scale-95 shadow-sm">
+           <button type="button" onClick={() => router.push("/personnel/demande-achat/dashboard")} className="flex items-center gap-2 px-4 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all hover:scale-105 active:scale-95 shadow-sm">
               <ArrowLeft className="h-3.5 w-3.5" /> Retour
            </button>
         </div>

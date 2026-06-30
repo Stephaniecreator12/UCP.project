@@ -220,7 +220,7 @@ export default function AssignEvaluatorsPage() {
       const result = await assignDaoEvaluators(seanceId, payload);
       setSuccess(result.detail);
       setTimeout(() => {
-        router.push("/evaluation_offre");
+        router.push("/personnel/evaluation_offre");
       }, 1500);
     } catch (err) {
       setError(
@@ -253,7 +253,7 @@ export default function AssignEvaluatorsPage() {
         <div className="mx-auto max-w-4xl px-4 py-8">
           <button
             type="button"
-            onClick={() => router.push("/evaluation_offre")}
+            onClick={() => router.push("/personnel/evaluation_offre")}
             className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-slate-900 transition"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -281,7 +281,7 @@ export default function AssignEvaluatorsPage() {
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <button
             type="button"
-            onClick={() => router.push("/evaluation_offre")}
+            onClick={() => router.push("/personnel/evaluation_offre")}
             className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-600 shadow-sm hover:bg-slate-50 transition"
           >
             <ArrowLeft className="h-3.5 w-3.5" />

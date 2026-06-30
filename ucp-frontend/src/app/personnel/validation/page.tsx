@@ -155,7 +155,7 @@ export default function ValidationDashboardPage() {
 
     if (!getToken()) {
       setLoading(false);
-      router.replace("/login");
+      router.replace("/auth/login");
       return;
     }
 

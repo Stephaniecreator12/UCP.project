@@ -209,7 +209,7 @@ export default function MembresCommissionsPage() {
   useEffect(() => {
     const initData = async () => {
       if (!getToken()) {
-        router.replace("/login");
+        router.replace("/auth/login");
         return;
       }
 
@@ -693,7 +693,7 @@ export default function MembresCommissionsPage() {
             autorisé à accéder à cet espace de gestion des membres.
           </p>
           <button
-            onClick={() => router.push("/dashboard")}
+            onClick={() => router.push("/personnel/dashboard")}
             className="mt-6 inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-slate-800"
           >
             <ArrowLeft className="h-4 w-4" /> Retour au Dashboard
@@ -730,7 +730,7 @@ export default function MembresCommissionsPage() {
             </div>
 
             <button
-              onClick={() => router.push("/ouverture_offre")}
+              onClick={() => router.push("/personnel/ouverture_offre")}
               className="z-10 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50"
             >
               <ArrowLeft className="h-4 w-4" /> Retour aux Offres

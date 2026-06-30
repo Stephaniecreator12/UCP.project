@@ -139,7 +139,7 @@ export default function Menu({ className = "" }: { className?: string }) {
       >
         <span className="flex items-center gap-2.5 leading-none">
           <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.15)]" />
-          Navigation
+          Menu
           <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${open ? "rotate-180 text-emerald-600" : ""}`} />
         </span>
       </button>

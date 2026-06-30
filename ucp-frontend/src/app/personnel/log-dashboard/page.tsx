@@ -76,7 +76,7 @@ export default function AdminDashboardPage() {
             : 0;
     
     const handleAdminPageRedirection = () => {
-       router.replace("/admin");
+       router.replace("/procurement");
     }
 
     return (

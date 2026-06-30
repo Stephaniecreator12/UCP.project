@@ -137,7 +137,7 @@ function TdRStPageContent() {
   useEffect(() => {
     const token = getToken();
     if (!token) {
-      router.replace("/login");
+      router.replace("/auth/login");
       return;
     }
 
@@ -265,7 +265,7 @@ function TdRStPageContent() {
 
     setSelectedId(focusedDoc.id);
     setSelectedDetailDoc(focusedDoc);
-    router.replace("/TdrSt/formulaire");
+    router.replace("/personnel/TdrSt/formulaire");
   }, [documents, focusDocumentId, router]);
 
   const getActionButtonLabel = (doc: TdrStDocument): string | null => {

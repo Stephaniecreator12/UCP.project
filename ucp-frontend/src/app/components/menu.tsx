@@ -117,26 +117,15 @@ export default function Menu({ className = "" }: { className?: string }) {
   // Récupération directe des liens mappés depuis notre structure centralisée
   const links = ROLE_BASED_LINKS[userMode] || [];
 
-  const handleMouseEnter = () => {
-    if (hoverTimeout) clearTimeout(hoverTimeout);
-    setOpen(true);
-  };
-
-  const handleMouseLeave = () => {
-    const timeout = setTimeout(() => {
-      setOpen(false);
-    }, 220);
-    setHoverTimeout(timeout);
-  };
-
   if (!showAuthenticatedActions) return null;
+  const handleToggleMenu = () => {
+    setOpen((prev) => !prev);
+  };
 
   return (
     <div
       ref={rootRef}
       className={`relative inline-block ${className}`}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
     >
       {/* 1. Le Bouton Déclencheur */}
       <button
@@ -145,6 +134,7 @@ export default function Menu({ className = "" }: { className?: string }) {
         aria-haspopup="true"
         aria-expanded={open}
         aria-controls={menuId}
+        onClick={handleToggleMenu}
         className="group relative inline-flex h-10 cursor-pointer items-center justify-start rounded-xl border border-slate-200 bg-white px-4 text-xs font-semibold tracking-wider text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:text-emerald-700 hover:border-slate-300"
       >
         <span className="flex items-center gap-2.5 leading-none">

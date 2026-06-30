@@ -10,7 +10,7 @@ export default function CreateProcurementPage() {
       router.replace("/procurement")
     }
   return (
-    <div className="mx-auto p-6 space-y-6 bg-gray-50 min-h-screen">
+    <div className="mx-auto space-y-6 min-h-screen bg-[#eceeef] text-[#17212e]">
       <div className="w-full bg-white border-b border-slate-200/80">
         <TopHeader />
       </div>

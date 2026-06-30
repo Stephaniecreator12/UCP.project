@@ -233,7 +233,7 @@ export default function ProcurementPage({
 
 
   return (
-    <div className="w-full min-h-screen bg-gray-50/60 pb-16 font-sans p-2.5">
+    <div className="mx-auto p-6 space-y-6 bg-gray-50 min-h-screen">
       <TopHeader />
 
       <div className=" mx-auto px-4 mt-8">

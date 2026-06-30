@@ -405,11 +405,11 @@ export const getMarketRoleLabel = (user: UserProfile | null) => {
 };
 
 export const getLandingRouteForUser = (user: UserProfile | null) => {
-  if (isSecretaireUser(user)) return "/ouverture_offre";
-  if (isFinanceUser(user) || isValidatorUser(user)) return "/validation";
-  if (isAgentAchatUser(user)) return "/passation";
-  if (isAgentMarcheUser(user)) return "/marche";
-  return "/dashboard";
+  if (isSecretaireUser(user)) return "/personnel/ouverture_offre";
+  if (isFinanceUser(user) || isValidatorUser(user)) return "/personnel/validation";
+  if (isAgentAchatUser(user)) return "/personnel/passation";
+  if (isAgentMarcheUser(user)) return "/personnel/marche";
+  return "/personnel/dashboard";
 };
 
 export const fetchCurrentUser = async (): Promise<UserProfile> => {

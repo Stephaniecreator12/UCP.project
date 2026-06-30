@@ -8,16 +8,14 @@ import {
   FileCheck2,
   LayoutDashboard,
   ShoppingBasket,
+  ChevronDown,
 } from "lucide-react";
 import {
-  useCallback,
   useEffect,
   useId,
-  useLayoutEffect,
   useRef,
   useState,
 } from "react";
-import { createPortal } from "react-dom";
 import {
   fetchCurrentUser,
   getCurrentUser,
@@ -33,13 +31,32 @@ type MenuLink = {
   match: (pathname: string) => boolean;
 };
 
+// Centralisation de tous les types de liens par rôles utilisateur
+const ROLE_BASED_LINKS: Record<"default" | "validator" | "finance" | "agent" | "marche", MenuLink[]> = {
+  default: [
+    { label: "procurement", href: "/procurement", match: (p) => p === "/procurement" || p.startsWith("/procurement/") },
+  ], // Vif pour l'espace public
+  finance: [
+    { label: "Validation", href: "/personnel/validation", match: (p) => p === "/personnel/validation" || p.startsWith("/personnel/validation/") },
+    { label: "TDR", href: "/personnel/TdrSt", match: (p) => p === "/personnel/TdrSt" || p.startsWith("/personnel/TdrSt/") },
+  ],
+  validator: [
+    { label: "Validation", href: "/personnel/validation", match: (p) => p === "/personnel/validation" || p.startsWith("/personnel/validation/") },
+    { label: "TDR", href: "/personnel/TdrSt", match: (p) => p === "/personnel/TdrSt" || p.startsWith("/personnel/TdrSt/") },
+  ],
+  agent: [
+    { label: "Passation", href: "/personnel/passation", match: (p) => p === "/personnel/passation" || p.startsWith("/personnel/passation/") },
+  ],
+  marche: [
+    { label: "Marché", href: "/personnel/marche", match: (p) => p === "/personnel/marche" || p.startsWith("/personnel/marche/") || p === "/personnel/logistique" || p.startsWith("/personnel/logistique/") },
+  ],
+};
+
 const getMenuIcon = (href: string) => {
   if (href === "/dashboard") return LayoutDashboard;
   if (href === "/demande-achat") return ShoppingBasket;
-  if (href === "/TdrSt") return FileCheck2;
-  if (href === "/validation") return FileCheck2;
-  if (href === "/passation") return BriefcaseBusiness;
-  if (href === "/marche") return BriefcaseBusiness;
+  if (href === "/TdrSt" || href === "/validation") return FileCheck2;
+  if (href === "/passation" || href === "/marche") return BriefcaseBusiness;
   return ClipboardList;
 };
 
@@ -51,102 +68,22 @@ const getUserMode = (user: ReturnType<typeof getCurrentUser>) => {
   return "default" as const;
 };
 
-const DEFAULT_LINKS: MenuLink[] = [
-  {
-    label: "PPM",
-    href: "/formulaire",
-    match: (pathname) => pathname === "/formulaire",
-  },
-  {
-    label: "dashboard",
-    href: "/dashboard",
-    match: (pathname) => pathname === "/dashboard",
-  },
-  {
-    label: "état de besoins",
-    href: "/demande-achat",
-    match: (pathname) => pathname === "/demande-achat" || pathname.startsWith("/demande-achat/"),
-  },
-  {
-    label: "TDR",
-    href: "/TdrSt",
-    match: (pathname) => pathname === "/TdrSt" || pathname.startsWith("/TdrSt/"),
-  },
-];
-
-const VALIDATOR_LINKS: MenuLink[] = [
-  {
-    label: "validation",
-    href: "/validation",
-    match: (pathname) =>
-      pathname === "/validation" || pathname.startsWith("/validation/"),
-  },
-  {
-    label: "TDR",
-    href: "/TdrSt",
-    match: (pathname) => pathname === "/TdrSt" || pathname.startsWith("/TdrSt/"),
-  },
-];
-
-
-const AGENT_ACHAT_LINKS: MenuLink[] = [
-  {
-    label: "passation",
-    href: "/passation",
-    match: (pathname) => pathname === "/passation" || pathname.startsWith("/passation/"),
-  },
-];
-
-const MARKET_LINKS: MenuLink[] = [
-  {
-    label: "marché",
-    href: "/marche",
-    match: (pathname) =>
-      pathname === "/marche" ||
-      pathname.startsWith("/marche/") ||
-      pathname === "/logistique" ||
-      pathname.startsWith("/logistique/"),
-  },
-];
-
 export default function Menu({ className = "" }: { className?: string }) {
   const pathname = usePathname();
   const buttonId = useId();
-  const menuId = `${buttonId}-menu`;
+  const menuId = `${buttonId}-sidebar`;
 
   const rootRef = useRef<HTMLDivElement | null>(null);
-  const buttonRef = useRef<HTMLButtonElement | null>(null);
-  const menuRef = useRef<HTMLDivElement | null>(null);
   const [open, setOpen] = useState(false);
-  const [menuPos, setMenuPos] = useState<{ left: number; top: number } | null>(
-    null,
-  );
   const [hoverTimeout, setHoverTimeout] = useState<NodeJS.Timeout | null>(null);
   const [userMode, setUserMode] = useState<"default" | "validator" | "finance" | "agent" | "marche">(
-    () => getUserMode(getCurrentUser()),
+    () => getUserMode(getCurrentUser())
   );
 
   const showAuthenticatedActions = pathname !== "/login";
-  const canPortal = typeof document !== "undefined";
-
-  const measureMenuPosition = useCallback(() => {
-    const button = buttonRef.current;
-    if (!button) return;
-    const rect = button.getBoundingClientRect();
-    setMenuPos({
-      left: rect.left,
-      top: rect.bottom,
-    });
-  }, []);
-
-  useLayoutEffect(() => {
-    if (!open) return;
-    measureMenuPosition();
-  }, [open, measureMenuPosition]);
 
   useEffect(() => {
     if (!showAuthenticatedActions) return;
-
     const currentUser = getCurrentUser();
     if (currentUser) return;
 
@@ -160,41 +97,25 @@ export default function Menu({ className = "" }: { className?: string }) {
 
     const onPointerDown = (event: PointerEvent) => {
       if (!(event.target instanceof Node)) return;
-      const root = rootRef.current;
-      const menu = menuRef.current;
-      const clickedInsideRoot = !!root && root.contains(event.target);
-      const clickedInsideMenu = !!menu && menu.contains(event.target);
-      if (!clickedInsideRoot && !clickedInsideMenu) setOpen(false);
+      if (!rootRef.current?.contains(event.target)) {
+        setOpen(false);
+      }
     };
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") setOpen(false);
     };
 
-    const onReposition = () => measureMenuPosition();
-
     document.addEventListener("pointerdown", onPointerDown, { capture: true });
     document.addEventListener("keydown", onKeyDown);
-    window.addEventListener("resize", onReposition);
-    window.addEventListener("scroll", onReposition, true);
     return () => {
-      document.removeEventListener("pointerdown", onPointerDown, {
-        capture: true,
-      });
+      document.removeEventListener("pointerdown", onPointerDown, { capture: true });
       document.removeEventListener("keydown", onKeyDown);
-      window.removeEventListener("resize", onReposition);
-      window.removeEventListener("scroll", onReposition, true);
     };
-  }, [open, measureMenuPosition]);
+  }, [open]);
 
-  const links =
-    userMode === "finance" || userMode === "validator"
-      ? VALIDATOR_LINKS
-      : userMode === "agent"
-        ? AGENT_ACHAT_LINKS
-        : userMode === "marche"
-          ? MARKET_LINKS
-          : DEFAULT_LINKS;
+  // Récupération directe des liens mappés depuis notre structure centralisée
+  const links = ROLE_BASED_LINKS[userMode] || [];
 
   const handleMouseEnter = () => {
     if (hoverTimeout) clearTimeout(hoverTimeout);
@@ -204,16 +125,8 @@ export default function Menu({ className = "" }: { className?: string }) {
   const handleMouseLeave = () => {
     const timeout = setTimeout(() => {
       setOpen(false);
-    }, 200);
+    }, 220);
     setHoverTimeout(timeout);
-  };
-
-  const handleMenuMouseEnter = () => {
-    if (hoverTimeout) clearTimeout(hoverTimeout);
-  };
-
-  const handleMenuMouseLeave = () => {
-    setOpen(false);
   };
 
   if (!showAuthenticatedActions) return null;
@@ -221,97 +134,95 @@ export default function Menu({ className = "" }: { className?: string }) {
   return (
     <div
       ref={rootRef}
-      className={`relative inline-flex ${className}`}
+      className={`relative inline-block ${className}`}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
+      {/* 1. Le Bouton Déclencheur */}
       <button
         id={buttonId}
-        ref={buttonRef}
         type="button"
-        aria-haspopup="menu"
+        aria-haspopup="true"
         aria-expanded={open}
         aria-controls={menuId}
-        className="group relative inline-flex h-9 items-center justify-start rounded-xl border border-slate-200 bg-white px-3 text-xs font-black uppercase tracking-widest text-slate-600 shadow-sm transition-all hover:bg-slate-50 hover:text-slate-900"
+        className="group relative inline-flex h-10 cursor-pointer items-center justify-start rounded-xl border border-slate-200 bg-white px-4 text-xs font-semibold tracking-wider text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:text-emerald-700 hover:border-slate-300"
       >
-        <span className="relative z-10 flex items-center gap-2 leading-none">
-          <span className="h-2 w-2 rounded-full bg-green-500 shadow-[0_0_0_3px_rgba(34,197,94,0.14)]" />
-          Menu
-          <svg
-            className={`h-3.5 w-3.5 text-slate-400 transition-transform duration-300 ${open ? "rotate-90" : "-rotate-90"}`}
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="3"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <polyline points="6 9 12 15 18 9"></polyline>
-          </svg>
+        <span className="flex items-center gap-2.5 leading-none">
+          <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.15)]" />
+          Navigation
+          <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${open ? "rotate-180 text-emerald-600" : ""}`} />
         </span>
       </button>
 
-      {open &&
-        canPortal &&
-        menuPos &&
-        createPortal(
-          <>
-            <style>{`
-              @keyframes ucpMenuSlideIn {
-                from { opacity: 0.78; transform: translateX(-100%); }
-                to { opacity: 1; transform: translateX(0); }
-              }
-            `}</style>
-            <div
-              id={menuId}
-              ref={menuRef}
-              role="menu"
-              aria-labelledby={buttonId}
-              onMouseEnter={handleMenuMouseEnter}
-              onMouseLeave={handleMenuMouseLeave}
-              className="fixed bottom-0 left-0 z-[80] w-64 overflow-hidden border-r border-slate-200 bg-white/85 shadow-[24px_0_60px_-42px_rgba(15,23,42,0.7)] backdrop-blur-sm"
-              style={{
-                animation: "ucpMenuSlideIn 220ms ease-out both",
-                top: menuPos.top + 25,
-              }}
-            >
-              <div className="flex h-full flex-col">
-                <nav className="flex-1 space-y-1 overflow-y-auto px-4 py-6">
-                  {links.map((item) => {
-                    const isActive = item.match(pathname);
-                    const Icon = getMenuIcon(item.href);
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        role="menuitem"
-                        className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-[0.9625rem] font-medium transition-all ${
-                          isActive
-                            ? "pointer-events-none bg-green-50 text-green-700"
-                            : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
-                        }`}
-                        onClick={() => setOpen(false)}
-                      >
-                        <Icon
-                          size={20}
-                          className={isActive ? "text-green-600" : "text-slate-400"}
-                        />
-                        <span className="truncate">{item.label}</span>
-                      </Link>
-                    );
-                  })}
-                </nav>
+      {/* 2. Le Panneau Sidebar Unifié (Taille dynamique et flexible) */}
+      <div
+        id={menuId}
+        role="menu"
+        aria-labelledby={buttonId}
+        className={`absolute top-full left-0 z-50 mt-2 w-[240px] overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xl transition-all duration-200 origin-top-left flex flex-col ${open
+            ? "visible opacity-100 scale-100 translate-y-0"
+            : "invisible opacity-0 scale-95 -translate-y-1"
+          }`}
+        style={{
+          // Suppression du 60vh. Le menu fait désormais la taille exacte de son contenu.
+          // max-height empêche le menu de casser l'écran s'il y a trop d'éléments.
+          maxHeight: open ? "80vh" : "auto",
+        }}
+      >
+        {/* Conteneur Flex vertical prenant toute la hauteur disponible */}
+        <div className="flex flex-col h-full flex-1">
+          <div>
+            {/* Ligne décorative haute */}
+            <div className="mb-4 px-1">
+              <div className="h-[3px] w-12 rounded-full bg-gradient-to-r from-emerald-500 to-green-400" aria-hidden="true" />
+            </div>
 
-                <div className="shrink-0 border-t border-slate-100 p-4">
-                  <div className="rounded-xl bg-slate-50/85 px-3 py-2.5 text-[0.825rem] font-semibold text-slate-500">
-                    Navigation UCP
-                  </div>
+            {/* Menu de navigation principal */}
+            <nav className="flex flex-col gap-1 overflow-y-auto">
+              {links.length > 0 ? (
+                links.map((item) => {
+                  const isActive = item.match(pathname);
+                  const Icon = getMenuIcon(item.href);
+
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      role="menuitem"
+                      className={`group/item flex items-center gap-3 rounded-xl py-2.5 px-3.5 text-left text-sm font-medium transition-all duration-150 outline-none ${isActive
+                          ? "bg-emerald-50/80 text-emerald-700 font-semibold shadow-sm"
+                          : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                        }`}
+                      onClick={() => setOpen(false)}
+                    >
+                      <Icon
+                        size={18}
+                        className={`transition-colors ${isActive ? "text-emerald-600" : "text-slate-400 group-hover/item:text-slate-600"
+                          }`}
+                      />
+                      <span className="truncate">{item.label}</span>
+                    </Link>
+                  );
+                })
+              ) : (
+                <div className="px-3 py-4 text-center text-xs text-slate-400 italic">
+                  Aucun lien disponible pour cet espace.
                 </div>
+              )}
+            </nav>
+          </div>
+
+          {/* Pied du menu : mt-auto pousse ce bloc tout en bas si le contenu est petit */}
+          <div className="mt-auto pt-6 px-1">
+            <div className="border-t border-slate-100 pt-3">
+              <div className="rounded-xl bg-slate-50/80 px-2.5 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                E-procurement UCP
               </div>
             </div>
-          </>,
-          document.body,
-        )}
+          </div>
+        </div>
+      </div>
     </div>
+
   );
 }

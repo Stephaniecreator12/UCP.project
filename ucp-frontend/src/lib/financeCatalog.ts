@@ -11,6 +11,11 @@ export type FinanceCatalogEntry = {
   budgetLabel: string;
   subvention: string;
 };
+export const FINANCE_FAMILY_OPTIONS = [
+  { value: "FM", label: "Fonds mondial" },
+  { value: "GAVI", label: "Alliance GAVI" },
+  { value: "BM", label: "Banque mondiale" },
+] as const;
 export const FINANCE_CATALOG: readonly FinanceCatalogEntry[] = [
   {
     optionKey: "SRPS_CS7_FM",

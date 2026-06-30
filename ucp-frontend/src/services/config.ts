@@ -3,7 +3,7 @@ import Cookies from 'js-cookie';
 import { AxiosError } from "axios";
 import { decryptAccess } from "@/app/utils/decrypt/access";
 export const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_BASE_URL,
+  baseURL: `${process.env.NEXT_PUBLIC_API_BASE_URL}/api`,
   withCredentials: true, 
   xsrfCookieName: 'csrftoken',
   xsrfHeaderName: 'X-CSRFToken',
@@ -68,7 +68,7 @@ api.interceptors.response.use(
 
       if (refreshToken) {
         try {
-          const targetBaseUrl = accessType === "private" ? process.env.NEXT_PUBLIC_API_RH_URL : process.env.NEXT_PUBLIC_API_BASE_URL;
+          const targetBaseUrl = accessType === "private" ? `${process.env.NEXT_PUBLIC_API_RH_URL}/api` : `${process.env.NEXT_PUBLIC_API_BASE_URL}/api`;
           
           const refreshUrl = `${targetBaseUrl}/token/refresh/`;
           const response = await axios.post(refreshUrl, {

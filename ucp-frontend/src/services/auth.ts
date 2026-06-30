@@ -17,7 +17,7 @@ export const rhLogin = async (
   setAccess: (access: string) => void
 ): Promise<LoginResult> => {
   try {
-    const response = await fetch(`${API_RH_URL}/login`, {
+    const response = await fetch(`${API_RH_URL}/api/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
@@ -53,7 +53,7 @@ export const publicLogin = async (
   setAccess: (access: string) => void
 ): Promise<LoginResult> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/public/login/`, {
+    const response = await fetch(`${API_BASE_URL}/api/public/login/`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
@@ -128,7 +128,7 @@ export const publicRegister = async (
 
 ): Promise<RegisterResult> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/users/create/`, {
+    const response = await fetch(`${API_BASE_URL}/api/users/create/`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(

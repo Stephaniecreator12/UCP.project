@@ -13,7 +13,7 @@ export function middleware(request: NextRequest) {
     return NextResponse.next()
   }
   if (
-    path.startsWith("/admin") &&
+    path.startsWith("/personnel") &&
     accessType !== "private"
   ) {
     return NextResponse.redirect(

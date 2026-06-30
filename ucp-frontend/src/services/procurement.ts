@@ -1,4 +1,4 @@
-import { ProcurementFormValues,ProcurementMarket } from "../types/procurement";
+import { ProcurementFormValues, ProcurementMarket } from "../types/procurement";
 import { api } from "./config";
 import { parseApiError } from "./config";
 import { ApiResult } from "../types/api";
@@ -10,43 +10,43 @@ export const createMarket = async (
 
     const formData = new FormData();
     if (data.title && data.title.trim() !== "") {
-    formData.append("title", data.title);
+      formData.append("title", data.title);
     }
     if (data.procedure_type && data.procedure_type.trim() !== "") {
-    formData.append(
-      "procedure_type",
-      data.procedure_type
-    );
-  }
+      formData.append(
+        "procedure_type",
+        data.procedure_type
+      );
+    }
     if (data.category && data.category.trim() !== "") {
-    formData.append(
-      "category",
-      data.category
-    );
-  }
-  if (data.dates_atelier && data.dates_atelier.length > 0) {
-    data.dates_atelier.forEach((date) => {
-      formData.append("dates_atelier", date);
-    });
-  }
-  if (data.publication_date && data.publication_date.trim() !== "") {
-    formData.append(
-      "publication_date",
-      data.publication_date
-    );
-  }
+      formData.append(
+        "category",
+        data.category
+      );
+    }
+    if (data.dates_atelier && data.dates_atelier.length > 0) {
+      data.dates_atelier.forEach((date) => {
+        formData.append("dates_atelier", date);
+      });
+    }
+    if (data.publication_date && data.publication_date.trim() !== "") {
+      formData.append(
+        "publication_date",
+        data.publication_date
+      );
+    }
     if (data.deadline && data.deadline.trim() !== "") {
-    formData.append(
-      "deadline",
-      data.deadline
-    );
-  }
+      formData.append(
+        "deadline",
+        data.deadline
+      );
+    }
     if (data.status && data.status.trim() !== "") {
-    formData.append(
-      "status",
-      data.status
-    );
-  }
+      formData.append(
+        "status",
+        data.status
+      );
+    }
 
     if (data.project_code && data.project_code.trim() !== "") {
       formData.append(
@@ -54,12 +54,12 @@ export const createMarket = async (
         data.project_code
       );
     }
-    if (data.financing_sources && data.financing_sources.length>0) {
-    formData.append(
-      "financing_sources",
-      JSON.stringify(data.financing_sources)
-    );
-  }
+    if (data.financing_sources && data.financing_sources.length > 0) {
+      formData.append(
+        "financing_sources",
+        JSON.stringify(data.financing_sources)
+      );
+    }
 
     if (data.reference_bailleur && data.reference_bailleur.trim() !== "") {
       formData.append(
@@ -104,62 +104,62 @@ export const uploadTechnicalDocument = async (
   marketId: number,
   file: File
 ): Promise<ApiResult<ProcurementMarket>> => {
-  try{
+  try {
     const formData = new FormData();
 
-  formData.append("market", String(marketId));
-  
-  formData.append("file", file);
+    formData.append("market", String(marketId));
 
-  const res = await api.post(
-    "/procurement/technical-documents/",
-    formData
-  );
+    formData.append("file", file);
 
-  return res.data;
-  }catch (error) {
+    const res = await api.post(
+      "/procurement/technical-documents/",
+      formData
+    );
+
+    return res.data;
+  } catch (error) {
     return {
       error: true,
       message: parseApiError(error),
     };
   }
-  
+
 };
 export const uploadAnnexDocument = async (
   marketId: number,
   file: File
 ): Promise<ApiResult<ProcurementMarket>> => {
-  try{
+  try {
     const formData = new FormData();
 
-  formData.append("market", String(marketId));
-  formData.append("file", file);
+    formData.append("market", String(marketId));
+    formData.append("file", file);
 
-  const res = await api.post(
-    `/procurement/annexes/`,
-    formData,
-    {
-      headers: {
-        "Content-Type":
-          "multipart/form-data",
-      },
-    }
-  );
+    const res = await api.post(
+      `/procurement/annexes/`,
+      formData,
+      {
+        headers: {
+          "Content-Type":
+            "multipart/form-data",
+        },
+      }
+    );
 
-  return res.data;
-  }catch (error) {
+    return res.data;
+  } catch (error) {
     return {
       error: true,
       message: parseApiError(error),
     };
   }
-  
+
 };
-export const getMarkets = async(
-  page: string, 
+export const getMarkets = async (
+  page: string,
   search: string = "",
   filters: { publishAfter?: string; publishBefore?: string; deadlineAfter?: string; deadlineBefore?: string } = {}
-): Promise<PaginatedResponse<ProcurementMarket>>=> {
+): Promise<PaginatedResponse<ProcurementMarket>> => {
   try {
     const params = new URLSearchParams({
       page,
@@ -170,7 +170,7 @@ export const getMarkets = async(
       ...(filters.deadlineBefore && { deadline_before: filters.deadlineBefore }),
     });
     const res = await api.get(`/procurement/market-list/?${params.toString()}`);
-    return res.data; 
+    return res.data;
   } catch (e) {
     console.error("Erreur API getMarkets:", e);
     return {
@@ -197,47 +197,47 @@ export const getMarketById = async (id: string): Promise<ApiResult<ProcurementMa
   }
 };
 export const updateMarketById = async (id: string, data: ProcurementFormValues): Promise<ApiResult<ProcurementMarket>> => {
-  
+
   try {
     const formData = new FormData();
     if (data.title && data.title.trim() !== "") {
-    formData.append("title", data.title);
+      formData.append("title", data.title);
     }
     if (data.procedure_type && data.procedure_type.trim() !== "") {
-    formData.append(
-      "procedure_type",
-      data.procedure_type
-    );
-  }
+      formData.append(
+        "procedure_type",
+        data.procedure_type
+      );
+    }
     if (data.category && data.category.trim() !== "") {
-    formData.append(
-      "category",
-      data.category
-    );
-  }
-  if (data.dates_atelier && data.dates_atelier.length > 0) {
-    data.dates_atelier.forEach((date) => {
-      formData.append("dates_atelier", date);
-    });
-  }
-  if (data.publication_date && data.publication_date.trim() !== "") {
-    formData.append(
-      "publication_date",
-      data.publication_date
-    );
-  }
+      formData.append(
+        "category",
+        data.category
+      );
+    }
+    if (data.dates_atelier && data.dates_atelier.length > 0) {
+      data.dates_atelier.forEach((date) => {
+        formData.append("dates_atelier", date);
+      });
+    }
+    if (data.publication_date && data.publication_date.trim() !== "") {
+      formData.append(
+        "publication_date",
+        data.publication_date
+      );
+    }
     if (data.deadline && data.deadline.trim() !== "") {
-    formData.append(
-      "deadline",
-      data.deadline
-    );
-  }
+      formData.append(
+        "deadline",
+        data.deadline
+      );
+    }
     if (data.status && data.status.trim() !== "") {
-    formData.append(
-      "status",
-      data.status
-    );
-  }
+      formData.append(
+        "status",
+        data.status
+      );
+    }
 
     if (data.project_code && data.project_code.trim() !== "") {
       formData.append(
@@ -245,12 +245,23 @@ export const updateMarketById = async (id: string, data: ProcurementFormValues):
         data.project_code
       );
     }
-    if (data.financing_sources && data.financing_sources.length>0) {
-    formData.append(
-      "financing_sources",
-      JSON.stringify(data.financing_sources)
-    );
-  }
+    if (data.deletedAnnexIds && data.deletedAnnexIds.length > 0) {
+      data.deletedAnnexIds.forEach((id) => {
+        formData.append("deletedAnnexIds", String(id));
+      });
+    }
+    if (data.deletedTechnicalDocumentIds && data.deletedTechnicalDocumentIds.length > 0) {
+      data.deletedTechnicalDocumentIds.forEach((id) => {
+        formData.append("deletedTechnicalDocumentIds", String(id));
+      });
+    }
+
+    if (data.financing_sources && data.financing_sources.length > 0) {
+      formData.append(
+        "financing_sources",
+        JSON.stringify(data.financing_sources)
+      );
+    }
 
     if (data.reference_bailleur && data.reference_bailleur.trim() !== "") {
       formData.append(
@@ -275,7 +286,7 @@ export const updateMarketById = async (id: string, data: ProcurementFormValues):
         },
       }
     );
-    
+
     return {
       error: false,
       data: res.data

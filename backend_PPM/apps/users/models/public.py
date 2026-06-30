@@ -1,8 +1,8 @@
 # employee.py
 from django.db import models
-from django.db import models
-from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
+from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, Group, Permission, PermissionsMixin
 from django.core.validators import RegexValidator
+from django.utils.translation import gettext_lazy as _
 
 class PublicProfileManager(BaseUserManager):
     def create_user(self, email, password=None, **extra_fields):
@@ -22,7 +22,7 @@ class PublicProfileManager(BaseUserManager):
 class PublicProfile(AbstractBaseUser, PermissionsMixin):
     full_name = models.CharField("Nom complet", max_length=255, unique=True)
     email = models.EmailField("Email professionnel", unique=True)
-    
+
     phone_regex = RegexValidator(
         regex=r'^\+261\s\d{2}\s\d{3}\s\d{2}$',
         message="Le format doit être : +261 XX XXX XX"
@@ -43,6 +43,24 @@ class PublicProfile(AbstractBaseUser, PermissionsMixin):
     is_staff = models.BooleanField(default=False)
     updated_at = models.DateTimeField(auto_now=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    groups = models.ManyToManyField(
+        Group,
+        verbose_name=_('groups'),
+        blank=True,
+        related_name='publicprofile_set',
+        help_text=_(
+            'The groups this user belongs to. A user will get all permissions '
+            'granted to each of their groups.'
+        ),
+    )
+    user_permissions = models.ManyToManyField(
+        Permission,
+        verbose_name=_('user permissions'),
+        blank=True,
+        related_name='publicprofile_set',
+        help_text=_('Specific permissions for this user.'),
+    )
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['full_name']

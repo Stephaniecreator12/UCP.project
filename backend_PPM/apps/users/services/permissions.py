@@ -1,8 +1,5 @@
 from __future__ import annotations
 
-from typing import Optional
-
-from rest_framework.permissions import BasePermission
 from django.contrib.auth import get_user_model
 from django.db.models import Q
 

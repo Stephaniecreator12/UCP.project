@@ -80,7 +80,7 @@ export default function AdminDashboardPage() {
     }
 
     return (
-    <div className="w-full min-h-screen bg-slate-50/50 flex flex-col">
+    <div className="min-h-screen bg-[#eceeef] text-[#17212e]">
       <div className="w-full bg-white border-b border-slate-200/80">
         <TopHeader />
       </div>

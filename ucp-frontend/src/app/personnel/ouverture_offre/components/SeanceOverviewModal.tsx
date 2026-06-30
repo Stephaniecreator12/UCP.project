@@ -3,7 +3,7 @@
 import { useEffect, useMemo } from "react";
 import { CalendarDays, CircleSlash, FileText, Layers3, X } from "lucide-react";
 
-import SeanceOverviewDetails from "@/app/ouverture_offre/components/SeanceOverviewDetails";
+import SeanceOverviewDetails from "./SeanceOverviewDetails";
 import type { ProcurementMarket } from "@/types/procurement";
 import type { SeanceOuverture } from "@/types/ouvertureOffre";
 type SeanceOverviewModalProps = {

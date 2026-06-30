@@ -17,7 +17,7 @@ import {
   X,
 } from "lucide-react";
 
-import SeanceOverviewDetails from "@/app/ouverture_offre/components/SeanceOverviewDetails";
+import SeanceOverviewDetails from "../../components/SeanceOverviewDetails";
 import {
   clearPublicValidationSession,
   openPublicValidationSession,
@@ -25,7 +25,7 @@ import {
   savePublicValidationSession,
   submitPublicValidationDecision,
 } from "@/services/ouvertureOffre";
-import { listMarkets } from "@/services/procurement";
+import { getMarkets } from "@/services/procurement";
 import type {
   PublicValidationContext,
   PublicValidationDecision,
@@ -280,14 +280,8 @@ function PublicOuvertureValidationContent() {
 
     void Promise.resolve().then(async () => {
       try {
-        const markets = await listMarkets();
+        await getMarkets("1",context.seance.reference_dossier);
         if (cancelled) return;
-        setLinkedMarket(
-          markets.find(
-            (market) =>
-              market.reference_number === context.seance.reference_dossier,
-          ) ?? null,
-        );
       } catch {
         if (!cancelled) {
           setLinkedMarket(null);

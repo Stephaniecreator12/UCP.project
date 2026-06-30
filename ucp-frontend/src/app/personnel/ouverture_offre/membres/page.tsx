@@ -30,7 +30,7 @@ import {
 import TopHeader from "@/app/components/TopHeader";
 import { fetchCurrentUser, getToken, isSecretaireUser } from "@/services/auth";
 import { getSeances } from "@/services/ouvertureOffre";
-import { listMarkets } from "@/services/procurement";
+import { getMarkets } from "@/services/procurement";
 import type { SeanceOuverture } from "@/types/ouvertureOffre";
 import type { ProcurementMarket } from "@/types/procurement";
 
@@ -196,10 +196,10 @@ export default function MembresCommissionsPage() {
   const loadData = async () => {
     try {
       const [marketData, seanceData] = await Promise.all([
-        listMarkets(),
+        getMarkets("1"),
         getSeances(),
       ]);
-      setMarkets(marketData);
+      setMarkets(marketData.results);
       setSeances(seanceData);
     } catch (err) {
       console.error(err);

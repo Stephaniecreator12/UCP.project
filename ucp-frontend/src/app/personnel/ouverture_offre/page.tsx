@@ -20,8 +20,8 @@ import {
 } from "lucide-react";
 
 import TopHeader from "@/app/components/TopHeader";
-import SeanceOverviewModal from "@/app/ouverture_offre/components/SeanceOverviewModal";
-import { consumeOpeningFlashMessage } from "@/app/ouverture_offre/utils/flashMessage";
+import SeanceOverviewModal from "./components/SeanceOverviewModal";
+import { consumeOpeningFlashMessage } from "./utils/flashMessage";
 import {
   fetchCurrentUser,
   getToken,
@@ -29,7 +29,7 @@ import {
   type UserProfile,
 } from "@/services/auth";
 import { createSeance, getSeances, updateSeance, downloadPV } from "@/services/ouvertureOffre";
-import { listMarkets } from "@/services/procurement";
+import { getMarkets } from "@/services/procurement";
 import type { CommissionMemberPayload, SeanceOuverture } from "@/types/ouvertureOffre";
 import type { ProcurementMarket } from "@/types/procurement";
 
@@ -265,6 +265,8 @@ const buildFallbackMarket = (seance: SeanceOuverture): ProcurementMarket => ({
   status: "PUBLISHED",
   technical_documents: [],
   annexes: [],
+  dates_atelier: [],
+  dates_atelier_details: [],
 });
 
 const getOpeningState = (
@@ -418,12 +420,12 @@ export default function OuvertureOffrePage() {
         }
 
         const [marketData, seanceData] = await Promise.all([
-          listMarkets(),
+          getMarkets("1"),
           getSeances(),
         ]);
 
         setCurrentUser(user);
-        setMarkets(marketData);
+        setMarkets(marketData.results);
         setSeances(seanceData);
         setScreenState("ready");
       } catch (err) {

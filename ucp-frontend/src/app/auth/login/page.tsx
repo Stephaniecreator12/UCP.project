@@ -23,7 +23,10 @@ export default function LoginPage() {
       if (accessType == "private") {
         router.push(`${DEFAULT_PRIVATE_ROUTE}`);
       }
-      router.push(`${DEFAULT_PUBLIC_ROUTE}`);
+      else{
+        router.push(`${DEFAULT_PUBLIC_ROUTE}`);
+      }
+      
     }
   }, [accessType, router]);
 
@@ -33,15 +36,7 @@ export default function LoginPage() {
     setLoading(true);
     const result = await login(email, password, setAccess);
 
-    if (result.success) {
-      if (accessType == "private") {
-        router.push(`${DEFAULT_PRIVATE_ROUTE}`);
-        return;
-      }
-      router.push(`${DEFAULT_PUBLIC_ROUTE}`);
-      return;
-    }
-    else if (result.message == "identifiants publique introuvable") {
+    if (result.message == "identifiants publique introuvable") {
       setLoading(false);
       setMessage("Redirection vers l'espace public...");
       setTimeout(() => {

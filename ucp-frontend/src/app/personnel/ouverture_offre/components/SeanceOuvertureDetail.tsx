@@ -21,11 +21,11 @@ import {
 } from "lucide-react";
 
 import TopHeader from "@/app/components/TopHeader";
-import SeanceOverviewDetails from "@/app/ouverture_offre/components/SeanceOverviewDetails";
+import SeanceOverviewDetails from "./SeanceOverviewDetails";
 import {
   consumeOpeningFlashMessage,
   setOpeningFlashMessage,
-} from "@/app/ouverture_offre/utils/flashMessage";
+} from "../utils/flashMessage";
 import {
   fetchCurrentUser,
   getToken,
@@ -43,7 +43,7 @@ import {
   validatePresident,
   downloadPV,
 } from "@/services/ouvertureOffre";
-import { listMarkets } from "@/services/procurement";
+import { getMarkets } from "@/services/procurement";
 import { listFournisseurs, type Fournisseur } from "@/services/achats";
 import type {
   OffreOuverture,
@@ -408,20 +408,7 @@ export default function SeanceOuvertureDetail() {
         }
         setCurrentUser(user);
 
-        const [seanceData, users, markets, suppliersData] = await Promise.all([
-          getSeanceById(seanceId),
-          getAvailableUsers(),
-          listMarkets(),
-          listFournisseurs().catch(() => []),
-        ]);
-
-        setSeance(seanceData);
-        setLinkedMarket(
-          markets.find(
-            (market) =>
-              market.reference_number === seanceData.reference_dossier,
-          ) ?? null,
-        );
+        
         setAvailableUsers(users);
         setSuppliers(suppliersData);
 

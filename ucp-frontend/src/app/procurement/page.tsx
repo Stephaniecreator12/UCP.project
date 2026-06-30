@@ -227,7 +227,7 @@ export default function ProcurementPage({
     return `/procurement?${params.toString()}`;
   };
   const handleCreateProcurementRedirection = () => {
-    router.replace(`admin/procurement/create`)
+    router.replace(`/personnel/procurement/create`)
   }
 
 

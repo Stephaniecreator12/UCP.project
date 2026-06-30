@@ -645,7 +645,7 @@ function PublicOuvertureValidationContent() {
       <div className="text-center">
         <button
           type="button"
-          onClick={() => router.replace("/login")}
+          onClick={() => router.replace("/auth/login")}
           className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-slate-900"
         >
           <ArrowLeft className="h-4 w-4" />

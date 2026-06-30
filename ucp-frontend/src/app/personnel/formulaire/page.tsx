@@ -139,7 +139,7 @@ const loadData = useCallback(async (): Promise<GridRow[]> => {
 
   useEffect(() => {
     if (!getToken()) {
-      router.replace("/login");
+      router.replace("/auth/login");
       return;
     }
 

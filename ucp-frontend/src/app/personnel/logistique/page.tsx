@@ -201,7 +201,7 @@ function MarcheDashboardPageContent() {
 
   useEffect(() => {
     if (!getToken()) {
-      router.replace("/login");
+      router.replace("/auth/login");
       return;
     }
     if (!isLogistiqueUser(currentUser)) {

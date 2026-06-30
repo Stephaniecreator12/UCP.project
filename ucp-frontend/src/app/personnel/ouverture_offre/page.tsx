@@ -402,7 +402,7 @@ export default function OuvertureOffrePage() {
   useEffect(() => {
     const bootstrap = async () => {
       if (!getToken()) {
-        router.replace("/login");
+        router.replace("/auth/login");
         return;
       }
 
@@ -747,7 +747,7 @@ export default function OuvertureOffrePage() {
               </p>
               <button
                 type="button"
-                onClick={() => router.push("/dashboard")}
+                onClick={() => router.push("/personnel/dashboard")}
                 className="mt-5 rounded-xl bg-slate-900 px-4 py-2 text-sm font-black text-white"
               >
                 Retour au dashboard

@@ -403,7 +403,7 @@ export default function SeanceOuvertureDetail() {
         const user = await fetchCurrentUser();
         if (!isSecretaireUser(user)) {
           logout();
-          router.replace("/login");
+          router.replace("/auth/login");
           return;
         }
         setCurrentUser(user);
@@ -940,7 +940,7 @@ export default function SeanceOuvertureDetail() {
           : "Le brouillon a été enregistré avec succès.",
         "/ouverture_offre",
       );
-      router.replace("/ouverture_offre");
+      router.replace("/personnel/ouverture_offre");
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Enregistrement impossible.",
@@ -965,7 +965,7 @@ export default function SeanceOuvertureDetail() {
         "Validation membre enregistrée avec succès.",
         "/ouverture_offre",
       );
-      router.replace("/ouverture_offre");
+      router.replace("/personnel/ouverture_offre");
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Validation membre impossible.",
@@ -990,7 +990,7 @@ export default function SeanceOuvertureDetail() {
         "Validation président enregistrée avec succès.",
         "/ouverture_offre",
       );
-      router.replace("/ouverture_offre");
+      router.replace("/personnel/ouverture_offre");
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Validation président impossible.",
@@ -1033,7 +1033,7 @@ export default function SeanceOuvertureDetail() {
         "Rejet membre enregistré avec succès.",
         "/ouverture_offre",
       );
-      router.replace("/ouverture_offre");
+      router.replace("/personnel/ouverture_offre");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Rejet membre impossible.");
     } finally {
@@ -1060,7 +1060,7 @@ export default function SeanceOuvertureDetail() {
         "Rejet président enregistré avec succès.",
         "/ouverture_offre",
       );
-      router.replace("/ouverture_offre");
+      router.replace("/personnel/ouverture_offre");
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Rejet président impossible.",
@@ -1154,7 +1154,7 @@ export default function SeanceOuvertureDetail() {
               <div className="mt-8 flex flex-col gap-3">
                 <button
                   type="button"
-                  onClick={() => router.push("/ouverture_offre/membres")}
+                  onClick={() => router.push("/personnel/ouverture_offre/membres")}
                   className="inline-flex justify-center items-center gap-2 rounded-xl bg-slate-900 px-5 py-3 text-xs font-bold text-white shadow-md hover:bg-slate-800 transition-all"
                 >
                   <Users className="h-4 w-4" /> Configurer les membres de
@@ -1162,7 +1162,7 @@ export default function SeanceOuvertureDetail() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => router.push("/ouverture_offre")}
+                  onClick={() => router.push("/personnel/ouverture_offre")}
                   className="inline-flex justify-center items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-all"
                 >
                   Retour à la liste

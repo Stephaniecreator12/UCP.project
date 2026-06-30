@@ -371,7 +371,7 @@ export default function CorrigerDemandePage() {
   const isServiceRequest = typeDemande === "PETITS_SERVICES";
   
   useEffect(() => {
-    if (!getToken()) return router.replace("/login");
+    if (!getToken()) return router.replace("/auth/login");
     const u = getCurrentUser(); 
     if (isValidatorUser(u) || isAgentAchatUser(u) || isFinanceUser(u)) router.replace(getLandingRouteForUser(u));
 
@@ -575,7 +575,7 @@ export default function CorrigerDemandePage() {
       
       await resubmitDemandeAchat(demandeId); 
       setNotification({message: "État de besoins modifié et renvoyé avec succès !", type: 'success'}); 
-      setTimeout(() => router.push("/demande-achat/dashboard?filter=toutes"), 2000); 
+      setTimeout(() => router.push("/personnel/demande-achat/dashboard?filter=toutes"), 2000); 
     } catch (err: unknown) { 
       const errorMessage = err instanceof Error ? err.message : "Erreur de connexion. Vérifiez les données.";
       setNotification({message: errorMessage, type: 'error'}); 
@@ -710,7 +710,7 @@ export default function CorrigerDemandePage() {
               </div>
            </div>
            
-           <button type="button" onClick={() => router.push("/demande-achat/dashboard")} className="flex items-center gap-2 px-5 py-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 rounded-xl font-bold text-sm transition-all hover:scale-105 active:scale-95 shadow-sm">
+           <button type="button" onClick={() => router.push("/personnel/demande-achat/dashboard")} className="flex items-center gap-2 px-5 py-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 rounded-xl font-bold text-sm transition-all hover:scale-105 active:scale-95 shadow-sm">
               <ArrowLeft className="h-4 w-4" /> Retour
            </button>
          </div>

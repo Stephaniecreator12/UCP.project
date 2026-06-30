@@ -23,6 +23,7 @@ from apps.TdrSt.services.schema_compat import (
 )
 from apps.TdrSt.services.TdrStService import (
     create_document,
+    list_documents_for_user,
     list_my_documents,
     submit_document,
     suspendre_document,
@@ -35,6 +36,23 @@ def _missing_link_response():
         {"detail": MISSING_TDR_LINK_MIGRATION_MESSAGE},
         status=status.HTTP_503_SERVICE_UNAVAILABLE,
     )
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def documents_list_view(request):
+    if not has_tdr_demande_link_column():
+        return _missing_link_response()
+
+    scope = (request.query_params.get("scope") or "mine").strip().lower()
+    if scope not in {"mine", "all"}:
+        return Response(
+            {"detail": "Le scope doit etre 'mine' ou 'all'."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    docs = list_documents_for_user(request.user, scope=scope)
+    return Response(TdrStDocumentReadSerializer(docs, many=True).data)
 
 
 @api_view(["POST"])
@@ -147,3 +165,27 @@ def upload_pdf_view(request, id: int):
         },
         status=status.HTTP_201_CREATED,
     )
+
+@api_view(["DELETE"])
+@permission_classes([IsAuthenticated])
+def document_delete_view(request, id: int):
+    doc = get_object_or_404(TdrStDocument, id=id)
+    
+    # Vérifier que l'utilisateur est le demandeur
+    if doc.demandeur != request.user:
+        return Response({"detail": "Seul le demandeur peut supprimer ce document."}, 
+                       status=status.HTTP_403_FORBIDDEN)
+    
+    # Vérifier que le document est un brouillon
+    if doc.statut != TdrStDocument.Statut.BROUILLON:
+        return Response({"detail": "Seuls les brouillons peuvent être supprimés."},
+                       status=status.HTTP_400_BAD_REQUEST)
+    
+    # Supprimer les fichiers PDF associés
+    for version in doc.versions_fichier.all():
+        if version.fichier_pdf:
+            version.fichier_pdf.delete(save=False)
+        version.delete()
+    
+    doc.delete()
+    return Response(status=status.HTTP_204_NO_CONTENT)

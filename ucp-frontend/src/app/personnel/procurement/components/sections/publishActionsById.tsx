@@ -10,15 +10,21 @@ import { ProcurementMarket } from "@/types/procurement";
 import { useRouter } from "next/navigation";
 interface Props {
   form: UseFormReturn<ProcurementFormValues>;
-  id:string;
-  onPublish: (id:string,values: ProcurementFormValues) => Promise<ApiResult<ProcurementMarket>>;
+  id: string;
+  onPublish: (id: string, values: ProcurementFormValues) => Promise<ApiResult<ProcurementMarket>>;
 }
-export function PublishActionsById({ form,id, onPublish }: Props) {
+export function PublishActionsById({ form, id, onPublish }: Props) {
   const router = useRouter()
   const [globalError, setGlobalError] = useState("");
   const handleSubmit = async (values: ProcurementFormValues) => {
     setGlobalError("");
-    const res = await onPublish(id,values);
+    const deletedAnnexIds = form.getValues("deletedAnnexIds") || [];
+    const deletedTechnicalDocumentIds = form.getValues("deletedTechnicalDocumentIds") || [];
+    const res = await onPublish(id, {
+      ...values,
+      deletedAnnexIds,
+      deletedTechnicalDocumentIds
+    });
 
     if (res.error) {
       if (typeof res.message === "object" && res.message !== null) {
@@ -26,8 +32,8 @@ export function PublishActionsById({ form,id, onPublish }: Props) {
           form.setError(key as Path<ProcurementFormValues>, {
             type: "server",
             message: Array.isArray(messages) ? messages[0] : (messages as string),
-          }, 
-          { shouldFocus: true });
+          },
+            { shouldFocus: true });
         });
       } else {
         setGlobalError(res.message as string);
@@ -69,8 +75,8 @@ export function PublishActionsById({ form,id, onPublish }: Props) {
       )}
 
       <button
-      type="button"
-        onClick={()=>{
+        type="button"
+        onClick={() => {
           form.clearErrors();
           form.handleSubmit(handleSubmit)();
         }}
@@ -79,6 +85,6 @@ export function PublishActionsById({ form,id, onPublish }: Props) {
         Publier sur le portail
       </button>
     </div>
-    
+
   );
 }

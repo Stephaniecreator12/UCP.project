@@ -1,7 +1,7 @@
 import { Card, CardHeader, CardTitle, CardContent } from "../card";
 import { UseFormReturn, useWatch } from "react-hook-form";
 import { ProcurementFormValues, TechnicalDocument } from "../../../../../types/procurement";
-import { X, FileText,UploadCloud } from "lucide-react";
+import { X, FileText, UploadCloud } from "lucide-react";
 import { getServerFileName } from "@/lib/utils";
 import { useState } from "react";
 interface Props {
@@ -18,6 +18,13 @@ export function TechnicalDocumentsSection({ form, initialDocuments }: Props) {
   });
   const removeServerFile = (idToRemove: number) => {
     setServerDocs((prev) => prev.filter((doc) => doc.id !== idToRemove));
+
+    const current = form.getValues("deletedTechnicalDocumentIds") || [];
+
+    form.setValue("deletedTechnicalDocumentIds", [...current, idToRemove], {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
   };
   const removeLocalFile = (indexToRemove: number) => {
     const updatedFiles = (files || []).filter((_, index) => index !== indexToRemove);
@@ -43,7 +50,7 @@ export function TechnicalDocumentsSection({ form, initialDocuments }: Props) {
             Ajouter des fichiers (.pdf)
           </label>
           <input
-          id="technical-file-upload"
+            id="technical-file-upload"
             type="file"
             accept=".pdf"
             multiple
@@ -51,11 +58,11 @@ export function TechnicalDocumentsSection({ form, initialDocuments }: Props) {
             onChange={(e) => {
               if (!e.target.files) return;
               const newFiles = Array.from(e.target.files);
-                form.setValue("technicalFiles", [...(files||[]), ...newFiles], {
+              form.setValue("technicalFiles", [...(files || []), ...newFiles], {
                 shouldDirty: true,
-                });
-                e.target.value = "";
-              }
+              });
+              e.target.value = "";
+            }
             }
           />
           {errors.technicalFiles && (
@@ -88,7 +95,7 @@ export function TechnicalDocumentsSection({ form, initialDocuments }: Props) {
                 </button>
               </div>
             ))}
-            
+
           </div>
         </div>
       </CardContent>

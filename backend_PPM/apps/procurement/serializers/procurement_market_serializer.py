@@ -48,6 +48,17 @@ class ProcurementMarketSerializer(serializers.ModelSerializer):
         read_only=True,
         source='dates_previsionnelles'
     )
+    deletedAnnexIds = serializers.ListField(
+        child=serializers.IntegerField(),
+        write_only=True,
+        required=False
+    )
+
+    deletedTechnicalDocumentIds = serializers.ListField(
+        child=serializers.IntegerField(),
+        write_only=True,
+        required=False
+    )
 
     class Meta:
         model = ProcurementMarket
@@ -69,7 +80,9 @@ class ProcurementMarketSerializer(serializers.ModelSerializer):
             "dates_atelier",
             "technical_documents",
             "annexes",
-            "dates_atelier_details"
+            "dates_atelier_details",
+            "deletedAnnexIds",
+            "deletedTechnicalDocumentIds",
         ]
 
         read_only_fields = [
@@ -262,11 +275,26 @@ class ProcurementMarketSerializer(serializers.ModelSerializer):
     @transaction.atomic
     def update(self, instance, validated_data):
         dates_data = validated_data.pop("dates_atelier", None)
-
+        deleted_annex_ids = validated_data.pop("deletedAnnexIds", [])
+        deleted_technical_documents_ids = validated_data.pop("deletedTechnicalDocumentIds", [])
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
 
         instance.save()
+        if deleted_annex_ids:
+            print("annexes envoye")
+            for annex in instance.annexes.filter(id__in=deleted_annex_ids):
+                annex.file.delete(save=False)
+                annex.delete()
+        else:
+            print("aucun annexe")
+        if deleted_technical_documents_ids:
+            print("documents envoye")
+            for document in instance.technical_documents.filter(id__in=deleted_technical_documents_ids):
+                document.file.delete(save=False)
+                document.delete()
+        else:
+            print("aucun document")
 
         if dates_data is not None:
             instance.dates_previsionnelles.all().delete()

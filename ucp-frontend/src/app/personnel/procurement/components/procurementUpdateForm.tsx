@@ -2,7 +2,7 @@
 
 import { useForm } from "react-hook-form";
 import { format } from "date-fns";
-import { AnnexDocument, DateAtelierObj, ProcurementFormValues, ProcurementMarket, TechnicalDocument } from "@/types/procurement";
+import { AnnexDocument, ProcurementFormValues, ProcurementMarket, TechnicalDocument } from "@/types/procurement";
 import { useParams } from "next/navigation";
 import { BasicInfoSection } from "./sections/market";
 import { FinancingSection } from "./sections/financement";
@@ -42,6 +42,8 @@ export function ProcurementUpdateForm() {
         dates_atelier: [],
         annexFiles: [],
         technicalFiles: [],
+        deletedAnnexIds: [],
+        deletedTechnicalDocumentIds: [],
 
         status: "PUBLISHED",
       },
@@ -76,6 +78,8 @@ export function ProcurementUpdateForm() {
             d.dates_atelier
           )
         : [],
+        deletedAnnexIds: [],
+        deletedTechnicalDocumentIds: [],
         submission_model: undefined,      
         technicalFiles: [],
         annexFiles: [],  

@@ -10,9 +10,9 @@ export type CategoryType =
   | "INFRA";
 
 export type FinancingSource =
-  | "BM"
+  | "GLOBAL_FUND"
   | "GAVI"
-  | "FM";
+  | "WORLD_BANK";
 
 export type PublicationStatus =
   | "PUBLISHED"
@@ -58,8 +58,9 @@ export interface ProcurementMarket {
 
   status: PublicationStatus;
 
+  technical_documents: TechnicalDocument[];
 
-  created_at?: string;
+  annexes: AnnexDocument[];
 }
 export interface ProcurementFormValues {
   title: string;
@@ -81,6 +82,8 @@ export interface ProcurementFormValues {
   submission_model?:File;
   technicalFiles?: File[];
   annexFiles?: File[];
+  deletedAnnexIds?: number[];
+  deletedTechnicalDocumentIds?: number[];
 
   optionKey?:string;
 }

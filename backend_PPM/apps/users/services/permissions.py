@@ -3,21 +3,19 @@ from __future__ import annotations
 from django.contrib.auth import get_user_model
 from django.db.models import Q
 
-from apps.users.models import UserProfile
-
 
 class TdrStRole:
-    DEMANDEUR = UserProfile.Role.DEMANDEUR
-    INITIATEUR = UserProfile.Role.DEMANDEUR
-    VERIFICATEUR_TECHNIQUE = UserProfile.Role.VERIFICATEUR_TECHNIQUE
-    APPROBATEUR_FINAL = UserProfile.Role.APPROBATEUR_FINAL
-    AUDITEUR = UserProfile.Role.AUDITEUR
+    DEMANDEUR = "demandeur"
+    INITIATEUR = "demandeur"
+    VERIFICATEUR_TECHNIQUE = "verificateur_technique"
+    APPROBATEUR_FINAL = "approbateur_final"
+    AUDITEUR = "auditeur"
 
 
 ROLE_GROUPS: dict[str, tuple[str, ...]] = {
-    UserProfile.Role.VERIFICATEUR_TECHNIQUE: ("VALIDATEUR_TECHNIQUE",),
-    UserProfile.Role.APPROBATEUR_FINAL: ("APPROBATEUR_NATIONAL",),
-    UserProfile.Role.AUDITEUR: ("AUDITEUR",),
+    "verificateur_technique": ("VALIDATEUR_TECHNIQUE",),
+    "approbateur_final": ("APPROBATEUR_NATIONAL",),
+    "auditeur": ("AUDITEUR",),
 }
 
 ALL_TDR_GROUPS = tuple(
@@ -39,32 +37,22 @@ def get_user_role(user) -> str | None:
     if not user or not getattr(user, "is_authenticated", False):
         return None
 
-    try:
-        profile_role = user.profile.role
-    except Exception:
-        profile_role = None
-
-    if profile_role and profile_role != UserProfile.Role.DEMANDEUR:
-        return profile_role
-
     mapped_role = _group_mapped_role(user)
     if mapped_role:
         return mapped_role
 
-    return profile_role or UserProfile.Role.DEMANDEUR
+    return "demandeur"
 
 
 def get_users_for_role(role: str):
     User = get_user_model()
     queryset = User.objects.filter(is_active=True)
 
-    profile_filter = Q(profile__role=role)
     groups = ROLE_GROUPS.get(role, ())
-
     if groups:
-        return queryset.filter(profile_filter | Q(groups__name__in=groups)).distinct()
+        return queryset.filter(groups__name__in=groups).distinct()
 
-    if role == UserProfile.Role.DEMANDEUR:
-        return queryset.filter(profile_filter).distinct()
+    if role == "demandeur":
+        return queryset.exclude(groups__name__in=ALL_TDR_GROUPS).distinct()
 
     return queryset.none()

@@ -145,13 +145,39 @@ def list_demandes_a_valider(user):
 
     from django.db.models import Prefetch
 
-    qs = with_optional_tdr_select_related(
-        DemandeAchat.objects.filter(
-            statut=DemandeAchat.STATUT_SOUMISE,
-            etape_validation_actuelle=user_step,
-        ),
-        "demandeur",
+    qs = DemandeAchat.objects.filter(
+        statut=DemandeAchat.STATUT_SOUMISE,
+        etape_validation_actuelle=user_step,
     )
+
+    # Récupérer les informations de poste de l'agent connecté
+    try:
+        profile = user.agent_profile
+        user_poste = profile.poste
+    except Exception:
+        profile = None
+        user_poste = None
+
+    # Filtrage fin selon l'étape de validation
+    if user_step == DemandeAchat.ETAPE_HIERARCHIQUE:
+        # Étape Hiérarchique : seuls les supérieurs directs du demandeur voient le dossier
+        if user_poste:
+            qs = qs.filter(demandeur__agent_profile__poste__superieurs=user_poste)
+        else:
+            return DemandeAchat.objects.none()
+    elif user_step in [
+        DemandeAchat.ETAPE_TECHNIQUE,
+        DemandeAchat.ETAPE_BUDGETAIRE,
+        DemandeAchat.ETAPE_PROGRAMMATIQUE,
+        DemandeAchat.ETAPE_APPROBATION_FINALE,
+    ]:
+        # Autres étapes : filtrer selon le programme de l'agent connecté
+        if user_poste and user_poste.programme:
+            qs = qs.filter(source_financement=user_poste.programme.code)
+        else:
+            return DemandeAchat.objects.none()
+
+    qs = with_optional_tdr_select_related(qs, "demandeur")
 
     return (
         qs
@@ -190,6 +216,30 @@ def traiter_validation(demande, user, decision, commentaire="", donnees_etape=No
         raise ValidationError(
             {"detail": "Seule une demande soumise peut etre traitee."}
         )
+
+    # Sécurité supplémentaire au niveau du service : valider les droits de programme/hiérarchiques
+    try:
+        profile = user.agent_profile
+        user_poste = profile.poste
+    except Exception:
+        profile = None
+        user_poste = None
+
+    if user_step == DemandeAchat.ETAPE_HIERARCHIQUE:
+        if not user_poste or not demande.demandeur.agent_profile.poste.superieurs.filter(id=user_poste.id).exists():
+            raise ValidationError(
+                {"detail": "Vous n'êtes pas le supérieur hiérarchique direct du demandeur."}
+            )
+    elif user_step in [
+        DemandeAchat.ETAPE_TECHNIQUE,
+        DemandeAchat.ETAPE_BUDGETAIRE,
+        DemandeAchat.ETAPE_PROGRAMMATIQUE,
+        DemandeAchat.ETAPE_APPROBATION_FINALE,
+    ]:
+        if not user_poste or user_poste.programme.code != demande.source_financement:
+            raise ValidationError(
+                {"detail": "Cette demande concerne un programme/financement différent du vôtre."}
+            )
 
     donnees_etape = donnees_etape or {}
 

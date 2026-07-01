@@ -24,9 +24,6 @@ from apps.TdrSt.services.schema_compat import (
     MISSING_TDR_LINK_MIGRATION_MESSAGE,
     has_tdr_demande_link_column,
 )
-from apps.users.models import UserProfile
-from apps.users.services.permissions import get_user_role
-
 LOCKED_DEMANDE_FIELDS = {
     "unite_technique",
     "intitule",
@@ -156,6 +153,15 @@ def list_pending_tech():
 
 def list_tech_documents(user):
     pending = TdrStDocument.objects.filter(statut=TdrStDocument.Statut.SOUMIS)
+    
+    # Filtrer par programme de l'agent
+    try:
+        profile = user.agent_profile
+        if profile and profile.poste and profile.poste.programme:
+            pending = pending.filter(sources_financement__contains=profile.poste.programme.code)
+    except Exception:
+        pass
+
     treated_by_user = TdrStDocument.objects.filter(
         actions_validation__etape=TdrStValidationAction.Etape.VALIDATION_TECHNIQUE,
         actions_validation__acteur=user,
@@ -180,6 +186,15 @@ def list_pending_final():
 
 def list_final_documents(user):
     pending = TdrStDocument.objects.filter(statut=TdrStDocument.Statut.EN_VALIDATION)
+
+    # Filtrer par programme de l'agent
+    try:
+        profile = user.agent_profile
+        if profile and profile.poste and profile.poste.programme:
+            pending = pending.filter(sources_financement__contains=profile.poste.programme.code)
+    except Exception:
+        pass
+
     treated_by_user = TdrStDocument.objects.filter(
         actions_validation__etape=TdrStValidationAction.Etape.APPROBATION_FINALE,
         actions_validation__acteur=user,
@@ -241,16 +256,26 @@ def list_documents_for_user(user, scope: str = "mine"):
     if scope == "all":
         return _all_documents_queryset()
 
-    role = get_user_role(user)
-    if role == UserProfile.Role.DEMANDEUR:
-        return list_my_documents(user)
-    if role == UserProfile.Role.VERIFICATEUR_TECHNIQUE:
-        return list_tech_documents(user)
-    if role == UserProfile.Role.APPROBATEUR_FINAL:
-        return list_final_documents(user)
-    if role == UserProfile.Role.AUDITEUR:
-        return list_auditeur_documents()
-    return TdrStDocument.objects.none()
+    if not user or not user.is_authenticated:
+        return TdrStDocument.objects.none()
+
+    user_groups = set(user.groups.values_list("name", flat=True))
+    queryset = TdrStDocument.objects.none()
+
+    if "AUDITEUR" in user_groups:
+        queryset |= list_auditeur_documents()
+    if "VALIDATEUR_TECHNIQUE" in user_groups:
+        queryset |= list_tech_documents(user)
+    if "APPROBATEUR_NATIONAL" in user_groups:
+        queryset |= list_final_documents(user)
+
+    is_validator_or_auditor = bool(
+        user_groups.intersection({"VALIDATEUR_TECHNIQUE", "APPROBATEUR_NATIONAL", "AUDITEUR"})
+    )
+    if not is_validator_or_auditor or scope == "mine":
+        queryset |= list_my_documents(user)
+
+    return queryset.distinct()
 
 
 @transaction.atomic

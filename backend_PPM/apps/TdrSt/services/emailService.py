@@ -10,7 +10,6 @@ from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 
 from apps.TdrSt.models.TdrSt import TdrStDocument, TdrStValidationAction
-from apps.users.models import UserProfile
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -103,9 +102,9 @@ def send_document_submitted_email(document: TdrStDocument) -> int:
     subject = f"Nouveau document à vérifier - {document.numero_document}"
 
     verificateurs = User.objects.filter(
-        profile__role=UserProfile.Role.VERIFICATEUR_TECHNIQUE,
+        groups__name="VALIDATEUR_TECHNIQUE",
         is_active=True,
-    )
+    ).distinct()
     recipient_list = [user.email for user in verificateurs if user.email]
     if not recipient_list:
         return 0
@@ -166,9 +165,9 @@ def send_demande_final_approve_email(document: TdrStDocument) -> int:
     subject = f"Document à approuver - {document.numero_document}"
 
     approbateurs = User.objects.filter(
-        profile__role=UserProfile.Role.APPROBATEUR_FINAL,
+        groups__name="APPROBATEUR_NATIONAL",
         is_active=True,
-    )
+    ).distinct()
     recipient_list = [user.email for user in approbateurs if user.email]
     if not recipient_list:
         return 0

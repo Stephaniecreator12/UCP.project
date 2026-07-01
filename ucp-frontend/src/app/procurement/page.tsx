@@ -227,16 +227,16 @@ export default function ProcurementPage({
     return `/procurement?${params.toString()}`;
   };
   const handleCreateProcurementRedirection = () => {
-    router.replace(`admin/procurement/create`)
+    router.replace(`/personnel/procurement/create`)
   }
 
 
 
   return (
-    <div className="w-full min-h-screen bg-gray-50/60 pb-16 font-sans p-2.5">
+    <div className="mx-auto min-h-screen bg-[#eceeef] text-[#17212e]">
       <TopHeader />
 
-      <div className=" mx-auto px-4 mt-8">
+      <div className=" mx-auto mt-8 p-6 px-10">
         <div className="flex flex-col sm:flex-row w-full justify-between items-start sm:items-center gap-4 mb-8">
           <div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">

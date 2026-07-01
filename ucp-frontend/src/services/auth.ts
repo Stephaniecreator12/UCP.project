@@ -46,7 +46,7 @@ export const rhLogin = async (
   // ----------------------------------------------------
 
   try {
-    const response = await fetch(`${API_RH_URL}/login`, {
+    const response = await fetch(`${API_RH_URL}/api/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
@@ -82,7 +82,7 @@ export const publicLogin = async (
   setAccess: (access: string) => void
 ): Promise<LoginResult> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/public/login/`, {
+    const response = await fetch(`${API_BASE_URL}/api/public/login/`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
@@ -157,7 +157,7 @@ export const publicRegister = async (
 
 ): Promise<RegisterResult> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/users/create/`, {
+    const response = await fetch(`${API_BASE_URL}/api/users/create/`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(
@@ -434,11 +434,11 @@ export const getMarketRoleLabel = (user: UserProfile | null) => {
 };
 
 export const getLandingRouteForUser = (user: UserProfile | null) => {
-  if (isSecretaireUser(user)) return "/ouverture_offre";
-  if (isFinanceUser(user) || isValidatorUser(user)) return "/validation";
-  if (isAgentAchatUser(user)) return "/passation";
-  if (isAgentMarcheUser(user)) return "/marche";
-  return "/dashboard";
+  if (isSecretaireUser(user)) return "/personnel/ouverture_offre";
+  if (isFinanceUser(user) || isValidatorUser(user)) return "/personnel/validation";
+  if (isAgentAchatUser(user)) return "/personnel/passation";
+  if (isAgentMarcheUser(user)) return "/personnel/marche";
+  return "/personnel/dashboard";
 };
 
 export const fetchCurrentUser = async (): Promise<UserProfile> => {

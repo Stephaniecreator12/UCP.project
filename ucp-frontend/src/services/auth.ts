@@ -16,6 +16,35 @@ export const rhLogin = async (
   password: string,
   setAccess: (access: string) => void
 ): Promise<LoginResult> => {
+  // --- MODE SIMULATION POUR LE DÉVELOPPEMENT LOCAL ---
+  const emailLower = email.strip ? email.strip().toLowerCase() : email.trim().toLowerCase();
+  
+  if (emailLower === "nalisoa@ucp.mg") {
+    Cookies.set("access_token", "mock_token_nalisoa_87", { expires: 1 });
+    const stringUser = JSON.stringify({ id: 87, email: "nalisoa@ucp.mg", nom: "NOMENJANAHARY", prenom: "Nalisoa" });
+    const encryptedUser = CryptoJS.AES.encrypt(stringUser, process.env.NEXT_PUBLIC_COOKIE_SECRET || 'default_secret_key').toString();
+    Cookies.set("user_info", encryptedUser, { expires: 1 });
+    setAccess("private");
+    return { status: 200, success: true };
+  }
+  if (emailLower === "pfgavi@ucp.mg") {
+    Cookies.set("access_token", "mock_token_anthony_32", { expires: 1 });
+    const stringUser = JSON.stringify({ id: 32, email: "pfgavi@ucp.mg", nom: "JOHN", prenom: "Anthony" });
+    const encryptedUser = CryptoJS.AES.encrypt(stringUser, process.env.NEXT_PUBLIC_COOKIE_SECRET || 'default_secret_key').toString();
+    Cookies.set("user_info", encryptedUser, { expires: 1 });
+    setAccess("private");
+    return { status: 200, success: true };
+  }
+  if (emailLower === "raf.gavi@ucp.mg") {
+    Cookies.set("access_token", "mock_token_raf_gavi_33", { expires: 1 });
+    const stringUser = JSON.stringify({ id: 33, email: "raf.gavi@ucp.mg", nom: "RAF_GAVI", prenom: "Finance" });
+    const encryptedUser = CryptoJS.AES.encrypt(stringUser, process.env.NEXT_PUBLIC_COOKIE_SECRET || 'default_secret_key').toString();
+    Cookies.set("user_info", encryptedUser, { expires: 1 });
+    setAccess("private");
+    return { status: 200, success: true };
+  }
+  // ----------------------------------------------------
+
   try {
     const response = await fetch(`${API_RH_URL}/login`, {
       method: "POST",
@@ -34,10 +63,10 @@ export const rhLogin = async (
     }
     if(response.status == 400){
       return{
-      status: response.status,
-      success: false,
-      message: data.message || "l'adresse e-mail ou mot de passe incorrect",
-    }
+        status: response.status,
+        success: false,
+        message: data.message || "l'adresse e-mail ou mot de passe incorrect",
+      }
     }return{
       status: 404,
       success: false,

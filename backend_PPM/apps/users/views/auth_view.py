@@ -25,6 +25,14 @@ def inscription_view(request):
             "message": "Le nom complet, l'email et le mot de passe sont requis."
         }, status=status.HTTP_400_BAD_REQUEST)
 
+    # Bloquer l'inscription pour les emails internes de l'UCP
+    email_lower = email.strip().lower()
+    if email_lower.endswith('@ucp') or email_lower.endswith('@ucp.mg'):
+        return Response({
+            "success": False,
+            "message": "Les comptes du personnel UCP sont gérés par la Direction des Ressources Humaines. Vous ne pouvez pas créer de compte manuellement."
+        }, status=status.HTTP_400_BAD_REQUEST)
+
     if User.objects.filter(email=email).exists():
         return Response({
             "success": False,

@@ -9,6 +9,11 @@ from apps.users.serializers.user_serializer import (
     UserSerializer,
     UserCreateSerializer,
 )
+from apps.users.serializers.public_serializer import (
+    PublicLoginSerializer,
+    PublicProfileSerializer,
+    PublicProfileRegistrationSerializer,
+)
 from apps.users.services.external_personnel import (
     ExternalPersonnelApiError,
     fetch_external_personnel_directory,
@@ -20,13 +25,28 @@ User = get_user_model()
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def me(request):
-    # Central profile endpoint consumed by the frontend after login.
-    # It is the place where UI routing can read shared identity data
-    # such as email, username and groups.
-    serializer = UserSerializer(request.user)
+    user = request.user
+    
+    # Essayer avec PublicProfileSerializer (fournisseurs)
+    try:
+        serializer = PublicProfileSerializer(user)
+        data = serializer.data
+    except Exception:
+        # Fallback pour les users RH (agents internes)
+        data = {
+            "id": user.id,
+            "email": user.email,
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "is_active": user.is_active,
+            "is_staff": user.is_staff,
+            "groups": list(user.groups.values_list("name", flat=True)),
+        }
 
-    return Response(serializer.data)
-
+    return Response({
+        "error": False,
+        "data": data
+    })
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])

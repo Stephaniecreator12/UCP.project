@@ -28,9 +28,17 @@ import {
   isSecretaireUser,
   type UserProfile,
 } from "@/services/auth";
-import { createSeance, getSeances, updateSeance, downloadPV } from "@/services/ouvertureOffre";
+import {
+  createSeance,
+  getSeances,
+  updateSeance,
+  downloadPV,
+} from "@/services/ouvertureOffre";
 import { getMarkets } from "@/services/procurement";
-import type { CommissionMemberPayload, SeanceOuverture } from "@/types/ouvertureOffre";
+import type {
+  CommissionMemberPayload,
+  SeanceOuverture,
+} from "@/types/ouvertureOffre";
 import type { ProcurementMarket } from "@/types/procurement";
 
 type ScreenState = "loading" | "ready" | "forbidden" | "error";
@@ -157,7 +165,8 @@ const sectionConfigs: Record<
 > = {
   DRAFT: {
     title: "Brouillons",
-    subtitle: "Séances déjà créées, à reprendre avant transmission pour validation.",
+    subtitle:
+      "Séances déjà créées, à reprendre avant transmission pour validation.",
     icon: ClipboardList,
     iconClass: "border-amber-200 bg-amber-100 text-amber-800",
     badgeClass: "border-amber-200 bg-amber-500 text-white",
@@ -165,7 +174,8 @@ const sectionConfigs: Record<
   },
   READY: {
     title: "En attente d'ouverture",
-    subtitle: "Le délai de dépôt est atteint. Ouvrez la séance pour démarrer la préparation.",
+    subtitle:
+      "Le délai de dépôt est atteint. Ouvrez la séance pour démarrer la préparation.",
     icon: ClipboardList,
     iconClass: "border-amber-200 bg-amber-100 text-amber-800",
     badgeClass: "border-amber-200 bg-amber-500 text-white",
@@ -278,16 +288,20 @@ const getOpeningState = (
   if (seance) {
     if (seance.statut === "VALIDEE") return "VALIDATED";
     if (seance.statut === "REJETEE") return "REJECTED";
-    if (seance.statut === "EN_VALIDATION_PRESIDENT") return "VALIDATION_PRESIDENT";
+    if (seance.statut === "EN_VALIDATION_PRESIDENT")
+      return "VALIDATION_PRESIDENT";
     if (seance.statut === "A_VALIDER") {
-      const presentMembers = seance.membres.filter((member) => member.est_present);
+      const presentMembers = seance.membres.filter(
+        (member) => member.est_present,
+      );
       const membersDecided =
         presentMembers.length > 0 &&
         presentMembers.every((member) => member.decision !== "EN_ATTENTE");
       return membersDecided ? "VALIDATION_PRESIDENT" : "VALIDATION_MEMBERS";
     }
     if (seance.statut === "EN_VALIDATION_MEMBRES") return "VALIDATION_MEMBERS";
-    if (seance.statut === "BROUILLON" || seance.statut === "EN_SAISIE") return "DRAFT";
+    if (seance.statut === "BROUILLON" || seance.statut === "EN_SAISIE")
+      return "DRAFT";
     return "DRAFT";
   }
 
@@ -335,10 +349,14 @@ const getEmailTypoSuggestion = (email: string) => {
     : "";
 };
 
-const getStoredCommissionMembers = (reference: string): CommissionMemberPayload[] => {
+const getStoredCommissionMembers = (
+  reference: string,
+): CommissionMemberPayload[] => {
   if (typeof window === "undefined") return [];
 
-  const stored = window.localStorage.getItem(`${COMMISSION_STORAGE_PREFIX}${reference}`);
+  const stored = window.localStorage.getItem(
+    `${COMMISSION_STORAGE_PREFIX}${reference}`,
+  );
   if (!stored) return [];
 
   try {
@@ -349,7 +367,12 @@ const getStoredCommissionMembers = (reference: string): CommissionMemberPayload[
     return parsed.flatMap((member) => {
       if (typeof member !== "object" || member === null) return [];
       const item = member as Record<string, unknown>;
-      const hasRequiredIdentity = ["nomPrenom", "email", "poste", "entite"].every((field) => {
+      const hasRequiredIdentity = [
+        "nomPrenom",
+        "email",
+        "poste",
+        "entite",
+      ].every((field) => {
         const value = item[field];
         return typeof value === "string" && value.trim() !== "";
       });
@@ -360,13 +383,15 @@ const getStoredCommissionMembers = (reference: string): CommissionMemberPayload[
 
       if (!hasRequiredIdentity || !hasValidCin || hasEmailTypo) return [];
 
-      return [{
-        nomPrenom: String(item.nomPrenom).trim(),
-        email,
-        cin: String(item.cin).trim(),
-        poste: String(item.poste).trim(),
-        entite: String(item.entite).trim(),
-      }];
+      return [
+        {
+          nomPrenom: String(item.nomPrenom).trim(),
+          email,
+          cin: String(item.cin).trim(),
+          poste: String(item.poste).trim(),
+          entite: String(item.entite).trim(),
+        },
+      ];
     });
   } catch {
     return [];
@@ -376,7 +401,9 @@ const getStoredCommissionMembers = (reference: string): CommissionMemberPayload[
 const isCommissionComplete = (reference: string) => {
   if (typeof window === "undefined") return false;
 
-  const status = window.localStorage.getItem(`${COMMISSION_STATUS_PREFIX}${reference}`);
+  const status = window.localStorage.getItem(
+    `${COMMISSION_STATUS_PREFIX}${reference}`,
+  );
   return (
     status === "final" &&
     getStoredCommissionMemberCount(reference) >= MIN_COMMISSION_MEMBERS
@@ -391,10 +418,12 @@ export default function OuvertureOffrePage() {
   const [seances, setSeances] = useState<SeanceOuverture[]>([]);
   const [query, setQuery] = useState("");
   const [activeSection, setActiveSection] = useState<OpeningState | null>(null);
-  const [activeReviewSection, setActiveReviewSection] = useState<OpeningState | null>(null);
+  const [activeReviewSection, setActiveReviewSection] =
+    useState<OpeningState | null>(null);
   const [openingMarketId, setOpeningMarketId] = useState<number | null>(null);
   const [detailRow, setDetailRow] = useState<OpeningRow | null>(null);
-  const [commissionBlock, setCommissionBlock] = useState<CommissionBlock | null>(null);
+  const [commissionBlock, setCommissionBlock] =
+    useState<CommissionBlock | null>(null);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState(() =>
     consumeOpeningFlashMessage("/ouverture_offre"),
@@ -429,7 +458,11 @@ export default function OuvertureOffrePage() {
         setSeances(seanceData);
         setScreenState("ready");
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Impossible de charger le module.");
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Impossible de charger le module.",
+        );
         setScreenState("error");
       }
     };
@@ -440,7 +473,9 @@ export default function OuvertureOffrePage() {
   const openingRows = useMemo<OpeningRow[]>(() => {
     const marketRows = markets.map((market) => {
       const seance =
-        seances.find((item) => item.reference_dossier === market.reference_number) ?? null;
+        seances.find(
+          (item) => item.reference_dossier === market.reference_number,
+        ) ?? null;
 
       return {
         market,
@@ -452,7 +487,9 @@ export default function OuvertureOffrePage() {
     const orphanRows = seances
       .filter(
         (seance) =>
-          !markets.some((market) => market.reference_number === seance.reference_dossier),
+          !markets.some(
+            (market) => market.reference_number === seance.reference_dossier,
+          ),
       )
       .map((seance) => {
         const fallbackMarket = buildFallbackMarket(seance);
@@ -472,13 +509,15 @@ export default function OuvertureOffrePage() {
     return openingRows.flatMap((row) => {
       const seance = row.seance;
 
-      const currentMember = seance?.membres.find(
-        (member) => member.utilisateur === currentUser.id,
-      ) ?? null;
+      const currentMember =
+        seance?.membres.find(
+          (member) => member.utilisateur === currentUser.id,
+        ) ?? null;
       const isPresident = seance?.president === currentUser.id;
       const assignedToCurrentUser = Boolean(currentMember || isPresident);
 
-      const presentMembers = seance?.membres.filter((member) => member.est_present) ?? [];
+      const presentMembers =
+        seance?.membres.filter((member) => member.est_present) ?? [];
       const allPresentMembersDecided =
         presentMembers.length > 0 &&
         presentMembers.every((member) => member.decision !== "EN_ATTENTE");
@@ -550,19 +589,25 @@ export default function OuvertureOffrePage() {
 
       const reviewState = row.state;
 
-      return [{
-        market: row.market,
-        seance,
-        state: reviewState,
-        roleLabel,
-        helperText,
-        canValidate: canValidateAsMember || canValidateAsPresident,
-        canAct: canValidateAsMember || canValidateAsPresident || canRejectAsMember || canRejectAsPresident,
-        blocked: blockedPresident,
-        hasValidated,
-        hasRejected,
-        assignedToCurrentUser,
-      }];
+      return [
+        {
+          market: row.market,
+          seance,
+          state: reviewState,
+          roleLabel,
+          helperText,
+          canValidate: canValidateAsMember || canValidateAsPresident,
+          canAct:
+            canValidateAsMember ||
+            canValidateAsPresident ||
+            canRejectAsMember ||
+            canRejectAsPresident,
+          blocked: blockedPresident,
+          hasValidated,
+          hasRejected,
+          assignedToCurrentUser,
+        },
+      ];
     });
   }, [currentUser, isSecretaire, openingRows]);
 
@@ -574,16 +619,13 @@ export default function OuvertureOffrePage() {
     });
   }, [query, openingRows]);
 
-  const sections = useMemo<StatusSection[]>(
-    () => {
-      return sectionOrder.map((key) => ({
-        key,
-        ...sectionConfigs[key],
-        rows: filteredRows.filter((row) => row.state === key),
-      }));
-    },
-    [filteredRows],
-  );
+  const sections = useMemo<StatusSection[]>(() => {
+    return sectionOrder.map((key) => ({
+      key,
+      ...sectionConfigs[key],
+      rows: filteredRows.filter((row) => row.state === key),
+    }));
+  }, [filteredRows]);
 
   const filteredReviewRows = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -605,22 +647,21 @@ export default function OuvertureOffrePage() {
 
   const visibleSections = sections;
 
-  const reviewSections = useMemo<ReviewSection[]>(
-    () => {
-      return globalReviewSectionOrder.map((key) => ({
-        key,
-        ...sectionConfigs[key],
-        rows: filteredReviewRows.filter((row) => row.state === key),
-      }));
-    },
-    [filteredReviewRows],
-  );
+  const reviewSections = useMemo<ReviewSection[]>(() => {
+    return globalReviewSectionOrder.map((key) => ({
+      key,
+      ...sectionConfigs[key],
+      rows: filteredReviewRows.filter((row) => row.state === key),
+    }));
+  }, [filteredReviewRows]);
 
   const handleOpenSeance = async (row: OpeningRow) => {
-    const commissionMembers = getStoredCommissionMembers(row.market.reference_number);
+    const commissionMembers = getStoredCommissionMembers(
+      row.market.reference_number,
+    );
     const hasBackendCommission =
-      (row.seance?.membres.filter((member) => member.est_present).length ?? 0) >=
-      MIN_COMMISSION_MEMBERS;
+      (row.seance?.membres.filter((member) => member.est_present).length ??
+        0) >= MIN_COMMISSION_MEMBERS;
 
     // Avant d'ouvrir, on vérifie la commission: sans 3 membres complets, pas de séance.
     if (
@@ -639,7 +680,8 @@ export default function OuvertureOffrePage() {
     if (row.seance) {
       try {
         if (
-          (row.seance.statut === "BROUILLON" || row.seance.statut === "EN_SAISIE") &&
+          (row.seance.statut === "BROUILLON" ||
+            row.seance.statut === "EN_SAISIE") &&
           row.seance.membres.length < MIN_COMMISSION_MEMBERS
         ) {
           // Si une ancienne séance brouillon existe sans membres, on la répare avant d'entrer.
@@ -648,7 +690,11 @@ export default function OuvertureOffrePage() {
           });
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Impossible de synchroniser les membres.");
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Impossible de synchroniser les membres.",
+        );
         return;
       }
       router.push(`/ouverture_offre/${row.seance.id}`);
@@ -671,18 +717,25 @@ export default function OuvertureOffrePage() {
       const detailPath = `/ouverture_offre/${seance.id}`;
       router.push(detailPath);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Impossible d'ouvrir la séance.");
+      setError(
+        err instanceof Error ? err.message : "Impossible d'ouvrir la séance.",
+      );
       setOpeningMarketId(null);
     }
   };
 
-  const handleDownloadPV = async (seanceId: number, referenceDossier: string) => {
+  const handleDownloadPV = async (
+    seanceId: number,
+    referenceDossier: string,
+  ) => {
     try {
       setError("");
       await downloadPV(seanceId, referenceDossier);
       setSuccessMessage("Téléchargement du PV lancé avec succès.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Impossible de télécharger le PV.");
+      setError(
+        err instanceof Error ? err.message : "Impossible de télécharger le PV.",
+      );
     }
   };
 
@@ -705,7 +758,9 @@ export default function OuvertureOffrePage() {
                 </div>
                 <div className="min-w-0">
                   <h1 className="truncate text-lg font-black tracking-tight text-slate-800 sm:text-xl">
-                    {isSecretaire ? "OUVERTURE DES OFFRES" : "VALIDATION DES OUVERTURES"}
+                    {isSecretaire
+                      ? "OUVERTURE DES OFFRES"
+                      : "VALIDATION DES OUVERTURES"}
                   </h1>
                   <div className="mt-1 flex items-center gap-2">
                     <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
@@ -743,9 +798,13 @@ export default function OuvertureOffrePage() {
 
           {screenState === "forbidden" && (
             <section className="rounded-3xl border border-rose-200 bg-white p-8 shadow-[0_8px_32px_rgba(0,0,0,0.05)]">
-              <h2 className="text-lg font-black text-slate-900">Accès non autorisé</h2>
+              <h2 className="text-lg font-black text-slate-900">
+                Accès non autorisé
+              </h2>
               <p className="mt-2 text-sm text-slate-600">
-                Cette interface est réservée au secrétaire de commission. Les membres et présidents valident chaque DAO avec le lien et le mot de passe reçus par mail.
+                Cette interface est réservée au secrétaire de commission. Les
+                membres et présidents valident chaque DAO avec le lien et le mot
+                de passe reçus par mail.
               </p>
               <button
                 type="button"
@@ -759,7 +818,9 @@ export default function OuvertureOffrePage() {
 
           {screenState === "error" && (
             <section className="rounded-3xl border border-rose-200 bg-white p-8 shadow-[0_8px_32px_rgba(0,0,0,0.05)]">
-              <h2 className="text-lg font-black text-slate-900">Erreur de chargement</h2>
+              <h2 className="text-lg font-black text-slate-900">
+                Erreur de chargement
+              </h2>
               <p className="mt-2 text-sm text-rose-700">{error}</p>
             </section>
           )}
@@ -805,9 +866,11 @@ export default function OuvertureOffrePage() {
                     </div>
                   </div>
 
-                  {(isSecretaire
-                    ? filteredRows.length === 0 && Boolean(query.trim())
-                    : false) ? (
+                  {(
+                    isSecretaire
+                      ? filteredRows.length === 0 && Boolean(query.trim())
+                      : false
+                  ) ? (
                     <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50/70 px-6 py-8 text-center">
                       <p className="text-[13px] font-semibold text-slate-500">
                         {isSecretaire
@@ -825,7 +888,9 @@ export default function OuvertureOffrePage() {
                               isActive={activeSection === section.key}
                               onToggle={() =>
                                 setActiveSection(
-                                  activeSection === section.key ? null : section.key,
+                                  activeSection === section.key
+                                    ? null
+                                    : section.key,
                                 )
                               }
                               openingMarketId={openingMarketId}
@@ -841,17 +906,22 @@ export default function OuvertureOffrePage() {
                               isActive={activeReviewSection === section.key}
                               onToggle={() =>
                                 setActiveReviewSection(
-                                  activeReviewSection === section.key ? null : section.key,
+                                  activeReviewSection === section.key
+                                    ? null
+                                    : section.key,
                                 )
                               }
                               onOpenDetail={(row) => setDetailRow(row)}
                               onOpenValidation={(row) => {
                                 if (!row.seance || !currentUser) return;
                                 const validationRole =
-                                  row.seance.president === currentUser.id ? "president" : "membre";
+                                  row.seance.president === currentUser.id
+                                    ? "president"
+                                    : "membre";
                                 const params = new URLSearchParams({
                                   role: validationRole,
-                                  email: currentUser.email || currentUser.username,
+                                  email:
+                                    currentUser.email || currentUser.username,
                                 });
                                 router.push(
                                   `/ouverture_offre/validation/${row.seance.id}?${params.toString()}`,
@@ -896,7 +966,7 @@ export default function OuvertureOffrePage() {
           block={commissionBlock}
           onClose={() => setCommissionBlock(null)}
           onComplete={() => {
-            const target = `/ouverture_offre/membres?dossier=${encodeURIComponent(
+            const target = `/personnel/ouverture_offre/membres?dossier=${encodeURIComponent(
               commissionBlock.reference,
             )}`;
             setCommissionBlock(null);
@@ -944,8 +1014,9 @@ function CommissionIncompleteModal({
               Membres de commission pas encore complétés
             </h2>
             <p className="mt-1 text-sm font-medium leading-relaxed text-slate-600">
-              Le dossier {block.reference} ne peut pas être ouvert tant que la commission
-              n&apos;est pas finalisée avec au moins {MIN_COMMISSION_MEMBERS} membres.
+              Le dossier {block.reference} ne peut pas être ouvert tant que la
+              commission n&apos;est pas finalisée avec au moins{" "}
+              {MIN_COMMISSION_MEMBERS} membres.
             </p>
           </div>
           <button
@@ -963,16 +1034,20 @@ function CommissionIncompleteModal({
             <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
               Dossier
             </p>
-            <p className="mt-1 text-sm font-black text-slate-900">{block.reference}</p>
+            <p className="mt-1 text-sm font-black text-slate-900">
+              {block.reference}
+            </p>
             <p className="mt-1 line-clamp-2 text-xs font-semibold text-slate-500">
               {block.title}
             </p>
           </div>
           <p className="text-sm font-semibold leading-relaxed text-slate-600">
             Membres complets actuellement :{" "}
-            <span className="font-black text-slate-900">{block.memberCount}</span> /{" "}
-            {MIN_COMMISSION_MEMBERS}. Complète puis enregistre définitivement la liste
-            dans le formulaire des membres.
+            <span className="font-black text-slate-900">
+              {block.memberCount}
+            </span>{" "}
+            / {MIN_COMMISSION_MEMBERS}. Complète puis enregistre définitivement
+            la liste dans le formulaire des membres.
           </p>
         </div>
 
@@ -1023,11 +1098,13 @@ function NotificationPopup({
       }`}
       role="status"
     >
-      <div className={`mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border ${
-        isError
-          ? "border-rose-500/30 bg-rose-500/20 text-rose-700"
-          : "border-emerald-500/30 bg-emerald-500/20 text-emerald-700"
-      }`}>
+      <div
+        className={`mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border ${
+          isError
+            ? "border-rose-500/30 bg-rose-500/20 text-rose-700"
+            : "border-emerald-500/30 bg-emerald-500/20 text-emerald-700"
+        }`}
+      >
         {isError ? (
           <AlertCircle className="h-5 w-5 animate-pulse" />
         ) : (
@@ -1035,10 +1112,14 @@ function NotificationPopup({
         )}
       </div>
       <div className="min-w-0 flex-1">
-        <p className={`text-[15px] font-black tracking-tight ${isError ? "text-rose-950" : "text-emerald-950"}`}>
+        <p
+          className={`text-[15px] font-black tracking-tight ${isError ? "text-rose-950" : "text-emerald-950"}`}
+        >
           {isError ? "Action impossible" : "Action enregistrée"}
         </p>
-        <p className={`mt-1 text-[13px] font-medium leading-relaxed ${isError ? "text-rose-900/90" : "text-emerald-900/90"}`}>
+        <p
+          className={`mt-1 text-[13px] font-medium leading-relaxed ${isError ? "text-rose-900/90" : "text-emerald-900/90"}`}
+        >
           {message}
         </p>
       </div>
@@ -1081,29 +1162,39 @@ function OpeningStatusSection({
   return (
     <div
       className={`overflow-hidden rounded-xl border bg-white shadow-sm transition-colors ${
-        isActive ? "border-slate-300" : "border-slate-200 hover:border-slate-300"
+        isActive
+          ? "border-slate-300"
+          : "border-slate-200 hover:border-slate-300"
       }`}
     >
       <button
         type="button"
         onClick={onToggle}
         className={`flex w-full items-center justify-between px-5 py-4 text-left transition-colors ${
-          isActive ? "border-b border-slate-200 bg-slate-50" : "bg-white hover:bg-slate-50"
+          isActive
+            ? "border-b border-slate-200 bg-slate-50"
+            : "bg-white hover:bg-slate-50"
         }`}
       >
         <div className="flex items-center gap-4">
-          <div className={`flex h-10 w-10 items-center justify-center rounded-xl border ${section.iconClass}`}>
+          <div
+            className={`flex h-10 w-10 items-center justify-center rounded-xl border ${section.iconClass}`}
+          >
             <Icon className="h-5 w-5" />
           </div>
           <div>
-            <h3 className="text-base font-semibold text-slate-900">{section.title}</h3>
+            <h3 className="text-base font-semibold text-slate-900">
+              {section.title}
+            </h3>
             <p className="mt-0.5 text-xs font-medium text-slate-500">
               {section.subtitle}
             </p>
           </div>
           <span
             className={`ml-1 rounded-full border px-3 py-1 text-xs font-semibold ${
-              hasRows ? section.badgeClass : "border-slate-200 bg-slate-100 text-slate-400"
+              hasRows
+                ? section.badgeClass
+                : "border-slate-200 bg-slate-100 text-slate-400"
             }`}
           >
             {section.rows.length}
@@ -1171,12 +1262,10 @@ function OpeningDaoRow({
   const isDisabled = state === "ONGOING" || state === "CANCELLED";
   const shouldShowDetailAction =
     hasSeance &&
-    (
-      state === "VALIDATION_MEMBERS" ||
+    (state === "VALIDATION_MEMBERS" ||
       state === "VALIDATION_PRESIDENT" ||
       state === "VALIDATED" ||
-      state === "REJECTED"
-    );
+      state === "REJECTED");
 
   return (
     <div className="flex flex-col justify-between gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-colors hover:border-emerald-300 sm:flex-row sm:items-center">
@@ -1209,7 +1298,9 @@ function OpeningDaoRow({
               Limite : {formatDateTime(market.deadline)}
             </span>
             <span className="rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-1 font-semibold text-emerald-700">
-              {CATEGORY_LABELS[market.category] || market.category || "Catégorie non définie"}
+              {CATEGORY_LABELS[market.category] ||
+                market.category ||
+                "Catégorie non définie"}
             </span>
             {market.project_code && (
               <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 font-semibold text-slate-500">
@@ -1310,29 +1401,39 @@ function ReviewStatusSection({
   return (
     <div
       className={`overflow-hidden rounded-xl border bg-white shadow-sm transition-colors ${
-        isActive ? "border-slate-300" : "border-slate-200 hover:border-slate-300"
+        isActive
+          ? "border-slate-300"
+          : "border-slate-200 hover:border-slate-300"
       }`}
     >
       <button
         type="button"
         onClick={onToggle}
         className={`flex w-full items-center justify-between px-5 py-4 text-left transition-colors ${
-          isActive ? "border-b border-slate-200 bg-slate-50" : "bg-white hover:bg-slate-50"
+          isActive
+            ? "border-b border-slate-200 bg-slate-50"
+            : "bg-white hover:bg-slate-50"
         }`}
       >
         <div className="flex items-center gap-4">
-          <div className={`flex h-10 w-10 items-center justify-center rounded-xl border ${section.iconClass}`}>
+          <div
+            className={`flex h-10 w-10 items-center justify-center rounded-xl border ${section.iconClass}`}
+          >
             <Icon className="h-5 w-5" />
           </div>
           <div>
-            <h3 className="text-base font-semibold text-slate-900">{section.title}</h3>
+            <h3 className="text-base font-semibold text-slate-900">
+              {section.title}
+            </h3>
             <p className="mt-0.5 text-xs font-medium text-slate-500">
               {section.subtitle}
             </p>
           </div>
           <span
             className={`ml-1 rounded-full border px-3 py-1 text-xs font-semibold ${
-              hasRows ? section.badgeClass : "border-slate-200 bg-slate-100 text-slate-400"
+              hasRows
+                ? section.badgeClass
+                : "border-slate-200 bg-slate-100 text-slate-400"
             }`}
           >
             {section.rows.length}
@@ -1431,11 +1532,15 @@ function ReviewSeanceRow({
 
           <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]">
             <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 font-semibold text-slate-600">
-              {row.seance ? "Séance" : "Échéance"} : {displayDate ? formatDateTime(displayDate) : "Date non renseignée"}
+              {row.seance ? "Séance" : "Échéance"} :{" "}
+              {displayDate
+                ? formatDateTime(displayDate)
+                : "Date non renseignée"}
             </span>
             {row.market.procedure_type && (
               <span className="rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-1 font-semibold text-emerald-700">
-                {PROCEDURE_LABELS[row.market.procedure_type] || row.market.procedure_type}
+                {PROCEDURE_LABELS[row.market.procedure_type] ||
+                  row.market.procedure_type}
               </span>
             )}
             <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 font-semibold text-slate-500">

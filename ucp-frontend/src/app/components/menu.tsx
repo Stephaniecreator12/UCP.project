@@ -1,5 +1,4 @@
 "use client";
-import { useAccess } from "@/context/accessContext";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -10,120 +9,200 @@ import {
   ShoppingBasket,
   ChevronDown,
 } from "lucide-react";
-import {
-  useEffect,
-  useId,
-  useRef,
-  useState,
-} from "react";
-import {
-  fetchCurrentUser,
-  getCurrentUser,
-  isAgentAchatUser,
-  isAgentMarcheUser,
-  isFinanceUser,
-  isValidatorUser,
-} from "@/services/auth";
-
-type Role = "finance" | "validator" | "agent" | "marche";
-
-type AccessType = "public" | "private";
+import { useEffect, useId, useRef, useState } from "react";
+import { fetchCurrentUser, getCurrentUser } from "@/services/auth";
 
 type MenuLink = {
   label: string;
   href: string;
-  access: AccessType;
-  roles?: ("finance" | "validator" | "agent" | "marche" |"default")[];
   match: (pathname: string) => boolean;
 };
 
-const MENU_LINKS: MenuLink[] = [
+// Menus structurés par groupe Django
+const DEFAULT_LINKS: MenuLink[] = [
   {
-    label: "Procurement",
+    label: "Formulaire PPM",
+    href: "/personnel/formulaire",
+    match: (p) => p.startsWith("/personnel/formulaire"),
+  },
+  {
+    label: "Dashboard",
+    href: "/personnel/dashboard",
+    match: (p) => p === "/personnel/dashboard",
+  },
+  {
+    label: "État de besoins",
+    href: "/personnel/demande-achat/dashboard",
+    match: (p) =>
+      p.startsWith("/personnel/demande-achat") &&
+      !p.startsWith("/personnel/demande-achat/new"),
+  },
+  {
+    label: "DAO",
     href: "/procurement",
-    access: "public",
     match: (p) => p.startsWith("/procurement"),
   },
   {
-    label: "Suivi Procurement",
-    href: "/personnel/log-dashboard",
-    access: "private",
-    roles: ["default"],
-    match: (p) => p.startsWith("/personnel/validation"),
+    label: "TDR-ST",
+    href: "/personnel/TdrSt",
+    match: (p) => p.startsWith("/personnel/TdrSt"),
   },
+];
 
+const VALIDATOR_LINKS: MenuLink[] = [
   {
     label: "Validation",
     href: "/personnel/validation",
-    access: "private",
-    roles: ["validator", "finance"],
     match: (p) => p.startsWith("/personnel/validation"),
   },
-
   {
-    label: "TDR",
+    label: "TDR-ST",
     href: "/personnel/TdrSt",
-    access: "private",
-    roles: ["validator", "finance"],
     match: (p) => p.startsWith("/personnel/TdrSt"),
   },
+];
 
+const AGENT_ACHAT_LINKS: MenuLink[] = [
   {
     label: "Passation",
     href: "/personnel/passation",
-    access: "private",
-    roles: ["agent"],
     match: (p) => p.startsWith("/personnel/passation"),
   },
+];
 
+const MARKET_LINKS: MenuLink[] = [
   {
     label: "Marché",
     href: "/personnel/marche",
-    access: "private",
-    roles: ["marche"],
     match: (p) =>
       p.startsWith("/personnel/marche") ||
       p.startsWith("/personnel/logistique"),
   },
 ];
+
+const SECRETAIRE_LINKS: MenuLink[] = [
+  {
+    label: "Ouverture des offres",
+    href: "/personnel/ouverture_offre",
+    match: (p) =>
+      p === "/personnel/ouverture_offre" ||
+      p.startsWith("/personnel/ouverture_offre/"),
+  },
+  {
+    label: "Membres des commissions",
+    href: "/personnel/ouverture_offre/membres",
+    match: (p) => p.startsWith("/personnel/ouverture_offre/membres"),
+  },
+  {
+    label: "Évaluation des offres",
+    href: "/personnel/evaluation_offre",
+    match: (p) => p.startsWith("/personnel/evaluation_offre"),
+  },
+];
+
+const EVALUATEUR_LINKS: MenuLink[] = [
+  {
+    label: "Évaluation des offres",
+    href: "/personnel/evaluation_offre",
+    match: (p) => p.startsWith("/personnel/evaluation_offre"),
+  },
+];
+
+const PRESIDENT_LINKS: MenuLink[] = [
+  {
+    label: "Ouverture des offres",
+    href: "/personnel/ouverture_offre",
+    match: (p) =>
+      p === "/personnel/ouverture_offre" ||
+      p.startsWith("/personnel/ouverture_offre/"),
+  },
+];
+
 const getMenuIcon = (href: string) => {
-  if (href === "/personnel/dashboard") return LayoutDashboard;
-  if (href === "/personnel/demande-achat") return ShoppingBasket;
-  if (href === "/personnel/TdrSt" || href === "/validation") return FileCheck2;
-  if (href === "/personnel/passation" || href === "/marche") return BriefcaseBusiness;
+  if (href.includes("dashboard")) return LayoutDashboard;
+  if (href.includes("demande-achat")) return ShoppingBasket;
+  if (href.includes("TdrSt")) return FileCheck2;
+  if (href.includes("passation") || href.includes("marche"))
+    return BriefcaseBusiness;
   return ClipboardList;
 };
 
-const getUserMode = (user: ReturnType<typeof getCurrentUser>) => {
-  if (isFinanceUser(user)) return "finance" as const;
-  if (isValidatorUser(user)) return "validator" as const;
-  if (isAgentAchatUser(user)) return "agent" as const;
-  if (isAgentMarcheUser(user)) return "marche" as const;
-  return "default" as const;
+/**
+ * Mappe les groupes Django aux liens de menu
+ * Groups disponibles: VALIDATEUR_HIERARCHIQUE, VALIDATEUR_TECHNIQUE, VALIDATEUR_BUDGETAIRE,
+ * VALIDATEUR_PROGRAMMATIQUE, APPROBATEUR_NATIONAL, SECRETAIRE, EVALUATEUR, AGENT_ACHAT,
+ * AGENT_MARCHE, LOGISTIQUE, RAF, FINANCE, PRESIDENT
+ */
+const getMenuLinksForGroups = (groups: string[]): MenuLink[] => {
+  // Si aucun groupe = DEMANDEUR (DEFAULT)
+  if (groups.length === 0) {
+    return DEFAULT_LINKS;
+  }
+
+  // Si SECRETAIRE
+  if (groups.includes("SECRETAIRE")) {
+    return SECRETAIRE_LINKS;
+  }
+
+  // Si EVALUATEUR (mais pas SECRETAIRE)
+  if (groups.includes("EVALUATEUR")) {
+    return EVALUATEUR_LINKS;
+  }
+
+  // Si PRESIDENT (mais pas SECRETAIRE)
+  if (groups.includes("PRESIDENT")) {
+    return PRESIDENT_LINKS;
+  }
+
+  // Si AGENT_ACHAT
+  if (groups.includes("AGENT_ACHAT")) {
+    return AGENT_ACHAT_LINKS;
+  }
+
+  // Si AGENT_MARCHE ou LOGISTIQUE
+  if (groups.includes("AGENT_MARCHE") || groups.includes("LOGISTIQUE")) {
+    return MARKET_LINKS;
+  }
+
+  // Si n'importe quel VALIDATEUR ou APPROBATEUR ou FINANCE ou RAF
+  if (
+    groups.some((g) => g.startsWith("VALIDATEUR_")) ||
+    groups.includes("APPROBATEUR_NATIONAL") ||
+    groups.includes("FINANCE") ||
+    groups.includes("RAF")
+  ) {
+    return VALIDATOR_LINKS;
+  }
+
+  // Par défaut
+  return DEFAULT_LINKS;
 };
 
 export default function Menu({ className = "" }: { className?: string }) {
   const pathname = usePathname();
   const buttonId = useId();
-  const menuId = `${buttonId}-sidebar`;
+  const menuId = `${buttonId}-menu`;
 
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [open, setOpen] = useState(false);
-  const [hoverTimeout, setHoverTimeout] = useState<NodeJS.Timeout | null>(null);
-  const [userMode, setUserMode] = useState<"default" | "validator" | "finance" | "agent" | "marche">(
-    () => getUserMode(getCurrentUser())
-  );
+  const [isMounted, setIsMounted] = useState(false);
+  const [userGroups, setUserGroups] = useState<string[]>([]);
 
-  const showAuthenticatedActions = pathname !== "/login";
+  const showAuthenticatedActions = !pathname.startsWith("/auth");
 
   useEffect(() => {
+    setIsMounted(true);
     if (!showAuthenticatedActions) return;
+    
     const currentUser = getCurrentUser();
-    if (currentUser) return;
+    if (currentUser) {
+      setUserGroups(currentUser.groups || []);
+      return;
+    }
 
     void fetchCurrentUser()
-      .then((user) => setUserMode(getUserMode(user)))
-      .catch(() => setUserMode("default"));
+      .then((user) => setUserGroups(user?.groups || []))
+      .catch(() => setUserGroups([]));
   }, [showAuthenticatedActions]);
 
   useEffect(() => {
@@ -143,54 +222,23 @@ export default function Menu({ className = "" }: { className?: string }) {
     document.addEventListener("pointerdown", onPointerDown, { capture: true });
     document.addEventListener("keydown", onKeyDown);
     return () => {
-      document.removeEventListener("pointerdown", onPointerDown, { capture: true });
+      document.removeEventListener("pointerdown", onPointerDown, {
+        capture: true,
+      });
       document.removeEventListener("keydown", onKeyDown);
     };
   }, [open]);
 
-  // Récupération directe des liens mappés depuis notre structure centralisée
-  // Récupération directe des liens mappés depuis notre structure centralisée
-  const { accessType, userInfo } = useAccess();
+  const links = getMenuLinksForGroups(userGroups);
 
-  const role = getUserMode(getCurrentUser());
+  if (!showAuthenticatedActions || !isMounted) return null;
 
-  const links = MENU_LINKS.filter((link) => {
-
-    // PUBLIC
-    if (accessType === "public") {
-        return link.access === "public";
-    }
-
-    // PRIVATE
-    if (accessType === "private") {
-
-        // Pas de rôle => tous les liens
-        if (role === "default") {
-            return true;
-        }
-
-        // Les liens publics sont visibles par tout le monde
-        if (link.access === "public") {
-            return true;
-        }
-
-        // Les liens privés sont filtrés par rôle
-        return link.roles?.includes(role) ?? false;
-    }
-
-    return false;
-});
-
-  if (!showAuthenticatedActions) return null;
   const handleToggleMenu = () => {
     setOpen((prev) => !prev);
   };
 
   return (
-    <div
-      ref={rootRef}
-      className={`relative inline-block ${className}`}
-    >
+    <div ref={rootRef} className={`relative inline-block ${className}`}>
       {/* 1. Le Bouton Déclencheur */}
       <button
         id={buttonId}
@@ -204,7 +252,9 @@ export default function Menu({ className = "" }: { className?: string }) {
         <span className="flex items-center gap-2.5 leading-none">
           <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.15)]" />
           Menu
-          <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${open ? "rotate-180 text-emerald-600" : ""}`} />
+          <ChevronDown
+            className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${open ? "rotate-180 text-emerald-600" : ""}`}
+          />
         </span>
       </button>
 
@@ -213,10 +263,11 @@ export default function Menu({ className = "" }: { className?: string }) {
         id={menuId}
         role="menu"
         aria-labelledby={buttonId}
-        className={`absolute top-full left-0 z-50 mt-2 w-[240px] overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xl transition-all duration-200 origin-top-left flex flex-col ${open
-          ? "visible opacity-100 scale-100 translate-y-0"
-          : "invisible opacity-0 scale-95 -translate-y-1"
-          }`}
+        className={`absolute top-full left-0 z-50 mt-2 w-[240px] overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xl transition-all duration-200 origin-top-left flex flex-col ${
+          open
+            ? "visible opacity-100 scale-100 translate-y-0"
+            : "invisible opacity-0 scale-95 -translate-y-1"
+        }`}
         style={{
           // Suppression du 60vh. Le menu fait désormais la taille exacte de son contenu.
           // max-height empêche le menu de casser l'écran s'il y a trop d'éléments.
@@ -228,7 +279,10 @@ export default function Menu({ className = "" }: { className?: string }) {
           <div>
             {/* Ligne décorative haute */}
             <div className="mb-4 px-1">
-              <div className="h-[3px] w-12 rounded-full bg-gradient-to-r from-emerald-500 to-green-400" aria-hidden="true" />
+              <div
+                className="h-[3px] w-12 rounded-full bg-gradient-to-r from-emerald-500 to-green-400"
+                aria-hidden="true"
+              />
             </div>
 
             {/* Menu de navigation principal */}
@@ -243,16 +297,20 @@ export default function Menu({ className = "" }: { className?: string }) {
                       key={item.href}
                       href={item.href}
                       role="menuitem"
-                      className={`group/item flex items-center gap-3 rounded-xl py-2.5 px-3.5 text-left text-sm font-medium transition-all duration-150 outline-none ${isActive
-                        ? "bg-emerald-50/80 text-emerald-700 font-semibold shadow-sm"
-                        : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                        }`}
+                      className={`group/item flex items-center gap-3 rounded-xl py-2.5 px-3.5 text-left text-sm font-medium transition-all duration-150 outline-none ${
+                        isActive
+                          ? "bg-emerald-50/80 text-emerald-700 font-semibold shadow-sm"
+                          : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                      }`}
                       onClick={() => setOpen(false)}
                     >
                       <Icon
                         size={18}
-                        className={`transition-colors ${isActive ? "text-emerald-600" : "text-slate-400 group-hover/item:text-slate-600"
-                          }`}
+                        className={`transition-colors ${
+                          isActive
+                            ? "text-emerald-600"
+                            : "text-slate-400 group-hover/item:text-slate-600"
+                        }`}
                       />
                       <span className="truncate">{item.label}</span>
                     </Link>
@@ -277,6 +335,5 @@ export default function Menu({ className = "" }: { className?: string }) {
         </div>
       </div>
     </div>
-
   );
 }

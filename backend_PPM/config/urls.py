@@ -12,8 +12,10 @@ urlpatterns = [
     path("api/ppm/", include("apps.ppm.urls")),
     path("api/achats/", include("apps.achats.urls")),
     path("api/TdrSt/", include("apps.TdrSt.urls")),
+    path("api/procurement/", include("apps.procurement.urls")),
     path("api/users/", include("apps.users.urls")),
-
+    path("api/ouverture/", include("apps.ouverture_offre.urls")), 
+    path("api/evaluation/", include("apps.evaluation_offre.urls")),
     # Current login uses the stock JWT endpoint.
     # If one day access must be enforced by email domain on the backend
     # (for example allow "@ucp" here and reject others), this is the route

@@ -361,8 +361,11 @@ export interface EvaluationList {
   montant_global: string;
 }
 
-function flattenEvaluationDetail(data: Record<string, unknown>): EvaluationDetail {
-  const offreDetail = (data.offre_detail ?? {}) as EvaluationDetail["offre_detail"];
+function flattenEvaluationDetail(
+  data: Record<string, unknown>,
+): EvaluationDetail {
+  const offreDetail = (data.offre_detail ??
+    {}) as EvaluationDetail["offre_detail"];
   return {
     id: data.id as number,
     offre: data.offre as number,
@@ -370,22 +373,27 @@ function flattenEvaluationDetail(data: Record<string, unknown>): EvaluationDetai
     evaluateur_nom_prenom: (data.evaluateur_nom_prenom as string) || "",
     evaluateur_email: (data.evaluateur_email as string) || "",
     date_evaluation: data.date_evaluation as string | undefined,
-    examen_preliminaire: data.examen_preliminaire as EvaluationDetail["examen_preliminaire"],
-    evaluation_technique: data.evaluation_technique as EvaluationDetail["evaluation_technique"],
-    evaluation_financiere: data.evaluation_financiere as EvaluationDetail["evaluation_financiere"],
+    examen_preliminaire:
+      data.examen_preliminaire as EvaluationDetail["examen_preliminaire"],
+    evaluation_technique:
+      data.evaluation_technique as EvaluationDetail["evaluation_technique"],
+    evaluation_financiere:
+      data.evaluation_financiere as EvaluationDetail["evaluation_financiere"],
     conclusion: data.conclusion as EvaluationDetail["conclusion"],
     peut_saisir_technique: Boolean(data.peut_saisir_technique ?? true),
     blocage_technique: (data.blocage_technique as string) || "",
     peut_saisir_financiere: Boolean(data.peut_saisir_financiere),
     blocage_financier: (data.blocage_financier as string) || "",
     evaluateurs_avancement:
-      (data.evaluateurs_avancement as EvaluationDetail["evaluateurs_avancement"]) || [],
+      (data.evaluateurs_avancement as EvaluationDetail["evaluateurs_avancement"]) ||
+      [],
     consensus_alerte: Boolean(data.consensus_alerte),
     consensus_ecart: Number(data.consensus_ecart || 0),
     moins_disant_calcule: data.moins_disant_calcule as string | undefined,
     score_final_individuel: data.score_final_individuel as number | undefined,
     progression: (data.progression as ProgressionStatut) || "PAS_COMMENCE",
-    evaluateurs_seance: (data.evaluateurs_seance as EvaluationDetail["evaluateurs_seance"]) || [],
+    evaluateurs_seance:
+      (data.evaluateurs_seance as EvaluationDetail["evaluateurs_seance"]) || [],
   };
 }
 
@@ -393,11 +401,14 @@ export async function fetchEvaluationList(): Promise<EvaluationList[]> {
   const res = await fetchWithAuthRetry(`${API_BASE_URL}/evaluation/`, {
     method: "GET",
   });
-  if (!res.ok) throw new Error("Erreur lors de la récupération des évaluations");
+  if (!res.ok)
+    throw new Error("Erreur lors de la récupération des évaluations");
   return res.json();
 }
 
-export async function fetchDaoOffres(seanceId: number): Promise<DaoOffresResponse> {
+export async function fetchDaoOffres(
+  seanceId: number,
+): Promise<DaoOffresResponse> {
   const res = await fetchWithAuthRetry(
     `${API_BASE_URL}/evaluation/dao/${seanceId}/offres/`,
     { method: "GET" },
@@ -409,7 +420,9 @@ export async function fetchDaoOffres(seanceId: number): Promise<DaoOffresRespons
   return res.json();
 }
 
-export async function fetchClassement(seanceId: number): Promise<ClassementResponse> {
+export async function fetchClassement(
+  seanceId: number,
+): Promise<ClassementResponse> {
   const res = await fetchWithAuthRetry(
     `${API_BASE_URL}/evaluation/dao/${seanceId}/classement/`,
     { method: "GET" },
@@ -421,12 +434,15 @@ export async function fetchClassement(seanceId: number): Promise<ClassementRespo
   return res.json();
 }
 
-export async function fetchEvaluationDetail(offreId: number): Promise<EvaluationDetail> {
+export async function fetchEvaluationDetail(
+  offreId: number,
+): Promise<EvaluationDetail> {
   const res = await fetchWithAuthRetry(
     `${API_BASE_URL}/evaluation/${offreId}/`,
     { method: "GET" },
   );
-  if (!res.ok) throw new Error("Erreur lors de la récupération du détail d'évaluation");
+  if (!res.ok)
+    throw new Error("Erreur lors de la récupération du détail d'évaluation");
   const data = await res.json();
   return flattenEvaluationDetail(data);
 }
@@ -456,16 +472,18 @@ export async function fetchAssignationList(): Promise<DaoDashboardItem[]> {
     `${API_BASE_URL}/evaluation/assignations/`,
     { method: "GET" },
   );
-  if (!res.ok) throw new Error("Erreur lors de la récupération du tableau de bord");
+  if (!res.ok)
+    throw new Error("Erreur lors de la récupération du tableau de bord");
   return res.json();
 }
 
 export async function fetchDaoDashboard(): Promise<DaoDashboardItem[]> {
   const res = await fetchWithAuthRetry(
-    `${API_BASE_URL}/evaluation/dao/dashboard/`,
+    `${API_BASE_URL}/api/evaluation/dao/dashboard/`,
     { method: "GET" },
   );
-  if (!res.ok) throw new Error("Erreur lors de la récupération du tableau de bord");
+  if (!res.ok)
+    throw new Error("Erreur lors de la récupération du tableau de bord");
   return res.json();
 }
 
@@ -538,11 +556,14 @@ export async function verifyEvaluateurPassword(
   password: string,
   seanceId: number,
 ): Promise<void> {
-  const res = await fetchWithAuthRetry(`${API_BASE_URL}/evaluation/auth/verify/`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ password: password.trim(), seance_id: seanceId }),
-  });
+  const res = await fetchWithAuthRetry(
+    `${API_BASE_URL}/evaluation/auth/verify/`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: password.trim(), seance_id: seanceId }),
+    },
+  );
   if (!res.ok) {
     const error = await res.json().catch(() => ({}));
     throw new Error(

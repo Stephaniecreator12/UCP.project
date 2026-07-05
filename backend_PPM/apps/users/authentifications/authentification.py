@@ -48,7 +48,32 @@ MOCK_RH_DATABASE = {
         "programme_code": "GAVI",
         "programme_nom": "Alliance Gavi",
         "is_active": True,
-        "groups": ["RAF", "VALIDATEUR_BUDGETAIRE"]
+        "groups": ["RAF", "SECRETAIRE"]
+    },
+    "mock_token_alice_100": {
+        "id": "100",
+        "matricule": "100/UCP",
+        "nom": "ALICE",
+        "prenom": "Alice",
+        "email": "alice@ucp.mg",
+        "fonction": "Gestionnaire",
+        "programme_code": "FM",
+        "programme_nom": "Fonds Mondial",
+        "is_active": True,
+        "groups": ["DEMANDEUR"]
+        
+    },
+    "mock_token_secretaire_50": {
+        "id": "50",
+        "matricule": "050/UCP",
+        "nom": "RAKOTO",
+        "prenom": "Secrétaire",
+        "email": "secretaire@ucp.mg",   # ← email différente d'Alice !
+        "fonction": "Secrétaire",
+        "programme_code": "FM",
+        "programme_nom": "Fonds Mondial",
+        "is_active": True,
+        "groups": ["SECRETAIRE"]
     }
 }
 
@@ -148,7 +173,7 @@ def provision_user(user_data):
     # Associer les groupes par défaut au poste s'il vient d'être créé
     if user_data.get("groups"):
         groups_list = get_or_create_groups(user_data["groups"])
-        poste.groups.add(*groups_list)
+        poste.groups.set(groups_list)
 
     # 6. Créer ou mettre à jour le profil AgentProfile
     profile, _ = AgentProfile.objects.get_or_create(

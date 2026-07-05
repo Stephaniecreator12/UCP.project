@@ -80,11 +80,16 @@ INSTALLED_APPS = [
 
     'rest_framework',#Django REST Framework permet de creer des APIs
     'rest_framework_simplejwt',#librairie JWT pour l’authentification :login,token,refresh token
+    'django_filters',#librairie pour les filtres sur les APIs
 
     'apps.users',
     'apps.ppm',
     'apps.achats',
     'apps.TdrSt',
+    'apps.procurement',
+    'apps.ouverture_offre',
+    'apps.evaluation_offre',
+    'apps.log',
 ]
 
 MIDDLEWARE = [
@@ -205,6 +210,22 @@ REST_FRAMEWORK = {
 }
 
 CORS_ALLOW_ALL_ORIGINS = env_bool("CORS_ALLOW_ALL_ORIGINS", DEBUG)
+CORS_ALLOW_CREDENTIALS = True  # ← Permet les cookies/credentials avec CORS
+
+CORS_ALLOW_HEADERS = [
+    "accept",
+    "accept-encoding",
+    "authorization",
+    "content-type",
+    "dnt",
+    "origin",
+    "user-agent",
+    "x-csrftoken",
+    "x-requested-with",
+    "x-access-type",  # ← Header personnalisé du frontend
+    "x-file-type",
+    "x-filename",
+]
 
 from datetime import timedelta
 

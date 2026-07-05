@@ -3,11 +3,16 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { getToken, login } from "@/services/auth";
+import {
+  getCurrentUser,
+  getLandingRouteForUser,
+  getToken,
+  login,
+} from "@/services/auth";
 import { useAccess } from "@/context/accessContext";
 const DEFAULT_PUBLIC_REGISTER_ROUTE = "/auth/public/register";
 const DEFAULT_PUBLIC_ROUTE = "/procurement";
-const DEFAULT_PRIVATE_ROUTE = "/admin/dashboard";
+const DEFAULT_PRIVATE_ROUTE = "/personnel/log-dashboard";
 export default function LoginPage() {
   const { setAccess, accessType } = useAccess();
   const [email, setEmail] = useState("");
@@ -18,14 +23,16 @@ export default function LoginPage() {
   const router = useRouter();
 
   useEffect(() => {
+    // Only redirect if already logged in (token exists AND we're not on login page initially)
     const token = getToken();
-    if (token) {
-      if (accessType == "private") {
-        router.push(`${DEFAULT_PRIVATE_ROUTE}`);
-      }
-      router.push(`${DEFAULT_PUBLIC_ROUTE}`);
+    const user = getCurrentUser();
+
+    if (token && user) {
+      // User is logged in, redirect to appropriate route
+      const targetRoute = getLandingRouteForUser(user);
+      router.push(targetRoute);
     }
-  }, [accessType, router]);
+  }, [router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,10 +43,13 @@ export default function LoginPage() {
     const result = await login(email, password, setAccess);
 
     if (result.success) {
-      if (accessType == "private") {
-        router.push(`${DEFAULT_PRIVATE_ROUTE}`);
-      }
-      router.push(`${DEFAULT_PUBLIC_ROUTE}`);
+      const currentUser = getCurrentUser();
+      const targetRoute = currentUser
+        ? getLandingRouteForUser(currentUser)
+        : result.accessType === "private"
+          ? DEFAULT_PRIVATE_ROUTE
+          : DEFAULT_PUBLIC_ROUTE;
+      router.push(targetRoute);
       return;
     } else if (result.message == "identifiants publique introuvable") {
       setLoading(false);

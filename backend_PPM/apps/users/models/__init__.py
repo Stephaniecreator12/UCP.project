@@ -1,3 +1,4 @@
-from .users import UserProfile
 from .public import PublicProfile
-__all__ = ["UserProfile","PublicProfile"]
+from .agent import Programme, Poste, AgentProfile
+
+__all__ = ["PublicProfile", "Programme", "Poste", "AgentProfile"]

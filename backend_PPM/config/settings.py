@@ -12,16 +12,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 from pathlib import Path
 import os 
-from celery.schedules import crontab
 from dotenv import load_dotenv
-AUTH_USER_MODEL = 'users.PublicProfile'
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent
-load_dotenv()
-import socket
-from urllib.parse import urlsplit, urlunsplit
-from dotenv import load_dotenv
-import dj_database_url
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -39,7 +30,7 @@ def env_bool(name, default=False):
 
 def env_int(name, default):
     value = os.getenv(name)
-    if value is None or value == "":
+    if value in [None, ""]:
         return default
 
     try:
@@ -53,48 +44,25 @@ def env_list(name, default=""):
     return [item.strip() for item in raw.split(",") if item.strip()]
 
 
-def _get_lan_ip():
-    try:
-        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
-            sock.connect(("8.8.8.8", 80))
-            return sock.getsockname()[0]
-    except OSError:
-        return ""
+FRONTEND_APP_URL = os.getenv("FRONTEND_APP_URL", "http://localhost:3000").rstrip("/")
+FRONTEND_URL = FRONTEND_APP_URL
 
-
-def _resolve_frontend_app_url():
-    raw_url = os.getenv("FRONTEND_APP_URL", "http://localhost:3000").rstrip("/")
-    parsed = urlsplit(raw_url)
-
-    if DEBUG and parsed.hostname in {"localhost", "127.0.0.1", "0.0.0.0"}:
-        lan_host = os.getenv("FRONTEND_LAN_HOST", "").strip() or _get_lan_ip()
-        if lan_host:
-            port = parsed.port or 3000
-            netloc = f"{lan_host}:{port}" if port else lan_host
-            return urlunsplit((parsed.scheme or "http", netloc, parsed.path, "", "")).rstrip("/")
-
-    return raw_url
+# Build paths inside the project like this: BASE_DIR / 'subdir'.
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get('SECRET_KEY')
+SECRET_KEY = os.getenv("SECRET_KEY") or 'django-insecure-zs0yxq36mps)t8kk85$n=qhf4uyfx5-$7&j(gz(^)ed-@u9$7r'
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env_bool("DEBUG", True)
-
-FRONTEND_APP_URL = _resolve_frontend_app_url()
-FRONTEND_URL = FRONTEND_APP_URL
 
 ALLOWED_HOSTS = env_list(
     "ALLOWED_HOSTS",
     "192.168.90.167,localhost,127.0.0.1",
 )
-RENDER_EXTERNAL_HOSTNAME = os.getenv("RENDER_EXTERNAL_HOSTNAME")
-if RENDER_EXTERNAL_HOSTNAME and RENDER_EXTERNAL_HOSTNAME not in ALLOWED_HOSTS:
-    ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
 if DEBUG and "*" not in ALLOWED_HOSTS:
     ALLOWED_HOSTS.append("*")
 
@@ -107,21 +75,21 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'django_celery_beat',
 
     'corsheaders',#librairie qui autoriser le frontend (Next.js) à appeler API Django.
 
     'rest_framework',#Django REST Framework permet de creer des APIs
     'rest_framework_simplejwt',#librairie JWT pour l’authentification :login,token,refresh token
+    'django_filters',#librairie pour les filtres sur les APIs
 
     'apps.users',
     'apps.ppm',
+    'apps.achats',
     'apps.TdrSt',
     'apps.procurement',
-    'apps.log',
-    'apps.achats',
-    "apps.ouverture_offre",
+    'apps.ouverture_offre',
     'apps.evaluation_offre',
+    'apps.log',
 ]
 
 MIDDLEWARE = [
@@ -131,13 +99,10 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.locale.LocaleMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
-if not DEBUG:
-    MIDDLEWARE.insert(3, "whitenoise.middleware.WhiteNoiseMiddleware")
 
 ROOT_URLCONF = 'config.urls'
 
@@ -162,39 +127,21 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
-DATABASE_URL = os.getenv("DATABASE_URL")
-if DATABASE_URL:
-    DATABASES = {
-        "default": dj_database_url.config(
-            default=DATABASE_URL,
-            conn_max_age=600,
-            conn_health_checks=True,
-        )
+
+DATABASES = {
+    'default': {
+        'ENGINE': os.getenv("DB_ENGINE", 'django.db.backends.postgresql'),
+        'NAME': os.getenv("DB_NAME", 'passation_db'),
+        'USER': os.getenv("DB_USER", 'postgres'),
+        'PASSWORD': os.getenv("DB_PASSWORD", 'passation'),
+        'HOST': os.getenv("DB_HOST", 'localhost'),
+        'PORT': os.getenv("DB_PORT", '5432'),
+        'TEST': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': ':memory:',
+}
     }
-else:
-    DATABASES = {
-        'default': {
-            'ENGINE': os.getenv("DB_ENGINE", 'django.db.backends.postgresql'),
-            'NAME': os.getenv("DB_NAME", 'passation_db'),
-            'USER': os.getenv("DB_USER", 'passation_manager'),
-            'PASSWORD': os.getenv("DB_PASSWORD", 'passation'),
-            'HOST': os.getenv("DB_HOST", 'localhost'),
-            'PORT': os.getenv("DB_PORT", '5432'),
-            'TEST': {
-                'ENGINE': 'django.db.backends.sqlite3',
-                'NAME': ':memory:',
-            }
-            },
-            'external_users': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('RH_DB_NAME'),
-        'USER': os.environ.get('RH_DB_USER'),
-        'PASSWORD': os.environ.get('RH_DB_PASSWORD'),
-        'HOST': os.environ.get('RH_DB_HOST'),
-        'PORT': os.environ.get('RH_DB_PORT'),
-    }
-    }
-        
+}
 
 
 # Password validation
@@ -206,9 +153,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
     {
         'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-    },
-    {
-        'NAME': 'apps.users.validators.userValidator.ComplexityValidator',
     },
     {
         'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
@@ -235,38 +179,10 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
-STATIC_ROOT = BASE_DIR / "staticfiles"
-MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"
-if not DEBUG:
-    STORAGES = {
-        "default": {
-            "BACKEND": "django.core.files.storage.FileSystemStorage",
-        },
-        "staticfiles": {
-            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
-        },
-    }
-
-# Media (uploads) - nécessaire pour servir les PDF téléversés en développement
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
 #autoriser acces a front
-
-CORS_ALLOW_HEADERS = [
-    'accept',
-    'accept-encoding',
-    'authorization',
-    'content-type',
-    'dnt',
-    'origin',
-    'user-agent',
-    'x-csrftoken',
-    'x-requested-with',
-    'x-access-type'
-]
-
 
 DEFAULT_FRONTEND_ORIGINS = ",".join([
     FRONTEND_APP_URL,
@@ -287,17 +203,29 @@ CSRF_TRUSTED_ORIGINS = env_list(
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        'apps.users.authentifications.authentification.HybridJWTAuthentication',
+        "apps.users.authentifications.authentification.HybridJWTAuthentication",
         "rest_framework.authentication.SessionAuthentication",
         "rest_framework.authentication.BasicAuthentication",
-        
-    ],
-    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
-    "PAGE_SIZE": 10,
+    ]
 }
 
-CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_ORIGINS = env_bool("CORS_ALLOW_ALL_ORIGINS", DEBUG)
+CORS_ALLOW_CREDENTIALS = True  # ← Permet les cookies/credentials avec CORS
+
+CORS_ALLOW_HEADERS = [
+    "accept",
+    "accept-encoding",
+    "authorization",
+    "content-type",
+    "dnt",
+    "origin",
+    "user-agent",
+    "x-csrftoken",
+    "x-requested-with",
+    "x-access-type",  # ← Header personnalisé du frontend
+    "x-file-type",
+    "x-filename",
+]
 
 from datetime import timedelta
 
@@ -305,52 +233,9 @@ SIMPLE_JWT = {
     
     'ACCESS_TOKEN_LIFETIME': timedelta(days=1), # Le token durera 24h
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
-    'SIGNING_KEY': os.environ.get('SECRET_KEY'), 
-    'USER_ID_FIELD': 'id',
-    'USER_ID_CLAIM': 'user_id',
     'AUTH_HEADER_TYPES': ('Bearer',),
-    'AUTHENTICATION_TOKEN_CLASSES': (
-        'rest_framework_simplejwt.authentication.StatelessUserAuthentication',
-    ),
 }
 
-# Email configuration
-
-# Frontend URL pour les liens
-FRONTEND_URL = 'http://localhost:3000'  # À adapter en production
-
-LANGUAGE_CODE = 'fr-fr'
-
-TIME_ZONE = 'UTC' 
-USE_I18N = True
-USE_L10N = True
-USE_TZ = True
-
-# Configuration Celery
-CELERY_BROKER_URL = 'redis://localhost:6379/0'
-CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
-CELERY_ACCEPT_CONTENT = ['json']
-CELERY_TASK_SERIALIZER = 'json'
-TIME_ZONE = "Indian/Antananarivo"
-CELERY_TIMEZONE = TIME_ZONE
-USE_TZ = True
-
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-DEFAULT_FROM_EMAIL = 'no-reply@ucp-marches.gov'
-
-
-CELERY_BEAT_SCHEDULE = {
-    "daily-ucp-report": {
-        "task": "apps.log.tasks.send_daily_ucp_report_task.send_daily_ucp_report",
-        "schedule": crontab(hour=7, minute=0),
-    },
-    "daily-operational-report": {
-        "task": "apps.log.tasks.operational_monitoring_task.send_operational_report",
-        "schedule": crontab(hour=7, minute=0),
-    },
-}
-from zoneinfo import available_timezones
-print("Indian/Antananarivo" in available_timezones())
 
 EMAIL_BACKEND = os.getenv(
     "EMAIL_BACKEND",
@@ -387,15 +272,6 @@ TDRST_EMAIL_SUBJECT_PREFIX = os.getenv(
     "[UCP TDR/ST] ",
 )
 TDRST_NOTIFICATION_REPLY_TO = env_list("TDRST_NOTIFICATION_REPLY_TO")
-OUVERTURE_NOTIFICATION_EMAILS_ENABLED = env_bool(
-    "OUVERTURE_NOTIFICATION_EMAILS_ENABLED",
-    True,
-)
-OUVERTURE_EMAIL_SUBJECT_PREFIX = os.getenv(
-    "OUVERTURE_EMAIL_SUBJECT_PREFIX",
-    "[UCP Ouverture] ",
-)
-OUVERTURE_NOTIFICATION_REPLY_TO = env_list("OUVERTURE_NOTIFICATION_REPLY_TO")
 
 EXTERNAL_PERSONNEL_API_URL = os.getenv("EXTERNAL_PERSONNEL_API_URL", "")
 EXTERNAL_PERSONNEL_API_TOKEN = os.getenv("EXTERNAL_PERSONNEL_API_TOKEN", "")

@@ -1,16 +1,38 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import {
+  Suspense,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Search, X, ChevronDown, Activity, Clock, Truck, PackageCheck, CheckCircle2, ChevronLeft, ChevronRight as ChevronRightIcon, Plus } from "lucide-react";
+import {
+  Search,
+  X,
+  ChevronDown,
+  Activity,
+  Clock,
+  Truck,
+  PackageCheck,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight as ChevronRightIcon,
+  Plus,
+} from "lucide-react";
 
 import TopHeader from "@/app/components/TopHeader";
 import DemandeDetailModal from "@/app/personnel/demande-achat/components/DemandeDetailModal";
 import ResolveIssueModal from "@/app/personnel/demande-achat/components/ResolveIssueModal";
 import ClotureModal from "@/app/personnel/demande-achat/components/ClotureModal";
 import ReceptionModal from "@/app/personnel/demande-achat/components/ReceptionModal";
-import { DashboardFilterBar, useDashboardFilters } from "@/app/personnel/demande-achat/components/DashboardFilterBar";
+import {
+  DashboardFilterBar,
+  useDashboardFilters,
+} from "@/app/personnel/demande-achat/components/DashboardFilterBar";
 import {
   type DemandePrimaryAction,
   formatDate,
@@ -29,11 +51,7 @@ import {
   stepLabels,
   typeLabels,
 } from "@/app/personnel/demande-achat/components/demandeAchatShared";
-import {
-  getCurrentUser,
-  getToken,
-  type UserProfile,
-} from "@/services/auth";
+import { getCurrentUser, getToken, type UserProfile } from "@/services/auth";
 import {
   type DashboardScope,
   DemandeAchat,
@@ -143,7 +161,10 @@ type SectionDemandesListProps = {
   onOpenCloture: (id: number) => void;
 };
 
-type ArchiveGroupBlockProps = Omit<SectionDemandesListProps, "items" | "sectionKey"> & {
+type ArchiveGroupBlockProps = Omit<
+  SectionDemandesListProps,
+  "items" | "sectionKey"
+> & {
   group: ArchiveGroupData;
   isActive: boolean;
   onToggle: () => void;
@@ -155,7 +176,11 @@ const PAGE_SIZE = 5;
 const subscribeNoop = () => () => {};
 
 const useHasHydrated = () =>
-  useSyncExternalStore(subscribeNoop, () => true, () => false);
+  useSyncExternalStore(
+    subscribeNoop,
+    () => true,
+    () => false,
+  );
 
 const filterDemandesByQuery = (items: DemandeAchat[], query: string) => {
   const normalizedQuery = query.trim().toLowerCase();
@@ -173,8 +198,11 @@ const filterDemandesByQuery = (items: DemandeAchat[], query: string) => {
       getDemandeTrackingStageLabel(demande),
       getDemandeCurrentOwnerLabel(demande),
       statusLabels[demande.statut] ?? demande.statut,
-      stepLabels[demande.etape_validation_actuelle] ?? demande.etape_validation_actuelle,
-    ].join(" ").toLowerCase();
+      stepLabels[demande.etape_validation_actuelle] ??
+        demande.etape_validation_actuelle,
+    ]
+      .join(" ")
+      .toLowerCase();
 
     return searchableText.includes(normalizedQuery);
   });
@@ -195,7 +223,9 @@ const validationSectionOrder: ValidationSectionKey[] = [
   "approbation_finale",
 ];
 
-const stepToValidationSection: Partial<Record<EtapeValidation, ValidationSectionKey>> = {
+const stepToValidationSection: Partial<
+  Record<EtapeValidation, ValidationSectionKey>
+> = {
   HIERARCHIQUE: "validation_hierarchique",
   TECHNIQUE: "validation_technique",
   BUDGETAIRE: "validation_budgetaire",
@@ -253,7 +283,10 @@ const isValidationSectionKey = (
   sectionKey === "validation_programmatique" ||
   sectionKey === "approbation_finale";
 
-const getSectionContextLine = (demande: DemandeAchat, sectionKey?: SectionKey | null) => {
+const getSectionContextLine = (
+  demande: DemandeAchat,
+  sectionKey?: SectionKey | null,
+) => {
   if (demande.statut === "CLOTUREE") {
     return `Clôturée le ${formatDate(demande.date_cloture || demande.updated_at)}`;
   }
@@ -277,7 +310,10 @@ const getSectionContextLine = (demande: DemandeAchat, sectionKey?: SectionKey | 
   if (sectionKey === "procurement" || demande.statut === "VALIDEE_BUDGETAIRE") {
     return "Dossier validé. Passation attendue.";
   }
-  if (sectionKey === "delivery" || ["EN_COMMANDE", "EN_LIVRAISON"].includes(demande.statut)) {
+  if (
+    sectionKey === "delivery" ||
+    ["EN_COMMANDE", "EN_LIVRAISON"].includes(demande.statut)
+  ) {
     return `Livraison prévue: ${formatDate(demande.date_arrivee_prevue ?? demande.date_livraison_prevue)}`;
   }
   if (sectionKey === "reception" && needsIssueResolutionAction(demande)) {
@@ -329,7 +365,10 @@ function DashboardPageFallback() {
         <div className="mx-auto max-w-[1560px] px-4 py-6 sm:px-6 lg:px-10">
           <div className="space-y-4 animate-pulse">
             {[...Array(3)].map((_, i) => (
-              <div key={i} className="flex h-32 flex-col justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div
+                key={i}
+                className="flex h-32 flex-col justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+              >
                 <div className="flex-1 space-y-3">
                   <div className="flex gap-2">
                     <div className="h-4 w-20 rounded bg-slate-200"></div>
@@ -369,19 +408,26 @@ function DashboardPageContent() {
   const [query, setQuery] = useState("");
   const [displayMode, setDisplayMode] = useState<DisplayMode>("status");
   const [activeSection, setActiveSection] = useState<SectionKey | null>(null);
-  const [activeArchiveGroup, setActiveArchiveGroup] = useState<ArchiveGroupKey | null>(null);
-  const [selectedDemandeId, setSelectedDemandeId] = useState<number | null>(null);
-  const [detailViewMode, setDetailViewMode] = useState<DetailViewMode>("detail");
-  const [receptionModalDemandeId, setReceptionModalDemandeId] = useState<number | null>(null);
-  const [resolveIssueModalDemandeId, setResolveIssueModalDemandeId] = useState<number | null>(null);
-  const [clotureModalDemandeId, setClotureModalDemandeId] = useState<number | null>(null);
+  const [activeArchiveGroup, setActiveArchiveGroup] =
+    useState<ArchiveGroupKey | null>(null);
+  const [selectedDemandeId, setSelectedDemandeId] = useState<number | null>(
+    null,
+  );
+  const [detailViewMode, setDetailViewMode] =
+    useState<DetailViewMode>("detail");
+  const [receptionModalDemandeId, setReceptionModalDemandeId] = useState<
+    number | null
+  >(null);
+  const [resolveIssueModalDemandeId, setResolveIssueModalDemandeId] = useState<
+    number | null
+  >(null);
+  const [clotureModalDemandeId, setClotureModalDemandeId] = useState<
+    number | null
+  >(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const canAccessGlobalDashboard = true;
   const rawScope = (searchParams.get("scope") ?? "").trim().toLowerCase();
-  const dashboardScope: DashboardScope =
-    rawScope === "all"
-      ? "all"
-      : "mine";
+  const dashboardScope: DashboardScope = rawScope === "all" ? "all" : "mine";
   const searchParamsString = searchParams.toString();
 
   // On recalcule les URLs de navigation en conservant les autres paramètres
@@ -391,14 +437,14 @@ function DashboardPageContent() {
     params.delete("scope");
     const queryString = params.toString();
     return queryString
-      ? `/demande-achat/dashboard?${queryString}`
-      : "/demande-achat/dashboard";
+      ? `/personnel/demande-achat/dashboard?${queryString}`
+      : "/personnel/demande-achat/dashboard";
   }, [searchParamsString]);
   const allScopeHref = useMemo(() => {
     const params = new URLSearchParams(searchParamsString);
     params.set("scope", "all");
     const queryString = params.toString();
-    return `/demande-achat/dashboard?${queryString}`;
+    return `/personnel/demande-achat/dashboard?${queryString}`;
   }, [searchParamsString]);
 
   const showToast = (message: string) => {
@@ -453,7 +499,10 @@ function DashboardPageContent() {
   }, [dashboardScope, router]);
 
   const archiveDemandes = useMemo(
-    () => filteredDemandes.filter((d) => ["CLOTUREE", "REJETEE"].includes(d.statut)),
+    () =>
+      filteredDemandes.filter((d) =>
+        ["CLOTUREE", "REJETEE"].includes(d.statut),
+      ),
     [filteredDemandes],
   );
   const preparationDemandes = useMemo(
@@ -475,7 +524,8 @@ function DashboardPageContent() {
             return acc;
           }
 
-          const sectionKey = stepToValidationSection[demande.etape_validation_actuelle];
+          const sectionKey =
+            stepToValidationSection[demande.etape_validation_actuelle];
           if (sectionKey) {
             acc[sectionKey].push(demande);
           }
@@ -497,7 +547,10 @@ function DashboardPageContent() {
     [filteredDemandes],
   );
   const deliveryDemandes = useMemo(
-    () => filteredDemandes.filter((d) => ["EN_COMMANDE", "EN_LIVRAISON"].includes(d.statut)),
+    () =>
+      filteredDemandes.filter((d) =>
+        ["EN_COMMANDE", "EN_LIVRAISON"].includes(d.statut),
+      ),
     [filteredDemandes],
   );
   const receptionDemandes = useMemo(
@@ -689,7 +742,10 @@ function DashboardPageContent() {
     [filteredDemandes, isSearching, searchResults],
   );
 
-  const selectedDemande = useMemo(() => demandes.find((item) => item.id === selectedDemandeId) ?? null, [demandes, selectedDemandeId]);
+  const selectedDemande = useMemo(
+    () => demandes.find((item) => item.id === selectedDemandeId) ?? null,
+    [demandes, selectedDemandeId],
+  );
   const emptyStateTitle =
     dashboardScope === "all"
       ? "Aucun dossier dans le circuit"
@@ -712,7 +768,9 @@ function DashboardPageContent() {
                   <Activity className="h-5 w-5" />
                 </div>
                 <div>
-                  <h1 className="text-[2rem] font-bold tracking-tight text-slate-900">Tableau de bord</h1>
+                  <h1 className="text-[2rem] font-bold tracking-tight text-slate-900">
+                    Tableau de bord
+                  </h1>
                   <p className="text-sm text-slate-500">
                     Gérez et suivez vos demandes d&apos;achat en temps réel
                   </p>
@@ -795,7 +853,7 @@ function DashboardPageContent() {
                 </div>
                 {dashboardScope === "mine" && (
                   <Link
-                    href="/demande-achat/new"
+                    href="/personnel/demande-achat/new"
                     className="inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-slate-900 px-5 py-2.5 text-[13px] font-semibold text-white shadow-sm transition-colors hover:bg-slate-800"
                   >
                     <Plus className="h-4 w-4" /> Nouvel état
@@ -808,7 +866,10 @@ function DashboardPageContent() {
           {loading ? (
             <div className="space-y-4 animate-pulse">
               {[...Array(3)].map((_, i) => (
-                <div key={i} className="flex h-32 flex-col justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div
+                  key={i}
+                  className="flex h-32 flex-col justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+                >
                   <div className="flex-1 space-y-3">
                     <div className="flex gap-2">
                       <div className="h-4 w-20 rounded bg-slate-200"></div>
@@ -834,10 +895,17 @@ function DashboardPageContent() {
               {demandes.length === 0 ? (
                 <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center shadow-sm">
                   <Activity className="mx-auto mb-4 h-12 w-12 text-slate-300" />
-                  <h2 className="mb-2 text-lg font-bold text-slate-900">{emptyStateTitle}</h2>
-                  <p className="mb-6 text-sm text-slate-500">{emptyStateText}</p>
+                  <h2 className="mb-2 text-lg font-bold text-slate-900">
+                    {emptyStateTitle}
+                  </h2>
+                  <p className="mb-6 text-sm text-slate-500">
+                    {emptyStateText}
+                  </p>
                   {dashboardScope === "mine" && (
-                    <Link href="/demande-achat/new" className="text-sm font-semibold text-indigo-600 hover:underline">
+                    <Link
+                      href="/personnel/demande-achat/new"
+                      className="text-sm font-semibold text-indigo-600 hover:underline"
+                    >
                       Créer un état de besoins &rarr;
                     </Link>
                   )}
@@ -845,7 +913,9 @@ function DashboardPageContent() {
               ) : filteredDemandes.length === 0 && !isSearching ? (
                 <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center shadow-sm">
                   <Activity className="mx-auto mb-4 h-12 w-12 text-slate-300" />
-                  <h2 className="mb-2 text-lg font-bold text-slate-900">Aucun état trouvé</h2>
+                  <h2 className="mb-2 text-lg font-bold text-slate-900">
+                    Aucun état trouvé
+                  </h2>
                   <p className="mb-6 text-sm text-slate-500">
                     Aucun état de besoins ne correspond à vos filtres actuels.
                   </p>
@@ -870,7 +940,9 @@ function DashboardPageContent() {
                     setSelectedDemandeId(id);
                     setDetailViewMode("detail");
                   }}
-                  onOpenReception={(id: number) => setReceptionModalDemandeId(id)}
+                  onOpenReception={(id: number) =>
+                    setReceptionModalDemandeId(id)
+                  }
                   onOpenCloture={(id: number) => setClotureModalDemandeId(id)}
                 />
               ) : isSearching ? (
@@ -883,7 +955,9 @@ function DashboardPageContent() {
                     setSelectedDemandeId(id);
                     setDetailViewMode("detail");
                   }}
-                  onOpenReception={(id: number) => setReceptionModalDemandeId(id)}
+                  onOpenReception={(id: number) =>
+                    setReceptionModalDemandeId(id)
+                  }
                   onOpenCloture={(id: number) => setClotureModalDemandeId(id)}
                 />
               ) : (
@@ -894,7 +968,9 @@ function DashboardPageContent() {
                       section={section}
                       isActive={activeSection === section.key}
                       onToggle={() =>
-                        setActiveSection(activeSection === section.key ? null : section.key)
+                        setActiveSection(
+                          activeSection === section.key ? null : section.key,
+                        )
                       }
                       currentUser={currentUser}
                       router={router}
@@ -908,9 +984,15 @@ function DashboardPageContent() {
                         setSelectedDemandeId(id);
                         setDetailViewMode("detail");
                       }}
-                      onOpenReception={(id: number) => setReceptionModalDemandeId(id)}
-                      onOpenCloture={(id: number) => setClotureModalDemandeId(id)}
-                      archiveGroups={section.key === "archive" ? archiveGroups : undefined}
+                      onOpenReception={(id: number) =>
+                        setReceptionModalDemandeId(id)
+                      }
+                      onOpenCloture={(id: number) =>
+                        setClotureModalDemandeId(id)
+                      }
+                      archiveGroups={
+                        section.key === "archive" ? archiveGroups : undefined
+                      }
                     />
                   ))}
                 </div>
@@ -928,8 +1010,14 @@ function DashboardPageContent() {
       />
 
       <ReceptionModal
-        key={receptionModalDemandeId ? `reception-${receptionModalDemandeId}` : "reception-closed"}
-        demande={demandes.find((item) => item.id === receptionModalDemandeId) ?? null}
+        key={
+          receptionModalDemandeId
+            ? `reception-${receptionModalDemandeId}`
+            : "reception-closed"
+        }
+        demande={
+          demandes.find((item) => item.id === receptionModalDemandeId) ?? null
+        }
         open={!!receptionModalDemandeId}
         onClose={() => setReceptionModalDemandeId(null)}
         onSuccess={() => {
@@ -940,7 +1028,10 @@ function DashboardPageContent() {
       />
 
       <ResolveIssueModal
-        demande={demandes.find((item) => item.id === resolveIssueModalDemandeId) ?? null}
+        demande={
+          demandes.find((item) => item.id === resolveIssueModalDemandeId) ??
+          null
+        }
         open={!!resolveIssueModalDemandeId}
         onClose={() => setResolveIssueModalDemandeId(null)}
         onSuccess={() => {
@@ -951,7 +1042,9 @@ function DashboardPageContent() {
       />
 
       <ClotureModal
-        demande={demandes.find((item) => item.id === clotureModalDemandeId) ?? null}
+        demande={
+          demandes.find((item) => item.id === clotureModalDemandeId) ?? null
+        }
         open={!!clotureModalDemandeId}
         onClose={() => setClotureModalDemandeId(null)}
         onOpenDetail={() => {
@@ -977,7 +1070,6 @@ function DashboardPageContent() {
   );
 }
 
-
 function SearchResultsList({
   items,
   query,
@@ -998,14 +1090,18 @@ function SearchResultsList({
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
       <div className="border-b border-slate-200 bg-slate-50 px-5 py-4">
-        <h2 className="text-lg font-bold text-slate-800">Résultats de recherche</h2>
+        <h2 className="text-lg font-bold text-slate-800">
+          Résultats de recherche
+        </h2>
         <p className="text-sm text-slate-500">
           {items.length} résultat(s) pour {query}
         </p>
       </div>
 
       {items.length === 0 ? (
-        <div className="p-8 text-center text-slate-500">Aucun résultat trouvé pour cette recherche.</div>
+        <div className="p-8 text-center text-slate-500">
+          Aucun résultat trouvé pour cette recherche.
+        </div>
       ) : (
         <div className="p-4 space-y-3">
           {paginatedItems.map((demande: DemandeAchat) => (
@@ -1019,7 +1115,7 @@ function SearchResultsList({
               router={router}
             />
           ))}
-          
+
           {totalPages > 1 && (
             <PaginationControls
               page={currentPage}
@@ -1052,7 +1148,9 @@ function RadarTable({
     currentPage * PAGE_SIZE,
   );
   const title =
-    dashboardScope === "all" ? "Radar de tous les dossiers" : "Radar de mes dossiers";
+    dashboardScope === "all"
+      ? "Radar de tous les dossiers"
+      : "Radar de mes dossiers";
 
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -1111,7 +1209,9 @@ function RadarTable({
                       </td>
                       <td className="px-4 py-3">
                         <div className="max-w-[220px]">
-                          <p className="font-semibold text-slate-900">{demande.objet}</p>
+                          <p className="font-semibold text-slate-900">
+                            {demande.objet}
+                          </p>
                           <p className="mt-1 text-xs text-slate-500">
                             {getCompactNeedLabel(demande)}
                           </p>
@@ -1121,9 +1221,12 @@ function RadarTable({
                         {demande.demandeur_nom || "Non renseigné"}
                       </td>
                       <td className="px-4 py-3 text-slate-600">
-                        {typeLabels[demande.type_demande] ?? demande.type_demande}
+                        {typeLabels[demande.type_demande] ??
+                          demande.type_demande}
                       </td>
-                      <td className="px-4 py-3 text-slate-600">v{demande.version}</td>
+                      <td className="px-4 py-3 text-slate-600">
+                        v{demande.version}
+                      </td>
                       <td className="px-4 py-3">
                         <span
                           className="inline-flex max-w-[140px] truncate rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs text-slate-600"
@@ -1133,7 +1236,9 @@ function RadarTable({
                         </span>
                       </td>
                       <td className="px-4 py-3 font-semibold text-slate-900">
-                        {formatMoney(demande.montant_commande ?? demande.cout_total_estime)}
+                        {formatMoney(
+                          demande.montant_commande ?? demande.cout_total_estime,
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         <span className="inline-flex rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700">
@@ -1159,8 +1264,10 @@ function RadarTable({
                                 runPrimaryAction({
                                   action,
                                   router,
-                                  onOpenReception: () => onOpenReception(demande.id),
-                                  onOpenCloture: () => onOpenCloture(demande.id),
+                                  onOpenReception: () =>
+                                    onOpenReception(demande.id),
+                                  onOpenCloture: () =>
+                                    onOpenCloture(demande.id),
                                 })
                               }
                               className="rounded-lg bg-slate-900 px-3.5 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-white transition-colors hover:bg-slate-800"
@@ -1267,7 +1374,9 @@ function ArchiveGroupBlock({
         }`}
       >
         <div className="flex items-center gap-3">
-          <h3 className="text-sm font-semibold text-slate-900">{group.title}</h3>
+          <h3 className="text-sm font-semibold text-slate-900">
+            {group.title}
+          </h3>
           <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-xs font-semibold text-slate-600">
             {group.total}
           </span>
@@ -1331,7 +1440,10 @@ function AccordionSection({
   useEffect(() => {
     if (isActive && sectionRef.current) {
       setTimeout(() => {
-        sectionRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        sectionRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "nearest",
+        });
       }, 100);
     }
   }, [isActive]);
@@ -1340,7 +1452,9 @@ function AccordionSection({
     <div
       ref={sectionRef}
       className={`overflow-hidden rounded-xl border bg-white shadow-sm transition-colors ${
-        isActive ? "border-slate-300" : "border-slate-200 hover:border-slate-300"
+        isActive
+          ? "border-slate-300"
+          : "border-slate-200 hover:border-slate-300"
       }`}
     >
       <button
@@ -1355,13 +1469,19 @@ function AccordionSection({
         }`}
       >
         <div className="flex items-center gap-4">
-          <div className={`flex h-10 w-10 items-center justify-center rounded-xl border ${section.iconClass}`}>
+          <div
+            className={`flex h-10 w-10 items-center justify-center rounded-xl border ${section.iconClass}`}
+          >
             <Icon className="h-5 w-5" strokeWidth={2} />
           </div>
-          <span className="text-base font-semibold text-slate-900">{section.title}</span>
+          <span className="text-base font-semibold text-slate-900">
+            {section.title}
+          </span>
           <span
             className={`ml-1 rounded-full border px-3 py-1 text-xs font-semibold ${
-              hasItems ? section.badgeClass : "border-slate-200 bg-slate-100 text-slate-400"
+              hasItems
+                ? section.badgeClass
+                : "border-slate-200 bg-slate-100 text-slate-400"
             }`}
           >
             {section.total}
@@ -1373,7 +1493,9 @@ function AccordionSection({
             <span className={isActive ? "text-slate-700" : ""}>
               {isActive ? "Masquer" : "Afficher"}
             </span>
-            <div className={`rounded-lg bg-slate-100 p-1 text-slate-400 transition-transform ${isActive ? "rotate-180" : ""}`}>
+            <div
+              className={`rounded-lg bg-slate-100 p-1 text-slate-400 transition-transform ${isActive ? "rotate-180" : ""}`}
+            >
               <ChevronDown className="h-3.5 w-3.5" />
             </div>
           </div>
@@ -1415,7 +1537,11 @@ function AccordionSection({
   );
 }
 
-function PaginationControls({ page, totalPages, setPage }: PaginationControlsProps) {
+function PaginationControls({
+  page,
+  totalPages,
+  setPage,
+}: PaginationControlsProps) {
   return (
     <div className="flex items-center justify-between px-2 pt-2">
       <p className="text-xs font-medium text-slate-500">
@@ -1451,7 +1577,9 @@ function CompactDemandeRow({
   router,
 }: CompactDemandeRowProps) {
   const showDynamicState = useHasHydrated();
-  const deadlineState = showDynamicState ? getValidationDeadlineState(demande) : null;
+  const deadlineState = showDynamicState
+    ? getValidationDeadlineState(demande)
+    : null;
   const currentOwner = getDemandeCurrentOwnerLabel(demande);
   const demandeurLabel = demande.demandeur_nom || "Demandeur non renseigné";
 
@@ -1464,24 +1592,36 @@ function CompactDemandeRow({
           <span className="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
             {demande.numero_demande}
           </span>
-          <span className={`rounded px-2 py-0.5 text-[10px] font-semibold ${statusClasses[demande.statut] ?? "bg-slate-200 text-slate-700"}`}>
+          <span
+            className={`rounded px-2 py-0.5 text-[10px] font-semibold ${statusClasses[demande.statut] ?? "bg-slate-200 text-slate-700"}`}
+          >
             {statusLabels[demande.statut] ?? demande.statut}
           </span>
           {deadlineState && deadlineState.status === "RETARD" && (
             <span className="flex items-center gap-1 rounded border border-red-200 bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-700">
-               <div className="h-1.5 w-1.5 rounded-full bg-red-600"></div>
-               Retard {deadlineState.hours ? `${deadlineState.hours}h` : ""}
+              <div className="h-1.5 w-1.5 rounded-full bg-red-600"></div>
+              Retard {deadlineState.hours ? `${deadlineState.hours}h` : ""}
             </span>
           )}
-          {deadlineState && (deadlineState.status === "ATTENTE_CRITIQUE" || deadlineState.status === "ATTENTE") && (
-            <span className={`flex items-center gap-1 rounded border px-2 py-0.5 text-[10px] font-semibold ${deadlineState.status === "ATTENTE_CRITIQUE" ? "border-orange-200 bg-orange-50 text-orange-700" : "border-slate-200 bg-slate-50 text-slate-500"}`}>
-               <Clock className="w-3 h-3" />
-               {deadlineState.status === "ATTENTE_CRITIQUE" ? "Critique" : "Délai"}: {deadlineState.hours}h
-            </span>
-          )}
+          {deadlineState &&
+            (deadlineState.status === "ATTENTE_CRITIQUE" ||
+              deadlineState.status === "ATTENTE") && (
+              <span
+                className={`flex items-center gap-1 rounded border px-2 py-0.5 text-[10px] font-semibold ${deadlineState.status === "ATTENTE_CRITIQUE" ? "border-orange-200 bg-orange-50 text-orange-700" : "border-slate-200 bg-slate-50 text-slate-500"}`}
+              >
+                <Clock className="w-3 h-3" />
+                {deadlineState.status === "ATTENTE_CRITIQUE"
+                  ? "Critique"
+                  : "Délai"}
+                : {deadlineState.hours}h
+              </span>
+            )}
         </div>
 
-        <p className="mb-2 text-[15px] font-semibold leading-tight text-slate-900" title={demande.objet}>
+        <p
+          className="mb-2 text-[15px] font-semibold leading-tight text-slate-900"
+          title={demande.objet}
+        >
           {demande.objet}
         </p>
 

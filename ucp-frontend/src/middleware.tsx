@@ -12,14 +12,14 @@ export function middleware(request: NextRequest) {
   if (pathname.startsWith('/auth/login')) {
     return NextResponse.next()
   }
-  if (
+  /*if (
     path.startsWith("/personnel") &&
     accessType !== "private"
   ) {
     return NextResponse.redirect(
       new URL("/", request.url)
     );
-  }
+  }*/
   return NextResponse.next();
 }
 export const config = {

@@ -68,12 +68,16 @@ SUBVENTION_BY_SOURCE = {
 
 
 def list_mes_demandes(user, scope="mine"):
+    from django.db.models import Q
     qs = DemandeAchat.objects.all()
 
     if scope != "all":
         # "mine" must keep the same meaning for every role: dossiers created
         # by the connected user only.
         qs = qs.filter(demandeur=user)
+    else:
+        # Hide drafts from other users
+        qs = qs.filter(Q(demandeur=user) | ~Q(statut=DemandeAchat.STATUT_BROUILLON))
 
     from django.db.models import Prefetch
     from apps.achats.models import ValidationDemande, HistoriqueDemande

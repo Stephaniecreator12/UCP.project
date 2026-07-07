@@ -122,6 +122,7 @@ INSTALLED_APPS = [
     'apps.achats',
     "apps.ouverture_offre",
     'apps.evaluation_offre',
+    'apps.contrats',
 ]
 
 MIDDLEWARE = [

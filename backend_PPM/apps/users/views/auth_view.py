@@ -7,7 +7,7 @@ from django.core.signing import TimestampSigner, SignatureExpired, BadSignature
 from django.core.mail import send_mail
 from django.conf import settings
 from apps.users.tasks.envoyer_confirmation_email_task import envoyer_confirmation_email
-User = get_user_model()
+from apps.users.models import PublicProfile
 
 @api_view(['POST'])
 @permission_classes([AllowAny]) 
@@ -33,14 +33,14 @@ def inscription_view(request):
             "message": "Les comptes du personnel UCP sont gérés par la Direction des Ressources Humaines. Vous ne pouvez pas créer de compte manuellement."
         }, status=status.HTTP_400_BAD_REQUEST)
 
-    if User.objects.filter(email=email).exists():
+    if PublicProfile.objects.filter(email=email).exists():
         return Response({
             "success": False,
             "message": "Cet e-mail est déjà utilisé."
         }, status=status.HTTP_400_BAD_REQUEST)
         
     try:
-        user = User.objects.create_user(
+        user = PublicProfile.objects.create_user(
             email=email, 
             password=password,
             full_name=full_name,
@@ -79,7 +79,7 @@ def verifier_email_view(request):
     signer = TimestampSigner()
     try:
         email = signer.unsign(token, max_age=86400)
-        user = User.objects.get(email=email)
+        user = PublicProfile.objects.get(email=email)
         
         if not user.is_active:
             user.is_active = True
@@ -89,7 +89,7 @@ def verifier_email_view(request):
             
     except SignatureExpired:
         return Response({"message": "Le lien de confirmation a expiré (maximum 24h)."}, status=status.HTTP_400_BAD_REQUEST)
-    except (BadSignature, User.DoesNotExist):
+    except (BadSignature, PublicProfile.DoesNotExist):
         return Response({"message": "Lien invalide ou altéré."}, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['POST'])
@@ -101,7 +101,7 @@ def renvoyer_email_view(request):
         return Response({"message": "L'adresse email est requise."}, status=status.HTTP_400_BAD_REQUEST)
         
     try:
-        user = User.objects.get(email=email)
+        user = PublicProfile.objects.get(email=email)
         
         if user.is_active:
             return Response({"message": "Ce compte est déjà actif. Vous pouvez vous connecter."}, status=status.HTTP_200_OK)
@@ -110,5 +110,5 @@ def renvoyer_email_view(request):
         
         return Response({"message": "Un nouveau lien de confirmation a été envoyé."}, status=status.HTTP_200_OK)
         
-    except User.DoesNotExist:
+    except PublicProfile.DoesNotExist:
         return Response({"message": "Un nouveau lien de confirmation a été envoyé si le compte existe."}, status=status.HTTP_200_OK)

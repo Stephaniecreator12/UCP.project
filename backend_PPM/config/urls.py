@@ -22,11 +22,21 @@ from apps.log.views.download_count_view import DAODownloadCountAPIView
 from apps.log.views.individual_traceability_view import IndividualTraceabilityAPIView
 from apps.log.views.operational_monitoring_view import OperationalMonitoringAPIView
 from django.urls import path, include
+from django.http import JsonResponse
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
-urlpatterns = [
-    path("admin/", admin.site.urls),
+def home_view(request):
+    return JsonResponse({
+        "status": "online",
+        "message": "UCP Backend API is running successfully!",
+        "admin_panel": "/admin/",
+        "project": "e-Proc UCP"
+    })
 
+urlpatterns = [
+    path("", home_view, name="home"),
+    path("admin/", admin.site.urls),
+    path("api/public/login/", PublicLoginView.as_view(), name="public_login"),
     path("api/ppm/", include("apps.ppm.urls")),
     path('api/users/create/', inscription_view, name='api_register'),
     path("api/users/", include("apps.users.urls")),
@@ -45,17 +55,12 @@ urlpatterns = [
     path("api/login/", TokenObtainPairView.as_view(), name="token_obtain_pair"),#login → créer un token
     path("api/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),#refresh → renouveler le token
     path("api/achats/", include("apps.achats.urls")),
-    path("api/TdrSt/", include("apps.TdrSt.urls")),
-    path("api/procurement/", include("apps.procurement.urls")),
-    path("api/users/", include("apps.users.urls")),
-    path("api/ouverture/", include("apps.ouverture_offre.urls")), 
-    path("api/evaluation/", include("apps.evaluation_offre.urls")),
     # Current login uses the stock JWT endpoint.
     # If one day access must be enforced by email domain on the backend
     # (for example allow "@ucp" here and reject others), this is the route
     # to replace with a custom login view instead of TokenObtainPairView.
-    path("api/login/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
-    path("api/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+    path("api/ouverture/", include("apps.ouverture_offre.urls")),
+    path("api/evaluation/", include("apps.evaluation_offre.urls"))
 ]
 
 if settings.DEBUG:

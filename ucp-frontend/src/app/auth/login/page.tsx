@@ -5,15 +5,22 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { getToken, login } from "@/services/auth";
 import { useAccess } from '@/context/accessContext';
+import { useSearchParams } from "next/navigation";
 const DEFAULT_PUBLIC_REGISTER_ROUTE = "/auth/public/register";
 const DEFAULT_PUBLIC_ROUTE = "/procurement";
 const DEFAULT_PRIVATE_ROUTE = "/personnel/log-dashboard"
 export default function LoginPage() {
+  const searchParams = useSearchParams();
+  const isVerifiedParam = searchParams.get("verified");
   const { setAccess, accessType } = useAccess();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [message, setMessage] = useState("");
+  const [isSuccess, setIsSuccess] = useState(isVerifiedParam === "true");
+  const [message, setMessage] = useState(
+    isVerifiedParam === "true"
+      ? "Connexion à votre compte autorisé."
+      : ""
+  );
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
@@ -23,21 +30,23 @@ export default function LoginPage() {
       if (accessType == "private") {
         router.push(`${DEFAULT_PRIVATE_ROUTE}`);
       }
-      else{
+      else {
         router.push(`${DEFAULT_PUBLIC_ROUTE}`);
       }
-      
+
     }
   }, [accessType, router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSuccess(false)
     setMessage("")
     setLoading(true);
     const result = await login(email, password, setAccess);
 
     if (result.message == "identifiants publique introuvable") {
       setLoading(false);
+      setIsSuccess(true)
       setMessage("Redirection vers l'espace public...");
       setTimeout(() => {
         router.push(`${DEFAULT_PUBLIC_REGISTER_ROUTE}`);
@@ -46,12 +55,21 @@ export default function LoginPage() {
       return;
     }
     else {
+      setIsSuccess(false)
       setMessage(result.message || "Une erreur est survenue");
       setLoading(false);
     }
 
   };
+  useEffect(() => {
+    if (!message) return;
+    const timer = setTimeout(() => {
+      setMessage("");
+      setIsSuccess(false);
+    }, 5000);
 
+    return () => clearTimeout(timer);
+  }, [message]);
 
   return (
     <div className="min-h-dvh w-full overflow-x-hidden overflow-y-auto">
@@ -111,7 +129,11 @@ export default function LoginPage() {
 
           {/* Message */}
           {message && (
-            <div className="mb-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800">
+            <div className={`mb-6 rounded-2xl border px-4 py-3 text-sm font-medium ${isSuccess
+              ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+              : 'border-rose-200 bg-rose-50 text-rose-800'
+              }`}>
+
               {message}
             </div>
           )}
@@ -141,37 +163,12 @@ export default function LoginPage() {
 
               <div className="relative">
                 <input
-                  type={showPassword ? "text" : "password"}
+                  type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Saisir votre mot de passe"
-                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 pr-12 text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/10 placeholder:text-slate-400"
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/10 placeholder:text-slate-400"
                 />
-
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((prev) => !prev)}
-                  aria-label={
-                    showPassword
-                      ? "Masquer le mot de passe"
-                      : "Afficher le mot de passe"
-                  }
-                  className="absolute right-2 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-500 transition hover:border-slate-300 hover:bg-slate-100 hover:text-slate-700"
-                >
-                  {showPassword ? (
-                    <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
-                      <path d="M3 3l18 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                      <path d="M10.7 10.7a2 2 0 102.6 2.6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                      <path d="M9.5 5.2A11.4 11.4 0 0112 4c5.5 0 9.5 4 10 8a10.5 10.5 0 01-3 5.2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                      <path d="M6.2 7.1A11.6 11.6 0 002 12c.2 1.8 1.4 3.6 3.1 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  ) : (
-                    <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
-                      <path d="M2 12c.5-4 4.5-8 10-8s9.5 4 10 8c-.5 4-4.5 8-10 8S2.5 16 2 12z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-                      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.8" />
-                    </svg>
-                  )}
-                </button>
               </div>
             </div>
 
@@ -190,6 +187,6 @@ export default function LoginPage() {
 
         </div>
       </div>
-    </div>
+    </div >
   );
 }

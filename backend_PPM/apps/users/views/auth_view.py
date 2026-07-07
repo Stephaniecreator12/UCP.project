@@ -83,3 +83,24 @@ def verifier_email_view(request):
         return Response({"message": "Le lien de confirmation a expiré (maximum 24h)."}, status=status.HTTP_400_BAD_REQUEST)
     except (BadSignature, User.DoesNotExist):
         return Response({"message": "Lien invalide ou altéré."}, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def renvoyer_email_view(request):
+    email = request.data.get('email')
+    
+    if not email:
+        return Response({"message": "L'adresse email est requise."}, status=status.HTTP_400_BAD_REQUEST)
+        
+    try:
+        user = User.objects.get(email=email)
+        
+        if user.is_active:
+            return Response({"message": "Ce compte est déjà actif. Vous pouvez vous connecter."}, status=status.HTTP_200_OK)
+            
+        envoyer_confirmation_email.delay(user.email, user.full_name)
+        
+        return Response({"message": "Un nouveau lien de confirmation a été envoyé."}, status=status.HTTP_200_OK)
+        
+    except User.DoesNotExist:
+        return Response({"message": "Un nouveau lien de confirmation a été envoyé si le compte existe."}, status=status.HTTP_200_OK)

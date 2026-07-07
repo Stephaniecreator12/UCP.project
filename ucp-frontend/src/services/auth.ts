@@ -87,14 +87,13 @@ export const login = async (
   setAccess: (access: string) => void
 ): Promise<LoginResult> => {
   try {
-    
-    //if(isUCPDomain(email)) {
+    if(isUCPDomain(email)) {
         return await rhLogin(email, password, setAccess);
-    //}
-    /*
+    }
+    
     else{
       return await publicLogin(email, password, setAccess);
-    }*/
+    }
   } catch {
     return {
       status: 500,

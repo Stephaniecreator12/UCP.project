@@ -2,6 +2,7 @@
 import { useAccess } from "@/context/accessContext";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSyncExternalStore } from "react";
 import {
   BriefcaseBusiness,
   ClipboardList,
@@ -33,7 +34,7 @@ type MenuLink = {
   label: string;
   href: string;
   access: AccessType;
-  roles?: ("finance" | "validator" | "agent" | "marche" |"default")[];
+  roles?: ("finance" | "validator" | "agent" | "marche" | "default")[];
   match: (pathname: string) => boolean;
 };
 
@@ -109,13 +110,19 @@ export default function Menu({ className = "" }: { className?: string }) {
 
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [open, setOpen] = useState(false);
-  const [hoverTimeout, setHoverTimeout] = useState<NodeJS.Timeout | null>(null);
   const [userMode, setUserMode] = useState<"default" | "validator" | "finance" | "agent" | "marche">(
     () => getUserMode(getCurrentUser())
   );
+  const emptySubscribe = () => () => { };
+
+  const isMounted = useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false
+  );
+
 
   const showAuthenticatedActions = pathname !== "/login";
-
   useEffect(() => {
     if (!showAuthenticatedActions) return;
     const currentUser = getCurrentUser();
@@ -148,6 +155,7 @@ export default function Menu({ className = "" }: { className?: string }) {
     };
   }, [open]);
 
+
   // Récupération directe des liens mappés depuis notre structure centralisée
   // Récupération directe des liens mappés depuis notre structure centralisée
   const { accessType, userInfo } = useAccess();
@@ -158,34 +166,36 @@ export default function Menu({ className = "" }: { className?: string }) {
 
     // PUBLIC
     if (accessType === "public") {
-        return link.access === "public";
+      return link.access === "public";
     }
 
     // PRIVATE
     if (accessType === "private") {
 
-        // Pas de rôle => tous les liens
-        if (role === "default") {
-            return true;
-        }
+      // Pas de rôle => tous les liens
+      if (role === "default") {
+        return true;
+      }
 
-        // Les liens publics sont visibles par tout le monde
-        if (link.access === "public") {
-            return true;
-        }
+      // Les liens publics sont visibles par tout le monde
+      if (link.access === "public") {
+        return true;
+      }
 
-        // Les liens privés sont filtrés par rôle
-        return link.roles?.includes(role) ?? false;
+      // Les liens privés sont filtrés par rôle
+      return link.roles?.includes(role) ?? false;
     }
 
     return false;
-});
+  });
 
   if (!showAuthenticatedActions) return null;
   const handleToggleMenu = () => {
     setOpen((prev) => !prev);
   };
-
+  if (!isMounted) {
+    return <div className="min-h-[40px]" />;
+  }
   return (
     <div
       ref={rootRef}

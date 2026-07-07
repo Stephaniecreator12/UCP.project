@@ -408,7 +408,6 @@ export default function SeanceOuvertureDetail() {
         }
         setCurrentUser(user);
 
-        
         setAvailableUsers(users);
         setSuppliers(suppliersData);
 
@@ -784,13 +783,15 @@ export default function SeanceOuvertureDetail() {
         ),
       );
 
-    const commissionPayload: CommissionMemberPayload[] = commissionMembers.map((m) => ({
-      nomPrenom: m.nomPrenom || "",
-      email: m.email || "",
-      cin: m.cin || "",
-      poste: m.poste || "",
-      entite: m.entite || "",
-    }));
+    const commissionPayload: CommissionMemberPayload[] = commissionMembers.map(
+      (m) => ({
+        nomPrenom: m.nomPrenom || "",
+        email: m.email || "",
+        cin: m.cin || "",
+        poste: m.poste || "",
+        entite: m.entite || "",
+      }),
+    );
 
     return {
       reference_dossier: currentForm.reference_dossier.trim(),
@@ -1141,7 +1142,9 @@ export default function SeanceOuvertureDetail() {
               <div className="mt-8 flex flex-col gap-3">
                 <button
                   type="button"
-                  onClick={() => router.push("/personnel/ouverture_offre/membres")}
+                  onClick={() =>
+                    router.push("/personnel/ouverture_offre/membres")
+                  }
                   className="inline-flex justify-center items-center gap-2 rounded-xl bg-slate-900 px-5 py-3 text-xs font-bold text-white shadow-md hover:bg-slate-800 transition-all"
                 >
                   <Users className="h-4 w-4" /> Configurer les membres de
@@ -1261,7 +1264,11 @@ export default function SeanceOuvertureDetail() {
             {canEdit && (
               <button
                 type="button"
-                onClick={() => router.push(`/ouverture_offre/membres?dossier=${encodeURIComponent(seance.reference_dossier)}`)}
+                onClick={() =>
+                  router.push(
+                    `/personnel/ouverture_offre/membres?dossier=${encodeURIComponent(seance.reference_dossier)}`,
+                  )
+                }
                 className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
               >
                 <Users className="h-4 w-4 text-sky-500" />

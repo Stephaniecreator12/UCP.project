@@ -203,6 +203,8 @@ class SeanceOuvertureSerializer(serializers.ModelSerializer):
         unique_ids = list(dict.fromkeys(value))
         if len(unique_ids) != len(value):
             raise serializers.ValidationError("Un meme membre ne doit pas apparaitre deux fois.")
+        if len(unique_ids) < 3:
+            raise serializers.ValidationError("La commission doit contenir au moins 3 membres.")
         users_count = User.objects.filter(id__in=unique_ids, is_active=True).count()
         if users_count != len(unique_ids):
             raise serializers.ValidationError("Un ou plusieurs membres sont introuvables.")

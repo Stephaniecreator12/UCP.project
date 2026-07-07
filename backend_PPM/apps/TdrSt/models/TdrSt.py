@@ -56,7 +56,7 @@ class TdrStDocument(models.Model):
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
         related_name="tdr_st_documents",
-        db_column="initiateur_id",
+        db_column="demandeur_id",
     )
     demande_achat = models.OneToOneField(
         "achats.DemandeAchat",

@@ -3,30 +3,20 @@ from __future__ import annotations
 from rest_framework.permissions import BasePermission
 
 from apps.TdrSt.models.TdrSt import TdrStDocument
-from apps.users.models import UserProfile
-from apps.users.services.permissions import get_user_role
-
-# Statuts finaux consultables par l'Auditeur (a posteriori uniquement)
-AUDITEUR_VISIBLE_STATUTS = (
-    TdrStDocument.Statut.VALIDE,
-    TdrStDocument.Statut.REJETE,
-    TdrStDocument.Statut.SUSPENDU,
-)
-
 
 class CanCreateDocument(BasePermission):
     def has_permission(self, request, view) -> bool:
-        return get_user_role(request.user) == UserProfile.Role.DEMANDEUR
+        return bool(request.user and request.user.is_authenticated)
 
 
 class CanListMyDocuments(BasePermission):
     def has_permission(self, request, view) -> bool:
-        return get_user_role(request.user) == UserProfile.Role.DEMANDEUR
+        return bool(request.user and request.user.is_authenticated)
 
 
 class CanSubmitOrUploadOwnDocument(BasePermission):
     def has_permission(self, request, view) -> bool:
-        return get_user_role(request.user) == UserProfile.Role.DEMANDEUR
+        return bool(request.user and request.user.is_authenticated)
 
     def has_object_permission(self, request, view, obj: TdrStDocument) -> bool:
         return obj.demandeur_id == getattr(request.user, "id", None)
@@ -34,40 +24,52 @@ class CanSubmitOrUploadOwnDocument(BasePermission):
 
 class CanReadDocument(BasePermission):
     def has_permission(self, request, view) -> bool:
-        return bool(get_user_role(request.user))
+        return bool(request.user and request.user.is_authenticated)
 
     def has_object_permission(self, request, view, obj: TdrStDocument) -> bool:
-        role = get_user_role(request.user)
-        if role == UserProfile.Role.DEMANDEUR:
-            return obj.demandeur_id == getattr(request.user, "id", None)
-        if role in (UserProfile.Role.VERIFICATEUR_TECHNIQUE, UserProfile.Role.APPROBATEUR_FINAL):
+        user = request.user
+        if not user or not user.is_authenticated:
+            return False
+
+        user_groups = set(user.groups.values_list("name", flat=True))
+        if user_groups.intersection({"VALIDATEUR_TECHNIQUE", "APPROBATEUR_NATIONAL", "AUDITEUR"}):
             return True
-        if role == UserProfile.Role.AUDITEUR:
-            # L'auditeur ne voit que les documents à statut final (Validé, Rejeté, Suspendu)
-            return obj.statut in AUDITEUR_VISIBLE_STATUTS
-        return False
+
+        return obj.demandeur_id == user.id
 
 
 class CanTechValidate(BasePermission):
     def has_permission(self, request, view) -> bool:
-        return get_user_role(request.user) == UserProfile.Role.VERIFICATEUR_TECHNIQUE
+        return bool(
+            request.user
+            and request.user.is_authenticated
+            and request.user.groups.filter(name="VALIDATEUR_TECHNIQUE").exists()
+        )
 
 
 class CanFinalApprove(BasePermission):
     def has_permission(self, request, view) -> bool:
-        return get_user_role(request.user) == UserProfile.Role.APPROBATEUR_FINAL
+        return bool(
+            request.user
+            and request.user.is_authenticated
+            and request.user.groups.filter(name="APPROBATEUR_NATIONAL").exists()
+        )
 
 
 class CanAuditeurRead(BasePermission):
     """
     Permission réservée au rôle AUDITEUR.
     - Accès en lecture seule uniquement.
-    - Visible : documents à statut final (VALIDE, REJETE, SUSPENDU) + toute la traçabilité (Section G).
+    - Visible : tous les documents + toute la traçabilité (Section G).
     - Aucune action de décision (approuver / rejeter / soumettre) n'est accordée.
     """
 
     def has_permission(self, request, view) -> bool:
-        return get_user_role(request.user) == UserProfile.Role.AUDITEUR
+        return bool(
+            request.user
+            and request.user.is_authenticated
+            and request.user.groups.filter(name="AUDITEUR").exists()
+        )
 
     def has_object_permission(self, request, view, obj: TdrStDocument) -> bool:
-        return obj.statut in AUDITEUR_VISIBLE_STATUTS
+        return True

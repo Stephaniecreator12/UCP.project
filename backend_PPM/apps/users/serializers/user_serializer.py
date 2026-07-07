@@ -1,6 +1,5 @@
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
-from apps.users.models import UserProfile
 
 from apps.users.services.permissions import get_user_role
 
@@ -38,7 +37,6 @@ class UserSerializer(serializers.ModelSerializer):
 class UserCreateSerializer(UserSerializer):
 
     password = serializers.CharField(write_only=True, min_length=6)
-    role = serializers.ChoiceField(choices=UserProfile.Role.choices, required=False)
 
     class Meta(UserSerializer.Meta):
         fields = UserSerializer.Meta.fields + ["password"]
@@ -46,7 +44,6 @@ class UserCreateSerializer(UserSerializer):
     def create(self, validated_data):
 
         password = validated_data.pop("password")
-        role = validated_data.pop("role", None)
 
         user = User(**validated_data)
 

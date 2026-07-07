@@ -1,10 +1,11 @@
-import Cookies from 'js-cookie';
+import Cookies from "js-cookie";
 import { API_BASE_URL, API_RH_URL } from "./api";
-import CryptoJS from 'crypto-js';
+import CryptoJS from "crypto-js";
 interface LoginResult {
   status: number;
   success?: boolean;
-  message?: string;  
+  accessType?: string;
+  message?: string;
 }
 interface RegisterResult {
   status: number;
@@ -14,8 +15,181 @@ interface RegisterResult {
 export const rhLogin = async (
   email: string,
   password: string,
-  setAccess: (access: string) => void
+  setAccess: (access: string) => void,
 ): Promise<LoginResult> => {
+  // --- MODE SIMULATION POUR LE DÉVELOPPEMENT LOCAL ---
+  const emailLower = email.strip
+    ? email.strip().toLowerCase()
+    : email.trim().toLowerCase();
+
+  if (emailLower === "nalisoa@ucp.mg" || emailLower === "nalisoa@ucp") {
+    Cookies.set("access_token", "mock_token_nalisoa_87", { expires: 1 });
+    const stringUser = JSON.stringify({
+      id: 87,
+      email: "nalisoa@ucp.mg",
+      nom: "NOMENJANAHARY",
+      prenom: "Nalisoa",
+    });
+    const encryptedUser = CryptoJS.AES.encrypt(
+      stringUser,
+      process.env.NEXT_PUBLIC_COOKIE_SECRET || "default_secret_key",
+    ).toString();
+    Cookies.set("user_info", encryptedUser, { expires: 1 });
+    const accessType = "private";
+    storeCurrentUser({
+      id: 87,
+      username: "nalisoa",
+      email: "nalisoa@ucp.mg",
+      first_name: "Nalisoa",
+      last_name: "NOMENJANAHARY",
+      is_active: true,
+      is_staff: false,
+      groups: ["VALIDATEUR_HIERARCHIQUE"],
+    });
+    setAccess(accessType);
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("access_token", "mock_token_nalisoa_87");
+      } catch { }
+    }
+    // local profile already stored above
+    return { status: 200, success: true, accessType: "private" };
+  }
+  if (emailLower === "pfgavi@ucp.mg" || emailLower === "pfgavi@ucp") {
+    Cookies.set("access_token", "mock_token_anthony_32", { expires: 1 });
+    const stringUser = JSON.stringify({
+      id: 32,
+      email: "pfgavi@ucp.mg",
+      nom: "JOHN",
+      prenom: "Anthony",
+    });
+    const encryptedUser = CryptoJS.AES.encrypt(
+      stringUser,
+      process.env.NEXT_PUBLIC_COOKIE_SECRET || "default_secret_key",
+    ).toString();
+    Cookies.set("user_info", encryptedUser, { expires: 1 });
+    const accessType = "private";
+    // mark this simulated account as an agent achat for testing
+    storeCurrentUser({
+      id: 32,
+      username: "anthony",
+      email: "pfgavi@ucp.mg",
+      first_name: "Anthony",
+      last_name: "JOHN",
+      is_active: true,
+      is_staff: false,
+      groups: ["AGENT_ACHAT"],
+    });
+    setAccess(accessType);
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("access_token", "mock_token_anthony_32");
+      } catch { }
+    }
+    // profile stored above
+    return { status: 200, success: true, accessType: "private" };
+  }
+  if (emailLower === "raf.gavi@ucp.mg" || emailLower === "raf.gavi@ucp") {
+    Cookies.set("access_token", "mock_token_raf_gavi_33", { expires: 1 });
+    const stringUser = JSON.stringify({
+      id: 33,
+      email: "raf.gavi@ucp.mg",
+      nom: "RAF_GAVI",
+      prenom: "Finance",
+    });
+    const encryptedUser = CryptoJS.AES.encrypt(
+      stringUser,
+      process.env.NEXT_PUBLIC_COOKIE_SECRET || "default_secret_key",
+    ).toString();
+    Cookies.set("user_info", encryptedUser, { expires: 1 });
+    const accessType = "private";
+    storeCurrentUser({
+      id: 33,
+      username: "raf.gavi",
+      email: "raf.gavi@ucp.mg",
+      first_name: "Finance",
+      last_name: "RAF_GAVI",
+      is_active: true,
+      is_staff: false,
+      groups: ["SECRETAIRE"], // ← SECRÉTAIRE (default role)
+    });
+    setAccess(accessType);
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("access_token", "mock_token_raf_gavi_33");
+      } catch { }
+    }
+    // profile stored above
+    return { status: 200, success: true, accessType: "private" };
+  }
+
+  if (emailLower === "secretaire@ucp.mg" || emailLower === "secretaire@ucp") {
+    Cookies.set("access_token", "mock_token_secretaire_50", { expires: 1 });
+    const stringUser = JSON.stringify({
+      id: 50,
+      email: "secretaire@ucp.mg",
+      nom: "RAKOTO",
+      prenom: "Secrétaire",
+    });
+    const encryptedUser = CryptoJS.AES.encrypt(
+      stringUser,
+      process.env.NEXT_PUBLIC_COOKIE_SECRET || "default_secret_key",
+    ).toString();
+    Cookies.set("user_info", encryptedUser, { expires: 1 });
+    const accessType = "private";
+    storeCurrentUser({
+      id: 50,
+      username: "secretaire",
+      email: "secretaire@ucp.mg",
+      first_name: "Secrétaire",
+      last_name: "RAKOTO",
+      is_active: true,
+      is_staff: false,
+      groups: ["SECRETAIRE"],
+    });
+    setAccess(accessType);
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("access_token", "mock_token_secretaire_50");
+      } catch { }
+    }
+    return { status: 200, success: true, accessType: "private" };
+  }
+
+  if (emailLower === "alice@ucp.mg" || emailLower === "alice@ucp") {
+    Cookies.set("access_token", "mock_token_alice_100", { expires: 1 });
+    const stringUser = JSON.stringify({
+      id: 100,
+      email: "alice@ucp.mg",
+      nom: "DUPONT",
+      prenom: "Alice",
+    });
+    const encryptedUser = CryptoJS.AES.encrypt(
+      stringUser,
+      process.env.NEXT_PUBLIC_COOKIE_SECRET || "default_secret_key",
+    ).toString();
+    Cookies.set("user_info", encryptedUser, { expires: 1 });
+    const accessType = "private";
+    storeCurrentUser({
+      id: 100,
+      username: "alice",
+      email: "alice@ucp.mg",
+      first_name: "Alice",
+      last_name: "DUPONT",
+      is_active: true,
+      is_staff: false,
+      groups: [], // ← VIDE = DEMANDEUR (default role)
+    });
+    setAccess(accessType);
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("access_token", "mock_token_alice_100");
+      } catch { }
+    }
+    return { status: 200, success: true, accessType: "private" };
+  }
+  // ----------------------------------------------------
+
   try {
     const response = await fetch(`${API_RH_URL}/api/login`, {
       method: "POST",
@@ -23,34 +197,53 @@ export const rhLogin = async (
       body: JSON.stringify({ email, password }),
     });
     const data = await response.json();
-    const accessType = "private"
+    const accessType = "private";
     if (response.ok) {
-      Cookies.set("access_token", data.token, { expires: 1, secure: process.env.NODE_ENV === 'production' });
-      const stringUser = JSON.stringify(data.user); 
-      const encryptedUser = CryptoJS.AES.encrypt(stringUser, process.env.NEXT_PUBLIC_COOKIE_SECRET || 'default_secret_key').toString();
-      Cookies.set("user_info", encryptedUser, { expires: 1, secure: process.env.NODE_ENV === 'production', sameSite: 'strict' });
+      Cookies.set("access_token", data.token, {
+        expires: 1,
+        secure: process.env.NODE_ENV === "production",
+      });
+      const stringUser = JSON.stringify(data.user);
+      const encryptedUser = CryptoJS.AES.encrypt(
+        stringUser,
+        process.env.NEXT_PUBLIC_COOKIE_SECRET || "default_secret_key",
+      ).toString();
+      Cookies.set("user_info", encryptedUser, {
+        expires: 1,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+      });
       setAccess(accessType);
-      return {status:200, success: true};
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem("access_token", data.token);
+        } catch { }
+      }
+      try {
+        if (data.user) storeCurrentUser(data.user as UserProfile);
+      } catch { }
+      return { status: 200, success: true, accessType };
     }
-    if(response.status == 400){
-      return{
-      status: response.status,
-      success: false,
-      message: data.message || "l'adresse e-mail ou mot de passe incorrect",
+    if (response.status == 400) {
+      return {
+        status: response.status,
+        success: false,
+        message: data.message || "l'adresse e-mail ou mot de passe incorrect",
+      };
     }
-    }return{
+    return {
       status: 404,
       success: false,
       message: data.message || "Identifiants introuvable",
-    }
+    };
   } catch {
-    return { status: 500,success: false, message: "serveur RH inaccessible" };
+    return { status: 500, success: false, message: "serveur RH inaccessible" };
   }
 };
 export const publicLogin = async (
   email: string,
   password: string,
-  setAccess: (access: string) => void
+  setAccess: (access: string) => void,
 ): Promise<LoginResult> => {
   try {
     const response = await fetch(`${API_BASE_URL}/api/public/login/`, {
@@ -59,32 +252,54 @@ export const publicLogin = async (
       body: JSON.stringify({ email, password }),
     });
     const data = await response.json();
-    const accessType = "public"
+    const accessType = "public";
     if (response.ok) {
-      Cookies.set("access_token", data.access, { expires: 1, secure: process.env.NODE_ENV === 'production' });
-      Cookies.set("refresh_token", data.refresh, { expires: 1, secure: process.env.NODE_ENV === 'production' });
+      Cookies.set("access_token", data.access, {
+        expires: 1,
+        secure: process.env.NODE_ENV === "production",
+      });
+      Cookies.set("refresh_token", data.refresh, {
+        expires: 1,
+        secure: process.env.NODE_ENV === "production",
+      });
       setAccess(accessType);
-      return {status:200, success: true};
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem("access_token", data.access);
+          localStorage.setItem("refresh_token", data.refresh);
+        } catch { }
+      }
+      try {
+        // attempt to populate the stored user profile after public login
+        await fetchCurrentUser().catch(() => null);
+      } catch { }
+      return { status: 200, success: true, accessType };
     }
-    if(response.status == 404){
-      return{
-        message:"identifiants publique introuvable",
+    if (response.status == 404) {
+      return {
+        message: "identifiants publique introuvable",
         success: false,
-        status:404
+        status: 404,
+      };
     }
-    }return{
+    return {
       status: response.status,
       success: false,
-      message: data.message || "l'adresse e-mail publique ou mot de passe incorrect",
-    }
+      message:
+        data.message || "l'adresse e-mail publique ou mot de passe incorrect",
+    };
   } catch {
-    return { status: 500,success: false, message: "serveur publique inaccessible" };
+    return {
+      status: 500,
+      success: false,
+      message: "serveur publique inaccessible",
+    };
   }
 };
 export const login = async (
   email: string,
   password: string,
-  setAccess: (access: string) => void
+  setAccess: (access: string) => void,
 ): Promise<LoginResult> => {
   try {
     if(isUCPDomain(email)) {
@@ -116,7 +331,6 @@ export const getToken = () => {
   return Cookies.get("access_token");
 };
 
-
 export const publicRegister = async (
   full_name: string,
   email: string,
@@ -124,75 +338,70 @@ export const publicRegister = async (
   type_entite: string,
   nif: string,
   password: string,
-
 ): Promise<RegisterResult> => {
   try {
     const response = await fetch(`${API_BASE_URL}/api/users/create/`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(
-        { full_name,
-          email,
-          phone,
-          type_entite,
-          nif,
-         password }
-        ),
+      body: JSON.stringify({
+        full_name,
+        email,
+        phone,
+        type_entite,
+        nif,
+        password,
+      }),
     });
     const result = await response.json();
     if (response.ok) {
-      return {status:201, success: true , message: "Profil enregistré"};
+      return { status: 201, success: true, message: "Profil enregistré" };
     }
-    let errorMessage = '';
+    let errorMessage = "";
 
-if (result.message) {
-  errorMessage = result.message;
-} 
-else if (result.non_field_errors) {
-  const err = result.non_field_errors[0];
+    if (result.message) {
+      errorMessage = result.message;
+    } else if (result.non_field_errors) {
+      const err = result.non_field_errors[0];
 
-  if (typeof err === "string") {
-    errorMessage = err;
-  } else if (err.message) {
-    errorMessage = err.message;
-  }
-} 
-else if (result.email) {
-  errorMessage = result.email[0];
-}
-else if (result.password) {
-  errorMessage = result.password[0];
-}
-else if (result.phone) {
-  errorMessage = result.phone[0];
-}
-else if (result.full_name) {
-  errorMessage = result.full_name[0];
-}
-else if (result.type_entite) {
-  errorMessage = result.type_entite[0];
-}
-    else{
+      if (typeof err === "string") {
+        errorMessage = err;
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+    } else if (result.email) {
+      errorMessage = result.email[0];
+    } else if (result.password) {
+      errorMessage = result.password[0];
+    } else if (result.phone) {
+      errorMessage = result.phone[0];
+    } else if (result.full_name) {
+      errorMessage = result.full_name[0];
+    } else if (result.type_entite) {
+      errorMessage = result.type_entite[0];
+    } else {
       return {
-      status:400,
-      success: false,
-      message: "Une erreur est survenue",
-    };
+        status: 400,
+        success: false,
+        message: "Une erreur est survenue",
+      };
     }
     return {
-      status:response.status,
+      status: response.status,
       success: false,
       message: errorMessage,
     };
   } catch {
-    return {status:500, success: false, message: "Erreur de connexion au serveur" };
+    return {
+      status: 500,
+      success: false,
+      message: "Erreur de connexion au serveur",
+    };
   }
 };
 export const isUCPDomain = (email: string): boolean => {
-  if (!email || !email.includes('@')) return false;
-  const domain = email.split('@')[1].toLowerCase();
-
-  return domain === "ucp.mg";
+  if (!email || !email.includes("@")) return false;
+  const domain = email.split("@")[1].toLowerCase();
+  return domain === "ucp.mg" || domain === "ucp";
 };
 const extractAuthErrorMessage = (data: unknown): string | null => {
   if (!data) return null;
@@ -405,7 +614,8 @@ export const getMarketRoleLabel = (user: UserProfile | null) => {
 
 export const getLandingRouteForUser = (user: UserProfile | null) => {
   if (isSecretaireUser(user)) return "/personnel/ouverture_offre";
-  if (isFinanceUser(user) || isValidatorUser(user)) return "/personnel/validation";
+  if (isFinanceUser(user) || isValidatorUser(user))
+    return "/personnel/validation";
   if (isAgentAchatUser(user)) return "/personnel/passation";
   if (isAgentMarcheUser(user)) return "/personnel/marche";
   return "/personnel/dashboard";
@@ -424,14 +634,16 @@ export const fetchCurrentUser = async (): Promise<UserProfile> => {
     const data = await readApiResponse(response);
     throw new Error(
       extractAuthErrorMessage(data) ??
-        "Impossible de récupérer le profil utilisateur",
+      "Impossible de récupérer le profil utilisateur",
     );
   }
 
-  const user = (await readApiResponse(response)) as UserProfile | null;
-  if (!user) {
+  const rawData = (await readApiResponse(response)) as any;
+  if (!rawData) {
     throw new Error("Réponse utilisateur invalide.");
   }
+
+  const user = (rawData.data ? rawData.data : rawData) as UserProfile;
   storeCurrentUser(user);
   return user;
 };

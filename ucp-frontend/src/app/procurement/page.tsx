@@ -53,15 +53,14 @@ export default function ProcurementPage({
   const [searchInput, setSearchInput] = useState(currentSearch);
   const [dateFilters, setDateFilters] = useState(currentFilters);
   const router = useRouter();
+  const hasActiveDateFilters = !!(dateFilters.publishAfter || dateFilters.publishBefore || dateFilters.deadlineAfter || dateFilters.deadlineBefore);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(hasActiveDateFilters);
   const formKey = `${currentSearch}-${resolvedParams.publish_after}-${resolvedParams.publish_before}-${resolvedParams.deadline_after}-${resolvedParams.deadline_before}`;
   const handleFilterSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
 
-    const query: Record<string, string> = {
-      page: "1",
-      search: searchInput,
-    };
+    const query: Record<string, string> = { page: "1" };
+    if (searchInput.trim()) query.search = searchInput;
 
     if (dateFilters.publishAfter) query.publish_after = dateFilters.publishAfter;
     if (dateFilters.publishBefore) query.publish_before = dateFilters.publishBefore;
@@ -69,7 +68,16 @@ export default function ProcurementPage({
     if (dateFilters.deadlineBefore) query.deadline_before = dateFilters.deadlineBefore;
 
     const params = new URLSearchParams(query);
+    const newRelativePathOrUrl = `/procurement?${params.toString()}`;
+
+    const currentUrl = window.location.pathname + window.location.search;
+    if (currentUrl === newRelativePathOrUrl) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
     router.push(`/procurement?${params.toString()}`);
+
   };
   const handleViewTrack = async (dossierId: string) => {
     try {
@@ -260,9 +268,10 @@ export default function ProcurementPage({
         <form
           key={formKey}
           onSubmit={handleFilterSubmit}
-          className="w-full bg-white p-5 rounded-xl border border-gray-200 shadow-sm mb-8 space-y-5"
+          className="w-full bg-white p-5 rounded-xl border border-gray-200 shadow-sm mb-8 space-y-4"
         >
-          <div className="flex gap-3">
+          {/* Ligne principale : Recherche + Boutons */}
+          <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
               <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400 pointer-events-none">
                 🔍
@@ -275,15 +284,37 @@ export default function ProcurementPage({
                 className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-green-600 text-gray-800 transition"
               />
             </div>
-            <button
-              type="submit"
-              className="px-6 py-2.5 bg-green-700 hover:bg-green-800 text-white text-sm font-medium rounded-lg transition-colors duration-200 whitespace-nowrap shadow-sm"
-            >
-              Filtrer les résultats
-            </button>
+
+            <div className="flex gap-2 w-full sm:w-auto">
+              {/* Bouton pour afficher/masquer les filtres avancés */}
+              <button
+                type="button"
+                onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                className={`px-4 py-2.5 text-sm font-medium rounded-lg border transition-all duration-200 flex items-center gap-2 justify-center flex-1 sm:flex-initial ${showAdvancedFilters
+                  ? "bg-slate-100 border-slate-300 text-slate-700"
+                  : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
+                  }`}
+              >
+                🎛️ {showAdvancedFilters ? "Masquer les filtres" : "Filtres avancés"}
+              </button>
+
+              {/* Bouton de soumission */}
+              <button
+                type="submit"
+                className="px-6 py-2.5 bg-green-700 hover:bg-green-800 text-white text-sm font-medium rounded-lg transition-colors duration-200 whitespace-nowrap shadow-sm flex-1 sm:flex-initial text-center justify-center"
+              >
+                Rechercher
+              </button>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs text-gray-600 pt-1 border-t border-gray-100">
+          {/* Panneau des filtres avancés (avec transition d'affichage) */}
+          <div
+            className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs text-gray-600 pt-3 border-t border-gray-100 transition-all duration-300 origin-top ${showAdvancedFilters
+              ? "opacity-100 max-h-[500px] visible"
+              : "opacity-0 max-h-0 invisible overflow-hidden !pt-0 !border-t-0"
+              }`}
+          >
             <div>
               <label className="block font-semibold text-gray-700 mb-1.5">Publié après le :</label>
               <input
@@ -320,6 +351,29 @@ export default function ProcurementPage({
                 className="w-full p-2 border border-gray-300 rounded-md text-gray-800 focus:ring-1 focus:ring-green-600 focus:border-green-600 outline-none"
               />
             </div>
+
+            {/* Bouton facultatif pour vider les filtres rapidement si le panneau est ouvert */}
+            {(dateFilters.publishAfter || dateFilters.publishBefore || dateFilters.deadlineAfter || dateFilters.deadlineBefore) && (
+              <div className="sm:col-span-2 md:col-span-4 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDateFilters({ publishAfter: "", publishBefore: "", deadlineAfter: "", deadlineBefore: "" });
+                    setSearchInput("");
+
+                    const currentUrl = window.location.pathname + window.location.search;
+                    if (currentUrl === '/procurement') {
+                      return;
+                    }
+                    setLoading(true);
+                    router.push('/procurement');
+                  }}
+                  className="text-xs font-medium text-red-600 hover:text-red-700 transition underline cursor-pointer"
+                >
+                  Effacer tous les filtres
+                </button>
+              </div>
+            )}
           </div>
         </form>
 

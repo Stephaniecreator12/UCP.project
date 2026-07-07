@@ -42,7 +42,16 @@ export default function UsersTraceability({ users }: { users: UserTraceability[]
                 <td className="p-3.5 font-medium">
                   {user.lastLogin ? (
                     <span className="text-slate-700">
-                      {new Date(user.lastLogin).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" })}
+                      {new Date(user.lastLogin).toLocaleDateString("fr-FR", {
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        second: "2-digit",
+                        timeZone: "UTC",
+                      })}
+                      <span className="text-[10px] font-bold text-slate-400 ml-1">UTC</span>
                     </span>
                   ) : (
                     <span className="text-slate-300 italic text-xs">Jamais connecté</span>
@@ -57,9 +66,8 @@ export default function UsersTraceability({ users }: { users: UserTraceability[]
                 </td>
 
                 <td className="p-3.5 text-center">
-                  <span className={`inline-flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-md ${
-                    user.download.length > 0 ? "bg-green-50 text-green-700 border border-green-100" : "bg-slate-50 text-slate-400"
-                  }`}>
+                  <span className={`inline-flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-md ${user.download.length > 0 ? "bg-green-50 text-green-700 border border-green-100" : "bg-slate-50 text-slate-400"
+                    }`}>
                     <Download size={12} className={user.download.length > 0 ? "text-green-500" : "text-slate-300"} />
                     {user.download.length}
                   </span>

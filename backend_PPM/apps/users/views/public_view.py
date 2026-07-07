@@ -1,5 +1,5 @@
 from django.contrib.auth import get_user_model
-
+from django.contrib.auth.models import update_last_login
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
 from rest_framework.response import Response
@@ -68,6 +68,7 @@ class PublicLoginView(APIView):
         if serializer.is_valid():
 
             user = serializer.validated_data['user']
+            update_last_login(None, user)
 
             refresh = RefreshToken.for_user(user)
 

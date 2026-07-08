@@ -1,7 +1,7 @@
 from rest_framework import viewsets
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.permissions import IsAuthenticated
-
+from apps.users.permissions import StrictModelPermissions
 from apps.procurement.models.technical_document import TechnicalDocument
 from apps.procurement.serializers.technical_document_serializer import (
     TechnicalDocumentSerializer
@@ -14,7 +14,7 @@ class TechnicalDocumentViewSet(viewsets.ModelViewSet):
 
     serializer_class = TechnicalDocumentSerializer
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [StrictModelPermissions]
 
     parser_classes = [
         MultiPartParser,

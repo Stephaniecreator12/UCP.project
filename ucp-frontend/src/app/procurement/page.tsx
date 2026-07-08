@@ -12,7 +12,6 @@ import { trackUserAction } from "@/services/trackAction";
 import { getme } from "@/services/profile";
 import { UserProfileValue } from "@/types/profile";
 import Cookies from "js-cookie";
-import { useAccess } from "@/context/accessContext";
 interface MarketData {
   count: number;
   previous: string | null;
@@ -36,7 +35,6 @@ export default function ProcurementPage({
     deadline_before?: string;
   }>;
 }) {
-  const { accessType, userInfo } = useAccess();
   const resolvedParams = use(searchParams);
   const currentPage = resolvedParams.page || "1";
   const currentSearch = resolvedParams.search || "";
@@ -48,6 +46,19 @@ export default function ProcurementPage({
   };
 
   const [data, setData] = useState<MarketData | null>(null);
+  const [group, setGroup] = useState(() => {
+    const savedGroup = Cookies.get("groups");
+    if (savedGroup) {
+      try {
+        // Reconvertit la chaîne JSON en véritable tableau JS
+        return JSON.parse(savedGroup);
+      } catch (e) {
+        console.error("Erreur de parsing du cookie group", e);
+      }
+    }
+    return [];
+  });
+
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<UserProfileValue | null>(null);
   const [searchInput, setSearchInput] = useState(currentSearch);
@@ -97,30 +108,13 @@ export default function ProcurementPage({
   useEffect(() => {
     let isMounted = true;
     const handleGetProfile = async () => {
-      if (accessType === "private") {
-        try {
-          if (userInfo) {
-            if (isMounted) {
-              setUser({
-                id: String(userInfo.personnel_id),
-                email: userInfo.email,
-                role: userInfo.role
-              } as UserProfileValue);
-            }
-          }
-        } catch (err) {
-          console.error("Erreur lors du décodage du token externe :", err);
+      try {
+        const result = await getme();
+        if (isMounted && !result.error) {
+          setUser(result.data);
         }
-      }
-      else if (accessType == "public") {
-        try {
-          const result = await getme();
-          if (isMounted && !result.error) {
-            setUser(result.data);
-          }
-        } catch (err) {
-          console.error("Erreur crash profil local :", err);
-        }
+      } catch (err) {
+        console.error("Erreur crash profil local :", err);
       }
     };
     handleGetProfile();
@@ -128,7 +122,7 @@ export default function ProcurementPage({
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [group]);
   useEffect(() => {
     let isMounted = true;
 
@@ -160,7 +154,8 @@ export default function ProcurementPage({
     resolvedParams.publish_after,
     resolvedParams.publish_before,
     resolvedParams.deadline_after,
-    resolvedParams.deadline_before
+    resolvedParams.deadline_before,
+    group
   ]);
 
   const handleDownloadDAO = (id: string) => {
@@ -253,7 +248,7 @@ export default function ProcurementPage({
             <p className="text-sm text-gray-500 mt-1">Gestion et suivi des dossiers d appel d offres (DAO)</p>
           </div>
           {
-            accessType == 'private' && (
+            group != 'public' && (
               <button
                 className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-700 hover:bg-green-800 text-white font-medium text-sm rounded-lg shadow-sm hover:shadow transition-all duration-200"
                 onClick={handleCreateProcurementRedirection}

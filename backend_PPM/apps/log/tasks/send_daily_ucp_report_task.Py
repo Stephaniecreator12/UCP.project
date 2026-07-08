@@ -5,7 +5,7 @@ from datetime import timedelta
 
 from apps.log.models.consultation import LogConsultation
 from apps.log.models.download import LogDownload
-from apps.users.models.public import PublicProfile
+from apps.users.models.public import UserProfile
 
 
 @shared_task
@@ -21,7 +21,7 @@ def send_daily_ucp_report():
         timestamp__gte=yesterday
     ).count()
 
-    registrations = PublicProfile.objects.filter(
+    registrations = UserProfile.objects.filter(
         created_at__gte=yesterday
     ).count()
 

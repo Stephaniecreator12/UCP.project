@@ -1,10 +1,9 @@
 "use client";
-
+import Cookies from "js-cookie";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { getToken, login } from "@/services/auth";
-import { useAccess } from '@/context/accessContext';
 import { useSearchParams } from "next/navigation";
 const DEFAULT_PUBLIC_REGISTER_ROUTE = "/auth/public/register";
 const DEFAULT_PUBLIC_ROUTE = "/procurement";
@@ -12,7 +11,17 @@ const DEFAULT_PRIVATE_ROUTE = "/personnel/log-dashboard"
 export default function LoginPage() {
   const searchParams = useSearchParams();
   const isVerifiedParam = searchParams.get("verified");
-  const { setAccess, accessType } = useAccess();
+  const [group, setGroup] = useState(() => {
+    const savedGroup = Cookies.get("groups");
+    if (savedGroup) {
+      try {
+        return JSON.parse(savedGroup);
+      } catch (e) {
+        console.error("Erreur de parsing du cookie group", e);
+      }
+    }
+    return [];
+  });
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSuccess, setIsSuccess] = useState(isVerifiedParam === "true");
@@ -27,24 +36,24 @@ export default function LoginPage() {
   useEffect(() => {
     const token = getToken();
     if (token) {
-      if (accessType == "private") {
-        router.push(`${DEFAULT_PRIVATE_ROUTE}`);
+      if (group == "public") {
+        router.push(`${DEFAULT_PUBLIC_ROUTE}`);
       }
       else {
-        router.push(`${DEFAULT_PUBLIC_ROUTE}`);
+        router.push(`${DEFAULT_PRIVATE_ROUTE}`);
       }
 
     }
-  }, [accessType, router]);
+  }, [group, router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSuccess(false)
     setMessage("")
     setLoading(true);
-    const result = await login(email, password, setAccess);
+    const result = await login(email, password);
 
-    if (result.message == "identifiants publique introuvable") {
+    if (result.message == "Aucun compte n'est associé à cette adresse e-mail.") {
       setLoading(false);
       setIsSuccess(true)
       setMessage("Redirection vers l'espace public...");

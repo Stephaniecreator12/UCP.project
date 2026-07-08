@@ -1,7 +1,6 @@
 import { JetBrains_Mono, Manrope, Space_Grotesk } from "next/font/google";
 import type { Metadata } from "next";
 import "./globals.css";
-import { AccessProvider } from "@/context/accessContext";
 
 const manrope = Manrope({
   variable: "--font-ui",
@@ -27,9 +26,7 @@ export default function RootLayout({
       <body
         className={`${manrope.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable} antialiased`}
       >
-        <AccessProvider>
           {children}
-        </AccessProvider>
       </body>
     </html>
   );

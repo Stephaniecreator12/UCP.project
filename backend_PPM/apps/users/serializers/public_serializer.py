@@ -1,11 +1,17 @@
 from django.contrib.auth.password_validation import validate_password
-from apps.users.models import PublicProfile
 from rest_framework import serializers
-from django.core import exceptions as django_exceptions
-
+from apps.users.serializers.groups_serializer import GroupDetailSerializer
+from django.contrib.auth.models import Group
+from django.contrib.auth import get_user_model
+User = get_user_model()
 class PublicProfileSerializer(serializers.ModelSerializer): 
+    groups_details = GroupDetailSerializer(
+        source='groups', 
+        many=True, 
+        read_only=True
+    )
     class Meta: 
-        model = PublicProfile 
+        model = User
         fields = [ 
             "id", 
             'email', 
@@ -13,13 +19,25 @@ class PublicProfileSerializer(serializers.ModelSerializer):
             'phone', 
             'type_entite', 
             'nif', 
+            'groups_details',
             'updated_at',
             'created_at'
             ] 
 class PublicProfileRegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True)
+    groups = serializers.PrimaryKeyRelatedField(
+        many=True, 
+        queryset=Group.objects.all(), 
+        write_only=True,
+        required=False
+    )
+    groups_details = GroupDetailSerializer(
+        source='groups', 
+        many=True, 
+        read_only=True
+    )
     class Meta:
-        model = PublicProfile
+        model = User
         fields = [
             'email',
             'full_name',
@@ -27,6 +45,8 @@ class PublicProfileRegistrationSerializer(serializers.ModelSerializer):
             'type_entite',
             'nif',
             'password',
+            'groups',
+            'groups_details',
             'updated_at',
             'created_at'
         ]
@@ -51,6 +71,13 @@ class PublicProfileRegistrationSerializer(serializers.ModelSerializer):
                     'blank': "Le type d'entité ne peut pas être vide.",
                     'invalid_choice': "Veuillez sélectionner un type d'entité valide."
                 }
+            },
+            'groups': {
+                'error_messages': {
+                    'required': "Le groupe est obligatoire.",
+                    'blank': "Le groupe ne peut pas être vide.",
+                    'invalid_choice': "Veuillez sélectionner un groupe valide."
+                }
             }
         }
 
@@ -64,29 +91,30 @@ class PublicProfileRegistrationSerializer(serializers.ModelSerializer):
         return data
     
     def create(self, validated_data):
-        return PublicProfile.objects.create_user(**validated_data)
+        user = User.objects.create_user(**validated_data)
+        group, _ = Group.objects.get_or_create(name="public")
+        user.groups.add(group)
+        return user
 
 
 class PublicLoginSerializer(serializers.Serializer):
-    email = serializers.EmailField()
-    password = serializers.CharField(write_only=True)
+    email = serializers.EmailField(required=True)
+    password = serializers.CharField(write_only=True, required=True)
 
     def validate(self, data):
         email = data.get('email')
         password = data.get('password')
 
         try:
-            user = PublicProfile.objects.get(email=email)
-        except PublicProfile.DoesNotExist:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
             raise serializers.ValidationError({
-                "error": "not_found",
-                "message": "Utilisateur introuvable"
+                "email": ["Aucun compte n'est associé à cette adresse e-mail."]
             })
 
         if not user.check_password(password):
             raise serializers.ValidationError({
-                "error": "invalid_credentials",
-                "message": "Mot de passe incorrect"
+                "password": ["Mot de passe incorrect."]
             })
 
         data['user'] = user

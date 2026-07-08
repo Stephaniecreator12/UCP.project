@@ -13,8 +13,10 @@ from apps.procurement.views.procurement_market_view import(
 from apps.users.views.auth_view import (
     verifier_email_view,inscription_view,renvoyer_email_view
 )
+from apps.users.views.user_view import (
+    me,get_user_profile_by_email,public_login,create_user
+)
 from config.media_fallback import serve_tdr_st_media
-from apps.users.views.public_view import PublicLoginView
 from apps.log.views.track_action_view import TrackActionView
 from apps.log.views.view_count_view import ProcurementViewCountAPIView
 from apps.log.views.annexe_ratio_view import AnnexeDownloadRatioAPIView
@@ -36,9 +38,12 @@ def home_view(request):
 urlpatterns = [
     path("", home_view, name="home"),
     path("admin/", admin.site.urls),
-    path("api/public/login/", PublicLoginView.as_view(), name="public_login"),
+    path("api/login/", public_login, name="public_login"),
     path("api/ppm/", include("apps.ppm.urls")),
-    path('api/users/create/', inscription_view, name='api_register'),
+    path('api/public-profile/create/', inscription_view, name='api_register'),
+    path('api/me/', me, name="user_profile"),
+    path('api/user/create', me, name="user_profile_register"),
+    path('api/user/', get_user_profile_by_email, name="user"),
     path("api/users/", include("apps.users.urls")),
     path("api/TdrSt/", include("apps.TdrSt.urls")),
     path('api/logs/dao-downloads/', DAODownloadCountAPIView.as_view(), name='dao-downloads-count'),
@@ -52,14 +57,8 @@ urlpatterns = [
     path('market/<path:reference_number>/download-dao/', DownloadDAOView.as_view(), name='download-dao'),    
     path('api/auth/verify-email/', verifier_email_view, name='api_verify_email'),
     path('api/auth/resend-email/', renvoyer_email_view, name='api_resend_email'),
-    #path("URL", fonction_qui_repond, name="nom")
-    path("api/login/", TokenObtainPairView.as_view(), name="token_obtain_pair"),#login → créer un token
     path("api/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),#refresh → renouveler le token
     path("api/achats/", include("apps.achats.urls")),
-    # Current login uses the stock JWT endpoint.
-    # If one day access must be enforced by email domain on the backend
-    # (for example allow "@ucp" here and reject others), this is the route
-    # to replace with a custom login view instead of TokenObtainPairView.
     path("api/ouverture/", include("apps.ouverture_offre.urls")),
     path("api/evaluation/", include("apps.evaluation_offre.urls"))
 ]

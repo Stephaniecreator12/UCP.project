@@ -48,6 +48,7 @@ urlpatterns = [
     path("api/logs/track", TrackActionView.as_view(), name="track-action"),
     path("api/logs/individual/", IndividualTraceabilityAPIView.as_view(), name="individual-traceability"),
     path('api/procurement/', include('apps.procurement.urls')),
+    path('api/contrats/', include('apps.contrats.urls')),
     path('market/<path:reference_number>/download-dao/', DownloadDAOView.as_view(), name='download-dao'),    
     path('api/auth/verify-email/', verifier_email_view, name='api_verify_email'),
     path('api/auth/resend-email/', renvoyer_email_view, name='api_resend_email'),

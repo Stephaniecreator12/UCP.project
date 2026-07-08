@@ -18,9 +18,10 @@ import {
   receiveDemandeAchat,
   uploadDocumentDemandeAchat,
 } from "@/services/achats";
-import { getCurrentUser } from "@/services/auth";
+import { getme } from "@/services/profile";
 import PurchaseSelect from "@/app/personnel/demande-achat/components/PurchaseSelect";
 import { FRENCH_DATE_INPUT_PROPS, formatFrenchDate as formatDate } from "@/lib/date";
+import { UserProfileValue } from "@/types/profile";
 
 type ReceptionModalProps = {
   demande: DemandeAchat | null;
@@ -40,11 +41,11 @@ const isPdfFile = (file: File | null) =>
 
 const getDefaultReceptionnaire = (
   demande: DemandeAchat | null,
-  currentUser: ReturnType<typeof getCurrentUser>,
+  currentUser: ReturnType<typeof getme>,
 ) => {
   if (demande?.receptionnaire) return demande.receptionnaire;
   if (!currentUser) return "Service logistique";
-  return `${currentUser.first_name} ${currentUser.last_name}`.trim() || "Service logistique";
+  return `${getme()}`.trim() || "Service logistique";
 };
 
 const buildInitialLignes = (demande: DemandeAchat | null): ReceptionFormLigne[] => {
@@ -78,7 +79,18 @@ export default function ReceptionModal({
   onSuccess,
 }: ReceptionModalProps) {
   const issueBlockRef = useRef<HTMLDivElement | null>(null);
-  const [currentUser] = useState(() => getCurrentUser());
+  const [currentUser, setCurrentUser] = useState<UserProfileValue>();
+  useEffect(() => {
+    async function handleGetMe() {
+      const res = await getme();
+      if (!res.error) {
+        const data = res.data
+        setCurrentUser(data);
+      }
+      return;
+    }
+    handleGetMe();
+  }, [])
   const lignesBesoin = useMemo(
     () => (Array.isArray(demande?.lignes_besoin) ? demande.lignes_besoin : []),
     [demande],
@@ -88,7 +100,7 @@ export default function ReceptionModal({
 
   const [dateReception, setDateReception] = useState(() => demande?.date_reception || "");
   const [receptionnaire, setReceptionnaire] = useState(() =>
-    getDefaultReceptionnaire(demande, currentUser),
+    getDefaultReceptionnaire(demande, getme()),
   );
 
   const [conformiteQuantite, setConformiteQuantite] = useState<ReceiveDemandePayload["conformite_quantite"] | "">(() => (demande?.conformite_quantite as ReceiveDemandePayload["conformite_quantite"]) || "");
@@ -128,9 +140,9 @@ export default function ReceptionModal({
   }, [lignes, lignesBesoin, demande]);
 
   const isProblemDetected = useMemo(() => {
-    return (conformiteQuantite !== "" && conformiteQuantite !== "CONFORME") || 
-           (conformiteQualite !== "" && conformiteQualite !== "CONFORME") || 
-           isQuantiteDiff;
+    return (conformiteQuantite !== "" && conformiteQuantite !== "CONFORME") ||
+      (conformiteQualite !== "" && conformiteQualite !== "CONFORME") ||
+      isQuantiteDiff;
   }, [conformiteQuantite, conformiteQualite, isQuantiteDiff]);
 
   const statutReceptionDisplay = useMemo(() => {
@@ -164,7 +176,7 @@ export default function ReceptionModal({
 
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setDateReception(demande?.date_reception || "");
-    setReceptionnaire(getDefaultReceptionnaire(demande, currentUser));
+    setReceptionnaire(getDefaultReceptionnaire(demande, getme()));
     setConformiteQuantite(
       (demande?.conformite_quantite as ReceiveDemandePayload["conformite_quantite"]) || "",
     );
@@ -305,7 +317,7 @@ export default function ReceptionModal({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div 
+      <div
         className="my-auto flex w-full max-w-5xl flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl max-h-[calc(100vh-1.5rem)] sm:max-h-[calc(100vh-3rem)]"
       >
         {/* HEADER */}
@@ -334,7 +346,7 @@ export default function ReceptionModal({
 
         {/* CONTENU PRINCIPAL */}
         <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 md:p-5">
-          
+
           {/* BLOC 1 - EXPÉDITION (compact) */}
           <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm shrink-0">
             <div className="flex items-center font-bold text-slate-700">
@@ -389,7 +401,7 @@ export default function ReceptionModal({
                     <th className="px-4 py-2 border-b border-slate-100">Désignation</th>
                     <th className="w-20 border-b border-slate-100 px-4 py-2 text-center text-slate-400">Prévu</th>
                     <th className="w-32 border-b border-slate-100 px-4 py-2 text-center text-slate-700">Reçu</th>
-                    
+
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -419,10 +431,9 @@ export default function ReceptionModal({
                               placeholder="0"
                               value={ligneState.quantite_recue === "" ? "" : ligneState.quantite_recue}
                               onChange={(e) => handleLigneChange(ligne.id!, "quantite_recue", e.target.value === "" ? "" : Number(e.target.value))}
-                              className={`w-full rounded-xl border-2 bg-slate-50 focus:bg-white px-2 py-1 text-center text-[13px] font-bold outline-none transition-all placeholder:font-normal placeholder:text-slate-400 focus:ring-2 ${
-                                ligneState.quantite_recue === "" ? "border-amber-400 focus:border-amber-500 focus:ring-amber-100" : 
-                                isDiff ? "border-amber-300 text-amber-700 focus:border-amber-500 focus:ring-amber-100" : "border-emerald-300 text-emerald-800 focus:border-emerald-500 focus:ring-emerald-100"
-                              }`}
+                              className={`w-full rounded-xl border-2 bg-slate-50 focus:bg-white px-2 py-1 text-center text-[13px] font-bold outline-none transition-all placeholder:font-normal placeholder:text-slate-400 focus:ring-2 ${ligneState.quantite_recue === "" ? "border-amber-400 focus:border-amber-500 focus:ring-amber-100" :
+                                  isDiff ? "border-amber-300 text-amber-700 focus:border-amber-500 focus:ring-amber-100" : "border-emerald-300 text-emerald-800 focus:border-emerald-500 focus:ring-emerald-100"
+                                }`}
                             />
                             {ligneState.quantite_recue === "" && (
                               <div className="absolute -top-2 -right-2 right-0">
@@ -447,7 +458,7 @@ export default function ReceptionModal({
 
             {/* Décision Boutons */}
             <div className="flex flex-col gap-4 border-t border-slate-100 bg-slate-50/50 px-4 py-3 md:flex-row items-center justify-center">
-              
+
               <div className="flex items-center gap-3 w-full md:w-auto">
                 <span className="text-sm font-bold uppercase tracking-wider text-slate-500">Quantité :</span>
                 <div className="flex gap-1.5">
@@ -461,7 +472,7 @@ export default function ReceptionModal({
               </div>
 
               <div className="hidden h-6 w-px bg-slate-300 md:block mx-1"></div>
-              
+
               <div className="flex items-center gap-3 w-full md:w-auto">
                 <span className="text-sm font-bold uppercase tracking-wider text-slate-500">Qualité :</span>
                 <div className="flex gap-1.5">
@@ -552,11 +563,10 @@ export default function ReceptionModal({
             <button
               type="submit"
               disabled={saving || conformiteQualite === "" || conformiteQuantite === "" || lignes.some((ligne) => ligne.quantite_recue === "") || !dateReception}
-              className={`inline-flex w-full md:w-auto shrink-0 items-center justify-center gap-2 rounded-xl px-8 py-3 text-sm font-black uppercase tracking-wider text-white shadow-[0_8px_20px_rgba(5,150,105,0.3)] transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none disabled:hover:translate-y-0 ${
-                isProblemDetected
+              className={`inline-flex w-full md:w-auto shrink-0 items-center justify-center gap-2 rounded-xl px-8 py-3 text-sm font-black uppercase tracking-wider text-white shadow-[0_8px_20px_rgba(5,150,105,0.3)] transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none disabled:hover:translate-y-0 ${isProblemDetected
                   ? "bg-amber-600 hover:bg-amber-700"
                   : "bg-emerald-600 hover:bg-emerald-700"
-              }`}
+                }`}
             >
               {saving ? (
                 <>

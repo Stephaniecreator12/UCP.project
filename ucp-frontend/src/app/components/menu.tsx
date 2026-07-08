@@ -1,6 +1,6 @@
 "use client";
-import { useAccess } from "@/context/accessContext";
 import Link from "next/link";
+import Cookies from "js-cookie";
 import { usePathname } from "next/navigation";
 import { useSyncExternalStore } from "react";
 import {
@@ -17,24 +17,13 @@ import {
   useRef,
   useState,
 } from "react";
-import {
-  fetchCurrentUser,
-  getCurrentUser,
-  isAgentAchatUser,
-  isAgentMarcheUser,
-  isFinanceUser,
-  isValidatorUser,
-} from "@/services/auth";
 
-type Role = "finance" | "validator" | "agent" | "marche";
-
-type AccessType = "public" | "private";
+type Role = "finance" | "validator" | "agent" | "marche" | "public" | "admin";
 
 type MenuLink = {
   label: string;
   href: string;
-  access: AccessType;
-  roles?: ("finance" | "validator" | "agent" | "marche" | "default")[];
+  roles: Role[];
   match: (pathname: string) => boolean;
 };
 
@@ -42,21 +31,19 @@ const MENU_LINKS: MenuLink[] = [
   {
     label: "Procurement",
     href: "/procurement",
-    access: "public",
+    roles: ["public"],
     match: (p) => p.startsWith("/procurement"),
   },
   {
     label: "Suivi Procurement",
     href: "/personnel/log-dashboard",
-    access: "private",
-    roles: ["default"],
+    roles: ["admin"],
     match: (p) => p.startsWith("/personnel/validation"),
   },
 
   {
     label: "Validation",
     href: "/personnel/validation",
-    access: "private",
     roles: ["validator", "finance"],
     match: (p) => p.startsWith("/personnel/validation"),
   },
@@ -64,7 +51,6 @@ const MENU_LINKS: MenuLink[] = [
   {
     label: "TDR",
     href: "/personnel/TdrSt",
-    access: "private",
     roles: ["validator", "finance"],
     match: (p) => p.startsWith("/personnel/TdrSt"),
   },
@@ -72,7 +58,6 @@ const MENU_LINKS: MenuLink[] = [
   {
     label: "Passation",
     href: "/personnel/passation",
-    access: "private",
     roles: ["agent"],
     match: (p) => p.startsWith("/personnel/passation"),
   },
@@ -80,7 +65,6 @@ const MENU_LINKS: MenuLink[] = [
   {
     label: "Marché",
     href: "/personnel/marche",
-    access: "private",
     roles: ["marche"],
     match: (p) =>
       p.startsWith("/personnel/marche") ||
@@ -95,14 +79,6 @@ const getMenuIcon = (href: string) => {
   return ClipboardList;
 };
 
-const getUserMode = (user: ReturnType<typeof getCurrentUser>) => {
-  if (isFinanceUser(user)) return "finance" as const;
-  if (isValidatorUser(user)) return "validator" as const;
-  if (isAgentAchatUser(user)) return "agent" as const;
-  if (isAgentMarcheUser(user)) return "marche" as const;
-  return "default" as const;
-};
-
 export default function Menu({ className = "" }: { className?: string }) {
   const pathname = usePathname();
   const buttonId = useId();
@@ -110,9 +86,6 @@ export default function Menu({ className = "" }: { className?: string }) {
 
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [open, setOpen] = useState(false);
-  const [userMode, setUserMode] = useState<"default" | "validator" | "finance" | "agent" | "marche">(
-    () => getUserMode(getCurrentUser())
-  );
   const emptySubscribe = () => () => { };
 
   const isMounted = useSyncExternalStore(
@@ -122,16 +95,7 @@ export default function Menu({ className = "" }: { className?: string }) {
   );
 
 
-  const showAuthenticatedActions = pathname !== "/login";
-  useEffect(() => {
-    if (!showAuthenticatedActions) return;
-    const currentUser = getCurrentUser();
-    if (currentUser) return;
-
-    void fetchCurrentUser()
-      .then((user) => setUserMode(getUserMode(user)))
-      .catch(() => setUserMode("default"));
-  }, [showAuthenticatedActions]);
+  const showAuthenticatedActions = pathname !== "/auth/login";
 
   useEffect(() => {
     if (!open) return;
@@ -155,37 +119,12 @@ export default function Menu({ className = "" }: { className?: string }) {
     };
   }, [open]);
 
-
-  // Récupération directe des liens mappés depuis notre structure centralisée
-  // Récupération directe des liens mappés depuis notre structure centralisée
-  const { accessType, userInfo } = useAccess();
-
-  const role = getUserMode(getCurrentUser());
+  const role = Cookies.get("group");
 
   const links = MENU_LINKS.filter((link) => {
-
-    // PUBLIC
-    if (accessType === "public") {
-      return link.access === "public";
+    if(role){
+      return link.roles?.includes(role as Role) ?? false;
     }
-
-    // PRIVATE
-    if (accessType === "private") {
-
-      // Pas de rôle => tous les liens
-      if (role === "default") {
-        return true;
-      }
-
-      // Les liens publics sont visibles par tout le monde
-      if (link.access === "public") {
-        return true;
-      }
-
-      // Les liens privés sont filtrés par rôle
-      return link.roles?.includes(role) ?? false;
-    }
-
     return false;
   });
 

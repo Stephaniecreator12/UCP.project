@@ -1,9 +1,9 @@
 from django.contrib import admin
-from apps.users.models.public import PublicProfile
+from apps.users.models.user import UserProfile
 from apps.users.models.agent import Programme, Poste, AgentProfile
 
 
-@admin.register(PublicProfile)
+@admin.register(UserProfile)
 class PublicProfileAdmin(admin.ModelAdmin):
     list_display = ("id", "email", "full_name", "type_entite", "is_active", "created_at")
     list_filter = ("type_entite", "is_active")

@@ -1,25 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
-import { decryptAccess } from "./app/utils/decrypt/access";
 export function middleware(request: NextRequest) {
 
   const path = request.nextUrl.pathname;
 
-  const rawAccessType =
-    request.cookies.get("access_type")?.value;
-  const accessType = decryptAccess(rawAccessType);
+  const group =
+    request.cookies.get("group")?.value;
 
   const { pathname } = request.nextUrl
   if (pathname.startsWith('/auth/login')) {
     return NextResponse.next()
   }
-  /*if (
+  if (
     path.startsWith("/personnel") &&
-    accessType !== "private"
+    group == "public"
   ) {
     return NextResponse.redirect(
       new URL("/", request.url)
     );
-  }*/
+  }
   return NextResponse.next();
 }
 export const config = {

@@ -4,8 +4,6 @@ import { getme } from "@/services/profile";
 import { trackUserAction } from "@/services/trackAction";
 import { TrackActionFormValue } from "@/types/trackAction";
 import { cookies } from "next/headers";
-import { decryptAccess } from "@/app/utils/decrypt/access";
-import { decryptUserInfo } from "@/app/utils/decrypt/userInfo";
 interface RouteParams {
   params: Promise<{ id: string }> | { id: string };
 }
@@ -18,18 +16,13 @@ export async function GET(
   const { id } = resolvedParams;
   const cookieStore = await cookies();
   const token = cookieStore.get("access_token")?.value;
-  const encryptedAccess = cookieStore.get("access_type")?.value;
-  const accessType = encryptedAccess ? decryptAccess(encryptedAccess) : null;
-  const encryptedUserInfo = cookieStore.get("user_profile")?.value;
-  const userInfo = encryptedUserInfo ? decryptUserInfo(encryptedUserInfo) : null;
-  let dossierId = "";
-  let userId = ""; 
-  let actionType = "";
   if (!token) {
     return NextResponse.json({ message: "Non authentifié" }, { status: 401 });
   }
+  let dossierId = "";
+  let userId = ""; 
+  let actionType = "";
   let user;
-if (accessType == "public") {
   try {
     const result = await getme();
     if (!result.error) {
@@ -43,21 +36,6 @@ if (accessType == "public") {
   } catch (err) {
     console.error("Erreur crash profil :", err);
   }
-}
-else{
-  try {
-    if (userInfo) {
-      user = userInfo;
-      dossierId = id.toString();
-      userId = user.personnel_id.toString(); 
-      actionType = "DOWNLOAD_DAO";
-    } else {
-      console.error("Erreur de récupération profil");
-    }
-  } catch (err) {
-    console.error("Erreur crash profil :", err);
-  }
-}
 
 if (!user) {
   console.warn("Impossible de tracer l'action : Utilisateur non authentifié.");

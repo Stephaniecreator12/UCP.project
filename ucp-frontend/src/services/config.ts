@@ -1,7 +1,6 @@
 import axios from "axios";
 import Cookies from 'js-cookie';
 import { AxiosError } from "axios";
-import { decryptAccess } from "@/app/utils/decrypt/access";
 export const api = axios.create({
   baseURL: `${process.env.NEXT_PUBLIC_API_BASE_URL}/api`,
   withCredentials: true, 
@@ -10,30 +9,21 @@ export const api = axios.create({
 });
 api.interceptors.request.use(async (config) => {
   let token: string | undefined = undefined;
-  let rawAccessType: string | undefined = undefined;
 
   if (typeof window !== "undefined") {
     token = Cookies.get("access_token");
-    rawAccessType = Cookies.get("access_type");
   } else {
     try {
       const { cookies } = await import("next/headers");
       const cookieStore = await cookies();
       token = cookieStore.get("access_token")?.value;
-      rawAccessType = cookieStore.get("access_type")?.value;
     } catch (e) {
       console.error("Impossible de lire les cookies sur le serveur", e);
     }
   }
-  const accessType = decryptAccess(rawAccessType);
-
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
-  if (accessType) {
-    config.headers['X-Access-Type'] = accessType;
-  }
-  
 
   return config;
 });
@@ -48,27 +38,22 @@ api.interceptors.response.use(
       console.log("👉 [INTERCEPTOR] Une erreur est détectée ! Statut :", error.response?.status);
       
       let refreshToken: string | undefined = undefined;
-      let rawAccessType: string | undefined = undefined;
 
       if (typeof window !== "undefined") {
         refreshToken = Cookies.get("refresh_token");
-        rawAccessType = Cookies.get("access_type");
       } else {
         try {
           const { cookies } = await import("next/headers");
           const cookieStore = await cookies();
           refreshToken = cookieStore.get("refresh_token")?.value;
-          rawAccessType = cookieStore.get("access_type")?.value;
         } catch (e) {
           console.error("Erreur lecture cookies serveur", e);
         }
       }
-      const accessType = decryptAccess(rawAccessType);
-
 
       if (refreshToken) {
         try {
-          const targetBaseUrl = accessType === "private" ? `${process.env.NEXT_PUBLIC_API_RH_URL}/api` : `${process.env.NEXT_PUBLIC_API_BASE_URL}/api`;
+          const targetBaseUrl = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api`;
           
           const refreshUrl = `${targetBaseUrl}/token/refresh/`;
           const response = await axios.post(refreshUrl, {
@@ -99,7 +84,7 @@ api.interceptors.response.use(
           if (typeof window !== "undefined") {
             Cookies.remove("access_token");
             Cookies.remove("refresh_token");
-            Cookies.remove("access_type");
+            Cookies.remove("group");
             window.location.href = "/auth/login";
           }
         }

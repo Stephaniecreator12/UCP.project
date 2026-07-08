@@ -90,6 +90,7 @@ INSTALLED_APPS = [
     'apps.ouverture_offre',
     'apps.evaluation_offre',
     'apps.log',
+    'apps.contrats',
 ]
 
 MIDDLEWARE = [

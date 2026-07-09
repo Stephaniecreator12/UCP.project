@@ -18,9 +18,7 @@ export const rhLogin = async (
   setAccess: (access: string) => void,
 ): Promise<LoginResult> => {
   // --- MODE SIMULATION POUR LE DÉVELOPPEMENT LOCAL ---
-  const emailLower = email.strip
-    ? email.strip().toLowerCase()
-    : email.trim().toLowerCase();
+  const emailLower = email.trim().toLowerCase();
 
   if (emailLower === "nalisoa@ucp.mg" || emailLower === "nalisoa@ucp") {
     Cookies.set("access_token", "mock_token_nalisoa_87", { expires: 1 });
@@ -50,7 +48,7 @@ export const rhLogin = async (
     if (typeof window !== "undefined") {
       try {
         localStorage.setItem("access_token", "mock_token_nalisoa_87");
-      } catch { }
+      } catch {}
     }
     // local profile already stored above
     return { status: 200, success: true, accessType: "private" };
@@ -84,7 +82,7 @@ export const rhLogin = async (
     if (typeof window !== "undefined") {
       try {
         localStorage.setItem("access_token", "mock_token_anthony_32");
-      } catch { }
+      } catch {}
     }
     // profile stored above
     return { status: 200, success: true, accessType: "private" };
@@ -117,7 +115,7 @@ export const rhLogin = async (
     if (typeof window !== "undefined") {
       try {
         localStorage.setItem("access_token", "mock_token_raf_gavi_33");
-      } catch { }
+      } catch {}
     }
     // profile stored above
     return { status: 200, success: true, accessType: "private" };
@@ -151,7 +149,7 @@ export const rhLogin = async (
     if (typeof window !== "undefined") {
       try {
         localStorage.setItem("access_token", "mock_token_secretaire_50");
-      } catch { }
+      } catch {}
     }
     return { status: 200, success: true, accessType: "private" };
   }
@@ -184,7 +182,48 @@ export const rhLogin = async (
     if (typeof window !== "undefined") {
       try {
         localStorage.setItem("access_token", "mock_token_alice_100");
-      } catch { }
+      } catch {}
+    }
+    return { status: 200, success: true, accessType: "private" };
+  }
+
+  if (
+    emailLower === "contractualisation@ucp.mg" ||
+    emailLower === "contractualisation@ucp"
+  ) {
+    Cookies.set("access_token", "mock_token_contractualisation_101", {
+      expires: 1,
+    });
+    const stringUser = JSON.stringify({
+      id: 101,
+      email: "contractualisation@ucp.mg",
+      nom: "RAKOTO",
+      prenom: "Contractualisation",
+    });
+    const encryptedUser = CryptoJS.AES.encrypt(
+      stringUser,
+      process.env.NEXT_PUBLIC_COOKIE_SECRET || "default_secret_key",
+    ).toString();
+    Cookies.set("user_info", encryptedUser, { expires: 1 });
+    const accessType = "private";
+    storeCurrentUser({
+      id: 101,
+      username: "contractualisation",
+      email: "contractualisation@ucp.mg",
+      first_name: "Contractualisation",
+      last_name: "RAKOTO",
+      is_active: true,
+      is_staff: false,
+      groups: ["SECRETAIRE"], // ← Secrétaire contractualisation maintenant rattaché au rôle SECRETAIRE
+    });
+    setAccess(accessType);
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem(
+          "access_token",
+          "mock_token_contractualisation_101",
+        );
+      } catch {}
     }
     return { status: 200, success: true, accessType: "private" };
   }
@@ -217,11 +256,11 @@ export const rhLogin = async (
       if (typeof window !== "undefined") {
         try {
           localStorage.setItem("access_token", data.token);
-        } catch { }
+        } catch {}
       }
       try {
         if (data.user) storeCurrentUser(data.user as UserProfile);
-      } catch { }
+      } catch {}
       return { status: 200, success: true, accessType };
     }
     if (response.status == 400) {
@@ -267,12 +306,12 @@ export const publicLogin = async (
         try {
           localStorage.setItem("access_token", data.access);
           localStorage.setItem("refresh_token", data.refresh);
-        } catch { }
+        } catch {}
       }
       try {
         // attempt to populate the stored user profile after public login
         await fetchCurrentUser().catch(() => null);
-      } catch { }
+      } catch {}
       return { status: 200, success: true, accessType };
     }
     if (response.status == 404) {
@@ -321,11 +360,16 @@ export const logout = () => {
   Cookies.remove("refresh_token");
   Cookies.remove("access_type");
   Cookies.remove("user_info");
+  localStorage.removeItem("access_token");
+  localStorage.removeItem("refresh_token");
+  localStorage.removeItem("user_profile");
 };
 
 export const getToken = () => {
   if (typeof window === "undefined") return null;
-  return Cookies.get("access_token");
+  const cookieToken = Cookies.get("access_token");
+  if (cookieToken) return cookieToken;
+  return localStorage.getItem("access_token");
 };
 
 export const publicRegister = async (
@@ -487,6 +531,8 @@ const MARKET_GROUPS = [
   LOGISTIQUE_GROUP,
 ] as const;
 export const SECRETAIRE_GROUP = "SECRETAIRE" as const;
+export const SECRETAIRE_CONTRACTUALISATION_GROUP =
+  "SECRETAIRE_CONTRACTUALISATION" as const;
 
 const VALIDATOR_GROUP_LABELS: Record<
   (typeof VALIDATOR_GROUPS)[number],
@@ -559,6 +605,9 @@ export const isAgentMarcheUser = (user: UserProfile | null) =>
 export const isSecretaireUser = (user: UserProfile | null) =>
   !!user?.groups?.includes(SECRETAIRE_GROUP);
 
+export const isSecretaireContractualisationUser = (user: UserProfile | null) =>
+  !!user?.groups?.includes(SECRETAIRE_CONTRACTUALISATION_GROUP);
+
 export const isLogistiqueUser = (user: UserProfile | null) =>
   isAgentMarcheUser(user);
 
@@ -611,6 +660,8 @@ export const getMarketRoleLabel = (user: UserProfile | null) => {
 
 export const getLandingRouteForUser = (user: UserProfile | null) => {
   if (isSecretaireUser(user)) return "/personnel/ouverture_offre";
+  if (isSecretaireContractualisationUser(user))
+    return "/personnel/contractualisation";
   if (isFinanceUser(user) || isValidatorUser(user))
     return "/personnel/validation";
   if (isAgentAchatUser(user)) return "/personnel/passation";
@@ -631,7 +682,7 @@ export const fetchCurrentUser = async (): Promise<UserProfile> => {
     const data = await readApiResponse(response);
     throw new Error(
       extractAuthErrorMessage(data) ??
-      "Impossible de récupérer le profil utilisateur",
+        "Impossible de récupérer le profil utilisateur",
     );
   }
 

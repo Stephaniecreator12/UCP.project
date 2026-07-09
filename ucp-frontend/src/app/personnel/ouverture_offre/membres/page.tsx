@@ -137,6 +137,25 @@ const mapSeanceMembersToManualMembers = (
     entite: member.intitule || "",
   }));
 
+const normalizeEmail = (email?: string | null) => (email || "").trim().toLowerCase();
+
+const removeReservedParticipants = (
+  members: ManualMember[],
+  seance: SeanceOuverture | null,
+) => {
+  if (!seance) return members;
+
+  const reservedEmails = new Set(
+    [
+      normalizeEmail(seance.secretaire_detail?.email),
+      normalizeEmail(seance.president_detail?.email),
+    ].filter(Boolean),
+  );
+
+  if (reservedEmails.size === 0) return members;
+  return members.filter((member) => !reservedEmails.has(normalizeEmail(member.email)));
+};
+
 type ScreenState = "loading" | "ready" | "forbidden" | "error";
 
 interface GroupedSection {
@@ -378,41 +397,27 @@ export default function MembresCommissionsPage() {
 
       if (stored) {
         try {
-          setModalMembers(JSON.parse(stored) as ManualMember[]);
+          setModalMembers(
+            removeReservedParticipants(JSON.parse(stored) as ManualMember[], seance),
+          );
         } catch {
           setModalMembers([]);
         }
       } else if (seance?.membres.length) {
-        setModalMembers(mapSeanceMembersToManualMembers(seance));
+        setModalMembers(
+          removeReservedParticipants(mapSeanceMembersToManualMembers(seance), seance),
+        );
       } else {
-        // Première saisie: on prépare quelques lignes vides pour aller vite.
+        // Première saisie: uniquement des lignes vides, le secrétaire n'est pas un membre.
         const initial: ManualMember[] = [];
-        if (seance) {
-          if (seance.secretaire_detail) {
-            const sec = seance.secretaire_detail;
-            initial.push({
-              id: `sec-${Date.now()}`,
-              nomPrenom:
-                `${sec.first_name} ${sec.last_name}`.trim() || sec.username,
-              email: sec.email || "",
-              cin: "",
-              poste: "",
-              entite: "",
-            });
-          }
-        }
-
-        if (initial.length === 0) {
-          initial.push({
-            id: `member-1-${Date.now()}`,
-            nomPrenom: "",
-            email: "",
-            cin: "",
-            poste: "",
-            entite: "",
-          });
-        }
-
+        initial.push({
+          id: `member-1-${Date.now()}`,
+          nomPrenom: "",
+          email: "",
+          cin: "",
+          poste: "",
+          entite: "",
+        });
         initial.push({
           id: `member-2-${Date.now()}`,
           nomPrenom: "",
@@ -540,6 +545,16 @@ export default function MembresCommissionsPage() {
         m.poste.trim() !== "" ||
         m.entite.trim() !== "",
     );
+    const reservedActiveMember =
+      selectedSeance &&
+      activeMembers.find((member) => {
+        const email = normalizeEmail(member.email);
+        return (
+          email &&
+          (email === normalizeEmail(selectedSeance.secretaire_detail?.email) ||
+            email === normalizeEmail(selectedSeance.president_detail?.email))
+        );
+      });
 
     const localKey = `${STORAGE_PREFIX}${selectedMarket.reference_number}`;
     const statusKey = `${STATUS_PREFIX}${selectedMarket.reference_number}`;
@@ -550,7 +565,10 @@ export default function MembresCommissionsPage() {
     if (mode === "draft") {
       // En brouillon, on laisse sauvegarder même si la commission est incomplète.
       setInvalidCinIds([]);
-      localStorage.setItem(localKey, JSON.stringify(activeMembers));
+      localStorage.setItem(
+        localKey,
+        JSON.stringify(removeReservedParticipants(activeMembers, selectedSeance)),
+      );
       localStorage.setItem(statusKey, "draft");
 
       setModalSuccess("Enregistré avec succès en brouillon.");
@@ -558,6 +576,13 @@ export default function MembresCommissionsPage() {
         setIsModalOpen(false);
         void loadData();
       }, 1000);
+      return;
+    }
+
+    if (reservedActiveMember) {
+      setModalError(
+        `Erreur : ${reservedActiveMember.email} correspond au secrétaire ou au président. La commission doit contenir uniquement les membres.`,
+      );
       return;
     }
 
@@ -615,10 +640,15 @@ export default function MembresCommissionsPage() {
 
     // Le statut final est ce que le dashboard vérifie avant d'ouvrir la séance.
     setInvalidCinIds([]);
-    localStorage.setItem(localKey, JSON.stringify(activeMembers));
+    localStorage.setItem(
+      localKey,
+      JSON.stringify(removeReservedParticipants(activeMembers, selectedSeance)),
+    );
     localStorage.setItem(statusKey, "final");
 
-    setModalSuccess("Membres enregistrés avec succès au complet !");
+    setModalSuccess(
+      "Membres enregistrés. Ouvrez ensuite la séance puis cliquez sur Mettre à valider pour envoyer les invitations.",
+    );
     setTimeout(() => {
       setIsModalOpen(false);
       void loadData();
@@ -1062,7 +1092,7 @@ export default function MembresCommissionsPage() {
               <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
                 <table className="w-full text-left border-collapse table-auto">
                   <thead>
-                    <tr className="border-b border-slate-200 bg-slate-50 text-[10px] font-black uppercase tracking-wider text-slate-400">
+                    <tr className="border-b border-slate-200 bg-slate-50/80 text-[11px] font-bold uppercase tracking-wider text-slate-650">
                       <th className="px-4 py-3.5 w-1/4">Nom & Prénom</th>
                       <th className="px-4 py-3.5 w-1/4">Adresse e-mail</th>
                       <th className="px-4 py-3.5 w-1/5">
@@ -1080,7 +1110,7 @@ export default function MembresCommissionsPage() {
                       <tr>
                         <td
                           colSpan={isReadOnly ? 5 : 6}
-                          className="px-4 py-12 text-center text-slate-400 font-semibold italic"
+                          className="px-4 py-12 text-center text-slate-500 font-semibold italic"
                         >
                           Aucun membre n'a été ajouté. Cliquez sur "+ Ajouter
                           une ligne".
@@ -1106,7 +1136,7 @@ export default function MembresCommissionsPage() {
                                 }
                                 disabled={isReadOnly}
                                 placeholder="Nom complet"
-                                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:border-emerald-500 focus:outline-none disabled:bg-slate-50"
+                                className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-[13px] font-semibold text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:outline-none disabled:bg-slate-50"
                               />
                             </td>
 
@@ -1124,7 +1154,7 @@ export default function MembresCommissionsPage() {
                                 }
                                 disabled={isReadOnly}
                                 placeholder="exemple@mail.com"
-                                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:border-emerald-500 focus:outline-none disabled:bg-slate-50"
+                                className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-[13px] font-semibold text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:outline-none disabled:bg-slate-50"
                               />
                             </td>
 
@@ -1146,10 +1176,10 @@ export default function MembresCommissionsPage() {
                                 maxLength={12}
                                 placeholder="12 chiffres"
                                 aria-invalid={isCinInvalid}
-                                className={`w-full rounded-xl border bg-white px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none disabled:bg-slate-50 ${
+                                className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-[13px] font-semibold text-slate-900 placeholder-slate-400 focus:outline-none disabled:bg-slate-50 ${
                                   isCinInvalid
-                                    ? "border-rose-400 ring-2 ring-rose-100 focus:border-rose-500"
-                                    : "border-slate-200 focus:border-emerald-500"
+                                    ? "border-rose-450 ring-2 ring-rose-100 focus:border-rose-500"
+                                    : "border-slate-300 focus:border-emerald-500"
                                 }`}
                               />
                               {isCinInvalid && (
@@ -1173,7 +1203,7 @@ export default function MembresCommissionsPage() {
                                 }
                                 disabled={isReadOnly}
                                 placeholder="Ex: Membre, Rapporteur..."
-                                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:border-emerald-500 focus:outline-none disabled:bg-slate-50"
+                                className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-[13px] font-semibold text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:outline-none disabled:bg-slate-50"
                               />
                             </td>
 
@@ -1191,7 +1221,7 @@ export default function MembresCommissionsPage() {
                                 }
                                 disabled={isReadOnly}
                                 placeholder="Ex: UCP / Ministère"
-                                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:border-emerald-500 focus:outline-none disabled:bg-slate-50"
+                                className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-[13px] font-semibold text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:outline-none disabled:bg-slate-50"
                               />
                             </td>
 

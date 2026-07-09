@@ -14,6 +14,7 @@ from .evaluation_view import (
     classement_view,
     sauvegarder_evaluation_view,
     login_evaluateur_dao_view,
+    renvoyer_invitations_evaluateurs_seance_view,
     verify_evaluateur_password_view,
     assigner_evaluateurs_seance_view,
 )
@@ -35,5 +36,6 @@ __all__ = [
     classement_view,
     sauvegarder_evaluation_view,
     login_evaluateur_dao_view,
+    renvoyer_invitations_evaluateurs_seance_view,
     verify_evaluateur_password_view,
 ]

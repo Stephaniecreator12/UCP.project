@@ -1,0 +1,341 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans);font-size:14px;color:var(--text-primary)}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:20px;padding-bottom:0}
+.tab{padding:8px 16px;border-radius:8px 8px 0 0;cursor:pointer;font-size:13px;color:var(--text-secondary);border:1px solid transparent;border-bottom:none;margin-bottom:-1px;background:transparent}
+.tab.active{background:var(--surface-2);border-color:var(--border);color:var(--text-primary);font-weight:500}
+.screen{display:none}.screen.active{display:block}
+.badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:500;padding:2px 8px;border-radius:20px}
+.badge-orange{background:#FEF3C7;color:#92400E}
+.badge-green{background:#D1FAE5;color:#065F46}
+.badge-blue{background:#DBEAFE;color:#1E40AF}
+.badge-gray{background:var(--surface-1);color:var(--text-secondary)}
+.card{background:var(--surface-2);border:0.5px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:12px}
+.card-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}
+.card-title{font-weight:500;font-size:14px}
+.card-sub{font-size:12px;color:var(--text-secondary);margin-top:2px}
+.btn{padding:7px 14px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;border:0.5px solid var(--border-strong);background:transparent;color:var(--text-primary)}
+.btn:hover{background:var(--surface-1)}
+.btn-primary{background:#065F46;color:#fff;border-color:#065F46}
+.btn-primary:hover{background:#047857}
+.btn-sm{padding:4px 10px;font-size:12px}
+.section{margin-bottom:20px}
+.section-label{font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.08em;color:var(--text-secondary);margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.section-num{width:18px;height:18px;border-radius:50%;background:#065F46;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:500}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-size:12px;color:var(--text-secondary)}
+.field-val{padding:8px 10px;border:0.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface-1);color:var(--text-primary)}
+.field-val.locked{background:var(--surface-0);color:var(--text-secondary)}
+.field-val.editable{background:var(--surface-2)}
+.echeancier-row{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;margin-bottom:6px;align-items:center}
+.upload-zone{border:1.5px dashed var(--border-strong);border-radius:12px;padding:24px;text-align:center;color:var(--text-secondary);font-size:13px}
+.action-bar{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;padding-top:16px;border-top:0.5px solid var(--border)}
+.email-preview{background:var(--surface-2);border:0.5px solid var(--border);border-radius:12px;overflow:hidden}
+.email-header{background:#064E3B;padding:16px 20px;color:#fff}
+.email-body{padding:20px}
+.email-pwd{background:var(--surface-1);border:0.5px solid var(--border-accent);border-radius:8px;padding:12px 16px;margin:12px 0;font-family:var(--font-mono);font-size:16px;font-weight:500;text-align:center;color:var(--text-primary)}
+.email-btn{display:block;background:#065F46;color:#fff;text-align:center;padding:10px;border-radius:8px;text-decoration:none;font-size:13px;font-weight:500;margin:12px 0}
+.email-footer{border-top:0.5px solid var(--border);padding:10px 20px;font-size:11px;color:var(--text-secondary)}
+.flow{display:flex;flex-direction:column;gap:0}
+.flow-step{display:flex;gap:12px;padding:10px 0}
+.flow-step:not(:last-child){border-bottom:0.5px solid var(--border)}
+.flow-icon{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px}
+.flow-icon.done{background:#D1FAE5;color:#065F46}
+.flow-icon.current{background:#FEF3C7;color:#92400E}
+.flow-icon.next{background:var(--surface-1);color:var(--text-muted)}
+.table-row{display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:8px;padding:8px 0;border-bottom:0.5px solid var(--border);align-items:center;font-size:13px}
+.table-header{font-size:11px;font-weight:500;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.06em}
+</style>
+
+<h2 class="sr-only">Maquette du module NOTI5 — Contractualisation</h2>
+
+<div class="tabs">
+  <div class="tab active" onclick="show('dashboard',this)"><i class="ti ti-layout-dashboard" aria-hidden="true"></i> Dashboard</div>
+  <div class="tab" onclick="show('form',this)"><i class="ti ti-file-text" aria-hidden="true"></i> Formulaire NOTI5</div>
+  <div class="tab" onclick="show('email',this)"><i class="ti ti-mail" aria-hidden="true"></i> Email prestataire</div>
+  <div class="tab" onclick="show('workflow',this)"><i class="ti ti-arrows-right" aria-hidden="true"></i> Workflow</div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard" class="screen active">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+    <div>
+      <div style="font-size:18px;font-weight:500">Contractualisation</div>
+      <div style="font-size:13px;color:var(--text-secondary);margin-top:2px">Marchés attribués en attente de contrat</div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px">
+    <div class="card" style="padding:12px 16px">
+      <div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px">À contractualiser</div>
+      <div style="font-size:24px;font-weight:500;color:#92400E">3</div>
+    </div>
+    <div class="card" style="padding:12px 16px">
+      <div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px">En attente signature</div>
+      <div style="font-size:24px;font-weight:500;color:#1E40AF">2</div>
+    </div>
+    <div class="card" style="padding:12px 16px">
+      <div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px">Contrats signés</div>
+      <div style="font-size:24px;font-weight:500;color:#065F46">5</div>
+    </div>
+  </div>
+
+  <div style="font-size:12px;font-weight:500;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">À contractualiser</div>
+  
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">UCP/DAO/2026/0051 — Box wifi</div>
+        <div class="card-sub">Prestataire : TECH SOLUTIONS SARL &nbsp;·&nbsp; Score : 82.5 / 100</div>
+      </div>
+      <span class="badge badge-orange"><i class="ti ti-clock" aria-hidden="true"></i> À contractualiser</span>
+    </div>
+    <div style="display:flex;justify-content:flex-end">
+      <button class="btn btn-primary btn-sm" onclick="show('form',document.querySelector('.tab:nth-child(2)'))"><i class="ti ti-plus" aria-hidden="true"></i> Créer le contrat</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">UCP/DAO/2026/0059 — Imprimante laser</div>
+        <div class="card-sub">Prestataire : PRINT PRO SARL &nbsp;·&nbsp; Score : 78.0 / 100</div>
+      </div>
+      <span class="badge badge-orange"><i class="ti ti-clock" aria-hidden="true"></i> À contractualiser</span>
+    </div>
+    <div style="display:flex;justify-content:flex-end">
+      <button class="btn btn-primary btn-sm"><i class="ti ti-plus" aria-hidden="true"></i> Créer le contrat</button>
+    </div>
+  </div>
+
+  <div style="font-size:12px;font-weight:500;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.08em;margin:16px 0 8px">Contrats en cours</div>
+
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">UCP/DAO/2026/0045 — Fourniture médicaments ARV</div>
+        <div class="card-sub">PHARMA PLUS SARL &nbsp;·&nbsp; 50 000 000 MGA &nbsp;·&nbsp; 6 mois</div>
+      </div>
+      <span class="badge badge-blue"><i class="ti ti-mail" aria-hidden="true"></i> Attente signature</span>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:6px">
+      <button class="btn btn-sm"><i class="ti ti-eye" aria-hidden="true"></i> Voir</button>
+      <button class="btn btn-sm"><i class="ti ti-download" aria-hidden="true"></i> PDF</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">UCP/DAO/2026/0038 — Équipements laboratoire</div>
+        <div class="card-sub">LAB TECH MADA &nbsp;·&nbsp; 120 000 000 MGA &nbsp;·&nbsp; 12 mois</div>
+      </div>
+      <span class="badge badge-green"><i class="ti ti-check" aria-hidden="true"></i> Signé</span>
+    </div>
+    <div style="display:flex;justify-content:flex-end">
+      <button class="btn btn-sm"><i class="ti ti-eye" aria-hidden="true"></i> Voir</button>
+    </div>
+  </div>
+</div>
+
+<!-- FORMULAIRE -->
+<div id="form" class="screen">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+    <button class="btn btn-sm" onclick="show('dashboard',document.querySelector('.tab:nth-child(1)'))"><i class="ti ti-arrow-left" aria-hidden="true"></i></button>
+    <div>
+      <div style="font-size:16px;font-weight:500">Formulaire NOTI5 — Contractualisation</div>
+      <div style="font-size:12px;color:var(--text-secondary)">UCP/DAO/2026/0051 — Box wifi</div>
+    </div>
+    <span class="badge badge-orange" style="margin-left:auto">Brouillon</span>
+  </div>
+
+  <!-- Section 1 -->
+  <div class="section">
+    <div class="section-label"><span class="section-num">1</span> En-tête — informations verrouillées</div>
+    <div class="field-row">
+      <div class="field"><label>Numéro marché</label><div class="field-val locked">UCP/DAO/2026/0051</div></div>
+      <div class="field"><label>Type de procédure</label><div class="field-val locked">AOI — Appel d'offres international</div></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Objet du marché</label><div class="field-val locked">Fourniture box wifi pour UCP</div></div>
+      <div class="field"><label>Prestataire retenu (rang 1)</label><div class="field-val locked">TECH SOLUTIONS SARL</div></div>
+    </div>
+  </div>
+
+  <!-- Section 2 -->
+  <div class="section">
+    <div class="section-label"><span class="section-num">2</span> Parties prenantes</div>
+    <div class="field-row">
+      <div class="field"><label>Nom du prestataire</label><div class="field-val locked">TECH SOLUTIONS SARL</div></div>
+      <div class="field"><label>NIF / STAT</label><div class="field-val editable">1234567890 / 12345 67 2026</div></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Email prestataire</label><div class="field-val editable">contact@techsolutions.mg</div></div>
+      <div class="field"><label>Représentant signataire</label><div class="field-val editable">M. RAKOTO Jean Paul</div></div>
+    </div>
+  </div>
+
+  <!-- Section 3 -->
+  <div class="section">
+    <div class="section-label"><span class="section-num">3</span> Informations contractuelles</div>
+    <div class="field-row">
+      <div class="field"><label>Montant TTC (MGA)</label><div class="field-val editable">24 500 000</div></div>
+      <div class="field"><label>Date de signature</label><div class="field-val editable">2026-07-20</div></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Durée d'exécution</label><div class="field-val editable">3 mois</div></div>
+      <div class="field"><label>Clauses particulières</label><div class="field-val editable">Livraison Antananarivo, paiement à réception</div></div>
+    </div>
+  </div>
+
+  <!-- Section 4 -->
+  <div class="section">
+    <div class="section-label"><span class="section-num">4</span> Échéancier de paiement</div>
+    <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">Total : 24 500 000 MGA</div>
+    <div class="echeancier-row table-header">
+      <div>Étape</div><div>Montant (MGA)</div><div>%</div><div></div>
+    </div>
+    <div class="echeancier-row">
+      <div class="field-val editable">Signature contrat</div>
+      <div class="field-val editable">9 800 000</div>
+      <div class="field-val locked">40%</div>
+      <button class="btn btn-sm" style="color:var(--text-danger)"><i class="ti ti-trash" aria-hidden="true"></i></button>
+    </div>
+    <div class="echeancier-row">
+      <div class="field-val editable">Livraison 50%</div>
+      <div class="field-val editable">7 350 000</div>
+      <div class="field-val locked">30%</div>
+      <button class="btn btn-sm" style="color:var(--text-danger)"><i class="ti ti-trash" aria-hidden="true"></i></button>
+    </div>
+    <div class="echeancier-row">
+      <div class="field-val editable">Livraison finale</div>
+      <div class="field-val editable">7 350 000</div>
+      <div class="field-val locked">30%</div>
+      <button class="btn btn-sm" style="color:var(--text-danger)"><i class="ti ti-trash" aria-hidden="true"></i></button>
+    </div>
+    <button class="btn btn-sm" style="margin-top:6px"><i class="ti ti-plus" aria-hidden="true"></i> Ajouter une ligne</button>
+  </div>
+
+  <!-- Section 5 -->
+  <div class="section">
+    <div class="section-label"><span class="section-num">5</span> Upload du contrat signé</div>
+    <div class="upload-zone">
+      <i class="ti ti-upload" style="font-size:24px;margin-bottom:8px;display:block" aria-hidden="true"></i>
+      <div style="font-weight:500;margin-bottom:4px">Glisser-déposer le PDF signé ici</div>
+      <div style="font-size:12px">PDF uniquement · max 50 Mo</div>
+      <div style="font-size:11px;margin-top:6px;color:var(--text-muted)">Nom auto : UCP_DAO_2026_0051_SIGNE.pdf</div>
+      <button class="btn btn-sm" style="margin-top:10px"><i class="ti ti-folder-open" aria-hidden="true"></i> Parcourir</button>
+    </div>
+  </div>
+
+  <!-- Actions -->
+  <div class="action-bar">
+    <button class="btn"><i class="ti ti-device-floppy" aria-hidden="true"></i> Sauvegarder brouillon</button>
+    <button class="btn btn-primary" onclick="show('email',document.querySelector('.tab:nth-child(3)'))"><i class="ti ti-send" aria-hidden="true"></i> Envoyer au prestataire</button>
+  </div>
+</div>
+
+<!-- EMAIL -->
+<div id="email" class="screen">
+  <div style="font-size:16px;font-weight:500;margin-bottom:4px">Aperçu email prestataire</div>
+  <div style="font-size:13px;color:var(--text-secondary);margin-bottom:16px">Envoyé automatiquement après validation du formulaire</div>
+
+  <div style="font-size:12px;color:var(--text-secondary);margin-bottom:4px">
+    <b>De :</b> noreply@ucp.mg &nbsp;·&nbsp;
+    <b>À :</b> contact@techsolutions.mg &nbsp;·&nbsp;
+    <b>Objet :</b> [UCP Contractualisation] Contrat marché UCP/DAO/2026/0051 — À signer
+  </div>
+
+  <div class="email-preview">
+    <div class="email-header">
+      <div style="font-size:11px;opacity:.7;letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px">Unité de Coordination des Projets</div>
+      <div style="font-size:17px;font-weight:500">Votre offre a été retenue</div>
+    </div>
+    <div class="email-body">
+      <p style="margin-bottom:10px;font-size:14px">Bonjour <strong>M. RAKOTO Jean Paul</strong>,</p>
+      <p style="margin-bottom:12px;font-size:13px;color:var(--text-secondary)">Nous avons le plaisir de vous informer que l'offre de <strong>TECH SOLUTIONS SARL</strong> a été retenue pour le marché suivant :</p>
+
+      <div style="background:var(--surface-1);border:0.5px solid var(--border);border-radius:8px;padding:12px 16px;margin-bottom:12px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:13px">
+          <div style="color:var(--text-secondary)">Référence</div><div style="font-weight:500">UCP/DAO/2026/0051</div>
+          <div style="color:var(--text-secondary)">Objet</div><div>Fourniture box wifi pour UCP</div>
+          <div style="color:var(--text-secondary)">Montant TTC</div><div style="font-weight:500">24 500 000 MGA</div>
+          <div style="color:var(--text-secondary)">Durée</div><div>3 mois</div>
+        </div>
+      </div>
+
+      <p style="font-size:13px;color:var(--text-secondary);margin-bottom:8px">Veuillez télécharger le contrat, le signer et nous le retourner avant le <strong>27 juillet 2026</strong>.</p>
+
+      <a href="#" class="email-btn"><i class="ti ti-download" aria-hidden="true"></i> Télécharger le contrat (PDF)</a>
+
+      <p style="font-size:12px;color:var(--text-muted)">Ce document a été généré automatiquement. Pour toute question, contactez votre chargé de marché.</p>
+    </div>
+    <div class="email-footer">Message généré automatiquement par le système e-Procurement UCP — Ne pas répondre à cet email</div>
+  </div>
+</div>
+
+<!-- WORKFLOW -->
+<div id="workflow" class="screen">
+  <div style="font-size:16px;font-weight:500;margin-bottom:4px">Workflow complet du module</div>
+  <div style="font-size:13px;color:var(--text-secondary);margin-bottom:16px">Qui fait quoi et dans quel ordre</div>
+
+  <div class="flow">
+    <div class="flow-step">
+      <div class="flow-icon done"><i class="ti ti-check" aria-hidden="true"></i></div>
+      <div>
+        <div style="font-weight:500;font-size:13px">Évaluation terminée</div>
+        <div style="font-size:12px;color:var(--text-secondary);margin-top:2px">Classement final calculé · Rang 1 = prestataire retenu · <span style="color:#065F46">Statut : TERMINE</span></div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-icon current"><i class="ti ti-user" aria-hidden="true"></i></div>
+      <div>
+        <div style="font-weight:500;font-size:13px">Secrétaire ouvre le formulaire NOTI5</div>
+        <div style="font-size:12px;color:var(--text-secondary);margin-top:2px">Depuis le dashboard · Bouton "Créer le contrat" · En-tête auto-rempli depuis l'évaluation</div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-icon current"><i class="ti ti-forms" aria-hidden="true"></i></div>
+      <div>
+        <div style="font-weight:500;font-size:13px">Secrétaire remplit les 5 sections</div>
+        <div style="font-size:12px;color:var(--text-secondary);margin-top:2px">Email prestataire · Montant TTC · Échéancier · Upload PDF signé · <span style="color:#92400E">Statut : BROUILLON</span></div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-icon next"><i class="ti ti-send" aria-hidden="true"></i></div>
+      <div>
+        <div style="font-weight:500;font-size:13px">Secrétaire clique "Envoyer au prestataire"</div>
+        <div style="font-size:12px;color:var(--text-secondary);margin-top:2px">Email part avec lien PDF · Hash SHA256 calculé · <span style="color:#1E40AF">Statut : ATTENTE_SIGNATURE</span></div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-icon next"><i class="ti ti-mail" aria-hidden="true"></i></div>
+      <div>
+        <div style="font-weight:500;font-size:13px">Prestataire reçoit l'email</div>
+        <div style="font-size:12px;color:var(--text-secondary);margin-top:2px">Télécharge le PDF · Le signe · Le renvoie</div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-icon next"><i class="ti ti-circle-check" aria-hidden="true"></i></div>
+      <div>
+        <div style="font-weight:500;font-size:13px">Contrat signé reçu</div>
+        <div style="font-size:12px;color:var(--text-secondary);margin-top:2px">Secrétaire upload la version signée · <span style="color:#065F46">Statut : EXECUTION</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:16px;padding:12px 16px;background:var(--surface-1);border-radius:8px;font-size:12px;color:var(--text-secondary)">
+    <strong style="color:var(--text-primary)">Rôle :</strong> La secrétaire gère tout · Nouveau menu "Contractualisation" dans la navigation · Accès via groupe <code>SECRETAIRE</code>
+  </div>
+</div>
+
+<script>
+function show(id, tab) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if(tab) tab.classList.add('active');
+}
+</script>

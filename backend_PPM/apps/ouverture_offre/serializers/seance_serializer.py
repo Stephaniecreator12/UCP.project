@@ -7,10 +7,12 @@ from .user_serializer import SimpleUserSerializer
 User = get_user_model()
 
 COMMON_EMAIL_DOMAIN_FIXES = {
+    "gail.com": "gmail.com",
     "gmai.com": "gmail.com",
     "gamil.com": "gmail.com",
     "gmial.com": "gmail.com",
     "gmal.com": "gmail.com",
+    "gnail.com": "gmail.com",
     "gmail.con": "gmail.com",
     "yaho.com": "yahoo.com",
     "yahoo.con": "yahoo.com",
@@ -203,8 +205,6 @@ class SeanceOuvertureSerializer(serializers.ModelSerializer):
         unique_ids = list(dict.fromkeys(value))
         if len(unique_ids) != len(value):
             raise serializers.ValidationError("Un meme membre ne doit pas apparaitre deux fois.")
-        if len(unique_ids) < 3:
-            raise serializers.ValidationError("La commission doit contenir au moins 3 membres.")
         users_count = User.objects.filter(id__in=unique_ids, is_active=True).count()
         if users_count != len(unique_ids):
             raise serializers.ValidationError("Un ou plusieurs membres sont introuvables.")
@@ -223,19 +223,38 @@ class SeanceOuvertureSerializer(serializers.ModelSerializer):
             "description_rature",
             getattr(instance, "description_rature", ""),
         )
-        membre_ids = attrs.get("membre_ids", None)
-        commission_members = attrs.get("commission_members", None)
+        membre_ids_provided = "membre_ids" in attrs
+        commission_members_provided = "commission_members" in attrs
+        membre_ids = attrs.get("membre_ids", None) or []
+        commission_members = attrs.get("commission_members", None) or []
 
-        if commission_members is not None:
-            if len(commission_members) < 3:
-                raise serializers.ValidationError({
-                    "commission_members": "La commission doit contenir au moins 3 membres."
-                })
+        if commission_members_provided:
+            total_membres = len(commission_members)
+            member_error_field = "commission_members"
+        elif membre_ids_provided:
+            total_membres = len(membre_ids)
+            member_error_field = "membre_ids"
+        elif instance:
+            total_membres = instance.membres.filter(est_present=True).count()
+            member_error_field = "commission_members"
+        else:
+            total_membres = 0
+            member_error_field = "commission_members"
 
-            emails = [member["email"].strip().lower() for member in commission_members]
+        if total_membres < 3:
+            manquants = 3 - total_membres
+            raise serializers.ValidationError({
+                member_error_field: (
+                    f"Il manque {manquants} membre(s) à la commission "
+                    f"({total_membres}/3 requis)."
+                )
+            })
+
+        if commission_members:
+            emails = [m["email"].strip().lower() for m in commission_members]
             if len(set(emails)) != len(emails):
                 raise serializers.ValidationError({
-                    "commission_members": "Un meme email ne doit pas apparaitre deux fois."
+                    "commission_members": "Un même email ne doit pas apparaître deux fois."
                 })
 
         if statut != SeanceOuverture.Statut.BROUILLON:

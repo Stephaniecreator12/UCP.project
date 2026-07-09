@@ -24,6 +24,58 @@ from apps.evaluation_offre.services.evaluation_service import (
 
 User = get_user_model()
 
+COMMON_EMAIL_DOMAIN_FIXES = {
+    "gail.com": "gmail.com",
+    "gmai.com": "gmail.com",
+    "gamil.com": "gmail.com",
+    "gmial.com": "gmail.com",
+    "gmal.com": "gmail.com",
+    "gnail.com": "gmail.com",
+    "gmail.con": "gmail.com",
+    "yaho.com": "yahoo.com",
+    "yahoo.con": "yahoo.com",
+    "hotmai.com": "hotmail.com",
+    "hotmial.com": "hotmail.com",
+    "hotmail.con": "hotmail.com",
+    "outlok.com": "outlook.com",
+    "outllook.com": "outlook.com",
+    "outlook.con": "outlook.com",
+    "icloud.con": "icloud.com",
+}
+
+COMMON_COM_TLD_TYPOS = (".con", ".cim", ".cpm", ".copm", ".comm")
+
+
+def get_email_typo_suggestion(email: str) -> str:
+    value = (email or "").strip()
+    if value.count("@") != 1:
+        return ""
+
+    local_part, domain = value.rsplit("@", 1)
+    normalized_domain = domain.lower()
+    suggested_domain = COMMON_EMAIL_DOMAIN_FIXES.get(normalized_domain)
+
+    if not suggested_domain:
+        for typo in COMMON_COM_TLD_TYPOS:
+            if normalized_domain.endswith(typo):
+                suggested_domain = f"{domain[:-len(typo)]}.com"
+                break
+
+    if not suggested_domain or suggested_domain.lower() == normalized_domain:
+        return ""
+
+    return f"{local_part}@{suggested_domain}"
+
+
+def validate_email_typo(email: str) -> str:
+    suggestion = get_email_typo_suggestion(email)
+    if suggestion:
+        raise serializers.ValidationError(
+            "Adresse e-mail probablement mal saisie : "
+            f"{email}. Voulez-vous dire {suggestion} ?"
+        )
+    return email
+
 
 # ============================================================
 # SERIALIZER UTILISATEUR (lecture seule, comme SimpleUserSerializer)
@@ -501,6 +553,9 @@ class CommissionMemberSerializer(serializers.Serializer):
         regex=r"^\d{12}$",
         error_messages={"invalid": "Le CIN doit contenir exactement 12 chiffres."},
     )
+
+    def validate_email(self, value):
+        return validate_email_typo(value)
 
     def validate(self, attrs):
         poste = (attrs.get("poste") or attrs.get("role") or "").strip()

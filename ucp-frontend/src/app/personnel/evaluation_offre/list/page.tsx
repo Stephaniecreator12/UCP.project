@@ -157,7 +157,7 @@ export default function EvaluationListPage() {
                   <button
                     onClick={() =>
                       router.push(
-                        `/evaluation/offres/${eval_item.offre}?seance=${eval_item.seance_id}`,
+                        `/personnel/evaluation/offres/${eval_item.offre}?seance=${eval_item.seance_id}`,
                       )
                     }
                     className="flex items-center gap-2 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg font-semibold transition-colors whitespace-nowrap"

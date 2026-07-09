@@ -12,8 +12,13 @@ export function middleware(request: NextRequest) {
   if (pathname.startsWith('/auth/login')) {
     return NextResponse.next()
   }
+  const isPublicPersonnelRoute =
+    path.startsWith("/personnel/ouverture_offre/validation/") ||
+    path === "/personnel/evaluation" ||
+    path.startsWith("/personnel/evaluation/");
   if (
     path.startsWith("/personnel") &&
+    !isPublicPersonnelRoute &&
     accessType !== "private"
   ) {
     return NextResponse.redirect(

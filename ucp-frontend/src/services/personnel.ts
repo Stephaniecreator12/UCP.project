@@ -22,7 +22,9 @@ const readErrorMessage = async (response: Response): Promise<string> => {
   return "Annuaire du personnel indisponible.";
 };
 
-export async function listExternalPersonnel(): Promise<PersonnelDirectoryOption[]> {
+export async function listExternalPersonnel(): Promise<
+  PersonnelDirectoryOption[]
+> {
   const response = await fetch("/api/users/external-personnel/", {
     method: "GET",
     cache: "no-store",

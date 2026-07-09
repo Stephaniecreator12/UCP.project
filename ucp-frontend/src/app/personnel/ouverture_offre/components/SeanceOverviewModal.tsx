@@ -1,7 +1,14 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
-import { CalendarDays, CircleSlash, FileText, Layers3, X } from "lucide-react";
+import {
+  CalendarDays,
+  CircleSlash,
+  FileText,
+  Layers3,
+  SendHorizontal,
+  X,
+} from "lucide-react";
 
 import SeanceOverviewDetails from "./SeanceOverviewDetails";
 import type { ProcurementMarket } from "@/types/procurement";
@@ -13,6 +20,9 @@ type SeanceOverviewModalProps = {
   market: ProcurementMarket | null;
   stateLabel: string;
   onDownloadPV?: (seanceId: number, referenceDossier: string) => void;
+  onResendInvitations?: (seanceId: number) => void | Promise<void>;
+  canResendInvitations?: boolean;
+  resendInvitationsLoading?: boolean;
 };
 
 type StoredCommissionMember = {
@@ -288,6 +298,9 @@ export default function SeanceOverviewModal({
   market,
   stateLabel,
   onDownloadPV,
+  onResendInvitations,
+  canResendInvitations = false,
+  resendInvitationsLoading = false,
 }: SeanceOverviewModalProps) {
   useEffect(() => {
     if (!open) return;
@@ -399,6 +412,17 @@ export default function SeanceOverviewModal({
         </div>
 
         <div className="flex justify-end border-t border-slate-200 bg-slate-50 px-6 py-4 gap-3">
+          {seance && canResendInvitations && onResendInvitations && (
+            <button
+              type="button"
+              onClick={() => void onResendInvitations(seance.id)}
+              disabled={resendInvitationsLoading}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <SendHorizontal className="h-4 w-4" />
+              {resendInvitationsLoading ? "Renvoi..." : "Renvoyer invitations"}
+            </button>
+          )}
           {seance?.pv_document && (
             <button
               type="button"

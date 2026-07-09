@@ -18,7 +18,7 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Load environment variables from .env file
-load_dotenv(os.path.join(BASE_DIR.parent, '.env'))
+load_dotenv(os.path.join(BASE_DIR.parent, '.env'), override=True)
 
 def env_bool(name, default=False):
     value = os.getenv(name)
@@ -89,6 +89,7 @@ INSTALLED_APPS = [
     'apps.procurement',
     'apps.ouverture_offre',
     'apps.evaluation_offre',
+    'apps.contractualisation',
     'apps.log',
 ]
 
@@ -241,18 +242,34 @@ EMAIL_BACKEND = os.getenv(
     "EMAIL_BACKEND",
     "django.core.mail.backends.console.EmailBackend",
 )
-EMAIL_HOST = os.getenv("EMAIL_HOST", "localhost")
-EMAIL_PORT = env_int("EMAIL_PORT", 587)
+MAIL_PROVIDER = os.getenv("MAIL_PROVIDER", "gmail").strip().lower()
+PROVIDER_SMTP_DEFAULTS = {
+    "gmail": {"host": "smtp.gmail.com", "port": 587, "use_tls": True, "use_ssl": False},
+    "brevo": {"host": "smtp-relay.brevo.com", "port": 587, "use_tls": True, "use_ssl": False},
+    "mailgun": {"host": "smtp.mailgun.org", "port": 587, "use_tls": True, "use_ssl": False},
+    "sendgrid": {"host": "smtp.sendgrid.net", "port": 587, "use_tls": True, "use_ssl": False},
+}
+provider_defaults = PROVIDER_SMTP_DEFAULTS.get(MAIL_PROVIDER, PROVIDER_SMTP_DEFAULTS["gmail"])
+EMAIL_HOST = os.getenv("EMAIL_HOST", provider_defaults["host"])
+EMAIL_USE_SSL = env_bool("EMAIL_USE_SSL", provider_defaults["use_ssl"])
+EMAIL_PORT = env_int("EMAIL_PORT", 465 if EMAIL_USE_SSL else provider_defaults["port"])
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
 EMAIL_USE_TLS = env_bool(
     "EMAIL_USE_TLS",
-    EMAIL_BACKEND == "django.core.mail.backends.smtp.EmailBackend",
+    provider_defaults["use_tls"] and not EMAIL_USE_SSL and EMAIL_BACKEND == "django.core.mail.backends.smtp.EmailBackend",
 )
-EMAIL_USE_SSL = env_bool("EMAIL_USE_SSL", False)
-EMAIL_TIMEOUT = env_int("EMAIL_TIMEOUT", 10)
-DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "noreply@ucp.local")
+EMAIL_TIMEOUT = env_int("EMAIL_TIMEOUT", 30)
+DEFAULT_FROM_EMAIL = (
+    os.getenv("DEFAULT_FROM_EMAIL")
+    or EMAIL_HOST_USER
+    or "noreply@ucp.local"
+)
 SERVER_EMAIL = os.getenv("SERVER_EMAIL", DEFAULT_FROM_EMAIL)
+OUVERTURE_NOTIFICATION_CC = os.getenv("OUVERTURE_NOTIFICATION_CC", "").strip()
+OUVERTURE_NOTIFICATION_REPLY_TO = (
+    os.getenv("OUVERTURE_NOTIFICATION_REPLY_TO", DEFAULT_FROM_EMAIL) or DEFAULT_FROM_EMAIL
+).strip()
 
 ACHATS_NOTIFICATION_EMAILS_ENABLED = env_bool(
     "ACHATS_NOTIFICATION_EMAILS_ENABLED",
@@ -272,6 +289,28 @@ TDRST_EMAIL_SUBJECT_PREFIX = os.getenv(
     "[UCP TDR/ST] ",
 )
 TDRST_NOTIFICATION_REPLY_TO = env_list("TDRST_NOTIFICATION_REPLY_TO")
+
+# Ouverture Offre
+OUVERTURE_NOTIFICATION_EMAILS_ENABLED = env_bool(
+    "OUVERTURE_NOTIFICATION_EMAILS_ENABLED",
+    True,
+)
+OUVERTURE_EMAIL_SUBJECT_PREFIX = os.getenv(
+    "OUVERTURE_EMAIL_SUBJECT_PREFIX",
+    "[UCP Ouverture] ",
+)
+OUVERTURE_NOTIFICATION_REPLY_TO = env_list("OUVERTURE_NOTIFICATION_REPLY_TO")
+
+# Evaluation Offre
+EVALUATION_NOTIFICATION_EMAILS_ENABLED = env_bool(
+    "EVALUATION_NOTIFICATION_EMAILS_ENABLED",
+    True,
+)
+EVALUATION_EMAIL_SUBJECT_PREFIX = os.getenv(
+    "EVALUATION_EMAIL_SUBJECT_PREFIX",
+    "[UCP Évaluation] ",
+)
+EVALUATION_NOTIFICATION_REPLY_TO = env_list("EVALUATION_NOTIFICATION_REPLY_TO")
 
 EXTERNAL_PERSONNEL_API_URL = os.getenv("EXTERNAL_PERSONNEL_API_URL", "")
 EXTERNAL_PERSONNEL_API_TOKEN = os.getenv("EXTERNAL_PERSONNEL_API_TOKEN", "")

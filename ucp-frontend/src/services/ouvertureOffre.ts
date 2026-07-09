@@ -205,6 +205,27 @@ export async function updateSeance(
   return (await response.json()) as SeanceOuverture;
 }
 
+export async function resendOpeningInvitations(
+  id: number,
+): Promise<{ detail: string; emails_envoyes: number }> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/ouverture/seances/${id}/renvoyer-invitations/`,
+    {
+      method: "POST",
+      headers: getAuthHeaders(),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  return (await response.json()) as {
+    detail: string;
+    emails_envoyes: number;
+  };
+}
+
 export async function validateMember(
   id: number,
   payload: ValidationPayload,

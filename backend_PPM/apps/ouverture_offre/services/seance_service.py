@@ -79,6 +79,30 @@ def reset_validation_state(seance):
     )
 
 
+def resend_validation_notifications(seance, user):
+    if seance.statut not in [
+        SeanceOuverture.Statut.EN_VALIDATION_MEMBRES,
+        SeanceOuverture.Statut.EN_VALIDATION_PRESIDENT,
+    ]:
+        return {"detail": "Aucune notification de validation à renvoyer pour cette séance."}
+
+    reset_validation_state(seance)
+    if seance.statut == SeanceOuverture.Statut.EN_VALIDATION_MEMBRES:
+        sent_members = notify_members_validation_requested(seance)
+        setattr(seance, "_emails_envoyes", sent_members)
+        return {
+            "detail": "Notifications de validation renvoyées.",
+            "emails_envoyes": sent_members,
+        }
+
+    sent_president = notify_president_validation_requested(seance)
+    setattr(seance, "_emails_envoyes", sent_president)
+    return {
+        "detail": "Notifications de validation renvoyées.",
+        "emails_envoyes": sent_president,
+    }
+
+
 @transaction.atomic
 def create_seance(validated_data, user):
     offres_data = validated_data.pop("offres", [])
@@ -90,6 +114,10 @@ def create_seance(validated_data, user):
     else:
         replace_members(seance, membre_ids)
     replace_offres(seance, offres_data)
+    if seance.statut == SeanceOuverture.Statut.EN_VALIDATION_MEMBRES:
+        reset_validation_state(seance)
+        sent_count = notify_members_validation_requested(seance)
+        setattr(seance, "_emails_envoyes", sent_count)
     return seance
 
 
@@ -130,7 +158,8 @@ def update_seance(seance, validated_data, user):
         and seance.statut == SeanceOuverture.Statut.EN_VALIDATION_MEMBRES
     ):
         reset_validation_state(seance)
-        notify_members_validation_requested(seance)
+        sent_count = notify_members_validation_requested(seance)
+        setattr(seance, "_emails_envoyes", sent_count)
 
     return seance
 
@@ -212,6 +241,21 @@ def _get_or_create_commission_user(member):
 
 
 def replace_members_from_commission(seance, commission_members):
+    reserved_emails = set()
+    for user_id, field_name in ((seance.secretaire_id, "secretaire"), (seance.president_id, "president")):
+        if not user_id:
+            continue
+        email = User.objects.filter(id=user_id).values_list("email", flat=True).first()
+        if email:
+            reserved_emails.add(email.strip().lower())
+
+    for member in commission_members:
+        email = (member.get("email") or "").strip().lower()
+        if email and email in reserved_emails:
+            raise ValidationError(
+                "Le membre de commission ne peut pas utiliser l'email du secretaire ou du president."
+            )
+
     # Les membres du formulaire separe deviennent ici de vrais participants de la seance.
     membres = []
     for member in commission_members:

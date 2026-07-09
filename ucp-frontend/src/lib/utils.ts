@@ -1,11 +1,9 @@
-import { clsx, type ClassValue } from "clsx"
-import { twMerge } from "tailwind-merge"
+import { clsx, type ClassValue } from "clsx";
 
 export const getServerFileName = (url: string) => {
-    return url.substring(url.lastIndexOf("/") + 1);
-  };
-type ClassValue = string | false | null | undefined;
+  return url.substring(url.lastIndexOf("/") + 1);
+};
 
 export function cn(...inputs: ClassValue[]) {
-  return inputs.filter(Boolean).join(" ");
+  return clsx(inputs);
 }

@@ -35,7 +35,9 @@ function LegacyEvaluateRedirect() {
     if (email) qs.set("email", email);
     if (code) qs.set("code", code);
     const query = qs.toString();
-    router.replace(`/evaluation/offres/${offreId}${query ? `?${query}` : ""}`);
+    router.replace(
+      `/personnel/evaluation/offres/${offreId}${query ? `?${query}` : ""}`,
+    );
   }, [offreId, router, searchParams]);
 
   return <RedirectFallback />;

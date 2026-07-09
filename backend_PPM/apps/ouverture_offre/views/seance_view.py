@@ -23,6 +23,7 @@ from apps.ouverture_offre.services import (
     reject_president,
     reject_president_with_password,
     report_president_with_password,
+    resend_validation_notifications,
     update_seance,
     validate_member,
     validate_member_with_password,
@@ -47,8 +48,12 @@ def seance_list_create(request):
     serializer.is_valid(raise_exception=True)
 
     seance = create_seance(serializer.validated_data, request.user)
+    response_data = SeanceOuvertureSerializer(seance).data
+    emails_envoyes = getattr(seance, "_emails_envoyes", None)
+    if emails_envoyes is not None:
+        response_data["emails_envoyes"] = emails_envoyes
     return Response(
-        SeanceOuvertureSerializer(seance).data,
+        response_data,
         status=status.HTTP_201_CREATED,
     )
 
@@ -68,7 +73,11 @@ def seance_detail(request, pk):
     serializer.is_valid(raise_exception=True)
 
     seance = update_seance(seance, serializer.validated_data, request.user)
-    return Response(SeanceOuvertureSerializer(seance).data)
+    response_data = SeanceOuvertureSerializer(seance).data
+    emails_envoyes = getattr(seance, "_emails_envoyes", None)
+    if emails_envoyes is not None:
+        response_data["emails_envoyes"] = emails_envoyes
+    return Response(response_data)
 
 
 def _validation_context_response(seance, role, user):
@@ -207,6 +216,16 @@ def seance_validation_decision(request, pk):
         },
         status=status.HTTP_200_OK,
     )
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated, IsSecretaireOuLectureSeule])
+def seance_resend_invitations(request, pk):
+    seance = get_visible_seance(request.user, pk)
+    if not seance:
+        return Response({"detail": "Seance introuvable."}, status=status.HTTP_404_NOT_FOUND)
+
+    payload = resend_validation_notifications(seance, request.user)
+    return Response(payload, status=status.HTTP_200_OK)
 
 def get_client_ip(request):
     x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')

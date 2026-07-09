@@ -1,10 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { AlertTriangle, CheckCircle2, XCircle } from "lucide-react";
-import EvaluatorHeader from "@/app/evaluation/components/EvaluatorHeader";
+import EvaluatorHeader from "@/app/personnel/evaluation/components/EvaluatorHeader";
 import {
   ActionPageShell,
   InlineMessage,
@@ -13,8 +12,8 @@ import {
 import {
   fetchClassement,
   type ClassementResponse,
+  getToken,
 } from "@/services/evaluationService";
-import { getToken } from "@/services/auth";
 
 export default function ClassementPage() {
   const params = useParams();
@@ -27,7 +26,7 @@ export default function ClassementPage() {
 
   useEffect(() => {
     if (!getToken()) {
-      router.push(`/evaluation/login?seance=${seanceId}`);
+      router.push(`/personnel/evaluation/login?seance=${seanceId}`);
       return;
     }
     load();
@@ -57,7 +56,7 @@ export default function ClassementPage() {
             ? `${data.objet_dossier} — Progression ${data.progression}`
             : "Classement des offres évaluées"
         }
-        backHref={`/evaluation/dao/${seanceId}/offres`}
+        backHref={`/personnel/evaluation/dao/${seanceId}/offres`}
         backLabel="Retour aux offres"
       >
         {error && <InlineMessage tone="error" text={error} />}
@@ -85,7 +84,10 @@ export default function ClassementPage() {
               </thead>
               <tbody>
                 {data.lignes.map((ligne) => (
-                  <tr key={ligne.offre_id} className="border-t border-slate-100">
+                  <tr
+                    key={ligne.offre_id}
+                    className="border-t border-slate-100"
+                  >
                     <td className="px-4 py-4 font-bold text-slate-900">
                       {ligne.rang ?? "—"}
                     </td>
@@ -93,7 +95,9 @@ export default function ClassementPage() {
                       {ligne.nom_soumissionnaire}
                     </td>
                     <td className="px-4 py-4 text-center font-bold text-emerald-800">
-                      {ligne.score_total != null ? `${ligne.score_total.toFixed(1)}/100` : "—"}
+                      {ligne.score_total != null
+                        ? `${ligne.score_total.toFixed(1)}/100`
+                        : "—"}
                     </td>
                     <td className="px-4 py-4 text-center text-slate-600">
                       {ligne.score_technique?.toFixed(1) ?? "—"}
@@ -103,7 +107,8 @@ export default function ClassementPage() {
                     </td>
                     <td className="px-4 py-4">
                       <div className="flex items-center justify-center gap-1">
-                        {ligne.qualifie_technique && ligne.est_conforme !== false ? (
+                        {ligne.qualifie_technique &&
+                        ligne.est_conforme !== false ? (
                           <CheckCircle2 className="h-5 w-5 text-emerald-600" />
                         ) : (
                           <XCircle className="h-5 w-5 text-rose-500" />
@@ -122,7 +127,8 @@ export default function ClassementPage() {
 
         {data?.classement_disponible && (
           <p className="mt-4 text-sm text-slate-500">
-            Le PDF consolidé sera généré depuis le tableau de bord secrétaire (phase suivante).
+            Le PDF consolidé sera généré depuis le tableau de bord secrétaire
+            (phase suivante).
           </p>
         )}
       </ActionPageShell>

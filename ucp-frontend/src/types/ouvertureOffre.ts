@@ -87,6 +87,7 @@ export type SeanceOuverture = {
   document_substitution_present: boolean;
   offres: OffreOuverture[];
   pv_document: PVDocument | null;
+  emails_envoyes?: number;
 };
 
 export type CreateSeancePayload = {

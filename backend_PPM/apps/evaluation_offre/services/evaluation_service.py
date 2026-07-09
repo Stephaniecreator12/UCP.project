@@ -211,7 +211,7 @@ def _evaluation_email_template(title, content_html, action_url=None, action_text
 
 def _notify_evaluateurs_assignment(offre, assignments):
     frontend_url = getattr(settings, "FRONTEND_APP_URL", "http://localhost:3000").rstrip("/")
-    subject = f"[UCP Évaluation] Assignation evaluation - {offre.seance.reference_dossier}"
+    subject = f"{getattr(settings, 'EVALUATION_EMAIL_SUBJECT_PREFIX', '[UCP Evaluation] ')}Assignation evaluation - {offre.seance.reference_dossier}"
     
     def send_messages():
         for user, login_password, eval_code in assignments:
@@ -220,7 +220,7 @@ def _notify_evaluateurs_assignment(offre, assignments):
             
             seance_id = offre.seance_id
             login_url = (
-                f"{frontend_url}/evaluation/login"
+                f"{frontend_url}/personnel/evaluation/login"
                 f"?seance={seance_id}&email={user.email}"
             )
             
@@ -278,7 +278,7 @@ def _notify_evaluateurs_assignment(offre, assignments):
                     fail_silently=True,
                 )
 
-    transaction.on_commit(send_messages)
+    send_messages()
 
 
 def _notify_evaluateurs_seance_assignment(seance, assignments):
@@ -288,7 +288,7 @@ def _notify_evaluateurs_seance_assignment(seance, assignments):
     from apps.achats.services.notification_service import _render_email_details
 
     frontend_url = getattr(settings, "FRONTEND_APP_URL", "http://localhost:3000").rstrip("/")
-    subject = f"Assignation évaluation — {seance.reference_dossier}"
+    subject = f"{getattr(settings, 'EVALUATION_EMAIL_SUBJECT_PREFIX', '[UCP Evaluation] ')}Assignation évaluation — {seance.reference_dossier}"
     nb_offres = seance.offres.count()
     date_eval = ""
     heure_eval = ""
@@ -306,7 +306,7 @@ def _notify_evaluateurs_seance_assignment(seance, assignments):
                 continue
             recipient = assignation.evaluateur_email or user.email
             login_url = (
-                f"{frontend_url}/evaluation/login"
+                f"{frontend_url}/personnel/evaluation/login"
                 f"?seance={seance.id}&email={recipient}"
             )
             debut_label = (
@@ -362,7 +362,7 @@ def _notify_evaluateurs_seance_assignment(seance, assignments):
                     fail_silently=True,
                 )
 
-    transaction.on_commit(send_messages)
+    send_messages()
 
 
 def _get_evaluation_or_403(offre_id: int, user: object) -> "EvaluationOffre":
@@ -804,6 +804,24 @@ def list_dao_dashboard(user: object) -> list:
             "evaluateurs_assignes": EvaluationSeanceAssignation.objects.filter(seance=seance).count(),
         })
     return items
+
+
+def renvoyer_invitations_evaluateurs_seance(seance_id: int, user: object) -> dict:
+    seance = SeanceOuverture.objects.filter(pk=seance_id, statut="VALIDEE").first()
+    if not seance:
+        raise ValidationError({"detail": "DAO introuvable."})
+
+    assignations = list(EvaluationSeanceAssignation.objects.filter(seance=seance))
+    if not assignations:
+        return {"detail": "Aucune invitation à renvoyer pour ce DAO.", "emails_envoyes": 0}
+
+    assignments = []
+    for assignation in assignations:
+        password = issue_seance_password(assignation)
+        assignments.append((assignation, password))
+
+    _notify_evaluateurs_seance_assignment(seance, assignments)
+    return {"detail": "Invitations renvoyées.", "emails_envoyes": len(assignments)}
 
 
 def _get_date_limite_soumission(seance: SeanceOuverture):
@@ -1325,6 +1343,8 @@ def assigner_evaluateurs_seance(
             raise ValidationError({"detail": "Un ou plusieurs évaluateurs sont introuvables."})
         for eid in evaluateur_ids:
             ev = users_by_id[eid]
+            if not ev.email:
+                raise ValidationError({"detail": "Tous les évaluateurs doivent avoir une adresse email valide."})
             _ensure_evaluateur_group(ev)
             assignation = EvaluationSeanceAssignation.objects.create(
                 seance=seance,
@@ -1375,7 +1395,7 @@ def assigner_evaluateurs_seance(
 
     _notify_evaluateurs_seance_assignment(seance, notify_pairs)
     _log_audit(user, "EvaluationSeanceAssignation", seance.id, "CREATE")
-    return created_assignations
+    return {"detail": "3 évaluateurs assignés au DAO.", "emails_envoyes": len(notify_pairs)}
 
 
 # ============================================================

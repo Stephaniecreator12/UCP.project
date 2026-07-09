@@ -3,13 +3,13 @@
 import { Suspense, useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Loader } from "lucide-react";
-import EvaluatorHeader from "@/app/evaluation/components/EvaluatorHeader";
-import EvaluationWizardForm from "@/app/evaluation/components/EvaluationWizardForm";
+import EvaluatorHeader from "@/app/personnel/evaluation/components/EvaluatorHeader";
+import EvaluationWizardForm from "@/app/personnel/evaluation/components/EvaluationWizardForm";
 import {
   fetchEvaluationDetail,
   type EvaluationDetail,
+  getToken,
 } from "@/services/evaluationService";
-import { getToken } from "@/services/auth";
 
 function EvaluationOffreFallback() {
   return (
@@ -40,7 +40,9 @@ function EvaluationOffreContent() {
 
   useEffect(() => {
     if (!getToken()) {
-      router.push(`/evaluation/login${seanceId ? `?seance=${seanceId}` : ""}`);
+      router.push(
+        `/personnel/evaluation/login${seanceId ? `?seance=${seanceId}` : ""}`,
+      );
       return;
     }
     void load();
@@ -60,8 +62,8 @@ function EvaluationOffreContent() {
   };
 
   const backHref = seanceId
-    ? `/evaluation/dao/${seanceId}/offres`
-    : `/evaluation/dao/${detail?.offre_detail.seance_id || ""}/offres`;
+    ? `/personnel/evaluation/dao/${seanceId}/offres`
+    : `/personnel/evaluation/dao/${detail?.offre_detail.seance_id || ""}/offres`;
 
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#f8faf9_0%,#f1f5f3_100%)]">
@@ -74,7 +76,8 @@ function EvaluationOffreContent() {
                 {detail.offre_detail.nom_soumissionnaire}
               </h1>
               <p className="mt-0.5 text-xs text-slate-500 sm:text-sm">
-                {detail.offre_detail.reference_dossier} · Offre {detail.offre_detail.ordre_passage}
+                {detail.offre_detail.reference_dossier} · Offre{" "}
+                {detail.offre_detail.ordre_passage}
               </p>
             </div>
             <a
@@ -96,7 +99,10 @@ function EvaluationOffreContent() {
           </div>
         )}
         {!loading && detail && (
-          <EvaluationWizardForm detail={detail} onSaved={() => router.push(backHref)} />
+          <EvaluationWizardForm
+            detail={detail}
+            onSaved={() => router.push(backHref)}
+          />
         )}
       </main>
     </div>

@@ -33,6 +33,7 @@ import {
   getSeances,
   updateSeance,
   downloadPV,
+  resendOpeningInvitations,
 } from "@/services/ouvertureOffre";
 import { getMarkets } from "@/services/procurement";
 import type {
@@ -421,6 +422,7 @@ export default function OuvertureOffrePage() {
   const [activeReviewSection, setActiveReviewSection] =
     useState<OpeningState | null>(null);
   const [openingMarketId, setOpeningMarketId] = useState<number | null>(null);
+  const [resendingSeanceId, setResendingSeanceId] = useState<number | null>(null);
   const [detailRow, setDetailRow] = useState<OpeningRow | null>(null);
   const [commissionBlock, setCommissionBlock] =
     useState<CommissionBlock | null>(null);
@@ -697,7 +699,7 @@ export default function OuvertureOffrePage() {
         );
         return;
       }
-      router.push(`/ouverture_offre/${row.seance.id}`);
+      router.push(`/personnel/ouverture_offre/${row.seance.id}`);
       return;
     }
 
@@ -714,7 +716,7 @@ export default function OuvertureOffrePage() {
         commission_members: commissionMembers,
       });
 
-      const detailPath = `/ouverture_offre/${seance.id}`;
+      const detailPath = `/personnel/ouverture_offre/${seance.id}`;
       router.push(detailPath);
     } catch (err) {
       setError(
@@ -736,6 +738,42 @@ export default function OuvertureOffrePage() {
       setError(
         err instanceof Error ? err.message : "Impossible de télécharger le PV.",
       );
+    }
+  };
+
+  const handleResendInvitations = async (seanceId: number) => {
+    try {
+      setError("");
+      setSuccessMessage("");
+      setResendingSeanceId(seanceId);
+
+      const result = await resendOpeningInvitations(seanceId);
+      const refreshedSeances = await getSeances();
+      setSeances(refreshedSeances);
+
+      setDetailRow((current) => {
+        if (!current || current.seance?.id !== seanceId) return current;
+
+        const refreshedSeance =
+          refreshedSeances.find((item) => item.id === seanceId) ??
+          current.seance;
+
+        return {
+          ...current,
+          seance: refreshedSeance,
+          state: getOpeningState(current.market, refreshedSeance),
+        };
+      });
+
+      setSuccessMessage(result.detail);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Renvoi des invitations impossible.",
+      );
+    } finally {
+      setResendingSeanceId(null);
     }
   };
 
@@ -946,6 +984,17 @@ export default function OuvertureOffrePage() {
         market={detailRow?.market ?? null}
         stateLabel={detailRow ? stateLabels[detailRow.state] : ""}
         onDownloadPV={handleDownloadPV}
+        onResendInvitations={handleResendInvitations}
+        canResendInvitations={Boolean(
+          detailRow?.seance &&
+            currentUser &&
+            detailRow.seance.secretaire === currentUser.id &&
+            (detailRow.seance.statut === "EN_VALIDATION_MEMBRES" ||
+              detailRow.seance.statut === "EN_VALIDATION_PRESIDENT"),
+        )}
+        resendInvitationsLoading={
+          !!detailRow?.seance && resendingSeanceId === detailRow.seance.id
+        }
       />
       {successMessage && (
         <NotificationPopup

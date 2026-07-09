@@ -1,0 +1,114 @@
+<html>
+  <body
+    style="
+      font-family: Arial, Helvetica, sans-serif;
+      color: #0f172a;
+      line-height: 1.5;
+    "
+  >
+    <table
+      width="100%"
+      cellpadding="0"
+      cellspacing="0"
+      style="background: #f8fafc; padding: 32px"
+    >
+      <tr>
+        <td align="center">
+          <table
+            width="600"
+            cellpadding="0"
+            cellspacing="0"
+            style="
+              background: #ffffff;
+              border-radius: 16px;
+              overflow: hidden;
+              box-shadow: 0 20px 50px rgba(15, 23, 42, 0.08);
+            "
+          >
+            <tr>
+              <td
+                style="
+                  padding: 28px 32px;
+                  text-align: center;
+                  background: #064e3b;
+                  color: #ffffff;
+                "
+              >
+                <h1 style="margin: 0; font-size: 24px">
+                  Contrat prêt pour signature
+                </h1>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 28px 32px; color: #0f172a">
+                <p>Bonjour {{ nom_prestataire }},</p>
+                <p>
+                  Le contrat <strong>{{ numero_marche }}</strong> est maintenant
+                  prêt pour signature.
+                </p>
+                <table
+                  width="100%"
+                  cellpadding="0"
+                  cellspacing="0"
+                  style="margin: 20px 0"
+                >
+                  <tr>
+                    <td style="padding: 8px 0; font-weight: 600">
+                      Référence séance :
+                    </td>
+                    <td style="padding: 8px 0">{{ seance_reference }}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; font-weight: 600">Objet :</td>
+                    <td style="padding: 8px 0">{{ seance_objet }}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; font-weight: 600">
+                      Montant TTC :
+                    </td>
+                    <td style="padding: 8px 0">{{ montant_ttc }}</td>
+                  </tr>
+                </table>
+                <p>
+                  Merci de vous connecter au portail pour télécharger et signer
+                  votre contrat.
+                </p>
+                <p style="text-align: center; margin: 28px 0">
+                  <a
+                    href="{{ url_portail }}"
+                    style="
+                      display: inline-block;
+                      background: #10b981;
+                      color: #ffffff;
+                      padding: 12px 24px;
+                      border-radius: 8px;
+                      text-decoration: none;
+                      font-weight: 600;
+                    "
+                    >Accéder au portail UCP</a
+                  >
+                </p>
+                <p style="font-size: 14px; color: #334155">
+                  Si vous avez des questions, répondez simplement à cet email.
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td
+                style="
+                  padding: 24px 32px;
+                  background: #f8fafc;
+                  color: #475569;
+                  font-size: 12px;
+                  text-align: center;
+                "
+              >
+                Message automatique — UCP e-Procurement
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

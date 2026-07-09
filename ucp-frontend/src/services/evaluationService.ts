@@ -1,8 +1,23 @@
 import { API_BASE_URL } from "./api";
+import Cookies from "js-cookie";
+
+const API_PREFIX = `${API_BASE_URL}/api`;
+const EVALUATION_API_BASE = `${API_PREFIX}/evaluation`;
 
 export const getToken = () => {
   if (typeof window === "undefined") return null;
+  // Prefer cookie token when available (secretaries/staff), otherwise fall back to evaluator localStorage token.
+  const cookieToken = Cookies.get("access_token");
+  if (cookieToken) return cookieToken;
   return localStorage.getItem("access_token");
+};
+
+export const logoutEvaluator = () => {
+  if (typeof window === "undefined") return;
+  Cookies.remove("access_token");
+  Cookies.remove("refresh_token");
+  localStorage.removeItem("access_token");
+  localStorage.removeItem("refresh_token");
 };
 
 const refreshAccessToken = async (): Promise<string | null> => {
@@ -10,7 +25,7 @@ const refreshAccessToken = async (): Promise<string | null> => {
   const refresh = localStorage.getItem("refresh_token");
   if (!refresh) return null;
 
-  const response = await fetch(`${API_BASE_URL}/token/refresh/`, {
+  const response = await fetch(`${API_PREFIX}/token/refresh/`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ refresh }),
@@ -398,7 +413,7 @@ function flattenEvaluationDetail(
 }
 
 export async function fetchEvaluationList(): Promise<EvaluationList[]> {
-  const res = await fetchWithAuthRetry(`${API_BASE_URL}/evaluation/`, {
+  const res = await fetchWithAuthRetry(`${EVALUATION_API_BASE}/`, {
     method: "GET",
   });
   if (!res.ok)
@@ -410,7 +425,7 @@ export async function fetchDaoOffres(
   seanceId: number,
 ): Promise<DaoOffresResponse> {
   const res = await fetchWithAuthRetry(
-    `${API_BASE_URL}/evaluation/dao/${seanceId}/offres/`,
+    `${EVALUATION_API_BASE}/dao/${seanceId}/offres/`,
     { method: "GET" },
   );
   if (!res.ok) {
@@ -424,7 +439,7 @@ export async function fetchClassement(
   seanceId: number,
 ): Promise<ClassementResponse> {
   const res = await fetchWithAuthRetry(
-    `${API_BASE_URL}/evaluation/dao/${seanceId}/classement/`,
+    `${EVALUATION_API_BASE}/dao/${seanceId}/classement/`,
     { method: "GET" },
   );
   if (!res.ok) {
@@ -437,10 +452,9 @@ export async function fetchClassement(
 export async function fetchEvaluationDetail(
   offreId: number,
 ): Promise<EvaluationDetail> {
-  const res = await fetchWithAuthRetry(
-    `${API_BASE_URL}/evaluation/${offreId}/`,
-    { method: "GET" },
-  );
+  const res = await fetchWithAuthRetry(`${EVALUATION_API_BASE}/${offreId}/`, {
+    method: "GET",
+  });
   if (!res.ok)
     throw new Error("Erreur lors de la récupération du détail d'évaluation");
   const data = await res.json();
@@ -452,7 +466,7 @@ export async function saveEvaluation(
   payload: SaveEvaluationPayload,
 ): Promise<EvaluationDetail> {
   const res = await fetchWithAuthRetry(
-    `${API_BASE_URL}/evaluation/${offreId}/save/`,
+    `${EVALUATION_API_BASE}/${offreId}/save/`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -468,10 +482,9 @@ export async function saveEvaluation(
 }
 
 export async function fetchAssignationList(): Promise<DaoDashboardItem[]> {
-  const res = await fetchWithAuthRetry(
-    `${API_BASE_URL}/evaluation/assignations/`,
-    { method: "GET" },
-  );
+  const res = await fetchWithAuthRetry(`${EVALUATION_API_BASE}/assignations/`, {
+    method: "GET",
+  });
   if (!res.ok)
     throw new Error("Erreur lors de la récupération du tableau de bord");
   return res.json();
@@ -479,7 +492,7 @@ export async function fetchAssignationList(): Promise<DaoDashboardItem[]> {
 
 export async function fetchDaoDashboard(): Promise<DaoDashboardItem[]> {
   const res = await fetchWithAuthRetry(
-    `${API_BASE_URL}/api/evaluation/dao/dashboard/`,
+    `${EVALUATION_API_BASE}/dao/dashboard/`,
     { method: "GET" },
   );
   if (!res.ok)
@@ -489,7 +502,7 @@ export async function fetchDaoDashboard(): Promise<DaoDashboardItem[]> {
 
 export async function fetchDaoDetail(seanceId: number): Promise<DaoDetail> {
   const res = await fetchWithAuthRetry(
-    `${API_BASE_URL}/evaluation/dao/${seanceId}/detail/`,
+    `${EVALUATION_API_BASE}/dao/${seanceId}/detail/`,
     { method: "GET" },
   );
   if (!res.ok) {
@@ -502,9 +515,9 @@ export async function fetchDaoDetail(seanceId: number): Promise<DaoDetail> {
 export async function assignDaoEvaluators(
   seanceId: number,
   payload: AssignationPayload,
-): Promise<{ detail: string }> {
+): Promise<{ detail: string; emails_envoyes: number }> {
   const res = await fetchWithAuthRetry(
-    `${API_BASE_URL}/evaluation/dao/${seanceId}/assigner/`,
+    `${EVALUATION_API_BASE}/dao/${seanceId}/assigner/`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -518,12 +531,29 @@ export async function assignDaoEvaluators(
   return res.json();
 }
 
+export async function resendDaoEvaluatorInvitations(
+  seanceId: number,
+): Promise<{ detail: string; emails_envoyes: number }> {
+  const res = await fetchWithAuthRetry(
+    `${EVALUATION_API_BASE}/dao/${seanceId}/renvoyer-invitations/`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    },
+  );
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.detail || "Erreur lors du renvoi des invitations");
+  }
+  return res.json();
+}
+
 export async function loginEvaluationDao(
   email: string,
   password: string,
   seanceId?: number,
 ): Promise<{ seance_id: number; email: string }> {
-  const res = await fetch(`${API_BASE_URL}/evaluation/auth/login/`, {
+  const res = await fetch(`${EVALUATION_API_BASE}/auth/login/`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -556,14 +586,11 @@ export async function verifyEvaluateurPassword(
   password: string,
   seanceId: number,
 ): Promise<void> {
-  const res = await fetchWithAuthRetry(
-    `${API_BASE_URL}/evaluation/auth/verify/`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password: password.trim(), seance_id: seanceId }),
-    },
-  );
+  const res = await fetchWithAuthRetry(`${EVALUATION_API_BASE}/auth/verify/`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ password: password.trim(), seance_id: seanceId }),
+  });
   if (!res.ok) {
     const error = await res.json().catch(() => ({}));
     throw new Error(
@@ -580,7 +607,7 @@ export async function submitExamenPreliminaire(
   payload: ExamenPreliminairePayload,
 ): Promise<unknown> {
   const res = await fetchWithAuthRetry(
-    `${API_BASE_URL}/evaluation/${offreId}/examen-preliminaire/`,
+    `${EVALUATION_API_BASE}/${offreId}/examen-preliminaire/`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -600,7 +627,7 @@ export async function submitEvaluationTechnique(
   payload: EvaluationTechniquePayload,
 ): Promise<unknown> {
   const res = await fetchWithAuthRetry(
-    `${API_BASE_URL}/evaluation/${offreId}/technique/`,
+    `${EVALUATION_API_BASE}/${offreId}/technique/`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -620,7 +647,7 @@ export async function submitEvaluationFinanciere(
   payload: EvaluationFinancierePayload,
 ): Promise<unknown> {
   const res = await fetchWithAuthRetry(
-    `${API_BASE_URL}/evaluation/${offreId}/financiere/`,
+    `${EVALUATION_API_BASE}/${offreId}/financiere/`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -640,7 +667,7 @@ export async function submitDecisionFinale(
   payload: DecisionFinalePayload,
 ): Promise<unknown> {
   const res = await fetchWithAuthRetry(
-    `${API_BASE_URL}/evaluation/${offreId}/consolider/`,
+    `${EVALUATION_API_BASE}/${offreId}/consolider/`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -659,7 +686,7 @@ export async function accessEvaluationByCode(
   email: string,
   code: string,
 ): Promise<unknown> {
-  const res = await fetch(`${API_BASE_URL}/evaluation/${offreId}/access/`, {
+  const res = await fetch(`${EVALUATION_API_BASE}/${offreId}/access/`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, code }),
@@ -674,9 +701,9 @@ export async function accessEvaluationByCode(
 export async function assignEvaluators(
   offreId: number,
   payload: AssignationPayload,
-): Promise<{ detail: string }> {
+): Promise<{ detail: string; emails_envoyes: number }> {
   const res = await fetchWithAuthRetry(
-    `${API_BASE_URL}/evaluation/${offreId}/assigner/`,
+    `${EVALUATION_API_BASE}/${offreId}/assigner/`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },

@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useRef, type MouseEvent } from "react";
 import { logout } from "@/services/auth";
 import Menu from "@/app/components/menu";
@@ -10,7 +10,6 @@ const DEFAULT_AFTER_LOGOUT_ROUTE = "/auth/login";
 
 export default function TopHeader() {
   const pathname = usePathname();
-  const router = useRouter();
   const headerRef = useRef<HTMLElement | null>(null);
 
   const handleLogout = () => {
@@ -24,10 +23,11 @@ export default function TopHeader() {
 
   const showAuthenticatedActions = pathname !== `${DEFAULT_AFTER_LOGOUT_ROUTE}`;
   const isEvaluatorRoute =
-    pathname.startsWith("/evaluation/") || pathname === "/evaluation/login";
+    pathname.startsWith("/personnel/evaluation/") ||
+    pathname === "/personnel/evaluation/login";
   const showMenu = showAuthenticatedActions && !isEvaluatorRoute;
   const logoHref = isEvaluatorRoute
-    ? "/evaluation/login"
+    ? "/personnel/evaluation/login"
     : showAuthenticatedActions
       ? "/formulaire"
       : "/login";
@@ -105,7 +105,7 @@ export default function TopHeader() {
               <button
                 type="button"
                 onClick={handleLogout}
-                className="rounded-full border border-slate-300 bg-white px-[0.95rem] py-[0.46rem] text-[0.8rem] font-bold text-[#2f3d4c] shadow-[0_10px_20px_-16px_rgba(6,20,34,0.65)] transition-all hover:bg-slate-50"
+                className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-bold text-rose-600 shadow-[0_8px_20px_-12px_rgba(244,63,94,0.3)] transition-all hover:bg-rose-100 hover:text-rose-700 hover:border-rose-300 hover:-translate-y-0.5 active:translate-y-0"
               >
                 Déconnexion
               </button>

@@ -76,6 +76,14 @@ ROLE_FIXTURES = [
         "groups": ("LOGISTIQUE",),
         "label": "Logistique",
     },
+    {
+        "username": "demo_secretaire_contractualisation",
+        "email": "demo.contractualisation@ucp.local",
+        "first_name": "Demo",
+        "last_name": "Contractualisation",
+        "groups": ("SECRETAIRE_CONTRACTUALISATION",),
+        "label": "Secrétaire contractualisation",
+    },
 ]
 
 

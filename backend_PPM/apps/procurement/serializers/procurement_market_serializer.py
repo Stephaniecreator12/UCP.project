@@ -166,11 +166,10 @@ class ProcurementMarketSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({
                     "dates_atelier": "obligatoire"
                 })
-        if(publication_date < timezone.now()):
-            raise serializers.ValidationError({
-                "publication_date": "publication_date supérieur à la date actuelle"
-        })
-        delta = deadline - publication_date
+    #je desactive ca juste pour tester mon module ouverture offre sur le deadline
+    #    if(publication_date < timezone.now()):
+     #            "publication_date": "publication_date supérieur à la date actuelle"
+        delta = deadline - publication_date 
         if not deadline:
             raise serializers.ValidationError({
                 "deadline": "obligatoire"

@@ -46,9 +46,9 @@ export default function SidebarMenu({
 }: SidebarMenuProps) {
   return (
 <aside 
-  className="flex w-[200px] flex-col rounded-[14px] border border-[#d9dee3] bg-white p-4 shadow-[0_18px_36px_-30px_rgba(34,44,52,0.5)] max-[1150px]:static max-[1150px]:w-full min-[1151px]:h-[calc(100vh-15px)]"
+  className="flex w-[200px] flex-col rounded-2xl border border-slate-200 bg-slate-50/60 p-4 shadow-[0_12px_24px_-18px_rgba(15,23,42,0.12)] max-[1150px]:static max-[1150px]:w-full min-[1151px]:h-[calc(100vh-15px)]"
 >      <div className="p-2 mb-2">
-        <div className="h-[3px] rounded-full bg-gradient-to-r from-[#0ea85b] to-[#67d89f]" aria-hidden="true" />
+        <div className="h-[3px] rounded-full bg-gradient-to-r from-emerald-500 to-green-400" aria-hidden="true" />
       </div>
 
       <nav className="grid gap-[0.45rem] mt-2">
@@ -59,10 +59,10 @@ export default function SidebarMenu({
           return (
             <button
               key={item}
-              className={`text-[0.85rem] grid grid-cols-[18px_1fr] items-center gap-[0.6rem] border rounded-[10px] py-[0.6rem] px-[0.7rem] text-left cursor-pointer transition-colors ${
+              className={`text-[0.85rem] grid grid-cols-[18px_1fr] items-center gap-[0.6rem] border rounded-xl py-[0.6rem] px-[0.7rem] text-left cursor-pointer transition-all ${
                 isActive
-                  ? "border-[#76cba0] bg-[#eaf9f0] text-[#0e7f47] font-bold"
-                  : "border-[#d9dee3] bg-white text-[#34414f]"
+                  ? "border-emerald-300 bg-emerald-50 text-emerald-800 font-bold shadow-sm"
+                  : "border-slate-200 bg-white text-slate-700 hover:bg-slate-100/50 hover:text-slate-900 hover:border-slate-300"
               }`}
               onClick={() => onMenuSelect(item)}
               title={config.label}

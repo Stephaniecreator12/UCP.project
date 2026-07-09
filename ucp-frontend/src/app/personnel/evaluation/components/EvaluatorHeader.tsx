@@ -4,10 +4,12 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ClipboardList, LogOut } from "lucide-react";
-import { logout } from "@/services/auth";
+import { logoutEvaluator } from "@/services/evaluationService";
 
 function extractSeanceId(pathname: string): number | null {
-  const match = pathname.match(/\/evaluation\/(?:dao|classement)\/(\d+)/);
+  const match = pathname.match(
+    /\/personnel\/evaluation\/(?:dao|classement)\/(\d+)/,
+  );
   return match ? Number(match[1]) : null;
 }
 
@@ -16,14 +18,14 @@ export default function EvaluatorHeader({ seanceId }: { seanceId?: number }) {
   const router = useRouter();
   const resolvedSeanceId = seanceId ?? extractSeanceId(pathname);
   const homeHref = resolvedSeanceId
-    ? `/evaluation/dao/${resolvedSeanceId}/offres`
-    : "/evaluation/login";
+    ? `/personnel/evaluation/dao/${resolvedSeanceId}/offres`
+    : "/personnel/evaluation/login";
 
   const handleLogout = () => {
-    logout();
+    logoutEvaluator();
     const loginHref = resolvedSeanceId
-      ? `/evaluation/login?seance=${resolvedSeanceId}`
-      : "/evaluation/login";
+      ? `/personnel/evaluation/login?seance=${resolvedSeanceId}`
+      : "/personnel/evaluation/login";
     router.replace(loginHref);
     router.refresh();
   };

@@ -1,10 +1,9 @@
 import logging
-from html import escape
 from urllib.parse import urlencode
+from html import escape
 
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
-from django.db import transaction
 
 from apps.ouverture_offre.models import SeanceOuverture
 from apps.ouverture_offre.services.validation_access_service import (
@@ -30,11 +29,8 @@ def _frontend_url(path):
 
 
 def _validation_url(seance, role_key, email):
-    query = urlencode({
-        "role": role_key,
-        "email": email,
-    })
-    return _frontend_url(f"/ouverture_offre/validation/{seance.id}?{query}")
+    query = urlencode({"role": role_key, "email": email})
+    return _frontend_url(f"/personnel/ouverture_offre/validation/{seance.id}?{query}")
 
 
 def _user_name(user):
@@ -56,45 +52,72 @@ def _validation_role(seance, user):
     return "Membre de commission"
 
 
-def _html_template(title, content_html, action_url):
-    return f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    </head>
-    <body style="margin: 0; padding: 10px 8px; background-color: #f1f5f9; color: #334155; font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;">
-        <div style="max-width: 620px; margin: 0 auto; border: 1px solid #dbe3ea; border-radius: 12px; background-color: #ffffff; overflow: hidden;">
-            <div style="padding: 14px 18px; border-bottom: 1px solid #e2e8f0;">
-                <div style="display: inline-block; border-radius: 999px; background-color: #ecfdf5; color: #047857; padding: 4px 8px; font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;">
-                    Ouverture des offres
-                </div>
-                <h1 style="margin: 7px 0 0; color: #0f172a; font-size: 18px; line-height: 1.2; font-weight: 800;">
-                    {escape(title)}
-                </h1>
-            </div>
-            <div style="padding: 16px 18px 18px; color: #475569; font-size: 13px; line-height: 1.5;">
-                {content_html}
-                <div style="margin-top: 16px;">
-                    <a href="{escape(action_url, quote=True)}" style="display: inline-block; border-radius: 9px; background-color: #0f766e; color: #ffffff; padding: 10px 16px; text-decoration: none; font-size: 13px; font-weight: 800;">
-                        Valider la séance
-                    </a>
-                </div>
-            </div>
-            <div style="border-top: 1px solid #e2e8f0; background-color: #f8fafc; padding: 10px 18px; color: #64748b; font-size: 11px; line-height: 1.4;">
-                Ce message est généré automatiquement par le système d'information de l'UCP.
-            </div>
-        </div>
-    </body>
-    </html>
-    """
+def _html_template(name, role, reference, objet, password, action_url):
+    ref = escape(reference)
+    obj = escape(objet or "-")
+    pwd = escape(password)
+    nom = escape(name)
+    rol = escape(role)
+    url = escape(action_url, quote=True)
+    return f"""<!DOCTYPE html>
+<html lang="fr">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f3f7f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;color:#1f2937;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f7f9;padding:24px 0;">
+    <tr>
+      <td align="center">
+        <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border:1px solid #e2e8f0;border-radius:18px;overflow:hidden;box-shadow:0 24px 54px rgba(15,23,42,0.08);">
+          <tr>
+            <td style="background:linear-gradient(135deg,#0b7a44 0%,#0ea85b 60%,#14c46c 100%);padding:28px 24px;text-align:center;">
+              <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:#d1fae5;">UCP Validation</p>
+              <h1 style="margin:12px 0 0;font-size:22px;line-height:1.2;color:#ffffff;">Validation de séance d'ouverture</h1>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:22px 24px 0;">
+              <div style="display:inline-flex;align-items:center;gap:10px;">
+                <span style="display:inline-block;background:#ecfdf5;color:#047857;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;padding:7px 14px;border-radius:999px;">{rol}</span>
+              </div>
+              <p style="margin:20px 0 18px;font-size:15px;line-height:1.7;color:#334155;">Bonjour <strong>{nom}</strong>, vous êtes invité(e) à valider la séance d'ouverture ci-dessous.</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:0 24px 24px;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;">
+                <tr>
+                  <td style="padding:14px 16px;font-size:12px;font-weight:700;color:#64748b;width:40%;">Référence</td>
+                  <td style="padding:14px 16px;font-size:14px;color:#0f172a;">{ref}</td>
+                </tr>
+                <tr style="border-top:1px solid #e2e8f0;">
+                  <td style="padding:14px 16px;font-size:12px;font-weight:700;color:#64748b;">Objet</td>
+                  <td style="padding:14px 16px;font-size:14px;color:#0f172a;">{obj}</td>
+                </tr>
+                <tr style="border-top:1px solid #e2e8f0;">
+                  <td style="padding:14px 16px;font-size:12px;font-weight:700;color:#64748b;">Mot de passe</td>
+                  <td style="padding:14px 16px;font-size:14px;color:#0f172a;font-weight:700;letter-spacing:0.04em;">{pwd}</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:0 24px 24px;text-align:center;">
+              <a href="{url}" style="display:inline-block;background:linear-gradient(135deg,#0b7a44,#0ea85b);color:#ffffff;text-decoration:none;padding:14px 24px;border-radius:999px;font-size:14px;font-weight:700;">Accéder à la validation →</a>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:0 24px 20px 24px;color:#64748b;font-size:12px;line-height:1.6;">Ce mot de passe est valable uniquement pour cette séance.</td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>"""
 
 
 def _send_email(subject, body, recipient, html_body):
     if not recipient or not _notifications_enabled():
         return 0
-
     message = EmailMultiAlternatives(
         subject=_subject(subject),
         body=body,
@@ -103,7 +126,9 @@ def _send_email(subject, body, recipient, html_body):
         reply_to=getattr(settings, "OUVERTURE_NOTIFICATION_REPLY_TO", None) or None,
     )
     message.attach_alternative(html_body, "text/html")
-    return message.send(fail_silently=True)
+    result = message.send(fail_silently=False)
+    logger.info("Email ouverture → %s : %s", recipient, result)
+    return result
 
 
 def _send_validation_requests(seance: SeanceOuverture, recipient_credentials):
@@ -112,59 +137,35 @@ def _send_validation_requests(seance: SeanceOuverture, recipient_credentials):
         .prefetch_related("membres__utilisateur")
         .get(pk=seance.pk)
     )
-
-    def runner():
-        sent_count = 0
-        for user, password, role_key in recipient_credentials:
-            email = _recipient_email(user)
-            if not email:
-                continue
-
-            role = _validation_role(seance, user)
-            action_url = _validation_url(seance, role_key, email)
-            title = "Validation de séance d'ouverture requise"
-            body = (
-                f"Bonjour {_user_name(user)},\n\n"
-                f"Vous êtes sollicité comme {role} pour valider la séance d'ouverture "
-                f"{seance.reference_dossier}.\n"
-                f"Objet : {seance.objet_dossier or '-'}\n\n"
-                f"Mot de passe de validation : {password}\n"
-                f"Valider la seance : {action_url}\n\n"
-                "Ce mot de passe est valable uniquement pour ce DAO et sera desactive apres votre decision.\n"
-            )
-            html_body = _html_template(
-                title,
-                f"""
-                <p>Bonjour <strong>{escape(_user_name(user))}</strong>,</p>
-                <p>Vous êtes sollicité comme <strong>{escape(role)}</strong> pour valider la séance d'ouverture.</p>
-                <div style="margin: 12px 0; border: 1px solid #e2e8f0; border-radius: 10px; background-color: #f8fafc; padding: 12px;">
-                    <div style="font-size: 12px; color: #64748b; font-weight: 700;">Référence</div>
-                    <div style="font-size: 14px; color: #0f172a; font-weight: 800;">{escape(seance.reference_dossier)}</div>
-                    <div style="margin-top: 8px; font-size: 12px; color: #64748b; font-weight: 700;">Objet</div>
-                    <div style="font-size: 13px; color: #0f172a; font-weight: 700;">{escape(seance.objet_dossier or "-")}</div>
-                </div>
-                <p>Utilisez le mot de passe ci-dessous pour accéder uniquement à la validation de ce DAO.</p>
-                <div style="margin: 12px 0; border: 1px solid #bbf7d0; border-radius: 10px; background-color: #f0fdf4; padding: 12px; color: #14532d;">
-                    <div style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em;">Mot de passe de validation</div>
-                    <div style="margin-top: 4px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 18px; font-weight: 900; letter-spacing: 0.08em;">{escape(password)}</div>
-                </div>
-                <p>Ce mot de passe est valable uniquement pour cette séance. Après validation, rejet ou report, il sera désactivé.</p>
-                """,
-                action_url,
-            )
-
-            try:
-                sent_count += _send_email(title, body, email, html_body)
-            except Exception:
-                logger.exception(
-                    "Impossible d'envoyer l'email d'ouverture vers %s pour la seance %s.",
-                    email,
-                    seance.id,
-                )
-        return sent_count
-
-    transaction.on_commit(runner)
-    return len(recipient_credentials)
+    sent_count = 0
+    for user, password, role_key in recipient_credentials:
+        email = _recipient_email(user)
+        if not email:
+            continue
+        role = _validation_role(seance, user)
+        action_url = _validation_url(seance, role_key, email)
+        name = _user_name(user)
+        subject = "Validation de séance d'ouverture requise"
+        body = (
+            f"Bonjour {name},\n\n"
+            f"Rôle : {role}\n"
+            f"Référence : {seance.reference_dossier}\n"
+            f"Objet : {seance.objet_dossier or '-'}\n\n"
+            f"Mot de passe : {password}\n"
+            f"Lien : {action_url}\n\n"
+            "Ce mot de passe est valable uniquement pour cette séance.\n"
+        )
+        html_body = _html_template(
+            name, role,
+            seance.reference_dossier,
+            seance.objet_dossier or "-",
+            password, action_url,
+        )
+        try:
+            sent_count += _send_email(subject, body, email, html_body)
+        except Exception:
+            logger.exception("Échec envoi email vers %s (séance %s)", email, seance.id)
+    return sent_count
 
 
 def notify_members_validation_requested(seance: SeanceOuverture):

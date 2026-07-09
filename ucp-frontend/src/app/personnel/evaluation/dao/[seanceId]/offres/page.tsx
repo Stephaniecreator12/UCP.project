@@ -11,7 +11,7 @@ import {
   Clock,
   Trophy,
 } from "lucide-react";
-import EvaluatorHeader from "@/app/evaluation/components/EvaluatorHeader";
+import EvaluatorHeader from "@/app/personnel/evaluation/components/EvaluatorHeader";
 import {
   ActionPageShell,
   InlineMessage,
@@ -21,8 +21,8 @@ import {
   fetchDaoOffres,
   type DaoOffreItem,
   type DaoOffresResponse,
+  getToken,
 } from "@/services/evaluationService";
-import { getToken } from "@/services/auth";
 
 function progressionMeta(progression: DaoOffreItem["progression"]) {
   switch (progression) {
@@ -61,7 +61,7 @@ export default function DaoOffresPage() {
 
   useEffect(() => {
     if (!getToken()) {
-      router.push(`/evaluation/login?seance=${seanceId}`);
+      router.push(`/personnel/evaluation/login?seance=${seanceId}`);
       return;
     }
     load();
@@ -91,7 +91,7 @@ export default function DaoOffresPage() {
         }
         headerActions={
           <Link
-            href={`/evaluation/classement/${seanceId}`}
+            href={`/personnel/evaluation/classement/${seanceId}`}
             className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-100"
           >
             <Trophy className="h-4 w-4" />
@@ -148,7 +148,7 @@ export default function DaoOffresPage() {
                       </div>
                     </div>
                     <Link
-                      href={`/evaluation/offres/${offre.offre_id}?seance=${seanceId}`}
+                      href={`/personnel/evaluation/offres/${offre.offre_id}?seance=${seanceId}`}
                       className="inline-flex items-center gap-2 rounded-full bg-emerald-700 px-5 py-3 text-sm font-bold text-white transition-all duration-200 hover:-translate-y-0.5 hover:bg-emerald-800 hover:shadow-md"
                     >
                       {meta.action}

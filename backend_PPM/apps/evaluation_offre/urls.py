@@ -16,6 +16,7 @@ from apps.evaluation_offre.views import (
     classement_view,
     sauvegarder_evaluation_view,
     login_evaluateur_dao_view,
+    renvoyer_invitations_evaluateurs_seance_view,
     verify_evaluateur_password_view,
 )
 
@@ -29,6 +30,7 @@ urlpatterns = [
     path("dao/<int:seance_id>/detail/", dao_detail_view, name="evaluation-dao-detail"),
     path("dao/<int:seance_id>/classement/", classement_view, name="evaluation-classement"),
     path("dao/<int:seance_id>/assigner/", assigner_evaluateurs_seance_view, name="evaluation-dao-assigner"),
+    path("dao/<int:seance_id>/renvoyer-invitations/", renvoyer_invitations_evaluateurs_seance_view, name="evaluation-dao-renvoyer-invitations"),
 
     # Détail complet d'une évaluation
     path("<int:offre_id>/", evaluation_detail, name="evaluation-detail"),

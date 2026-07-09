@@ -27,6 +27,7 @@ from apps.evaluation_offre.services.evaluation_service import (
     list_offres_a_assigner,
     list_offres_a_evaluer,
     login_evaluateur_dao,
+    renvoyer_invitations_evaluateurs_seance,
     sauvegarder_evaluation,
     soumettre_evaluation_financiere,
     soumettre_evaluation_technique,
@@ -89,7 +90,7 @@ def assigner_evaluateurs_seance_view(request, seance_id: int):
     serializer = AssignationEvaluateursSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     validated: dict = dict(serializer.validated_data)  # type: ignore[arg-type]
-    assigner_evaluateurs_seance(
+    result = assigner_evaluateurs_seance(
         seance_id,
         request.user,
         evaluateur_ids=list(validated.get("evaluateur_ids") or []),
@@ -98,10 +99,21 @@ def assigner_evaluateurs_seance_view(request, seance_id: int):
         heure_evaluation=validated.get("heure_evaluation"),
         offres_metadata=list(validated.get("offres") or []),
     )
+    emails_envoyes = result["emails_envoyes"]
     return Response(
-        {"detail": "3 évaluateurs assignés au DAO. Les emails ont été envoyés."},
+        {
+            "detail": f"3 évaluateurs assignés au DAO. {emails_envoyes} email(s) envoyé(s).",
+            "emails_envoyes": emails_envoyes,
+        },
         status=status.HTTP_201_CREATED,
     )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated, IsSecretaire])
+def renvoyer_invitations_evaluateurs_seance_view(request, seance_id: int):
+    payload = renvoyer_invitations_evaluateurs_seance(seance_id, request.user)
+    return Response(payload, status=status.HTTP_200_OK)
 
 
 @api_view(["POST"])
@@ -182,7 +194,7 @@ def assigner_evaluateurs_view(request, offre_id: int):
     evaluateur_ids: list = list(validated.get("evaluateur_ids") or [])
     commission_members: list = list(validated.get("commission_members") or [])
 
-    evaluations = assigner_evaluateurs(
+    result = assigner_evaluateurs(
         offre_id,
         request.user,
         evaluateur_ids=evaluateur_ids,
@@ -192,8 +204,13 @@ def assigner_evaluateurs_view(request, offre_id: int):
         nom_soumissionnaire=validated.get("nom_soumissionnaire"),
         date_evaluation=validated.get("date_evaluation"),
     )
+    evaluations = result["evaluations"]
+    emails_envoyes = result["emails_envoyes"]
     return Response(
-        {"detail": f"{len(evaluations)} évaluateurs assignés avec succès."},
+        {
+            "detail": f"{len(evaluations)} évaluateurs assignés avec succès. {emails_envoyes} email(s) envoyé(s).",
+            "emails_envoyes": emails_envoyes,
+        },
         status=status.HTTP_201_CREATED,
     )
 
@@ -353,4 +370,3 @@ def sauvegarder_evaluation_view(request, offre_id: int):
         EvaluationOffreDetailSerializer(evaluation).data,
         status=status.HTTP_200_OK,
     )
-

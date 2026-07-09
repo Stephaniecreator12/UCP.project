@@ -80,7 +80,13 @@ const MARKET_LINKS: MenuLink[] = [
   },
 ];
 
-const SECRETAIRE_LINKS: MenuLink[] = [
+const SECRETAIRE_CONTRACTUALISATION_LINK: MenuLink = {
+  label: "Contractualisation",
+  href: "/personnel/contractualisation",
+  match: (p) => p.startsWith("/personnel/contractualisation"),
+};
+
+const SECRETAIRE_BASE_LINKS: MenuLink[] = [
   {
     label: "Ouverture des offres",
     href: "/personnel/ouverture_offre",
@@ -130,8 +136,8 @@ const getMenuIcon = (href: string) => {
 /**
  * Mappe les groupes Django aux liens de menu
  * Groups disponibles: VALIDATEUR_HIERARCHIQUE, VALIDATEUR_TECHNIQUE, VALIDATEUR_BUDGETAIRE,
- * VALIDATEUR_PROGRAMMATIQUE, APPROBATEUR_NATIONAL, SECRETAIRE, EVALUATEUR, AGENT_ACHAT,
- * AGENT_MARCHE, LOGISTIQUE, RAF, FINANCE, PRESIDENT
+ * VALIDATEUR_PROGRAMMATIQUE, APPROBATEUR_NATIONAL, SECRETAIRE, SECRETAIRE_CONTRACTUALISATION,
+ * EVALUATEUR, AGENT_ACHAT, AGENT_MARCHE, LOGISTIQUE, RAF, FINANCE, PRESIDENT
  */
 const getMenuLinksForGroups = (groups: string[]): MenuLink[] => {
   // Si aucun groupe = DEMANDEUR (DEFAULT)
@@ -139,9 +145,13 @@ const getMenuLinksForGroups = (groups: string[]): MenuLink[] => {
     return DEFAULT_LINKS;
   }
 
-  // Si SECRETAIRE
-  if (groups.includes("SECRETAIRE")) {
-    return SECRETAIRE_LINKS;
+  // Si SECRETAIRE ou ancien groupe SECRETAIRE_CONTRACTUALISATION,
+  // on affiche Contractualisation + les liens classiques du secrétariat.
+  if (
+    groups.includes("SECRETAIRE") ||
+    groups.includes("SECRETAIRE_CONTRACTUALISATION")
+  ) {
+    return [SECRETAIRE_CONTRACTUALISATION_LINK, ...SECRETAIRE_BASE_LINKS];
   }
 
   // Si EVALUATEUR (mais pas SECRETAIRE)
@@ -193,7 +203,7 @@ export default function Menu({ className = "" }: { className?: string }) {
   useEffect(() => {
     setIsMounted(true);
     if (!showAuthenticatedActions) return;
-    
+
     const currentUser = getCurrentUser();
     if (currentUser) {
       setUserGroups(currentUser.groups || []);
@@ -263,11 +273,10 @@ export default function Menu({ className = "" }: { className?: string }) {
         id={menuId}
         role="menu"
         aria-labelledby={buttonId}
-        className={`absolute top-full left-0 z-50 mt-2 w-[240px] overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xl transition-all duration-200 origin-top-left flex flex-col ${
-          open
-            ? "visible opacity-100 scale-100 translate-y-0"
-            : "invisible opacity-0 scale-95 -translate-y-1"
-        }`}
+        className={`absolute top-full left-0 z-50 mt-2 w-[280px] overflow-hidden rounded-2xl border border-slate-300 bg-slate-200 p-4 shadow-xl transition-all duration-200 origin-top-left flex flex-col ${open
+          ? "visible opacity-100 scale-100 translate-y-0"
+          : "invisible opacity-0 scale-95 -translate-y-1"
+          }`}
         style={{
           // Suppression du 60vh. Le menu fait désormais la taille exacte de son contenu.
           // max-height empêche le menu de casser l'écran s'il y a trop d'éléments.
@@ -286,7 +295,7 @@ export default function Menu({ className = "" }: { className?: string }) {
             </div>
 
             {/* Menu de navigation principal */}
-            <nav className="flex flex-col gap-1 overflow-y-auto">
+            <nav className="flex flex-col gap-1.5 overflow-y-auto border-l border-slate-400/80 pl-2.5 ml-1">
               {links.length > 0 ? (
                 links.map((item) => {
                   const isActive = item.match(pathname);
@@ -297,27 +306,25 @@ export default function Menu({ className = "" }: { className?: string }) {
                       key={item.href}
                       href={item.href}
                       role="menuitem"
-                      className={`group/item flex items-center gap-3 rounded-xl py-2.5 px-3.5 text-left text-sm font-medium transition-all duration-150 outline-none ${
-                        isActive
-                          ? "bg-emerald-50/80 text-emerald-700 font-semibold shadow-sm"
-                          : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                      }`}
+                      className={`group/item flex items-center gap-3 rounded-xl py-2 px-3 text-left text-sm font-semibold transition-all duration-150 outline-none ${isActive
+                        ? "bg-white text-emerald-700 font-bold shadow-sm border border-slate-200/80"
+                        : "text-slate-700 hover:bg-white hover:text-slate-900 hover:shadow-sm"
+                        }`}
                       onClick={() => setOpen(false)}
                     >
                       <Icon
-                        size={18}
-                        className={`transition-colors ${
-                          isActive
-                            ? "text-emerald-600"
-                            : "text-slate-400 group-hover/item:text-slate-600"
-                        }`}
+                        size={17}
+                        className={`transition-colors ${isActive
+                          ? "text-emerald-600"
+                          : "text-slate-400 group-hover/item:text-slate-600"
+                          }`}
                       />
-                      <span className="truncate">{item.label}</span>
+                      <span>{item.label}</span>
                     </Link>
                   );
                 })
               ) : (
-                <div className="px-3 py-4 text-center text-xs text-slate-400 italic">
+                <div className="px-3 py-4 text-center text-xs text-slate-500 italic">
                   Aucun lien disponible pour cet espace.
                 </div>
               )}
@@ -326,8 +333,8 @@ export default function Menu({ className = "" }: { className?: string }) {
 
           {/* Pied du menu : mt-auto pousse ce bloc tout en bas si le contenu est petit */}
           <div className="mt-auto pt-6 px-1">
-            <div className="border-t border-slate-100 pt-3">
-              <div className="rounded-xl bg-slate-50/80 px-2.5 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-slate-400">
+            <div className="border-t border-slate-200 pt-3">
+              <div className="rounded-xl bg-slate-250 px-2.5 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-slate-550">
                 E-procurement UCP
               </div>
             </div>

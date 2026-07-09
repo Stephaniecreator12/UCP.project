@@ -38,6 +38,7 @@ import {
   getSeanceById,
   rejectMember,
   rejectPresident,
+  resendOpeningInvitations,
   updateSeance,
   validateMember,
   validatePresident,
@@ -128,6 +129,8 @@ const statusLabelMap: Record<SeanceOuverture["statut"], string> = {
   REJETEE: "Rejetée",
 };
 
+const MIN_COMMISSION_MEMBERS = 3;
+
 const statusClassMap: Record<SeanceOuverture["statut"], string> = {
   BROUILLON: "border-amber-200 bg-amber-50 text-amber-700",
   EN_SAISIE: "border-sky-200 bg-sky-50 text-sky-700",
@@ -214,6 +217,25 @@ const mergeCommissionMembers = (
     };
   });
 };
+
+const normalizeEmail = (email?: string | null) =>
+  (email || "").trim().toLowerCase();
+
+const removeReservedCommissionMembers = (
+  members: CommissionMember[],
+  seance: SeanceOuverture,
+) => {
+  const reservedEmails = new Set(
+    [
+      normalizeEmail(seance.secretaire_detail?.email),
+      normalizeEmail(seance.president_detail?.email),
+    ].filter(Boolean),
+  );
+
+  if (reservedEmails.size === 0) return members;
+  return members.filter((member) => !reservedEmails.has(normalizeEmail(member.email)));
+};
+
 const compactInputClass =
   "h-9 rounded-lg border border-slate-200 bg-white/75 px-2.5 text-[12px] font-semibold text-slate-800 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500";
 const compactSelectClass =
@@ -344,7 +366,7 @@ export default function SeanceOuvertureDetail() {
     ? rawParamId[0]
     : rawParamId;
   const currentDetailPath = normalizedParamId
-    ? `/ouverture_offre/${normalizedParamId}`
+    ? `/personnel/ouverture_offre/${normalizedParamId}`
     : "/ouverture_offre";
   const [screenState, setScreenState] = useState<ScreenState>("loading");
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
@@ -361,8 +383,9 @@ export default function SeanceOuvertureDetail() {
   );
   const [suppliers, setSuppliers] = useState<Fournisseur[]>([]);
   const [saveMode, setSaveMode] = useState<SaveMode | null>(null);
+  const [resendLoading, setResendLoading] = useState(false);
   const [validationComment, setValidationComment] = useState("");
-  const [validationTarget, setValidationTarget] = useState("");
+  const [validationTarget, setValidationTarget] = useState<string>("");
   const [pendingRejectMode, setPendingRejectMode] = useState<RejectMode | null>(
     null,
   );
@@ -385,7 +408,7 @@ export default function SeanceOuvertureDetail() {
 
       if (!getToken()) {
         const nextPath = normalizedId
-          ? `/ouverture_offre/${normalizedId}`
+          ? `/personnel/ouverture_offre/${normalizedId}`
           : "/ouverture_offre";
         router.replace(`/login?next=${encodeURIComponent(nextPath)}`);
         return;
@@ -406,17 +429,41 @@ export default function SeanceOuvertureDetail() {
           router.replace("/auth/login");
           return;
         }
+
+        const [seanceData, users, suppliersData]: [
+          SeanceOuverture,
+          OuvertureUser[],
+          Fournisseur[],
+        ] = await Promise.all([
+          getSeanceById(seanceId),
+          getAvailableUsers(),
+          listFournisseurs(),
+        ]);
+
         setCurrentUser(user);
+        setSeance(seanceData);
+
+        // Linked market
+        const marketData = await getMarkets("1");
+        const linked =
+          marketData.results.find(
+            (m) => m.reference_number === seanceData.reference_dossier,
+          ) ?? null;
+        setLinkedMarket(linked);
 
         setAvailableUsers(users);
         setSuppliers(suppliersData);
 
         // Load manual commission members from localStorage
         const localKey = `ucp_commission_membres_${seanceData.reference_dossier}`;
-        const loadedMembers = parseCommissionMembers(
-          localStorage.getItem(localKey),
+        const loadedMembers = removeReservedCommissionMembers(
+          parseCommissionMembers(localStorage.getItem(localKey)),
+          seanceData,
         );
-        const backendMembers = mapSeanceMembersToCommissionMembers(seanceData);
+        const backendMembers = removeReservedCommissionMembers(
+          mapSeanceMembersToCommissionMembers(seanceData),
+          seanceData,
+        );
         setCommissionMembers(
           mergeCommissionMembers(backendMembers, loadedMembers),
         );
@@ -478,6 +525,13 @@ export default function SeanceOuvertureDetail() {
     isSecretaireUser(currentUser) &&
     seance.secretaire === currentUser.id &&
     !isLocked;
+  const canResendInvitations =
+    !!seance &&
+    !!currentUser &&
+    isSecretaireUser(currentUser) &&
+    seance.secretaire === currentUser.id &&
+    (seance.statut === "EN_VALIDATION_MEMBRES" ||
+      seance.statut === "EN_VALIDATION_PRESIDENT");
   const showMontantColumn = formData?.etape_ouverture === "COMPLETE";
   const selectedPresidentId = formData?.president
     ? Number(formData.president)
@@ -819,11 +873,36 @@ export default function SeanceOuvertureDetail() {
     currentForm: DetailFormState,
     nextStatus: SeanceOuverture["statut"],
   ): ValidationIssue | null => {
-    if (commissionMembers.length < 3) {
+    const membresValides = commissionMembers.filter(
+      (m) => m.nomPrenom?.trim() && m.email?.trim() && m.cin?.trim(),
+    );
+    const reservedMember = commissionMembers.find((member) => {
+      const email = normalizeEmail(member.email);
+      return (
+        email &&
+        seance &&
+        (email === normalizeEmail(seance.secretaire_detail?.email) ||
+          email === normalizeEmail(seance.president_detail?.email))
+      );
+    });
+    const manquants = MIN_COMMISSION_MEMBERS - membresValides.length;
+
+    if (reservedMember) {
       return {
-        field: "president",
-        message: "La commission doit contenir au moins 3 membres.",
+        field: "membre_ids",
+        message: `${reservedMember.email} correspond au secrétaire ou au président. La commission doit contenir uniquement les membres.`,
       };
+    }
+
+    if (manquants > 0) {
+      reportValidationIssue({
+        field: "membre_ids",
+        message:
+          manquants === 1
+            ? "Il manque encore 1 membre à la commission pour pouvoir soumettre."
+            : `Il manque encore ${manquants} membres à la commission (${membresValides.length}/${MIN_COMMISSION_MEMBERS} complets).`,
+      });
+      return null;
     }
 
     if (nextStatus === "EN_VALIDATION_MEMBRES" || nextStatus === "A_VALIDER") {
@@ -921,10 +1000,13 @@ export default function SeanceOuvertureDetail() {
       setSuccessMessage("");
       setSaveMode(nextStatus === "EN_VALIDATION_MEMBRES" ? "submit" : "draft");
 
-      await updateSeance(seance.id, buildPayload(formData, nextStatus));
+      const updatedSeance = await updateSeance(seance.id, buildPayload(formData, nextStatus));
+      const sentCount = updatedSeance.emails_envoyes;
       setOpeningFlashMessage(
         nextStatus === "EN_VALIDATION_MEMBRES"
-          ? "La séance a été mise à valider avec succès."
+          ? typeof sentCount === "number"
+            ? `La séance a été mise à valider avec succès. ${sentCount} invitation(s) envoyée(s).`
+            : "La séance a été mise à valider avec succès."
           : "Le brouillon a été enregistré avec succès.",
         "/ouverture_offre",
       );
@@ -935,6 +1017,28 @@ export default function SeanceOuvertureDetail() {
       );
     } finally {
       setSaveMode(null);
+    }
+  };
+
+  const handleResendInvitations = async () => {
+    if (!seance || resendLoading) return;
+
+    try {
+      setError("");
+      setSuccessMessage("");
+      setResendLoading(true);
+      const result = await resendOpeningInvitations(seance.id);
+      const refreshed = await getSeanceById(seance.id);
+      setSeance(refreshed);
+      setFormData(buildFormState(refreshed));
+      setCommissionMembers(mapSeanceMembersToCommissionMembers(refreshed));
+      setSuccessMessage(result.detail);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Renvoi des invitations impossible.",
+      );
+    } finally {
+      setResendLoading(false);
     }
   };
 
@@ -1504,7 +1608,7 @@ export default function SeanceOuvertureDetail() {
                                     })
                                   }
                                   disabled={!canEdit}
-                                  placeholder="Entreprise"
+                                  placeholder="soumissionnaire"
                                   className={`${inputClass} w-full`}
                                 />
                               </div>
@@ -1762,6 +1866,28 @@ export default function SeanceOuvertureDetail() {
                     {saveMode === "submit"
                       ? "Transmission..."
                       : "Mettre à valider"}
+                  </button>
+                </section>
+              )}
+
+              {canResendInvitations && (
+                <section className="flex flex-col gap-3 rounded-2xl border border-emerald-100 bg-emerald-50/70 p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-bold text-emerald-950">
+                      Invitations de validation
+                    </p>
+                    <p className="text-xs font-semibold text-emerald-700">
+                      Le renvoi remplace les anciens mots de passe.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void handleResendInvitations()}
+                    disabled={resendLoading}
+                    className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <SendHorizontal className="h-4 w-4" />
+                    {resendLoading ? "Renvoi..." : "Renvoyer invitations"}
                   </button>
                 </section>
               )}

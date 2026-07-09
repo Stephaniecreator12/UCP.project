@@ -3,8 +3,7 @@
 import Image from "next/image";
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { getToken } from "@/services/auth";
-import { loginEvaluationDao } from "@/services/evaluationService";
+import { getToken, loginEvaluationDao } from "@/services/evaluationService";
 
 function LoginFallback() {
   return (
@@ -36,7 +35,7 @@ function EvaluationLoginContent() {
 
   useEffect(() => {
     if (getToken() && seanceParam) {
-      router.push(`/evaluation/dao/${seanceParam}/offres`);
+      router.push(`/personnel/evaluation/dao/${seanceParam}/offres`);
     }
   }, [router, seanceParam]);
 
@@ -52,7 +51,7 @@ function EvaluationLoginContent() {
         Number.isFinite(seanceId) ? seanceId : undefined,
       );
       const targetSeance = seanceParam || String(result.seance_id);
-      router.push(`/evaluation/dao/${targetSeance}/offres`);
+      router.push(`/personnel/evaluation/dao/${targetSeance}/offres`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Connexion impossible.");
     } finally {
@@ -149,11 +148,7 @@ function EvaluationLoginContent() {
                   }
                 >
                   {showPassword ? (
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      className="h-4 w-4"
-                    >
+                    <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
                       <path
                         d="M3 3l18 18"
                         stroke="currentColor"
@@ -182,11 +177,7 @@ function EvaluationLoginContent() {
                       />
                     </svg>
                   ) : (
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      className="h-4 w-4"
-                    >
+                    <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
                       <path
                         d="M2 12c.5-4 4.5-8 10-8s9.5 4 10 8c-.5 4-4.5 8-10 8S2.5 16 2 12z"
                         stroke="currentColor"

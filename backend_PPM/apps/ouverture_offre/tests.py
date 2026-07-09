@@ -1,5 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import check_password
+from django.contrib.auth.models import Group
 from django.core import mail
 from django.test import TestCase, override_settings
 from rest_framework.test import APIRequestFactory, force_authenticate
@@ -22,6 +23,7 @@ User = get_user_model()
 @override_settings(
     EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
     FRONTEND_APP_URL="http://frontend.test",
+    DEFAULT_FROM_EMAIL="stephaniehanitriniala4@gmail.com",
     OUVERTURE_NOTIFICATION_EMAILS_ENABLED=True,
 )
 class OuvertureNotificationTests(TestCase):
@@ -37,6 +39,7 @@ class OuvertureNotificationTests(TestCase):
             email="president@example.test",
             password="secret123",
         )
+        Group.objects.get_or_create(name="RAF")[0].user_set.add(self.president)
         self.membre = User.objects.create_user(
             username="membre",
             email="membre@example.test",
@@ -63,12 +66,13 @@ class OuvertureNotificationTests(TestCase):
         self.assertEqual(len(mail.outbox), 1)
         message = mail.outbox[0]
         expected_path = (
-            "http://frontend.test/login"
-            f"?validation=ouverture&seance={self.seance.id}"
-            "&role=membre&email=membre%40example.test"
+            f"http://frontend.test/personnel/ouverture_offre/validation/{self.seance.id}"
+            "?role=membre&email=membre%40example.test"
         )
 
         self.assertEqual(message.to, ["membre@example.test"])
+        self.assertNotIn("stephaniehanitriniala4@gmail.com", message.to)
+        self.assertEqual(message.from_email, "stephaniehanitriniala4@gmail.com")
         self.assertIn(expected_path, message.body)
         self.assertIn("Mot de passe de validation :", message.body)
         self.assertIn(expected_path.replace("&", "&amp;"), message.alternatives[0][0])
@@ -282,3 +286,62 @@ class OuvertureNotificationTests(TestCase):
         user_ids = {item["id"] for item in response.data}
         self.assertIn(self.president.id, user_ids)
         self.assertNotIn(commission_user.id, user_ids)
+
+    def test_commission_cannot_include_secretary_or_president_email(self):
+        from apps.ouverture_offre.services.seance_service import replace_members_from_commission
+
+        with self.assertRaisesMessage(Exception, "secretaire"):
+            replace_members_from_commission(
+                self.seance,
+                [
+                    {
+                        "nomPrenom": "Secretaire",
+                        "email": "secretaire@example.test",
+                        "cin": "100000000001",
+                        "poste": "Membre",
+                        "entite": "UCP",
+                    },
+                    {
+                        "nomPrenom": "Membre A",
+                        "email": "membre-a@example.test",
+                        "cin": "100000000002",
+                        "poste": "Membre",
+                        "entite": "UCP",
+                    },
+                    {
+                        "nomPrenom": "Membre B",
+                        "email": "membre-b@example.test",
+                        "cin": "100000000003",
+                        "poste": "Membre",
+                        "entite": "UCP",
+                    },
+                ],
+            )
+
+        with self.assertRaisesMessage(Exception, "president"):
+            replace_members_from_commission(
+                self.seance,
+                [
+                    {
+                        "nomPrenom": "President",
+                        "email": "president@example.test",
+                        "cin": "100000000004",
+                        "poste": "Membre",
+                        "entite": "UCP",
+                    },
+                    {
+                        "nomPrenom": "Membre C",
+                        "email": "membre-c@example.test",
+                        "cin": "100000000005",
+                        "poste": "Membre",
+                        "entite": "UCP",
+                    },
+                    {
+                        "nomPrenom": "Membre D",
+                        "email": "membre-d@example.test",
+                        "cin": "100000000006",
+                        "poste": "Membre",
+                        "entite": "UCP",
+                    },
+                ],
+            )

@@ -18,6 +18,7 @@ import TopHeader from "@/app/components/TopHeader";
 import {
   assignDaoEvaluators,
   fetchDaoDetail,
+  resendDaoEvaluatorInvitations,
   type AssignationPayload,
   type DaoDetail,
 } from "@/services/evaluationService";
@@ -73,6 +74,7 @@ export default function AssignEvaluatorsPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [resendSubmitting, setResendSubmitting] = useState(false);
   const [detail, setDetail] = useState<DaoDetail | null>(null);
 
   const [dateEvaluation, setDateEvaluation] = useState("");
@@ -235,6 +237,27 @@ export default function AssignEvaluatorsPage() {
     detail?.statut_dao === "A_ASSIGNER" ||
     (detail?.evaluateurs.length ?? 0) < 3;
 
+  const canResendInvitations = (detail?.evaluateurs.length ?? 0) > 0;
+
+  const handleResendInvitations = async () => {
+    if (!detail || !canResendInvitations) return;
+
+    try {
+      setError("");
+      setSuccess("");
+      setResendSubmitting(true);
+      const result = await resendDaoEvaluatorInvitations(seanceId);
+      setSuccess(result.detail);
+      await loadDetail();
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Erreur lors du renvoi des invitations",
+      );
+    } finally {
+      setResendSubmitting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[linear-gradient(180deg,#f8faf9_0%,#f1f5f3_100%)]">
@@ -276,7 +299,7 @@ export default function AssignEvaluatorsPage() {
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#f8faf9_0%,#f1faf9_100%)]">
       <TopHeader />
-      <main className="mx-auto max-w-7xl px-6 py-8 sm:px-8">
+      <main className="mx-auto max-w-[1680px] px-6 py-8 sm:px-8">
         {/* Navigation & Header */}
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <button
@@ -377,9 +400,8 @@ export default function AssignEvaluatorsPage() {
                   </div>
                 </div>
                 <p className="text-xs text-slate-500">
-                  Les invitations et codes d&apos;accès seront envoyés
-                  automatiquement aux évaluateurs à la date et heure
-                  configurées.
+                  Les invitations et codes d&apos;accès sont envoyés dès la
+                  confirmation.
                 </p>
               </article>
 
@@ -569,6 +591,32 @@ export default function AssignEvaluatorsPage() {
                   </table>
                 </div>
               </article>
+
+              {canResendInvitations && (
+                <div className="flex flex-col gap-3 rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-bold text-emerald-950">
+                      Invitations évaluateurs
+                    </p>
+                    <p className="text-xs font-semibold text-emerald-700">
+                      Le renvoi remplace les anciens mots de passe.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={resendSubmitting}
+                    onClick={() => void handleResendInvitations()}
+                    className="inline-flex items-center justify-center gap-2 rounded-full bg-emerald-700 px-5 py-2.5 text-sm font-bold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {resendSubmitting ? (
+                      <Loader className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Send className="h-4 w-4" />
+                    )}
+                    {resendSubmitting ? "Renvoi..." : "Renvoyer invitations"}
+                  </button>
+                </div>
+              )}
 
               {/* Actions */}
               {canAssign && (

@@ -233,7 +233,9 @@ const removeReservedCommissionMembers = (
   );
 
   if (reservedEmails.size === 0) return members;
-  return members.filter((member) => !reservedEmails.has(normalizeEmail(member.email)));
+  return members.filter(
+    (member) => !reservedEmails.has(normalizeEmail(member.email)),
+  );
 };
 
 const compactInputClass =
@@ -1000,7 +1002,10 @@ export default function SeanceOuvertureDetail() {
       setSuccessMessage("");
       setSaveMode(nextStatus === "EN_VALIDATION_MEMBRES" ? "submit" : "draft");
 
-      const updatedSeance = await updateSeance(seance.id, buildPayload(formData, nextStatus));
+      const updatedSeance = await updateSeance(
+        seance.id,
+        buildPayload(formData, nextStatus),
+      );
       const sentCount = updatedSeance.emails_envoyes;
       setOpeningFlashMessage(
         nextStatus === "EN_VALIDATION_MEMBRES"
@@ -1035,7 +1040,9 @@ export default function SeanceOuvertureDetail() {
       setSuccessMessage(result.detail);
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Renvoi des invitations impossible.",
+        err instanceof Error
+          ? err.message
+          : "Renvoi des invitations impossible.",
       );
     } finally {
       setResendLoading(false);
@@ -1195,8 +1202,9 @@ export default function SeanceOuvertureDetail() {
 
     try {
       setError("");
-      await downloadPV(seance.id, seance.reference_dossier);
-      setSuccessMessage("Téléchargement du PV lancé avec succès.");
+      // Open PDF in a new tab for quick preview
+      await downloadPV(seance.id, seance.reference_dossier, true);
+      setSuccessMessage("Aperçu du PV ouvert dans un nouvel onglet.");
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Impossible de télécharger le PV.",

@@ -13,6 +13,7 @@ urlpatterns = [
 
     # Échéancier
     path("contrats/<int:contrat_id>/echeancier/", views.echeancier_add, name="echeancier-add"),
+    path("contrats/<int:contrat_id>/echeancier/<int:echeancier_id>/", views.echeancier_detail, name="echeancier-detail"),
 
     # Documents
     path("contrats/<int:contrat_id>/upload/", views.document_upload, name="document-upload"),

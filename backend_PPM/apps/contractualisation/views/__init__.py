@@ -158,6 +158,56 @@ def echeancier_add(request, contrat_id: int):
 
 
 # ============================================================
+# MODIFIER / SUPPRIMER UN ÉCHÉANCIER
+# ============================================================
+@api_view(["PATCH", "DELETE"])
+@permission_classes([IsAuthenticated, IsSecretaireContractualisation])
+def echeancier_detail(request, contrat_id: int, echeancier_id: int):
+    """
+    PATCH /api/contrats/<id>/echeancier/<echeancier_id>/
+    DELETE /api/contrats/<id>/echeancier/<echeancier_id>/
+    """
+    from .models import EcheancierPaiement
+    
+    contrat = get_object_or_404(Contrat, id=contrat_id)
+    ligne = get_object_or_404(EcheancierPaiement, id=echeancier_id, contrat=contrat)
+
+    if request.method == "PATCH":
+        # Update the echéancier line
+        serializer = EcheancierCreateSerializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        
+        if "montant" in serializer.validated_data:
+            ligne.montant = serializer.validated_data["montant"]
+        if "pourcentage" in serializer.validated_data:
+            ligne.pourcentage = serializer.validated_data["pourcentage"]
+        if "etape" in serializer.validated_data:
+            ligne.etape = serializer.validated_data["etape"]
+        if "date_prevue" in serializer.validated_data:
+            ligne.date_prevue = serializer.validated_data["date_prevue"]
+        
+        ligne.save()
+        return Response(
+            {
+                "id": ligne.id,
+                "montant": str(ligne.montant),
+                "pourcentage": ligne.pourcentage,
+                "etape": ligne.etape,
+                "date_prevue": ligne.date_prevue,
+                "statut": ligne.statut,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    elif request.method == "DELETE":
+        ligne.delete()
+        return Response(
+            {"detail": f"Ligne d'échéancier supprimée"},
+            status=status.HTTP_204_NO_CONTENT,
+        )
+
+
+# ============================================================
 # UPLOAD DOCUMENT PDF
 # ============================================================
 @api_view(["POST"])
@@ -239,7 +289,7 @@ def document_download(request, contrat_id: int, document_id: int):
     """
     GET /api/contrats/<id>/documents/<doc_id>/download/
     """
-    from .models import DocumentContrat
+    from ..models import DocumentContrat
 
     contrat = get_object_or_404(Contrat, id=contrat_id)
     document = get_object_or_404(DocumentContrat, id=document_id, contrat=contrat)
@@ -252,6 +302,7 @@ def document_download(request, contrat_id: int, document_id: int):
 
     return FileResponse(
         document.fichier.open("rb"),
-        as_attachment=True,
+        as_attachment=False,
         filename=f"{contrat.numero_marche}_signe.pdf",
+        content_type="application/pdf",
     )

@@ -214,7 +214,7 @@ export const rhLogin = async (
       last_name: "RAKOTO",
       is_active: true,
       is_staff: false,
-      groups: ["SECRETAIRE"], // ← Secrétaire contractualisation maintenant rattaché au rôle SECRETAIRE
+      groups: ["SECRETAIRE"],
     });
     setAccess(accessType);
     if (typeof window !== "undefined") {

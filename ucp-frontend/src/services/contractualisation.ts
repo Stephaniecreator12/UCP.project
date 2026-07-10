@@ -5,7 +5,7 @@ import { Contrat } from "@/types/contractualisation";
 const CONTRATS_API_BASE = `${API_BASE_URL || "http://localhost:8000"}/api/contrats`;
 
 const fetchWithAuthRetry = async (url: string, options: RequestInit = {}) => {
-  let token = getToken();
+  const token = getToken();
   if (!token) {
     throw new Error("Token non disponible. Reconnecte-toi.");
   }
@@ -15,7 +15,7 @@ const fetchWithAuthRetry = async (url: string, options: RequestInit = {}) => {
     Authorization: `Bearer ${token}`,
   };
 
-  let response = await fetch(url, { ...options, headers });
+  const response = await fetch(url, { ...options, headers });
 
   if (response.status === 401) {
     logout();
@@ -71,7 +71,7 @@ export const getContrat = async (contratId: number): Promise<Contrat> => {
 // ============================================================
 export const updateContrat = async (
   contratId: number,
-  data: any,
+  data: Record<string, unknown>,
 ): Promise<Contrat> => {
   const res = await fetchWithAuthRetry(
     `${CONTRATS_API_BASE}/${contratId}/update/`,
@@ -99,7 +99,7 @@ export const addEcheancier = async (
     etape: string;
     date_prevue: string;
   },
-): Promise<any> => {
+): Promise<Record<string, unknown>> => {
   const res = await fetchWithAuthRetry(
     `${CONTRATS_API_BASE}/${contratId}/echeancier/`,
     {
@@ -116,12 +116,59 @@ export const addEcheancier = async (
 };
 
 // ============================================================
+// MODIFIER UN ÉCHÉANCIER
+// ============================================================
+export const updateEcheancier = async (
+  contratId: number,
+  echeancierID: number,
+  data: {
+    montant?: string;
+    pourcentage?: number;
+    etape?: string;
+    date_prevue?: string;
+  },
+): Promise<Record<string, unknown>> => {
+  const res = await fetchWithAuthRetry(
+    `${CONTRATS_API_BASE}/${contratId}/echeancier/${echeancierID}/`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    },
+  );
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.detail || "Erreur lors de la modification");
+  }
+  return res.json();
+};
+
+// ============================================================
+// SUPPRIMER UN ÉCHÉANCIER
+// ============================================================
+export const deleteEcheancier = async (
+  contratId: number,
+  echeancierID: number,
+): Promise<void> => {
+  const res = await fetchWithAuthRetry(
+    `${CONTRATS_API_BASE}/${contratId}/echeancier/${echeancierID}/`,
+    {
+      method: "DELETE",
+    },
+  );
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.detail || "Erreur lors de la suppression");
+  }
+};
+
+// ============================================================
 // UPLOAD DOCUMENT
 // ============================================================
 export const uploadDocument = async (
   contratId: number,
   file: File,
-): Promise<any> => {
+): Promise<Record<string, unknown>> => {
   const formData = new FormData();
   formData.append("fichier", file);
 
@@ -139,6 +186,27 @@ export const uploadDocument = async (
     throw new Error(error.detail || "Erreur lors de l'upload");
   }
   return res.json();
+};
+
+// ============================================================
+// SUPPRIMER UN DOCUMENT CONTRACTUEL
+// ============================================================
+export const deleteDocument = async (
+  contratId: number,
+  documentId: number,
+): Promise<void> => {
+  const res = await fetchWithAuthRetry(
+    `${CONTRATS_API_BASE}/${contratId}/documents/${documentId}/`,
+    {
+      method: "DELETE",
+    },
+  );
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(
+      error.detail || "Erreur lors de la suppression du document",
+    );
+  }
 };
 
 // ============================================================
@@ -160,12 +228,9 @@ export const sendContrat = async (contratId: number): Promise<Contrat> => {
 };
 
 // ============================================================
-// TÉLÉCHARGER UN DOCUMENT
+// VISUALISER UN DOCUMENT
 // ============================================================
-export const downloadDocument = async (
-  contratId: number,
-  documentId: number,
-) => {
+export const viewDocument = async (contratId: number, documentId: number) => {
   const token = getToken();
   if (!token) throw new Error("Token non disponible");
 
@@ -179,17 +244,39 @@ export const downloadDocument = async (
   );
 
   if (!res.ok) {
-    const error = await res.json();
-    throw new Error(error.detail || "Erreur lors du téléchargement");
+    let errorDetail = "Erreur lors de l'ouverture du document";
+    try {
+      const errorJson = await res.json();
+      errorDetail = errorJson.detail || errorDetail;
+    } catch {
+      // ignore parse failure
+    }
+    throw new Error(errorDetail);
   }
 
+  const contentType = res.headers.get("content-type") || "";
   const blob = await res.blob();
+
+  if (!contentType.includes("pdf")) {
+    const text = await blob.text();
+    try {
+      const json = JSON.parse(text);
+      throw new Error(json.detail || "Le document n'a pas pu être ouvert.");
+    } catch {
+      throw new Error(
+        "Le document n'a pas pu être ouvert. Vérifiez que le fichier est bien un PDF.",
+      );
+    }
+  }
+
   const url = window.URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `${contratId}_${documentId}.pdf`;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  window.URL.revokeObjectURL(url);
+  const newTab = window.open(url, "_blank", "noopener,noreferrer");
+  if (!newTab) {
+    window.URL.revokeObjectURL(url);
+    throw new Error("Impossible d'ouvrir le document. Autorisez les popups.");
+  }
+  // Keep the object URL until the tab is closed.
+  newTab.addEventListener("unload", () => {
+    window.URL.revokeObjectURL(url);
+  });
 };

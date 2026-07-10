@@ -2,7 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { AlertTriangle, CheckCircle2, XCircle } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  ChevronRight,
+  XCircle,
+} from "lucide-react";
 import EvaluatorHeader from "@/app/personnel/evaluation/components/EvaluatorHeader";
 import {
   ActionPageShell,
@@ -44,6 +49,8 @@ export default function ClassementPage() {
       setLoading(false);
     }
   };
+
+  const rank1OffreId = data?.lignes.find((ligne) => ligne.rang === 1)?.offre_id;
 
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#f8faf9_0%,#f1f5f3_100%)]">
@@ -122,6 +129,23 @@ export default function ClassementPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {data?.classement_disponible && rank1OffreId != null && (
+          <div className="mt-6 flex justify-end">
+            <button
+              type="button"
+              onClick={() =>
+                router.push(
+                  `/personnel/contractualisation/new?seance_id=${data.seance_id}&offre_id=${rank1OffreId}`,
+                )
+              }
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-black uppercase tracking-widest text-white shadow-lg transition-all hover:-translate-y-0.5 hover:bg-emerald-700"
+            >
+              Créer le contrat
+              <ChevronRight className="h-4 w-4" />
+            </button>
           </div>
         )}
 

@@ -131,6 +131,11 @@ def creer_contrat_brouillon(
     reference = seance.reference_dossier
     numero_marche = reference  # Utilise la référence DAO
 
+    # Vérifier si un contrat existe déjà pour ce DAO
+    contrat_existant = Contrat.objects.filter(numero_marche=numero_marche).first()
+    if contrat_existant:
+        return contrat_existant
+
     contrat = Contrat.objects.create(
         seance=seance,
         offre_gagnante=offre,
@@ -363,6 +368,10 @@ def _send_email_contrat_prestataire(contrat: Contrat) -> int:
         f"Objet : {contrat.seance.objet_dossier or '-'}\n\n"
         "Merci de vous connecter au portail pour télécharger le document signé.\n"
     )
+    # Add a direct link to preview/download on the frontend portal
+    lien_pdf = f"{getattr(settings, 'FRONTEND_APP_URL', 'http://localhost:3000')}/contrats/{contrat.id}/" 
+    context["lien_pdf"] = lien_pdf
+
     html_message = render_to_string(
         "emails/contractualisation_send_prestataire.html",
         context,
@@ -375,6 +384,27 @@ def _send_email_contrat_prestataire(contrat: Contrat) -> int:
         to=[contrat.email_prestataire],
     )
     message.attach_alternative(html_message, "text/html")
+
+    # Attach the first available PDF document to the email (if present)
+    document = contrat.documents.first()
+    if document and document.fichier:
+        try:
+            document.fichier.open('rb')
+            file_content = document.fichier.read()
+            # Safe filename
+            try:
+                from os.path import basename
+                filename = basename(document.fichier.name)
+            except Exception:
+                filename = f"{contrat.numero_marche}_contrat.pdf"
+
+            message.attach(filename, file_content, "application/pdf")
+        finally:
+            try:
+                document.fichier.close()
+            except Exception:
+                pass
+
     sent = message.send(fail_silently=False)
     return sent
 

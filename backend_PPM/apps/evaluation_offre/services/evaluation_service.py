@@ -1107,8 +1107,22 @@ def soumettre_evaluation_financiere(offre_id: int, data: dict, user: object):
         fin.rabais_accordes = data.get("rabais_accordes")
     elif fin.rabais_accordes is None:
         fin.rabais_accordes = Decimal("0")
+
+    # Validation du montant évalué final positif
+    if fin.montant_lu is not None:
+        if fin.montant_lu - fin.corrections_arithmetiques - fin.rabais_accordes <= 0:
+            raise ValidationError({
+                "detail": "Le montant évalué final doit être positif après corrections et rabais."
+            })
+
+    # Sauvegarde intermédiaire pour calculer et persister montant_evalue_final en base de données
+    fin.save()
+
+    # Le calcul du moins-disant se basera sur les données désormais persistées
     moins_disant = _compute_moins_disant(evaluation.offre.seance_id, user)
     fin.offre_moins_disante = moins_disant
+    
+    # Sauvegarde finale pour calculer le score_financier
     fin.save()
 
     action = "CREATE" if created else "UPDATE"
@@ -1422,12 +1436,22 @@ def get_classement_seance(seance_id: int, user: object) -> dict:
     if not offres.exists():
         raise ValidationError({"detail": "Séance introuvable."})
 
-    user_assigned = EvaluationOffre.objects.filter(
-        evaluateur=user,
-        offre__seance_id=seance_id,
-    ).exists()
-    if not user_assigned:
-        raise PermissionDenied({"detail": "Vous n'êtes pas assigné à cette séance."})
+    is_staff_or_admin = False
+    if user is not None:
+        if getattr(user, "is_superuser", False):
+            is_staff_or_admin = True
+        elif hasattr(user, "groups") and user.groups.filter(
+            name__in=["SECRETAIRE", "PRESIDENT", "SECRETAIRE_CONTRACTUALISATION"]
+        ).exists():
+            is_staff_or_admin = True
+
+    if user is not None and not is_staff_or_admin:
+        user_assigned = EvaluationOffre.objects.filter(
+            evaluateur=user,
+            offre__seance_id=seance_id,
+        ).exists()
+        if not user_assigned:
+            raise PermissionDenied({"detail": "Vous n'êtes pas assigné à cette séance."})
 
     total_evaluations = EvaluationOffre.objects.filter(offre__seance_id=seance_id).count()
     completed = sum(

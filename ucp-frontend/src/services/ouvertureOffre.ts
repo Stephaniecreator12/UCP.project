@@ -63,7 +63,8 @@ export const readPublicValidationSession = (
       return null;
     }
 
-    const isExpired = Date.now() - parsed.createdAt > PUBLIC_VALIDATION_SESSION_TTL_MS;
+    const isExpired =
+      Date.now() - parsed.createdAt > PUBLIC_VALIDATION_SESSION_TTL_MS;
     if (isExpired || (seanceId && parsed.seanceId !== seanceId)) {
       window.sessionStorage.removeItem(PUBLIC_VALIDATION_SESSION_KEY);
       return null;
@@ -101,7 +102,10 @@ const readErrorMessage = async (response: Response): Promise<string> => {
   return `Erreur API ouverture (HTTP ${response.status}).`;
 };
 
-const formatApiErrorPayload = (payload: unknown, prefix = ""): string | null => {
+const formatApiErrorPayload = (
+  payload: unknown,
+  prefix = "",
+): string | null => {
   if (!payload) return null;
 
   if (typeof payload === "string") {
@@ -230,11 +234,14 @@ export async function validateMember(
   id: number,
   payload: ValidationPayload,
 ): Promise<SeanceOuverture> {
-  const response = await fetch(`${API_BASE_URL}/api/ouverture/seances/${id}/valider-membre/`, {
-    method: "POST",
-    headers: getAuthHeaders(),
-    body: JSON.stringify(payload),
-  });
+  const response = await fetch(
+    `${API_BASE_URL}/api/ouverture/seances/${id}/valider-membre/`,
+    {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    },
+  );
 
   if (!response.ok) {
     throw new Error(await readErrorMessage(response));
@@ -267,11 +274,14 @@ export async function rejectMember(
   id: number,
   payload: ValidationPayload,
 ): Promise<SeanceOuverture> {
-  const response = await fetch(`${API_BASE_URL}/api/ouverture/seances/${id}/rejeter-membre/`, {
-    method: "POST",
-    headers: getAuthHeaders(),
-    body: JSON.stringify(payload),
-  });
+  const response = await fetch(
+    `${API_BASE_URL}/api/ouverture/seances/${id}/rejeter-membre/`,
+    {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    },
+  );
 
   if (!response.ok) {
     throw new Error(await readErrorMessage(response));
@@ -314,14 +324,21 @@ export async function getAvailableUsers(): Promise<OuvertureUser[]> {
   return (await response.json()) as OuvertureUser[];
 }
 
-export async function downloadPV(id: number, referenceDossier: string): Promise<void> {
+export async function downloadPV(
+  id: number,
+  referenceDossier: string,
+  openInNewTab = false,
+): Promise<void> {
   const token = getToken();
-  const response = await fetch(`${API_BASE_URL}/api/ouverture/seances/${id}/telecharger-pv/`, {
-    method: "GET",
-    headers: {
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  const response = await fetch(
+    `${API_BASE_URL}/api/ouverture/seances/${id}/telecharger-pv/`,
+    {
+      method: "GET",
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
     },
-  });
+  );
 
   if (!response.ok) {
     throw new Error(await readErrorMessage(response));
@@ -329,6 +346,15 @@ export async function downloadPV(id: number, referenceDossier: string): Promise<
 
   const blob = await response.blob();
   const url = window.URL.createObjectURL(blob);
+
+  if (openInNewTab) {
+    // Open preview in a new tab (user can then download from browser viewer)
+    window.open(url, "_blank");
+    // Do not revoke immediately - allow browser to load. Revoke after short timeout.
+    window.setTimeout(() => window.URL.revokeObjectURL(url), 30000);
+    return;
+  }
+
   const a = document.createElement("a");
   a.href = url;
   a.download = `PV_Ouverture_${referenceDossier}.pdf`;
@@ -342,11 +368,14 @@ export async function openPublicValidationSession(
   id: number,
   payload: PublicValidationAccessPayload,
 ): Promise<PublicValidationContext> {
-  const response = await fetch(`${API_BASE_URL}/api/ouverture/seances/${id}/validation-acces/`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
+  const response = await fetch(
+    `${API_BASE_URL}/api/ouverture/seances/${id}/validation-acces/`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+  );
 
   if (!response.ok) {
     throw new Error(await readErrorMessage(response));
@@ -358,12 +387,19 @@ export async function openPublicValidationSession(
 export async function submitPublicValidationDecision(
   id: number,
   payload: PublicValidationDecisionPayload,
-): Promise<{ detail: string; seance: SeanceOuverture | null; market?: ProcurementMarket | null }> {
-  const response = await fetch(`${API_BASE_URL}/api/ouverture/seances/${id}/validation-decision/`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
+): Promise<{
+  detail: string;
+  seance: SeanceOuverture | null;
+  market?: ProcurementMarket | null;
+}> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/ouverture/seances/${id}/validation-decision/`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+  );
 
   if (!response.ok) {
     throw new Error(await readErrorMessage(response));

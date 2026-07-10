@@ -15,7 +15,7 @@ import {
   Search,
   ShieldCheck,
   Sparkles,
-  X
+  X,
 } from "lucide-react";
 import { listContrats } from "@/services/contractualisation";
 import { Contrat } from "@/types/contractualisation";
@@ -56,7 +56,8 @@ const stateClasses: Record<string, string> = {
 const sectionConfigs: Record<string, Omit<ContratSection, "key" | "rows">> = {
   BROUILLON: {
     title: "À contractualiser (Brouillons)",
-    subtitle: "Contrats en cours de préparation ou à compléter avant envoi au prestataire.",
+    subtitle:
+      "Contrats en cours de préparation ou à compléter avant envoi au prestataire.",
     icon: ClipboardList,
     iconClass: "border-amber-200 bg-amber-100 text-amber-800",
     badgeClass: "border-amber-200 bg-amber-500 text-white",
@@ -80,7 +81,8 @@ const sectionConfigs: Record<string, Omit<ContratSection, "key" | "rows">> = {
   },
   AUTRES: {
     title: "Suspendus ou Annulés",
-    subtitle: "Contrats suspendus ou annulés suite à des décisions administratives.",
+    subtitle:
+      "Contrats suspendus ou annulés suite à des décisions administratives.",
     icon: AlertCircle,
     iconClass: "border-rose-200 bg-rose-100 text-rose-800",
     badgeClass: "border-rose-200 bg-rose-500 text-white",
@@ -138,7 +140,8 @@ export default function ContractualisationListPage() {
     contrats.filter((c) => c.statut === statut).length;
 
   const countExExecutionOrTermine = () =>
-    contrats.filter((c) => c.statut === "EXECUTION" || c.statut === "TERMINE").length;
+    contrats.filter((c) => c.statut === "EXECUTION" || c.statut === "TERMINE")
+      .length;
 
   const filteredContrats = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -163,7 +166,9 @@ export default function ContractualisationListPage() {
     return sectionOrder.map((key) => ({
       key,
       ...sectionConfigs[key],
-      rows: filteredContrats.filter((c) => getContratStateKey(c.statut) === key),
+      rows: filteredContrats.filter(
+        (c) => getContratStateKey(c.statut) === key,
+      ),
     }));
   }, [filteredContrats]);
 
@@ -173,7 +178,6 @@ export default function ContractualisationListPage() {
 
       <div className="zoom-content">
         <div className="mx-auto flex max-w-[1680px] flex-col gap-5 px-4 pb-12 pt-6 md:px-6 lg:pt-8">
-          
           {/* Header Card */}
           {screenState === "ready" && (
             <div className="relative flex w-full flex-col justify-between gap-4 overflow-hidden rounded-3xl border border-slate-100 bg-white px-5 py-4 shadow-[0_8px_30px_rgb(0,0,0,0.04)] md:flex-row md:items-center">
@@ -193,19 +197,22 @@ export default function ContractualisationListPage() {
                   <div className="mt-1 flex items-center gap-2">
                     <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
                     <p className="truncate text-[10px] font-black uppercase tracking-widest text-slate-500 sm:text-[11px]">
-                      Module NOTI5 — Suivi des signatures et validation des contrats
+                      Module NOTI5 — Suivi des signatures et validation des
+                      contrats
                     </p>
                   </div>
                 </div>
               </div>
 
               {currentUser && (
-                <div className="relative z-10 w-fit rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-bold text-slate-600">
-                  Secrétaire :{" "}
-                  <span className="text-slate-900">
-                    {`${currentUser.first_name} ${currentUser.last_name}`.trim() ||
-                      currentUser.username}
-                  </span>
+                <div className="relative z-10 flex items-center gap-3">
+                  <div className="hidden sm:block rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-bold text-slate-600">
+                    Secrétaire :{" "}
+                    <span className="text-slate-900">
+                      {`${currentUser.first_name} ${currentUser.last_name}`.trim() ||
+                        currentUser.username}
+                    </span>
+                  </div>
                 </div>
               )}
             </div>
@@ -279,7 +286,6 @@ export default function ContractualisationListPage() {
               <section className="group relative overflow-hidden rounded-3xl border border-white/40 bg-white/70 shadow-[0_8px_32px_rgba(0,0,0,0.05)] backdrop-blur-md transition-all duration-500 hover:shadow-[0_12px_48px_rgba(0,0,0,0.08)]">
                 <div className="absolute left-0 top-0 h-1.5 w-full bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-500 bg-[length:200%_100%] animate-gradient" />
                 <div className="p-6">
-                  
                   {/* Search Bar */}
                   <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <h2 className="flex items-center gap-3 text-[11px] font-black uppercase tracking-widest text-slate-800">
@@ -327,19 +333,19 @@ export default function ContractualisationListPage() {
                           isActive={activeSection === section.key}
                           onToggle={() =>
                             setActiveSection(
-                              activeSection === section.key ? null : section.key
+                              activeSection === section.key
+                                ? null
+                                : section.key,
                             )
                           }
                         />
                       ))}
                     </div>
                   )}
-
                 </div>
               </section>
             </>
           )}
-
         </div>
       </div>
     </main>
@@ -361,27 +367,39 @@ function ContratStatusSection({
   return (
     <div
       className={`overflow-hidden rounded-xl border bg-white shadow-sm transition-colors ${
-        isActive ? "border-slate-300" : "border-slate-200 hover:border-slate-300"
+        isActive
+          ? "border-slate-300"
+          : "border-slate-200 hover:border-slate-300"
       }`}
     >
       <button
         type="button"
         onClick={onToggle}
         className={`flex w-full items-center justify-between px-5 py-4 text-left transition-colors ${
-          isActive ? "border-b border-slate-200 bg-slate-50" : "bg-white hover:bg-slate-50"
+          isActive
+            ? "border-b border-slate-200 bg-slate-50"
+            : "bg-white hover:bg-slate-50"
         }`}
       >
         <div className="flex items-center gap-4">
-          <div className={`flex h-10 w-10 items-center justify-center rounded-xl border ${section.iconClass}`}>
+          <div
+            className={`flex h-10 w-10 items-center justify-center rounded-xl border ${section.iconClass}`}
+          >
             <Icon className="h-5 w-5" />
           </div>
           <div>
-            <h3 className="text-base font-semibold text-slate-900">{section.title}</h3>
-            <p className="mt-0.5 text-xs font-medium text-slate-500">{section.subtitle}</p>
+            <h3 className="text-base font-semibold text-slate-900">
+              {section.title}
+            </h3>
+            <p className="mt-0.5 text-xs font-medium text-slate-500">
+              {section.subtitle}
+            </p>
           </div>
           <span
             className={`ml-1 rounded-full border px-3 py-1 text-xs font-semibold ${
-              hasRows ? section.badgeClass : "border-slate-200 bg-slate-100 text-slate-400"
+              hasRows
+                ? section.badgeClass
+                : "border-slate-200 bg-slate-100 text-slate-400"
             }`}
           >
             {section.rows.length}
@@ -392,7 +410,9 @@ function ContratStatusSection({
           <span className={isActive ? "text-slate-700" : ""}>
             {isActive ? "Masquer" : "Afficher"}
           </span>
-          <div className={`rounded-lg bg-slate-100 p-1 text-slate-400 transition-transform ${isActive ? "rotate-180" : ""}`}>
+          <div
+            className={`rounded-lg bg-slate-100 p-1 text-slate-400 transition-transform ${isActive ? "rotate-180" : ""}`}
+          >
             <ChevronDown className="h-3.5 w-3.5" />
           </div>
         </div>
@@ -438,7 +458,9 @@ function ContratDashboardRow({
             <span className="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
               {contrat.numero_marche}
             </span>
-            <span className={`rounded border px-2 py-0.5 text-[10px] font-bold ${stateClasses[contrat.statut] || "border-slate-200 bg-slate-50 text-slate-700"}`}>
+            <span
+              className={`rounded border px-2 py-0.5 text-[10px] font-bold ${stateClasses[contrat.statut] || "border-slate-200 bg-slate-50 text-slate-700"}`}
+            >
               {contrat.statut_label}
             </span>
             {contrat.seance_reference && (
@@ -454,16 +476,19 @@ function ContratDashboardRow({
 
           <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]">
             <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 font-semibold text-slate-600">
-              Prestataire : {contrat.nom_prestataire || contrat.offre_soumissionnaire}
+              Prestataire :{" "}
+              {contrat.nom_prestataire || contrat.offre_soumissionnaire}
             </span>
             <span className="rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-1 font-semibold text-emerald-700">
-              Montant : {parseFloat(contrat.montant_ttc).toLocaleString("fr-FR", {
+              Montant :{" "}
+              {parseFloat(contrat.montant_ttc).toLocaleString("fr-FR", {
                 style: "currency",
                 currency: "XOF",
               })}
             </span>
             <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 font-semibold text-slate-500">
-              Créé le : {new Date(contrat.created_at).toLocaleDateString("fr-FR")}
+              Créé le :{" "}
+              {new Date(contrat.created_at).toLocaleDateString("fr-FR")}
             </span>
           </div>
         </div>
@@ -481,4 +506,3 @@ function ContratDashboardRow({
     </div>
   );
 }
-

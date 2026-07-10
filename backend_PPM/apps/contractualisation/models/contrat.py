@@ -192,9 +192,8 @@ class DocumentContrat(models.Model):
         return f"{self.contrat.numero_marche} — {self.get_type_document_display()}"
 
 
-# ============================================================
+
 # AUDIT TRAIL (OBLIGATOIRE FONDS MONDIAL)
-# ============================================================
 class AuditTrailContrat(models.Model):
     """
     Piste d'audit complète

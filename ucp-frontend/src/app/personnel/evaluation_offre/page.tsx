@@ -28,7 +28,7 @@ import {
   ShieldCheck,
   Layers,
   ArrowRight,
-  User
+  User,
 } from "lucide-react";
 import TopHeader from "@/app/components/TopHeader";
 import {
@@ -36,12 +36,14 @@ import {
   fetchDaoDashboard,
   fetchDaoDetail,
   resendDaoEvaluatorInvitations,
+  fetchClassement,
   type AssignationPayload,
   type DaoDashboardItem,
   type DaoDetail,
   type ProgressionStatut,
   type StatutDao,
   type StatutDashboard,
+  type ClassementLigne,
 } from "@/services/evaluationService";
 import { fetchCurrentUser, getToken, type UserProfile } from "@/services/auth";
 
@@ -78,7 +80,8 @@ const sectionConfigs: Record<StatutDao, Omit<DashboardSection, "key">> = {
   },
   EN_EVALUATION: {
     title: "En évaluation",
-    subtitle: "Les évaluateurs remplissent individuellement leurs grilles de notation.",
+    subtitle:
+      "Les évaluateurs remplissent individuellement leurs grilles de notation.",
     icon: Hourglass,
     iconClass: "border-blue-200 bg-blue-100 text-blue-800",
     badgeClass: "border-blue-200 bg-blue-500 text-white",
@@ -102,14 +105,38 @@ const statusClassMap: Record<string, string> = {
   TERMINE: "border-emerald-200 bg-emerald-50 text-emerald-700",
 };
 
-const offreStatutConfig: Record<StatutDashboard, { label: string; className: string }> = {
-  A_ASSIGNER: { label: "À assigner", className: "border-amber-205 bg-amber-50 text-amber-800" },
-  EN_EVALUATION: { label: "En évaluation", className: "border-sky-200 bg-sky-50 text-sky-800" },
-  CONSENSUS_REQUIS: { label: "Consensus", className: "border-amber-200 bg-amber-100 text-amber-900" },
-  NON_CONFORME: { label: "Non conforme", className: "border-rose-200 bg-rose-50 text-rose-800" },
-  ELIMINEE: { label: "Éliminée", className: "border-slate-350 bg-slate-100 text-slate-700" },
-  VALIDEE: { label: "Validée", className: "border-emerald-202 bg-emerald-50 text-emerald-800" },
-  REJETEE: { label: "Rejetée", className: "border-rose-200 bg-rose-100 text-rose-900" },
+const offreStatutConfig: Record<
+  StatutDashboard,
+  { label: string; className: string }
+> = {
+  A_ASSIGNER: {
+    label: "À assigner",
+    className: "border-amber-205 bg-amber-50 text-amber-800",
+  },
+  EN_EVALUATION: {
+    label: "En évaluation",
+    className: "border-sky-200 bg-sky-50 text-sky-800",
+  },
+  CONSENSUS_REQUIS: {
+    label: "Consensus",
+    className: "border-amber-200 bg-amber-100 text-amber-900",
+  },
+  NON_CONFORME: {
+    label: "Non conforme",
+    className: "border-rose-200 bg-rose-50 text-rose-800",
+  },
+  ELIMINEE: {
+    label: "Éliminée",
+    className: "border-slate-350 bg-slate-100 text-slate-700",
+  },
+  VALIDEE: {
+    label: "Validée",
+    className: "border-emerald-202 bg-emerald-50 text-emerald-800",
+  },
+  REJETEE: {
+    label: "Rejetée",
+    className: "border-rose-200 bg-rose-100 text-rose-900",
+  },
 };
 
 const progressionLabels: Record<ProgressionStatut, string> = {
@@ -170,11 +197,14 @@ function EvaluationSecretaireContent() {
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [activeSection, setActiveSection] = useState<string | null>(null);
-  
+
   const [selectedDao, setSelectedDao] = useState<DaoDashboardItem | null>(null);
   const [panelOpen, setPanelOpen] = useState(false);
   const [panelMode, setPanelMode] = useState<PanelMode>("detail");
   const [detail, setDetail] = useState<DaoDetail | null>(null);
+  const [classementLignes, setClassementLignes] = useState<
+    ClassementLigne[] | null
+  >(null);
   const [panelLoading, setPanelLoading] = useState(false);
   const [panelError, setPanelError] = useState("");
   const [panelSuccess, setPanelSuccess] = useState("");
@@ -183,26 +213,34 @@ function EvaluationSecretaireContent() {
   const [dateEvaluation, setDateEvaluation] = useState("");
   const [heureEvaluation, setHeureEvaluation] = useState("09:00");
   const [members, setMembers] = useState<ManualMember[]>(emptyMembers());
-  const [offreMeta, setOffreMeta] = useState<Record<number, { lot: string; nif: string }>>({});
+  const [offreMeta, setOffreMeta] = useState<
+    Record<number, { lot: string; nif: string }>
+  >({});
 
   const loadDaos = useCallback(async () => {
     try {
       setScreenState("loading");
       const data = await fetchDaoDashboard();
       setDaos(data);
-      
+
       // Auto-expand first non-empty section
-      const firstActive = sectionOrder.find(key => data.some(d => d.statut_dao === key));
+      const firstActive = sectionOrder.find((key) =>
+        data.some((d) => d.statut_dao === key),
+      );
       if (firstActive) {
         setActiveSection(firstActive);
       } else {
         setActiveSection("A_ASSIGNER");
       }
-      
+
       setScreenState("ready");
       return data;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur lors de la récupération des dossiers");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Erreur lors de la récupération des dossiers",
+      );
       setScreenState("error");
       return [];
     }
@@ -214,8 +252,18 @@ function EvaluationSecretaireContent() {
     try {
       const data = await fetchDaoDetail(seanceId);
       setDetail(data);
+
+      if (data.statut_dao === "TERMINE") {
+        fetchClassement(seanceId)
+          .then((c) => setClassementLignes(c.lignes || []))
+          .catch(() => setClassementLignes([]));
+      } else {
+        setClassementLignes(null);
+      }
+
       setDateEvaluation(
-        data.date_evaluation?.slice(0, 10) || new Date().toISOString().slice(0, 10),
+        data.date_evaluation?.slice(0, 10) ||
+          new Date().toISOString().slice(0, 10),
       );
       setHeureEvaluation(data.heure_evaluation?.slice(0, 5) || "09:00");
       setOffreMeta(
@@ -241,7 +289,9 @@ function EvaluationSecretaireContent() {
         setMembers(emptyMembers());
       }
     } catch (err) {
-      setPanelError(err instanceof Error ? err.message : "Erreur de chargement");
+      setPanelError(
+        err instanceof Error ? err.message : "Erreur de chargement",
+      );
     } finally {
       setPanelLoading(false);
     }
@@ -296,12 +346,19 @@ function EvaluationSecretaireContent() {
     setDetail(null);
   };
 
-  const updateMember = (key: string, field: keyof Omit<ManualMember, "key">, value: string) => {
-    setMembers((prev) => prev.map((m) => (m.key === key ? { ...m, [field]: value } : m)));
+  const updateMember = (
+    key: string,
+    field: keyof Omit<ManualMember, "key">,
+    value: string,
+  ) => {
+    setMembers((prev) =>
+      prev.map((m) => (m.key === key ? { ...m, [field]: value } : m)),
+    );
   };
 
   const canAssign =
-    detail?.statut_dao === "A_ASSIGNER" || (detail?.evaluateurs.length ?? 0) < 3;
+    detail?.statut_dao === "A_ASSIGNER" ||
+    (detail?.evaluateurs.length ?? 0) < 3;
 
   const handleAssign = async () => {
     if (!selectedDao || !detail || !canAssign) return;
@@ -329,7 +386,12 @@ function EvaluationSecretaireContent() {
     }
     for (let i = 0; i < members.length; i++) {
       const m = members[i];
-      if (!m.nomPrenom.trim() || !m.email.trim() || !m.entite.trim() || !m.poste.trim()) {
+      if (
+        !m.nomPrenom.trim() ||
+        !m.email.trim() ||
+        !m.entite.trim() ||
+        !m.poste.trim()
+      ) {
         setPanelError(`Complétez l'évaluateur ${i + 1}.`);
         return;
       }
@@ -368,7 +430,9 @@ function EvaluationSecretaireContent() {
       await loadDaos();
       setPanelMode("detail");
     } catch (err) {
-      setPanelError(err instanceof Error ? err.message : "Erreur lors de l'assignation");
+      setPanelError(
+        err instanceof Error ? err.message : "Erreur lors de l'assignation",
+      );
     } finally {
       setSubmitting(false);
     }
@@ -387,7 +451,9 @@ function EvaluationSecretaireContent() {
       await loadDaos();
     } catch (err) {
       setPanelError(
-        err instanceof Error ? err.message : "Renvoi des invitations impossible",
+        err instanceof Error
+          ? err.message
+          : "Renvoi des invitations impossible",
       );
     } finally {
       setResendSubmitting(false);
@@ -398,7 +464,10 @@ function EvaluationSecretaireContent() {
     const q = search.trim().toLowerCase();
     if (!q) return daos;
     return daos.filter((dao) =>
-      [dao.reference_dossier, dao.objet_dossier, dao.statut_dao].join(" ").toLowerCase().includes(q),
+      [dao.reference_dossier, dao.objet_dossier, dao.statut_dao]
+        .join(" ")
+        .toLowerCase()
+        .includes(q),
     );
   }, [daos, search]);
 
@@ -421,7 +490,6 @@ function EvaluationSecretaireContent() {
 
       <div className="zoom-content">
         <div className="mx-auto flex max-w-[1680px] flex-col gap-5 px-4 pb-12 pt-6 md:px-6 lg:pt-8">
-          
           {/* Header Card */}
           {screenState === "ready" && (
             <div className="relative flex w-full flex-col justify-between gap-4 overflow-hidden rounded-3xl border border-slate-100 bg-white px-5 py-4 shadow-[0_8px_30px_rgb(0,0,0,0.04)] md:flex-row md:items-center">
@@ -441,7 +509,8 @@ function EvaluationSecretaireContent() {
                   <div className="mt-1 flex items-center gap-2">
                     <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
                     <p className="truncate text-[10px] font-black uppercase tracking-widest text-slate-500 sm:text-[11px]">
-                      Module Évaluation — Assignation, suivi et classement des offres par séance
+                      Module Évaluation — Assignation, suivi et classement des
+                      offres par séance
                     </p>
                   </div>
                 </div>
@@ -527,7 +596,6 @@ function EvaluationSecretaireContent() {
               <section className="group relative overflow-hidden rounded-3xl border border-white/40 bg-white/70 shadow-[0_8px_32px_rgba(0,0,0,0.05)] backdrop-blur-md transition-all duration-500 hover:shadow-[0_12px_48px_rgba(0,0,0,0.08)]">
                 <div className="absolute left-0 top-0 h-1.5 w-full bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-500 bg-[length:200%_100%] animate-gradient" />
                 <div className="p-6">
-                  
                   {/* Search Bar */}
                   <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <h2 className="flex items-center gap-3 text-[11px] font-black uppercase tracking-widest text-slate-800">
@@ -575,7 +643,9 @@ function EvaluationSecretaireContent() {
                           isActive={activeSection === section.key}
                           onToggle={() =>
                             setActiveSection(
-                              activeSection === section.key ? null : section.key
+                              activeSection === section.key
+                                ? null
+                                : section.key,
                             )
                           }
                           router={router}
@@ -584,12 +654,10 @@ function EvaluationSecretaireContent() {
                       ))}
                     </div>
                   )}
-
                 </div>
               </section>
             </>
           )}
-
         </div>
       </div>
 
@@ -607,8 +675,12 @@ function EvaluationSecretaireContent() {
                 <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-700">
                   {showAssignForm ? "Assignation évaluateurs" : "Suivi du DAO"}
                 </span>
-                <h2 className="text-lg font-black text-slate-850 mt-1">{selectedDao.reference_dossier}</h2>
-                <p className="text-xs font-semibold text-slate-500 line-clamp-1 mt-0.5">{selectedDao.objet_dossier}</p>
+                <h2 className="text-lg font-black text-slate-850 mt-1">
+                  {selectedDao.reference_dossier}
+                </h2>
+                <p className="text-xs font-semibold text-slate-500 line-clamp-1 mt-0.5">
+                  {selectedDao.objet_dossier}
+                </p>
               </div>
               <button
                 type="button"
@@ -643,15 +715,25 @@ function EvaluationSecretaireContent() {
                 <>
                   {/* Identification du DAO */}
                   <section className="rounded-2xl border border-slate-200 bg-white p-5 space-y-4 shadow-sm">
-                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-800">Identification du DAO</h3>
+                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-800">
+                      Identification du DAO
+                    </h3>
                     <div className="grid gap-4 sm:grid-cols-2">
                       <label>
                         <span className={labelClass}>N° AO/DP</span>
-                        <input disabled className={disabledClass} value={detail.reference_dossier} />
+                        <input
+                          disabled
+                          className={disabledClass}
+                          value={detail.reference_dossier}
+                        />
                       </label>
                       <label>
                         <span className={labelClass}>Intitulé du marché</span>
-                        <input disabled className={disabledClass} value={detail.objet_dossier} />
+                        <input
+                          disabled
+                          className={disabledClass}
+                          value={detail.objet_dossier}
+                        />
                       </label>
                       <label>
                         <span className={labelClass}>Date limite de dépôt</span>
@@ -671,7 +753,9 @@ function EvaluationSecretaireContent() {
                       </label>
                       <div className="grid grid-cols-2 gap-2 sm:col-span-2">
                         <label>
-                          <span className={labelClass}>Date d&apos;évaluation *</span>
+                          <span className={labelClass}>
+                            Date d&apos;évaluation *
+                          </span>
                           <input
                             type="date"
                             className={fieldClass}
@@ -691,7 +775,8 @@ function EvaluationSecretaireContent() {
                       </div>
                     </div>
                     <p className="text-[11px] font-semibold text-slate-400">
-                      Les invitations emails seront envoyées automatiquement aux évaluateurs à la date et heure configurées.
+                      Les invitations emails seront envoyées automatiquement aux
+                      évaluateurs à la date et heure configurées.
                     </p>
                   </section>
 
@@ -701,7 +786,8 @@ function EvaluationSecretaireContent() {
                       Offres — Lot et NIF/STAT (par soumissionnaire)
                     </h3>
                     <p className="text-[11px] font-semibold text-slate-450 mt-1">
-                      Renseignez le numéro de lot et les identifiants fiscaux requis pour chaque soumissionnaire.
+                      Renseignez le numéro de lot et les identifiants fiscaux
+                      requis pour chaque soumissionnaire.
                     </p>
                     <div className="space-y-3">
                       {detail.offres.map((offre) => (
@@ -710,7 +796,8 @@ function EvaluationSecretaireContent() {
                           className="rounded-xl border border-slate-100 bg-slate-50/50 p-4 space-y-3"
                         >
                           <p className="text-xs font-black text-slate-800">
-                            Offre {offre.ordre_passage} — {offre.nom_soumissionnaire}
+                            Offre {offre.ordre_passage} —{" "}
+                            {offre.nom_soumissionnaire}
                           </p>
                           <div className="grid gap-3 sm:grid-cols-2">
                             <label>
@@ -772,7 +859,11 @@ function EvaluationSecretaireContent() {
                             className={fieldClass}
                             value={member.nomPrenom}
                             onChange={(e) =>
-                              updateMember(member.key, "nomPrenom", e.target.value)
+                              updateMember(
+                                member.key,
+                                "nomPrenom",
+                                e.target.value,
+                              )
                             }
                           />
                           <input
@@ -791,20 +882,26 @@ function EvaluationSecretaireContent() {
                             placeholder="Entité / Ministère *"
                             className={fieldClass}
                             value={member.entite}
-                            onChange={(e) => updateMember(member.key, "entite", e.target.value)}
+                            onChange={(e) =>
+                              updateMember(member.key, "entite", e.target.value)
+                            }
                           />
                           <input
                             placeholder="Poste occupé *"
                             className={fieldClass}
                             value={member.poste}
-                            onChange={(e) => updateMember(member.key, "poste", e.target.value)}
+                            onChange={(e) =>
+                              updateMember(member.key, "poste", e.target.value)
+                            }
                           />
                           <input
                             type="email"
                             placeholder="Adresse Email *"
                             className={`${fieldClass} sm:col-span-2`}
                             value={member.email}
-                            onChange={(e) => updateMember(member.key, "email", e.target.value)}
+                            onChange={(e) =>
+                              updateMember(member.key, "email", e.target.value)
+                            }
                           />
                         </div>
                       ))}
@@ -834,7 +931,9 @@ function EvaluationSecretaireContent() {
                   {/* Évaluateurs assignés */}
                   {detail.evaluateurs.length > 0 && (
                     <section className="rounded-2xl border border-slate-200 bg-white p-5 space-y-4 shadow-sm">
-                      <h3 className="text-xs font-black uppercase tracking-wider text-slate-800">Évaluateurs assignés</h3>
+                      <h3 className="text-xs font-black uppercase tracking-wider text-slate-800">
+                        Évaluateurs assignés
+                      </h3>
                       <div className="grid gap-3 sm:grid-cols-3">
                         {detail.evaluateurs.map((ev) => (
                           <div
@@ -852,7 +951,7 @@ function EvaluationSecretaireContent() {
                           </div>
                         ))}
                       </div>
-                      
+
                       <div className="pt-2 border-t border-slate-100">
                         <button
                           type="button"
@@ -861,7 +960,9 @@ function EvaluationSecretaireContent() {
                           className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-5 text-xs font-black uppercase tracking-widest text-emerald-700 transition-all hover:-translate-y-0.5 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
                         >
                           <Send className="h-4 w-4" />
-                          {resendSubmitting ? "Renvoi..." : "Renvoyer invitations"}
+                          {resendSubmitting
+                            ? "Renvoi..."
+                            : "Renvoyer invitations"}
                         </button>
                       </div>
                     </section>
@@ -869,11 +970,15 @@ function EvaluationSecretaireContent() {
 
                   {/* Offres et Statuts */}
                   <section className="rounded-2xl border border-slate-200 bg-white p-5 space-y-4 shadow-sm">
-                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-800">Avancement de l&apos;évaluation des offres</h3>
+                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-800">
+                      Avancement de l&apos;évaluation des offres
+                    </h3>
                     <div className="divide-y divide-slate-100 rounded-xl border border-slate-150 bg-white overflow-hidden">
                       {detail.offres.map((offre) => {
                         const statutKey = offre.statut_synthese;
-                        const statutCfg = statutKey ? offreStatutConfig[statutKey] : null;
+                        const statutCfg = statutKey
+                          ? offreStatutConfig[statutKey]
+                          : null;
                         return (
                           <div
                             key={offre.offre_id}
@@ -881,10 +986,14 @@ function EvaluationSecretaireContent() {
                           >
                             <div>
                               <p className="font-bold text-sm text-slate-800">
-                                {offre.ordre_passage}. {offre.nom_soumissionnaire}
+                                {offre.ordre_passage}.{" "}
+                                {offre.nom_soumissionnaire}
                               </p>
                               <p className="text-xs font-bold text-emerald-700 mt-0.5">
-                                {Number(offre.montant_global).toLocaleString("fr-FR")} MGA
+                                {Number(offre.montant_global).toLocaleString(
+                                  "fr-FR",
+                                )}{" "}
+                                MGA
                               </p>
                             </div>
                             {statutCfg ? (
@@ -907,22 +1016,77 @@ function EvaluationSecretaireContent() {
                   </section>
 
                   {/* Classement direct */}
-                  {detail.statut_dao === "TERMINE" && (
-                    <div className="pt-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          closePanel();
-                          router.push(
-                            `/personnel/evaluation/classement/${detail.seance_id}`,
-                          );
-                        }}
-                        className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-slate-900 px-6 text-xs font-black uppercase tracking-widest text-white shadow-lg transition-all hover:-translate-y-0.5"
-                      >
-                        Voir le classement officiel
-                        <ChevronRight className="h-4.5 w-4.5" />
-                      </button>
-                    </div>
+                  {detail.statut_dao === "TERMINE" && classementLignes && (
+                    <section className="rounded-2xl border border-emerald-200 bg-white p-5 space-y-4 shadow-sm">
+                      <h3 className="text-xs font-black uppercase tracking-wider text-emerald-800">
+                        Classement Final Officiel
+                      </h3>
+                      <div className="overflow-x-auto rounded-xl border border-slate-200">
+                        <table className="min-w-full text-sm">
+                          <thead className="bg-slate-50 text-left text-xs uppercase tracking-wider text-slate-500">
+                            <tr>
+                              <th className="px-4 py-3">Rang</th>
+                              <th className="px-4 py-3">Soumissionnaire</th>
+                              <th className="px-4 py-3 text-center">
+                                Score Total
+                              </th>
+                              <th className="px-4 py-3 text-center">
+                                Technique
+                              </th>
+                              <th className="px-4 py-3 text-center">
+                                Financier
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {classementLignes.map((ligne) => (
+                              <tr
+                                key={ligne.offre_id}
+                                className="border-t border-slate-100"
+                              >
+                                <td className="px-4 py-4 font-bold text-slate-900">
+                                  {ligne.rang ?? "—"}
+                                </td>
+                                <td className="px-4 py-4 font-semibold text-slate-800">
+                                  {ligne.nom_soumissionnaire}
+                                  {ligne.rang === 1 && (
+                                    <span className="ml-2 inline-flex rounded bg-emerald-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-emerald-700">
+                                      Lauréat
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="px-4 py-4 text-center font-bold text-emerald-800">
+                                  {ligne.score_total != null
+                                    ? `${ligne.score_total.toFixed(2)}/100`
+                                    : "—"}
+                                </td>
+                                <td className="px-4 py-4 text-center text-slate-600">
+                                  {ligne.score_technique?.toFixed(2) ?? "—"}
+                                </td>
+                                <td className="px-4 py-4 text-center text-slate-600">
+                                  {ligne.score_financier?.toFixed(2) ?? "—"}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      <div className="flex justify-end pt-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            closePanel();
+                            router.push(
+                              `/personnel/evaluation/classement/${detail.seance_id}`,
+                            );
+                          }}
+                          className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-6 text-xs font-black uppercase tracking-widest text-white shadow-lg transition-all hover:-translate-y-0.5 hover:bg-emerald-700"
+                        >
+                          Voir le classement
+                          <ChevronRight className="h-4.5 w-4.5" />
+                        </button>
+                      </div>
+                    </section>
                   )}
                 </>
               )}
@@ -975,27 +1139,39 @@ function EvaluationStatusSection({
   return (
     <div
       className={`overflow-hidden rounded-xl border bg-white shadow-sm transition-colors ${
-        isActive ? "border-slate-300" : "border-slate-200 hover:border-slate-300"
+        isActive
+          ? "border-slate-300"
+          : "border-slate-200 hover:border-slate-300"
       }`}
     >
       <button
         type="button"
         onClick={onToggle}
         className={`flex w-full items-center justify-between px-5 py-4 text-left transition-colors ${
-          isActive ? "border-b border-slate-200 bg-slate-50" : "bg-white hover:bg-slate-50"
+          isActive
+            ? "border-b border-slate-200 bg-slate-50"
+            : "bg-white hover:bg-slate-50"
         }`}
       >
         <div className="flex items-center gap-4">
-          <div className={`flex h-10 w-10 items-center justify-center rounded-xl border ${section.iconClass}`}>
+          <div
+            className={`flex h-10 w-10 items-center justify-center rounded-xl border ${section.iconClass}`}
+          >
             <Icon className="h-5 w-5" />
           </div>
           <div>
-            <h3 className="text-base font-semibold text-slate-900">{section.title}</h3>
-            <p className="mt-0.5 text-xs font-medium text-slate-500">{section.subtitle}</p>
+            <h3 className="text-base font-semibold text-slate-900">
+              {section.title}
+            </h3>
+            <p className="mt-0.5 text-xs font-medium text-slate-500">
+              {section.subtitle}
+            </p>
           </div>
           <span
             className={`ml-1 rounded-full border px-3 py-1 text-xs font-semibold ${
-              hasRows ? section.badgeClass : "border-slate-200 bg-slate-100 text-slate-400"
+              hasRows
+                ? section.badgeClass
+                : "border-slate-200 bg-slate-100 text-slate-400"
             }`}
           >
             {section.rows.length}
@@ -1006,7 +1182,9 @@ function EvaluationStatusSection({
           <span className={isActive ? "text-slate-700" : ""}>
             {isActive ? "Masquer" : "Afficher"}
           </span>
-          <div className={`rounded-lg bg-slate-100 p-1 text-slate-400 transition-transform ${isActive ? "rotate-180" : ""}`}>
+          <div
+            className={`rounded-lg bg-slate-100 p-1 text-slate-400 transition-transform ${isActive ? "rotate-180" : ""}`}
+          >
             <ChevronDown className="h-3.5 w-3.5" />
           </div>
         </div>
@@ -1060,12 +1238,14 @@ function EvaluationDashboardRow({
             <span className="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
               {dao.reference_dossier}
             </span>
-            <span className={`rounded border px-2 py-0.5 text-[10px] font-bold ${statusClassMap[dao.statut_dao] || "border-slate-200 bg-slate-50 text-slate-700"}`}>
+            <span
+              className={`rounded border px-2 py-0.5 text-[10px] font-bold ${statusClassMap[dao.statut_dao] || "border-slate-200 bg-slate-50 text-slate-700"}`}
+            >
               {dao.statut_dao === "A_ASSIGNER"
                 ? "À assigner"
                 : dao.statut_dao === "EN_EVALUATION"
-                ? "En évaluation"
-                : "Terminé"}
+                  ? "En évaluation"
+                  : "Terminé"}
             </span>
           </div>
 
@@ -1092,18 +1272,22 @@ function EvaluationDashboardRow({
         {dao.statut_dao === "TERMINE" && (
           <button
             type="button"
-            onClick={() => router.push(`/personnel/evaluation/classement/${dao.seance_id}`)}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-[10px] font-black uppercase tracking-widest text-slate-700 transition-all hover:-translate-y-0.5 hover:bg-slate-50 sm:flex-none"
+            onClick={() =>
+              router.push(`/personnel/evaluation/classement/${dao.seance_id}`)
+            }
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-2.5 text-[10px] font-black uppercase tracking-widest text-emerald-700 transition-all hover:-translate-y-0.5 hover:bg-emerald-100 sm:flex-none"
           >
-            Classement
+            Voir le classement
             <ChevronRight className="h-4 w-4" />
           </button>
         )}
-        
+
         {dao.statut_dao === "A_ASSIGNER" ? (
           <button
             type="button"
-            onClick={() => router.push(`/personnel/evaluation_offre/${dao.seance_id}/assign`)}
+            onClick={() =>
+              router.push(`/personnel/evaluation_offre/${dao.seance_id}/assign`)
+            }
             className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-[10px] font-black uppercase tracking-widest text-white transition-all hover:-translate-y-0.5 hover:bg-slate-800 sm:flex-none"
           >
             <UserCheck className="h-4 w-4" />
@@ -1149,11 +1333,13 @@ function GlassNotificationPopup({
       }`}
       role="status"
     >
-      <div className={`mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border ${
-        isError
-          ? "border-rose-500/30 bg-rose-500/20 text-rose-700"
-          : "border-emerald-500/30 bg-emerald-500/20 text-emerald-700"
-      }`}>
+      <div
+        className={`mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border ${
+          isError
+            ? "border-rose-500/30 bg-rose-500/20 text-rose-700"
+            : "border-emerald-500/30 bg-emerald-500/20 text-emerald-700"
+        }`}
+      >
         {isError ? (
           <AlertCircle className="h-5 w-5 animate-pulse" />
         ) : (
@@ -1161,10 +1347,14 @@ function GlassNotificationPopup({
         )}
       </div>
       <div className="min-w-0 flex-1">
-        <p className={`text-[15px] font-black tracking-tight ${isError ? "text-rose-950" : "text-emerald-950"}`}>
+        <p
+          className={`text-[15px] font-black tracking-tight ${isError ? "text-rose-950" : "text-emerald-950"}`}
+        >
           {isError ? "Action impossible" : "Action enregistrée"}
         </p>
-        <p className={`mt-1 text-[13px] font-medium leading-relaxed ${isError ? "text-rose-900/90" : "text-emerald-900/90"}`}>
+        <p
+          className={`mt-1 text-[13px] font-medium leading-relaxed ${isError ? "text-rose-900/90" : "text-emerald-900/90"}`}
+        >
           {message}
         </p>
       </div>

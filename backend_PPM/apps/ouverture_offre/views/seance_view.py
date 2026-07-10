@@ -152,7 +152,7 @@ def seance_validation_decision(request, pk):
     navigateur = request.META.get("HTTP_USER_AGENT", "")
     commentaire = data.get("commentaire", "")
 
-    if data["role"] == "membre":
+    if data[",role"] == "membre":
         if data["decision"] == "VALIDER":
             validate_member_with_password(
                 seance,
@@ -367,5 +367,20 @@ def download_pv(request, pk):
             )
 
     response = FileResponse(pv_document.fichier.open('rb'), content_type='application/pdf')
-    response['Content-Disposition'] = f'attachment; filename="{pv_document.fichier.name}"'
+    # Allow inline preview when requested (e.g. ?inline=1), otherwise force attachment
+    inline_param = str(request.GET.get('inline', '')).lower()
+    if inline_param in ("1", "true", "yes"):
+        disposition_type = "inline"
+    else:
+        disposition_type = "attachment"
+
+    # Use basename for filename to avoid full path in header
+    try:
+        from os.path import basename
+
+        filename = basename(pv_document.fichier.name)
+    except Exception:
+        filename = pv_document.fichier.name
+
+    response['Content-Disposition'] = f'{disposition_type}; filename="{filename}"'
     return response

@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import { ProcurementMarket } from "@/types/procurement";
 import TopHeader from "@/app/components/TopHeader";
 import { useRouter } from 'next/navigation';
-import { DeleteMarketButton } from "../components/deleteButton";
 import { UpdateMarketButton } from "../components/updateButton";
 import { getServerFileName } from "@/lib/utils";
 export default function ProcurementDetailPage() {
@@ -228,7 +227,6 @@ export default function ProcurementDetailPage() {
                 )}
 
                 <div className="flex flex-wrap items-center gap-3 pt-4 border-t border-gray-200/60 justify-end">
-                    <DeleteMarketButton marketId={market ? market.id.toString() : "-1"} marketTitle={market ? market.title : "aucun"} />
                     <UpdateMarketButton marketId={market ? market.id.toString() : "-1"} />
                 </div>
             </div>

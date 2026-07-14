@@ -91,6 +91,7 @@ INSTALLED_APPS = [
     'apps.evaluation_offre',
     'apps.contractualisation',
     'apps.log',
+    'apps.contrats',
 ]
 
 MIDDLEWARE = [
@@ -271,6 +272,7 @@ OUVERTURE_NOTIFICATION_REPLY_TO = (
     os.getenv("OUVERTURE_NOTIFICATION_REPLY_TO", DEFAULT_FROM_EMAIL) or DEFAULT_FROM_EMAIL
 ).strip()
 
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
 ACHATS_NOTIFICATION_EMAILS_ENABLED = env_bool(
     "ACHATS_NOTIFICATION_EMAILS_ENABLED",
     True,
@@ -323,3 +325,4 @@ EXTERNAL_PERSONNEL_API_AUTH_SCHEME = os.getenv(
     "Bearer",
 )
 EXTERNAL_PERSONNEL_API_TIMEOUT = env_int("EXTERNAL_PERSONNEL_API_TIMEOUT", 15)
+AUTH_USER_MODEL = 'users.UserProfile'

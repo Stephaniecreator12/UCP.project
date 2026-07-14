@@ -4,6 +4,7 @@ from rest_framework.parsers import (
     FormParser,
     JSONParser
 )
+from apps.users.permissions import StrictModelPermissions
 from django_filters.rest_framework import DjangoFilterBackend
 from apps.procurement.filters.date_filter import ProcurementMarketDateFilter
 from rest_framework.viewsets import ReadOnlyModelViewSet
@@ -23,7 +24,6 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import api_view, permission_classes
 from django.shortcuts import get_object_or_404
 from apps.procurement.models.procurement_market import ProcurementMarket
-from apps.procurement.permissions.public_permission import BlockPublicUserFromWrite
 class ProcurementMarketViewSet(viewsets.ModelViewSet):
 
     queryset = ProcurementMarket.objects.all().order_by(
@@ -32,7 +32,7 @@ class ProcurementMarketViewSet(viewsets.ModelViewSet):
 
     serializer_class = ProcurementMarketSerializer
 
-    permission_classes = [IsAuthenticated, BlockPublicUserFromWrite]
+    permission_classes = [StrictModelPermissions]
 
     parser_classes = [
         MultiPartParser,
@@ -49,6 +49,7 @@ class StandardResultsSetPagination(PageNumberPagination):
 
 class ProcurementMarketListViewSet(ReadOnlyModelViewSet):
     serializer_class = ProcurementMarketListSerializer
+    permission_classes = [StrictModelPermissions]
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend,filters.SearchFilter]
     filterset_class = ProcurementMarketDateFilter
@@ -65,7 +66,7 @@ class ProcurementMarketListViewSet(ReadOnlyModelViewSet):
 
 
 class DownloadDAOView(APIView):
-    permission_classes = [IsAuthenticated] 
+    permission_classes = [StrictModelPermissions]
 
     def get(self, request, reference_number):
         market = get_object_or_404(ProcurementMarket, reference_number=reference_number)

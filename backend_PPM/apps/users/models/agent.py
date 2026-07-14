@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User, Group
+from django.conf import settings
 
 class Programme(models.Model):
     nom = models.CharField(max_length=100, unique=True, verbose_name="Nom du Programme/Financement")
@@ -37,7 +38,11 @@ class Poste(models.Model):
         return f"{self.nom} - {self.programme.code}"
 
 class AgentProfile(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='agent_profile')
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.CASCADE,
+        related_name="agent_profile"
+    )
     poste = models.ForeignKey(Poste, on_delete=models.SET_NULL, null=True, blank=True, related_name="agents")
     matricule = models.CharField(max_length=50, unique=True, null=True, blank=True)
     sexe = models.IntegerField(choices=((1, 'Masculin'), (2, 'Féminin')), null=True, blank=True)

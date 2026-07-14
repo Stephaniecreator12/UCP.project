@@ -1,20 +1,28 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   getToken,
-  getCurrentUser,
-  getLandingRouteForUser,
 } from "@/services/auth";
+import { getme } from "@/services/profile";
+import { UserProfileValue } from "@/types/profile";
 
 export default function HomePage() {
   const router = useRouter();
+  const [user,setUser] = useState<UserProfileValue>()
 
   useEffect(() => {
+    async function handleGetMe() {
+      const res = await getme();
+      if (!res.error) {
+        const data = res.data
+        setUser(data);
+      }
+      return;
+    }
+    handleGetMe();
     const token = getToken();
-    const user = getCurrentUser();
-
     if (token && user) {
       // User is logged in, redirect to dashboard
       const targetRoute = getLandingRouteForUser(user);

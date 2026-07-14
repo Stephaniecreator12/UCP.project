@@ -1,242 +1,201 @@
 "use client";
-
+import Cookies from "js-cookie";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import {
-  getCurrentUser,
-  getLandingRouteForUser,
-  getToken,
-  login,
-} from "@/services/auth";
-import { useAccess } from "@/context/accessContext";
-
+import { getToken, login } from "@/services/auth";
+import { useSearchParams } from "next/navigation";
 const DEFAULT_PUBLIC_REGISTER_ROUTE = "/auth/public/register";
 const DEFAULT_PUBLIC_ROUTE = "/procurement";
-const DEFAULT_PRIVATE_ROUTE = "/personnel/log-dashboard";
-
+const DEFAULT_PRIVATE_ROUTE = "/personnel/log-dashboard"
 export default function LoginPage() {
-  const { setAccess } = useAccess();
+  const searchParams = useSearchParams();
+  const isVerifiedParam = searchParams.get("verified");
+  const [group, setGroup] = useState(() => {
+    const savedGroup = Cookies.get("groups");
+    if (savedGroup) {
+      try {
+        return JSON.parse(savedGroup);
+      } catch (e) {
+        console.error("Erreur de parsing du cookie group", e);
+      }
+    }
+    return [];
+  });
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState("");
+  const [isSuccess, setIsSuccess] = useState(isVerifiedParam === "true");
+  const [message, setMessage] = useState(
+    isVerifiedParam === "true"
+      ? "Connexion à votre compte autorisé."
+      : ""
+  );
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
     const token = getToken();
-    const user = getCurrentUser();
-    if (token && user) {
-      router.push(getLandingRouteForUser(user));
+    if (token) {
+      if (group == "public") {
+        router.push(`${DEFAULT_PUBLIC_ROUTE}`);
+      }
+      else {
+        router.push(`${DEFAULT_PRIVATE_ROUTE}`);
+      }
+
     }
-  }, [router]);
+  }, [group, router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
-
-    if (!email.trim()) {
-      setError("Veuillez saisir votre email.");
-      return;
-    }
-    if (!password.trim()) {
-      setError("Veuillez saisir votre mot de passe.");
-      return;
-    }
-
+    setIsSuccess(false)
+    setMessage("")
     setLoading(true);
-    const result = await login(email, password, setAccess);
-    setLoading(false);
+    const result = await login(email, password);
 
-    if (result.success) {
-      const user = getCurrentUser();
-      const target = user
-        ? getLandingRouteForUser(user)
-        : result.accessType === "private"
-          ? DEFAULT_PRIVATE_ROUTE
-          : DEFAULT_PUBLIC_ROUTE;
-      router.push(target);
+    if (result.message == "Aucun compte n'est associé à cette adresse e-mail.") {
+      setLoading(false);
+      setIsSuccess(true)
+      setMessage("Redirection vers l'espace public...");
+      setTimeout(() => {
+        router.push(`${DEFAULT_PUBLIC_REGISTER_ROUTE}`);
+        setLoading(false);
+      }, 2000);
       return;
     }
-
-    if (result.message === "identifiants publique introuvable") {
-      setError("Compte introuvable. Redirection en cours...");
-      setTimeout(() => router.push(DEFAULT_PUBLIC_REGISTER_ROUTE), 2000);
-      return;
+    else {
+      setIsSuccess(false)
+      setMessage(result.message || "Une erreur est survenue");
+      setLoading(false);
     }
 
-    setError(result.message || "Une erreur est survenue. Veuillez réessayer.");
   };
+  useEffect(() => {
+    if (!message) return;
+    const timer = setTimeout(() => {
+      setMessage("");
+      setIsSuccess(false);
+    }, 5000);
+
+    return () => clearTimeout(timer);
+  }, [message]);
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-[#f1f5f9] overflow-hidden px-4">
-      {/* Décoration haut-gauche */}
-      <div className="pointer-events-none absolute -top-20 -left-14 h-64 w-56 rotate-[-17deg] rounded-[40px] bg-gradient-to-br from-emerald-300 to-emerald-500 opacity-90 shadow-[0_40px_70px_-20px_rgba(16,120,60,0.5)]" />
-      {/* Décoration haut-gauche secondaire */}
-      <div className="pointer-events-none absolute left-[8%] top-[12%] h-44 w-48 rotate-[-30deg] rounded-[30px] bg-slate-400/20" />
-      {/* Décoration bas-droite */}
-      <div className="pointer-events-none absolute -bottom-12 -right-10 h-56 w-64 rotate-[-15deg] rounded-[30px] bg-slate-400/25" />
+    <div className="min-h-dvh w-full overflow-x-hidden overflow-y-auto">
+      <div className="relative flex min-h-dvh items-center justify-center overflow-x-hidden bg-[linear-gradient(180deg,#f5f6f6_0%,#eef1f0_100%)] px-4 py-8">
 
-      {/* Carte */}
-      <div className="relative w-full max-w-[400px] bg-white rounded-2xl shadow-[0_20px_60px_-20px_rgba(15,23,42,0.15)] border border-slate-200 px-8 py-10 z-10">
-        {/* Barre couleur haut */}
-        <div className="absolute inset-x-0 top-0 h-1 rounded-t-2xl bg-gradient-to-r from-emerald-400 via-emerald-500 to-emerald-400" />
+        {/* Background */}
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_80%_10%,rgba(247,247,248,0.72),transparent_28%)]" />
 
-        {/* Logo */}
-        <div className="flex justify-center mb-6">
-          <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden w-20 h-20">
-            <Image
-              src="/ucp-sante-logo-color.png"
-              alt="Logo UCP"
-              width={80}
-              height={80}
-              className="rounded-lg"
-            />
-          </div>
-        </div>
+        <div className="pointer-events-none absolute -top-24 -left-16 h-[280px] w-[240px] rotate-[-17deg] rounded-[42px] bg-[linear-gradient(140deg,#a2f3b5_0%,#41f37c_62%,#a2f8be_100%)] shadow-[0_45px_80px_-30px_rgba(33,83,46,0.6)] login-float-soft" />
 
-        {/* Titre */}
-        <div className="text-center mb-8">
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-600 mb-2">
-            E-Procurement Platform
-          </p>
-          <h1 className="text-2xl font-bold text-slate-900">Connexion</h1>
-          <div className="mx-auto mt-2 h-0.5 w-10 rounded-full bg-emerald-500" />
-        </div>
+        <div className="pointer-events-none absolute left-[9%] top-[10%] h-[180px] w-[200px] rotate-[-32deg] rounded-[34px] bg-[linear-gradient(125deg,rgba(58,69,82,0.44)_0%,rgba(15,20,27,0.14)_100%)] login-float-soft [animation-delay:1200ms]" />
 
-        {/* Message d'erreur */}
-        {error && (
-          <div className="mb-5 flex items-start gap-2.5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3">
-            <svg
-              className="mt-0.5 h-4 w-4 shrink-0 text-rose-500"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-            >
-              <path
-                fillRule="evenodd"
-                d="M10 18a8 8 0 100-16 8 8 0 000 16zm-.75-4.75a.75.75 0 001.5 0v-4.5a.75.75 0 00-1.5 0v4.5zm.75-7a.75.75 0 100 1.5.75.75 0 000-1.5z"
-                clipRule="evenodd"
-              />
-            </svg>
-            <p className="text-sm text-rose-700">{error}</p>
-          </div>
-        )}
+        <div className="pointer-events-none absolute bottom-[8%] right-[6%] h-[210px] w-[250px] rotate-[-13deg] rounded-[28px] bg-[linear-gradient(125deg,rgba(131,138,146,0.42)_0%,rgba(15,20,27,0.12)_100%)] opacity-90 login-float-soft [animation-delay:2200ms]" />
 
-        <form onSubmit={handleLogin} className="space-y-5" noValidate>
-          {/* Email */}
-          <div>
-            <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-              Email
-            </label>
-            <input
-              type="email"
-              autoComplete="email"
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                setError("");
-              }}
-              placeholder="votre@email.com"
-              className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
-            />
-          </div>
+        <div className="pointer-events-none absolute right-[12%] top-[18%] hidden h-28 w-28 rounded-[28px] border border-emerald-200/80 opacity-70 sm:block" />
 
-          {/* Mot de passe */}
-          <div>
-            <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-              Mot de passe
-            </label>
-            <div className="relative">
-              <input
-                type={showPassword ? "text" : "password"}
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value);
-                  setError("");
-                }}
-                placeholder="••••••••"
-                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 pr-11 text-sm text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword((p) => !p)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition"
-                aria-label={showPassword ? "Masquer" : "Afficher"}
-              >
-                {showPassword ? (
-                  <svg
-                    className="h-4 w-4"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                  >
-                    <path d="M3 3l18 18M10.7 10.7a2 2 0 102.6 2.6" />
-                    <path d="M9.5 5.2A11 11 0 0122 12a10.5 10.5 0 01-3 5.2M6.2 7.1A11.6 11.6 0 002 12c.5 4 4.5 8 10 8a11 11 0 005-1.2" />
-                  </svg>
-                ) : (
-                  <svg
-                    className="h-4 w-4"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                  >
-                    <path d="M2 12c.5-4 4.5-8 10-8s9.5 4 10 8c-.5 4-4.5 8-10 8S2.5 16 2 12z" />
-                    <circle cx="12" cy="12" r="3" />
-                  </svg>
-                )}
-              </button>
+        {/* Card */}
+        <div className="relative w-full max-w-md overflow-hidden rounded-[30px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.96)_0%,rgba(248,250,249,0.93)_100%)] p-7 shadow-[0_28px_70px_-42px_rgba(15,23,42,0.34)] backdrop-blur-sm sm:p-8">
+
+          <div className="login-line-glow pointer-events-none absolute inset-x-0 top-0 h-1 bg-[linear-gradient(90deg,rgba(34,197,94,0)_0%,rgba(34,197,94,0.88)_18%,rgba(21,128,61,0.94)_50%,rgba(34,197,94,0.88)_82%,rgba(34,197,94,0)_100%)]" />
+
+          <div className="pointer-events-none absolute right-5 top-5 hidden sm:block">
+            <div className="flex items-center gap-1.5 opacity-75">
+              <span className="h-px w-10 bg-emerald-300" />
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 login-float-soft" />
+              <span className="h-px w-6 bg-slate-300" />
             </div>
           </div>
 
-          {/* Bouton */}
-          <button
-            type="submit"
-            disabled={loading}
-            className="relative w-full rounded-xl bg-emerald-600 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 focus:outline-none focus:ring-4 focus:ring-emerald-100 disabled:opacity-70"
-          >
-            {loading ? (
-              <span className="flex items-center justify-center gap-2">
-                <svg
-                  className="h-4 w-4 animate-spin"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 100 16v-4l-3 3 3 3v-4a8 8 0 01-8-8z"
-                  />
-                </svg>
-                Connexion en cours…
-              </span>
-            ) : (
-              "Se connecter"
-            )}
-          </button>
-        </form>
+          <div className="pointer-events-none absolute bottom-5 left-6 hidden items-center gap-2 opacity-65 sm:flex">
+            <span className="h-px w-8 bg-slate-300" />
+            <span className="h-px w-14 bg-emerald-300" />
+          </div>
 
-        {/* Pied de carte */}
-        <div className="mt-10 flex items-center justify-center gap-2">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-          <p className="text-xs text-slate-400">
+          {/* Logo */}
+          <div className="mb-8 text-center">
+            <div className="mx-auto mb-5 flex h-24 w-24 items-center justify-center rounded-2xl border border-slate-200 bg-[linear-gradient(180deg,#f8faf9_0%,#f1f5f3_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] sm:h-28 sm:w-28">
+              <Image
+                src="/ucp-sante-logo-color.png"
+                alt="Logo UCP"
+                width={78}
+                height={78}
+                className="object-contain"
+              />
+            </div>
+
+            <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-emerald-700">
+              Unité de Coordination des Projets
+            </p>
+
+            <h1 className="mt-3 text-3xl font-bold text-slate-900">
+              Connexion
+            </h1>
+
+            <div className="login-line-glow mx-auto mt-3 h-px w-24 bg-[linear-gradient(90deg,rgba(34,197,94,0),rgba(34,197,94,0.8),rgba(34,197,94,0))]" />
+          </div>
+
+          {/* Message */}
+          {message && (
+            <div className={`mb-6 rounded-2xl border px-4 py-3 text-sm font-medium ${isSuccess
+              ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+              : 'border-rose-200 bg-rose-50 text-rose-800'
+              }`}>
+
+              {message}
+            </div>
+          )}
+
+          <form onSubmit={handleLogin} className="space-y-5">
+
+            {/* Email */}
+            <div>
+              <label className="mb-2 block text-sm font-bold text-slate-700">
+                Email
+              </label>
+
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Saisir votre email"
+                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/10 placeholder:text-slate-400"
+              />
+            </div>
+
+            {/* Password */}
+            <div>
+              <label className="mb-2 block text-sm font-bold text-slate-700">
+                Mot de passe
+              </label>
+
+              <div className="relative">
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Saisir votre mot de passe"
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/10 placeholder:text-slate-400"
+                />
+              </div>
+            </div>
+
+            {/* Button */}
+            <button
+              type={loading ? "button" : "submit"}
+              className="mt-2 inline-flex w-full items-center justify-center rounded-2xl bg-[#166534] px-4 py-3 text-sm font-bold tracking-wide text-white shadow-[0_16px_30px_-20px_rgba(22,101,52,0.65)] transition hover:bg-[#14532d]"
+            >
+              {loading ? "Connexion..." : "Se connecter"}
+            </button>
+          </form>
+
+          <div className="mt-8 border-t border-slate-100 pt-5 text-center text-xs text-slate-500">
             Unité de Coordination des Projets
-          </p>
+          </div>
+
         </div>
       </div>
-    </div>
+    </div >
   );
 }

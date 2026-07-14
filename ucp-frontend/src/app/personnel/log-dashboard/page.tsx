@@ -89,9 +89,9 @@ export default function AdminDashboardPage() {
         <button
             type="button"
             onClick={() => handleAdminPageRedirection()}
-            className="inline-flex w-[17%] items-center gap-2 px-4 py-2.5 text-sm font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg shadow-2xs hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 transition-all duration-150 cursor-pointer"
+            className="inline-flex w-[9%] items-center gap-2 px-4 py-2.5 text-sm font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg shadow-2xs hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 transition-all duration-150 cursor-pointer"
           ><ArrowLeft size={16} className="text-slate-400 group-hover:text-slate-600" />
-            Retour vers la page administrative
+            Retour
           </button>
         
         <div>

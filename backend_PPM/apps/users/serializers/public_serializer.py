@@ -8,14 +8,13 @@ from django.contrib.auth import authenticate
 User = get_user_model()
 class PublicProfileSerializer(serializers.ModelSerializer): 
     role = serializers.SerializerMethodField()
-
+    groups = serializers.SlugRelatedField(
+        many=True,
+        read_only=True,
+        slug_field="name",
+    )
     def get_role(self, obj):
         return get_user_role(obj)
-    groups_details = GroupDetailSerializer(
-        source='groups', 
-        many=True, 
-        read_only=True
-    )
     class Meta: 
         model = User
         fields = [ 
@@ -25,12 +24,16 @@ class PublicProfileSerializer(serializers.ModelSerializer):
             'phone', 
             'type_entite', 
             'nif', 
-            'groups_details',
+            'groups',
             'updated_at',
             'created_at',
             'role'
             ] 
 class PublicProfileRegistrationSerializer(serializers.ModelSerializer):
+    role = serializers.SerializerMethodField()
+
+    def get_role(self, obj):
+        return get_user_role(obj)
     password = serializers.CharField(write_only=True, required=True)
     groups = serializers.PrimaryKeyRelatedField(
         many=True, 
@@ -55,7 +58,8 @@ class PublicProfileRegistrationSerializer(serializers.ModelSerializer):
             'groups',
             'groups_details',
             'updated_at',
-            'created_at'
+            'created_at',
+            'role'
         ]
 
         extra_kwargs = {
@@ -101,6 +105,7 @@ class PublicProfileRegistrationSerializer(serializers.ModelSerializer):
         user = User.objects.create_user(**validated_data)
         group, _ = Group.objects.get_or_create(name="public")
         user.groups.add(group)
+        print("GROUPES USER :", list(user.groups.values_list("name", flat=True)))
         return user
 
 

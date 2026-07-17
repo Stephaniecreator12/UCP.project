@@ -10,7 +10,7 @@ import { getCountdown } from "./components/countdown";
 import { useRouter } from 'next/navigation';
 import { trackUserAction } from "@/services/trackAction";
 import { getme } from "@/services/profile";
-import { UserProfileValue } from "@/types/profile";
+import { UserProfile } from "@/types/profile";
 import Cookies from "js-cookie";
 interface MarketData {
   count: number;
@@ -60,7 +60,7 @@ export default function ProcurementPage({
   });
 
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<UserProfileValue | null>(null);
+  const [user, setUser] = useState<UserProfile | null>(null);
   const [searchInput, setSearchInput] = useState(currentSearch);
   const [dateFilters, setDateFilters] = useState(currentFilters);
   const router = useRouter();

@@ -23,13 +23,13 @@ import {
   stepLabels,
 } from "@/app/personnel/demande-achat/components/demandeAchatShared";
 import {
-  getCurrentUser,
   getLandingRouteForUser,
   getMarketRoleLabel,
   getToken,
   isLogistiqueUser,
   type UserProfile,
 } from "@/services/auth";
+import { getme } from "@/services/profile";
 import {
   DemandeAchat,
   listDemandesAchat,
@@ -161,7 +161,7 @@ function MarcheDashboardPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const filterParam = searchParams.get("filtre");
-  const [currentUser] = useState(() => getCurrentUser());
+  const [currentUser] = useState(() => getme());
   const marketRoleLabel = getMarketRoleLabel(currentUser);
   const [demandes, setDemandes] = useState<DemandeAchat[]>([]);
   const [loading, setLoading] = useState(true);

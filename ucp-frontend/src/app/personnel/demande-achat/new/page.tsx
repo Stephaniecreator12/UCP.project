@@ -12,13 +12,13 @@ import {
   submitDemandeAchat,
 } from "@/services/achats";
 import {
-  getCurrentUser,
   getLandingRouteForUser,
   getToken,
   isAgentAchatUser,
   isFinanceUser,
   isValidatorUser,
 } from "@/services/auth";
+import { getme } from "@/services/profile";
 import {
   listExternalPersonnel,
   type PersonnelDirectoryOption,
@@ -500,7 +500,7 @@ export default function NouvelleDemandePage() {
   
   useEffect(() => {
     if (!getToken()) return router.replace("/auth/login");
-    const u = getCurrentUser(); 
+    const u = getme(); 
     if (isValidatorUser(u) || isAgentAchatUser(u) || isFinanceUser(u)) router.replace(getLandingRouteForUser(u));
   }, [router]);
 

@@ -13,7 +13,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 from pathlib import Path
 import os 
 from dotenv import load_dotenv
-
+from celery.schedules import crontab
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -313,16 +313,15 @@ EVALUATION_EMAIL_SUBJECT_PREFIX = os.getenv(
     "[UCP Évaluation] ",
 )
 EVALUATION_NOTIFICATION_REPLY_TO = env_list("EVALUATION_NOTIFICATION_REPLY_TO")
-
-EXTERNAL_PERSONNEL_API_URL = os.getenv("EXTERNAL_PERSONNEL_API_URL", "")
-EXTERNAL_PERSONNEL_API_TOKEN = os.getenv("EXTERNAL_PERSONNEL_API_TOKEN", "")
-EXTERNAL_PERSONNEL_API_AUTH_HEADER = os.getenv(
-    "EXTERNAL_PERSONNEL_API_AUTH_HEADER",
-    "Authorization",
-)
-EXTERNAL_PERSONNEL_API_AUTH_SCHEME = os.getenv(
-    "EXTERNAL_PERSONNEL_API_AUTH_SCHEME",
-    "Bearer",
-)
-EXTERNAL_PERSONNEL_API_TIMEOUT = env_int("EXTERNAL_PERSONNEL_API_TIMEOUT", 15)
 AUTH_USER_MODEL = 'users.UserProfile'
+
+CELERY_BEAT_SCHEDULE = {
+    "daily-ucp-report": {
+        "task": "apps.log.tasks.send_daily_ucp_report_task.send_daily_ucp_report",
+        "schedule": crontab(hour=7, minute=0),
+    },
+    "daily-operational-report": {
+        "task": "apps.log.tasks.operational_monitoring_task.send_operational_report",
+        "schedule": crontab(hour=7, minute=0),
+    },
+}

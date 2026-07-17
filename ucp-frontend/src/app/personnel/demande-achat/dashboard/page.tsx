@@ -51,7 +51,8 @@ import {
   stepLabels,
   typeLabels,
 } from "@/app/personnel/demande-achat/components/demandeAchatShared";
-import { getCurrentUser, getToken, type UserProfile } from "@/services/auth";
+import {  getToken, type UserProfile } from "@/services/auth";
+import { getme } from "@/services/profile";
 import {
   type DashboardScope,
   DemandeAchat,
@@ -401,7 +402,7 @@ function DashboardPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const hasHydrated = useHasHydrated();
-  const currentUser = hasHydrated ? getCurrentUser() : null;
+  const currentUser = hasHydrated ? getme() : null;
   const [demandes, setDemandes] = useState<DemandeAchat[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

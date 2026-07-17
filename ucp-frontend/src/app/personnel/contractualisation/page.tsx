@@ -20,7 +20,8 @@ import {
 import { listContrats } from "@/services/contractualisation";
 import { Contrat } from "@/types/contractualisation";
 import TopHeader from "@/app/components/TopHeader";
-import { fetchCurrentUser, getToken, type UserProfile } from "@/services/auth";
+import { fetchCurrentUser, getToken } from "@/services/auth";
+import { UserProfile } from "@/types/profile";
 
 type ScreenState = "loading" | "ready" | "error";
 

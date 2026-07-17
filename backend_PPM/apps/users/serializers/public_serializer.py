@@ -3,8 +3,14 @@ from rest_framework import serializers
 from apps.users.serializers.groups_serializer import GroupDetailSerializer
 from django.contrib.auth.models import Group
 from django.contrib.auth import get_user_model
+from apps.users.services.permissions import get_user_role
+from django.contrib.auth import authenticate
 User = get_user_model()
 class PublicProfileSerializer(serializers.ModelSerializer): 
+    role = serializers.SerializerMethodField()
+
+    def get_role(self, obj):
+        return get_user_role(obj)
     groups_details = GroupDetailSerializer(
         source='groups', 
         many=True, 
@@ -21,7 +27,8 @@ class PublicProfileSerializer(serializers.ModelSerializer):
             'nif', 
             'groups_details',
             'updated_at',
-            'created_at'
+            'created_at',
+            'role'
             ] 
 class PublicProfileRegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True)
@@ -101,9 +108,9 @@ class PublicLoginSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)
     password = serializers.CharField(write_only=True, required=True)
 
-    def validate(self, data):
-        email = data.get('email')
-        password = data.get('password')
+    def validate(self, attrs):
+        email = attrs["email"]
+        password = attrs["password"]
 
         try:
             user = User.objects.get(email=email)
@@ -117,5 +124,20 @@ class PublicLoginSerializer(serializers.Serializer):
                 "password": ["Mot de passe incorrect."]
             })
 
-        data['user'] = user
-        return data
+        if not user.is_active:
+            raise serializers.ValidationError({
+                "email": ["Ce compte est désactivé."]
+            })
+
+        authenticated_user = authenticate(
+            email=email,
+            password=password
+        )
+
+        if authenticated_user is None:
+            raise serializers.ValidationError({
+                "non_field_errors": ["Impossible de se connecter."]
+            })
+
+        attrs["user"] = authenticated_user
+        return attrs

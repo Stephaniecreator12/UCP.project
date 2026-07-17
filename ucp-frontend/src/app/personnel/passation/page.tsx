@@ -20,13 +20,13 @@ import {
   stepLabels,
 } from "@/app/personnel/demande-achat/components/demandeAchatShared";
 import {
-  getCurrentUser,
   getLandingRouteForUser,
   getToken,
   getAgentAchatRoleLabel,
   isAgentAchatUser,
   type UserProfile,
 } from "@/services/auth";
+import { getme } from "@/services/profile";
 import {
   DemandeAchat,
   listDemandesAchat,
@@ -138,7 +138,7 @@ const filterDemandesByQuery = (items: DemandeAchat[], query: string) => {
 
 export default function PassationDashboardPage() {
   const router = useRouter();
-  const [currentUser] = useState(() => getCurrentUser());
+  const [currentUser] = useState(() => getme());
   const agentRoleLabel = getAgentAchatRoleLabel(currentUser);
   const [demandes, setDemandes] = useState<DemandeAchat[]>([]);
   const [loading, setLoading] = useState(true);

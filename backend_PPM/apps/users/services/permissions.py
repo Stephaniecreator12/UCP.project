@@ -10,12 +10,14 @@ class TdrStRole:
     VERIFICATEUR_TECHNIQUE = "verificateur_technique"
     APPROBATEUR_FINAL = "approbateur_final"
     AUDITEUR = "auditeur"
+    PUBLIC = "public"
 
 
 ROLE_GROUPS: dict[str, tuple[str, ...]] = {
     "verificateur_technique": ("VALIDATEUR_TECHNIQUE",),
     "approbateur_final": ("APPROBATEUR_NATIONAL",),
     "auditeur": ("AUDITEUR",),
+    "public": ("public",),
 }
 
 ALL_TDR_GROUPS = tuple(

@@ -1,9 +1,11 @@
 from django.contrib.auth import get_user_model
+from apps.users.services.sync import sync_user_from_rh
 
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.users.serializers.user_serializer import (
     UserSerializer,
@@ -13,10 +15,6 @@ from apps.users.serializers.public_serializer import (
     PublicLoginSerializer,
     PublicProfileSerializer,
     PublicProfileRegistrationSerializer
-)
-from apps.users.services.external_personnel import (
-    ExternalPersonnelApiError,
-    fetch_external_personnel_directory,
 )
 
 User = get_user_model()
@@ -45,20 +43,6 @@ def me(request):
         "error": False,
         "data": data
     })
-
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def external_personnel(request):
-    try:
-        personnel = fetch_external_personnel_directory()
-    except ExternalPersonnelApiError as exc:
-        payload = {"error": exc.message}
-        if exc.detail:
-            payload["detail"] = exc.detail
-        return Response(payload, status=exc.status_code)
-
-    return Response(personnel)
-
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated, IsAdminUser])
@@ -106,18 +90,22 @@ def create_user(request):
 
 @api_view(["POST"])
 @permission_classes([AllowAny]) 
-def public_login(request):
+def login(request):
     serializer = PublicLoginSerializer(data=request.data)
     
     if serializer.is_valid():
         user = serializer.validated_data['user']
         
         user_data = PublicProfileSerializer(user).data
+
+        refresh = RefreshToken.for_user(user)
         
         return Response({
             "error": False,
             "message": "Connexion réussie",
-            "user": user_data
+            "user": user_data,
+            "access": str(refresh.access_token),
+            "refresh": str(refresh),
         }, status=status.HTTP_200_OK)
     print("LOG ERREUR LOGIN :", serializer.errors)
         
@@ -126,7 +114,7 @@ def public_login(request):
 
 @api_view(["GET"])
 @permission_classes([AllowAny])  
-def get_user_profile_by_email(request):
+def find_user_profile_by_email(request):
     email = request.query_params.get('email')
     
     if not email:
@@ -148,3 +136,28 @@ def get_user_profile_by_email(request):
         "error": False,
         "data": serializer.data
     }, status=status.HTTP_200_OK)
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def sync_rh_user(request):
+
+    email = request.data.get("email")
+    password = request.data.get("password")
+
+    if not email or not password:
+        return Response(
+            {
+                "error": "email et password obligatoires"
+            },
+            status=400
+        )
+
+    user = sync_user_from_rh(
+        email,
+        password
+    )
+
+    return Response(
+        UserSerializer(user).data,
+        status=200
+    )

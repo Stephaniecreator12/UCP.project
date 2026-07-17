@@ -3,7 +3,7 @@ import Cookies from 'js-cookie';
 import { AxiosError } from "axios";
 export const api = axios.create({
   baseURL: `${process.env.NEXT_PUBLIC_API_BASE_URL}/api`,
-  withCredentials: true, 
+  withCredentials: true,
   xsrfCookieName: 'csrftoken',
   xsrfHeaderName: 'X-CSRFToken',
 });
@@ -29,14 +29,14 @@ api.interceptors.request.use(async (config) => {
 });
 
 api.interceptors.response.use(
-  (response) => response, 
+  (response) => response,
   async (error) => {
     const originalRequest = error.config;
 
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
-      console.log("👉 [INTERCEPTOR] Une erreur est détectée ! Statut :", error.response?.status);
-      
+      console.log("Une erreur est détectée ! Statut :", error.response?.status);
+
       let refreshToken: string | undefined = undefined;
 
       if (typeof window !== "undefined") {
@@ -54,7 +54,7 @@ api.interceptors.response.use(
       if (refreshToken) {
         try {
           const targetBaseUrl = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api`;
-          
+
           const refreshUrl = `${targetBaseUrl}/token/refresh/`;
           const response = await axios.post(refreshUrl, {
             refresh: refreshToken,
@@ -62,17 +62,21 @@ api.interceptors.response.use(
           const newAccessToken = response.data.access;
 
           if (typeof window !== "undefined") {
-            Cookies.set("access_token", newAccessToken, { 
-              secure: process.env.NODE_ENV === 'production', 
-              sameSite: "strict" 
-            });
-          } else {
-            const { cookies } = await import("next/headers");
-            const cookieStore = await cookies();
-            cookieStore.set("access_token", newAccessToken, {
+            Cookies.set("access_token", newAccessToken, {
               secure: process.env.NODE_ENV === 'production',
               sameSite: "strict"
             });
+          } else {
+            try {
+              const { cookies } = await import("next/headers");
+              const cookieStore = await cookies();
+              cookieStore.set("access_token", newAccessToken, {
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: "strict"
+              });
+            } catch (cookieError) {
+              console.warn(cookieError);
+            }
           }
 
           originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
@@ -80,7 +84,7 @@ api.interceptors.response.use(
           return api(originalRequest);
         } catch (refreshError) {
           console.error("Le rafraîchissement du token a échoué :", refreshError);
-          
+
           if (typeof window !== "undefined") {
             Cookies.remove("access_token");
             Cookies.remove("refresh_token");
@@ -98,10 +102,10 @@ api.interceptors.response.use(
 type ApiErrorData =
   | string
   | {
-      detail?: string;
-      message?: string;
-      [key: string]: unknown;
-    };
+    detail?: string;
+    message?: string;
+    [key: string]: unknown;
+  };
 type ValidationError = Record<string, unknown>;
 export const parseApiError = (error: unknown): string | ValidationError => {
   const err = error as AxiosError<ApiErrorData>;
@@ -114,14 +118,14 @@ export const parseApiError = (error: unknown): string | ValidationError => {
   }
 
   if (typeof data === "string") return data;
-  
+
   if (data && typeof data === "object") {
     if ("detail" in data && data.detail) return String(data.detail);
     if ("message" in data && data.message) return String(data.message);
-    
+
     const firstKey = Object.keys(data)[0];
     const firstError = (data as Record<string, unknown>)[firstKey];
-    
+
     if (Array.isArray(firstError)) return String(firstError[0]);
     return String(firstError);
   }

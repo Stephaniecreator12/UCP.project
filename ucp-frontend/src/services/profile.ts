@@ -1,12 +1,9 @@
 import { ApiResult } from "@/types/api";
-import { UserProfileValue } from "@/types/profile";
+import { UserProfile } from "@/types/profile";
 import { api, parseApiError } from "./config";
-import { getToken } from "./auth";
-export const getme = async (): Promise<ApiResult<UserProfileValue>> => {
+export const getme = async (): Promise<ApiResult<UserProfile>> => {
     try {
-        const response = await api.get(`/users/me`, {
-            headers: { 'Authorization': `Bearer ${getToken()}` }
-        });
+        const response = await api.get(`/users/me`); 
         return {
             error: false,
             data: response.data.data

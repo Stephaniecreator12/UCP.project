@@ -20,7 +20,6 @@ import {
   stepLabels,
 } from "@/app/personnel/demande-achat/components/demandeAchatShared";
 import {
-  getCurrentUser,
   getFinanceRoleLabel,
   getLandingRouteForUser,
   getToken,
@@ -30,6 +29,7 @@ import {
   isValidatorUser,
   type UserProfile,
 } from "@/services/auth";
+import { getme } from "@/services/profile";
 import {
   DemandeAchat,
   getDemandeAchatById,
@@ -141,7 +141,7 @@ export default function ValidationDashboardPage() {
   const allScopeHref = "/demande-achat?scope=all";
 
   useEffect(() => {
-    setCurrentUser(getCurrentUser());
+    setCurrentUser(getme());
     setIsHydrated(true);
   }, []);
 

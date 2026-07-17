@@ -2,11 +2,10 @@ from celery import shared_task
 from django.core.mail import send_mail
 from django.utils import timezone
 from datetime import timedelta
-
+from django.contrib.auth import get_user_model
 from apps.log.models.consultation import LogConsultation
 from apps.log.models.download import LogDownload
-from apps.users.models.public import UserProfile
-
+User = get_user_model()
 
 @shared_task
 def send_daily_ucp_report():
@@ -21,7 +20,7 @@ def send_daily_ucp_report():
         timestamp__gte=yesterday
     ).count()
 
-    registrations = UserProfile.objects.filter(
+    registrations = User.objects.filter(
         created_at__gte=yesterday
     ).count()
 

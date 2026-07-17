@@ -11,71 +11,17 @@ from apps.users.models.agent import AgentProfile, Poste, Programme
 logger = logging.getLogger(__name__)
 User = get_user_model()
 
-# Liste mockée d'utilisateurs RH pour le développement et les tests locaux
-# Permet de tester sans connexion réelle à la base de données des RH.
-MOCK_RH_DATABASE = {
-    "mock_token_nalisoa_87": {
-        "id": "87",
-        "matricule": "002/UCP",
-        "nom": "NOMENJANAHARY",
-        "prenom": "Nalisoa",
-        "email": "nalisoa@ucp.mg",
-        "fonction": "Gestionnaire Programme",
-        "programme_code": "FM",
-        "programme_nom": "Fonds Mondial",
-        "is_active": True,
-        "groups": ["DEMANDEUR"]
-    },
-    "mock_token_anthony_32": {
-        "id": "32",
-        "matricule": "032/UCP",
-        "nom": "JOHN",
-        "prenom": "Anthony",
-        "email": "pfgavi@ucp.mg",
-        "fonction": "Point Focal",
-        "programme_code": "GAVI",
-        "programme_nom": "Alliance Gavi",
-        "is_active": True,
-        "groups": ["VALIDATEUR_TECHNIQUE"]
-    },
-    "mock_token_raf_gavi_33": {
-        "id": "33",
-        "matricule": "033/UCP",
-        "nom": "RAF_GAVI",
-        "prenom": "Finance",
-        "email": "raf.gavi@ucp.mg",
-        "fonction": "Responsable Administratif Financier",
-        "programme_code": "GAVI",
-        "programme_nom": "Alliance Gavi",
-        "is_active": True,
-        "groups": ["RAF", "SECRETAIRE"]
-    },
-    "mock_token_alice_100": {
-        "id": "100",
-        "matricule": "100/UCP",
-        "nom": "ALICE",
-        "prenom": "Alice",
-        "email": "alice@ucp.mg",
-        "fonction": "Gestionnaire",
-        "programme_code": "FM",
-        "programme_nom": "Fonds Mondial",
-        "is_active": True,
-        "groups": ["DEMANDEUR"]
-        
-    },
-    "mock_token_secretaire_50": {
-        "id": "50",
-        "matricule": "050/UCP",
-        "nom": "RAKOTO",
-        "prenom": "Secrétaire",
-        "email": "secretaire@ucp.mg",   # ← email différente d'Alice !
-        "fonction": "Secrétaire",
-        "programme_code": "FM",
-        "programme_nom": "Fonds Mondial",
-        "is_active": True,
-        "groups": ["SECRETAIRE"]
-    }
-}
+class DummyToken:
+    """
+    Token factice pour encapsuler les jetons d'API RH externes 
+    et éviter que SimpleJWT ou DRF ne lèvent d'exceptions de type 'NoneType'.
+    """
+    def __init__(self, token_str):
+        self.token = token_str
+
+    def __str__(self):
+        return self.token
+
 
 def resolve_identity_from_db(token: str):
     """
@@ -83,10 +29,9 @@ def resolve_identity_from_db(token: str):
     Retourne un dictionnaire avec les infos utilisateur ou None.
     """
     if "external_users" not in connections:
+        logger.error("La connexion 'external_users' n'est pas configurée dans DATABASES.")
         return None
     
-    # NOTE: Cette requête SQL est indicative et doit être adaptée
-    # au schéma réel de la base de données RH.
     query = """
         SELECT u.id, u.matricule, u.nom, u.prenom, u.email, u.fonction, u.financement_actuel, u.is_active
         FROM auth_tokens t
@@ -104,23 +49,26 @@ def resolve_identity_from_db(token: str):
                     "nom": row[2],
                     "prenom": row[3],
                     "email": row[4],
-                    "fonction": row[5],
-                    "programme_code": row[6],
-                    "programme_nom": row[6],  # utilisé comme nom par défaut
+                    "fonction": row[5] or "Agent Sans Fonction",
+                    "programme_code": row[6] or "SANS-PROG",
+                    "programme_nom": row[6] or "Sans Programme",
                     "is_active": bool(row[7]),
-                    "groups": [] # Résolu dynamiquement par la suite
+                    "groups": []  # Géré via les groupes du poste
                 }
     except Exception as e:
-        logger.warning(f"Impossible de se connecter à external_users : {e}")
+        logger.error(f"Impossible de requêter la base external_users : {e}")
     return None
+
 
 def get_or_create_groups(group_names):
     """Récupère ou crée les groupes Django correspondants."""
     groups = []
     for name in group_names:
-        group, _ = Group.objects.get_or_create(name=name)
-        groups.append(group)
+        if name:
+            group, _ = Group.objects.get_or_create(name=name.strip())
+            groups.append(group)
     return groups
+
 
 def provision_user(user_data):
     """
@@ -131,7 +79,6 @@ def provision_user(user_data):
     
     # 1. Vérifier si l'utilisateur est révoqué côté RH
     if not user_data["is_active"]:
-        # Si le compte existe localement, on le désactive immédiatement
         User.objects.filter(email=email).update(is_active=False)
         raise AuthenticationFailed("Ce compte RH a été désactivé.")
 
@@ -147,18 +94,17 @@ def provision_user(user_data):
     )
 
     if not created:
-        # Mettre à jour les informations de base
         user.first_name = user_data["prenom"]
         user.last_name = user_data["nom"]
         user.is_active = True
-        user.save()
-
-    # 3. Forcer le mot de passe local à être inutilisable (Sécurité)
+        
+    # 3. Forcer le mot de passe local à être inutilisable et sauvegarder
     user.set_unusable_password()
+    user.save()
 
     # 4. Gérer le Programme
-    prog_code = user_data["programme_code"]
-    prog_nom = user_data["programme_nom"]
+    prog_code = user_data["programme_code"] or "SANS-PROG"
+    prog_nom = user_data["programme_nom"] or "Sans Programme"
     programme, _ = Programme.objects.get_or_create(
         code=prog_code,
         defaults={"nom": prog_nom}
@@ -166,7 +112,7 @@ def provision_user(user_data):
 
     # 5. Gérer le Poste
     poste, _ = Poste.objects.get_or_create(
-        nom=user_data["fonction"],
+        nom=user_data["fonction"] or "Agent",
         programme=programme
     )
 
@@ -193,6 +139,7 @@ def provision_user(user_data):
 
     return user
 
+
 class HybridJWTAuthentication(JWTAuthentication):
     """
     Système d'authentification hybride :
@@ -211,7 +158,7 @@ class HybridJWTAuthentication(JWTAuthentication):
             
         token_str = raw_token.decode('utf-8') if isinstance(raw_token, bytes) else raw_token
         
-        # Cas 1 : Token JWT Standard (Fournisseurs externes)
+        # Cas 1 : Token JWT Standard (Fournisseurs externes / Utilisateurs locaux)
         if '.' in token_str:
             try:
                 validated_token = self.get_validated_token(raw_token)
@@ -220,21 +167,17 @@ class HybridJWTAuthentication(JWTAuthentication):
                 raise
 
         # Cas 2 : Token RH de 40 caractères (Agents internes)
-        if len(token_str) == 40 or token_str.startswith("mock_token_"):
-            # A. Résoudre l'identité (via DB externe ou Mock local)
+        if len(token_str) == 40:
+            # A. Résoudre l'identité via la base externe
             user_data = resolve_identity_from_db(token_str)
-            if not user_data and settings.DEBUG:
-                # Utiliser le dictionnaire mocké en mode DEBUG si pas de DB externe
-                user_data = MOCK_RH_DATABASE.get(token_str)
 
             if not user_data:
-                raise InvalidToken("Jeton RH invalide ou expiré.")
+                raise InvalidToken("Jeton RH invalide, expiré ou base RH inaccessible.")
 
             # B. Provisionner le compte miroir local et synchroniser ses droits
             user = provision_user(user_data)
             
-            # Stocker temporairement le token RH sur l'objet utilisateur
-            user.token = token_str
-            return user, None
+            # Retourner l'utilisateur avec l'objet Token factice sécurisé
+            return user, DummyToken(token_str)
 
         raise InvalidToken("Format de jeton inconnu.")

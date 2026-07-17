@@ -4,13 +4,14 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   getToken,
+  getLandingRouteForUser
 } from "@/services/auth";
 import { getme } from "@/services/profile";
-import { UserProfileValue } from "@/types/profile";
+import { UserProfile } from "@/types/profile";
 
 export default function HomePage() {
   const router = useRouter();
-  const [user,setUser] = useState<UserProfileValue>()
+  const [user,setUser] = useState<UserProfile>()
 
   useEffect(() => {
     async function handleGetMe() {

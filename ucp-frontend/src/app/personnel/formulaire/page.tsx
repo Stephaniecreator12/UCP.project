@@ -7,12 +7,12 @@ import SidebarMenu from "@/app/components/SidebarMenu";
 import GridTable from "@/app/components/GridTable";
 import TopHeader from "@/app/components/TopHeader";
 import {
-  getCurrentUser,
   getLandingRouteForUser,
   getToken,
   isAgentAchatUser,
   isValidatorUser,
 } from "@/services/auth";
+import { getme } from "@/services/profile";
 import { MenuItemType, GridRow } from "@/types/grid";
 import { TABLE_CONFIGS } from "@/config/tableConfigs";
 import {
@@ -143,14 +143,14 @@ const loadData = useCallback(async (): Promise<GridRow[]> => {
       return;
     }
 
-    const currentUser = getCurrentUser();
+    const currentUser = getme();
     if (isValidatorUser(currentUser) || isAgentAchatUser(currentUser)) {
       router.replace(getLandingRouteForUser(currentUser));
     }
   }, [router]);
 
   useEffect(() => {
-    const currentUser = getCurrentUser();
+    const currentUser = getme();
     if (
       getToken() &&
       !isValidatorUser(currentUser) &&

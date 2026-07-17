@@ -21,7 +21,7 @@ import {
 import { getme } from "@/services/profile";
 import PurchaseSelect from "@/app/personnel/demande-achat/components/PurchaseSelect";
 import { FRENCH_DATE_INPUT_PROPS, formatFrenchDate as formatDate } from "@/lib/date";
-import { UserProfileValue } from "@/types/profile";
+import { UserProfile } from "@/types/profile";
 
 type ReceptionModalProps = {
   demande: DemandeAchat | null;
@@ -79,7 +79,7 @@ export default function ReceptionModal({
   onSuccess,
 }: ReceptionModalProps) {
   const issueBlockRef = useRef<HTMLDivElement | null>(null);
-  const [currentUser, setCurrentUser] = useState<UserProfileValue>();
+  const [currentUser, setCurrentUser] = useState<UserProfile>();
   useEffect(() => {
     async function handleGetMe() {
       const res = await getme();

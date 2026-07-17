@@ -1,14 +1,14 @@
 import Cookies from "js-cookie";
 import { API_BASE_URL, API_RH_URL } from "./api";
-import { UserProfileValue } from "@/types/profile";
+import { UserProfile } from "@/types/profile";
 interface LoginResult {
   status: number;
   success?: boolean;
   role?: string;
   message?: string;
   data?: unknown;
-  email?:string;
-  password?:string;
+  email?: string;
+  password?: string;
 }
 
 interface RegisterResult {
@@ -21,54 +21,50 @@ export const login = async (
   password: string,
 ): Promise<LoginResult> => {
   try {
-    let response;
     if (isUCPDomain(email)) {
-      let isOnDb = false;
-      const vERes = await fetch(`${API_BASE_URL}/api/user/by-email/`, {
-        method: "GET",
-        body: JSON.stringify({ email }),
-      });
-      const vEData = await vERes.json()
-      if (vEData.status == 200) {
-        isOnDb = true
-      }
-      if (isOnDb == true) {
-        response = await fetch(`${API_RH_URL}/api/login/`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password }),
-        });
-      }
-      else {
-        response = await fetch(`${API_RH_URL}/api/login/`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password }),
-        });
-        const tempData = await response.json();
-
-        if (tempData.status == 200) {
-          await fetch(`${API_BASE_URL}/api/user/create/`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email }),
-          });
-        }
-      }
-    }
-
-    else {
-      response = await fetch(`${API_BASE_URL}/api/login/`, {
+      const rhResponse = await fetch(`${API_RH_URL}/api/login`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          email,
+          password
+        })
       });
+
+
+      if (!rhResponse.ok) {
+        return getLoginErrorMessage(await rhResponse.json());
+      }
+
+
+      await fetch(`${API_BASE_URL}/api/users/sync/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          email,
+          password
+        })
+      });
+
+
     }
+
+    const response = await fetch(`${API_BASE_URL}/api/users/login/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+
     const data = await response.json();
     if (response.ok) {
       Cookies.set("access_token", data.access, { expires: 1, secure: process.env.NODE_ENV === 'production' });
       Cookies.set("refresh_token", data.refresh, { expires: 1, secure: process.env.NODE_ENV === 'production' });
-      Cookies.set("groups", JSON.stringify(data.groups), { expires: 1, secure: process.env.NODE_ENV === 'production' });
+      Cookies.set("groups", JSON.stringify(data.user.groups), { expires: 1, secure: process.env.NODE_ENV === 'production' });
+      Cookies.set("role", JSON.stringify(data.user.role), { expires: 1, secure: process.env.NODE_ENV === 'production' });
       return { status: 200, success: true, role: data.group };
     }
     return getLoginErrorMessage(data);
@@ -85,15 +81,7 @@ export const logout = () => {
   if (typeof window === "undefined") return;
   Cookies.remove("access_token");
   Cookies.remove("refresh_token");
-<<<<<<< HEAD
-  Cookies.remove("access_type");
-  Cookies.remove("user_info");
-  localStorage.removeItem("access_token");
-  localStorage.removeItem("refresh_token");
-  localStorage.removeItem("user_profile");
-=======
   Cookies.remove("role");
->>>>>>> mikaiah
 };
 
 export const getToken = () => {
@@ -112,7 +100,7 @@ export const publicRegister = async (
   password: string,
 ): Promise<RegisterResult> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/public-profile/create/`, {
+    const response = await fetch(`${API_BASE_URL}/api/users/public/create/`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -122,7 +110,7 @@ export const publicRegister = async (
         type_entite,
         nif,
         password,
-        group:["public"]
+        group: ["public"]
       }),
     });
     const result = await response.json();
@@ -202,17 +190,151 @@ const extractAuthErrorMessage = (data: unknown): string | null => {
 };
 const getLoginErrorMessage = (data: LoginResult): LoginResult => {
   if (data.status != 200) {
-    if (data.email){
-      return { status: data.status, message: data.email[0], success: false };
+    if(data.email){
+      return { status: 400, message: extractAuthErrorMessage(data) || "l'email est invalide", success: false }
     }
     if(data.password){
-      return { status: data.status, message: data.password[0], success: false };
+      return { status: 400, message: extractAuthErrorMessage(data) || "le mot de passe est invalide", success: false }
     }
     return { status: 400, message: extractAuthErrorMessage(data) || "quelque chose c'est mal passé", success: false }
   }
   return { status: 500, message: extractAuthErrorMessage(data) || "Connexion impossible pour le moment.", success: false }
 };
-export const getLandingRouteForUser = (user: UserProfileValue | null) => {
+export const VALIDATOR_GROUPS = [
+  "VALIDATEUR_HIERARCHIQUE",
+  "VALIDATEUR_TECHNIQUE",
+  "VALIDATEUR_PROGRAMMATIQUE",
+  "APPROBATEUR_NATIONAL",
+] as const;
+export const FINANCE_GROUPS = [
+  "FINANCE",
+  "RAF",
+  "VALIDATEUR_BUDGETAIRE",
+] as const;
+export const PUBLIC_GROUP = "PUBLIC" as const
+export const AGENT_ACHAT_GROUP = "AGENT_ACHAT" as const;
+export const LOGISTIQUE_GROUP = "LOGISTIQUE" as const;
+export const AGENT_MARCHE_GROUP = "AGENT_MARCHE" as const;
+export const MARCHES_GROUP = "MARCHES" as const;
+const MARKET_GROUPS = [
+  AGENT_MARCHE_GROUP,
+  MARCHES_GROUP,
+  LOGISTIQUE_GROUP,
+] as const;
+export const SECRETAIRE_GROUP = "SECRETAIRE" as const;
+export const SECRETAIRE_CONTRACTUALISATION_GROUP =
+  "SECRETAIRE_CONTRACTUALISATION" as const;
+
+const VALIDATOR_GROUP_LABELS: Record<
+  (typeof VALIDATOR_GROUPS)[number],
+  string
+> = {
+  VALIDATEUR_HIERARCHIQUE: "Supérieur hiérarchique",
+  VALIDATEUR_TECHNIQUE: "Responsable technique",
+  VALIDATEUR_PROGRAMMATIQUE: "Point focal programme",
+  APPROBATEUR_NATIONAL: "Coordonnateur national",
+};
+
+const FINANCE_GROUP_LABELS: Record<(typeof FINANCE_GROUPS)[number], string> = {
+  FINANCE: "Finance",
+  RAF: "Responsable administratif et financier",
+  VALIDATEUR_BUDGETAIRE: "Responsable administratif et financier",
+};
+
+const VALIDATOR_GROUP_TO_STEP: Record<
+  (typeof VALIDATOR_GROUPS)[number],
+  string
+> = {
+  VALIDATEUR_HIERARCHIQUE: "HIERARCHIQUE",
+  VALIDATEUR_TECHNIQUE: "TECHNIQUE",
+  VALIDATEUR_PROGRAMMATIQUE: "PROGRAMMATIQUE",
+  APPROBATEUR_NATIONAL: "APPROBATION_FINALE",
+};
+export const isPublicUser = (user: UserProfile | null) =>
+  !!user?.groups?.some((group): group is (typeof PUBLIC_GROUP)[number] =>
+    PUBLIC_GROUP.includes(group as (typeof PUBLIC_GROUP)[number]),
+  );
+
+export const isValidatorUser = (user: UserProfile | null) =>
+  !!user?.groups?.some((group): group is (typeof VALIDATOR_GROUPS)[number] =>
+    VALIDATOR_GROUPS.includes(group as (typeof VALIDATOR_GROUPS)[number]),
+  );
+
+export const isAgentAchatUser = (user: UserProfile | null) =>
+  !!user?.groups?.includes(AGENT_ACHAT_GROUP);
+
+
+export const isFinanceUser = (user: UserProfile | null) =>
+  !!user?.groups?.some((group): group is (typeof FINANCE_GROUPS)[number] =>
+    FINANCE_GROUPS.includes(group as (typeof FINANCE_GROUPS)[number]),
+  );
+
+export const isAgentMarcheUser = (user: UserProfile | null) =>
+  !!user?.groups?.some((group): group is (typeof MARKET_GROUPS)[number] =>
+    MARKET_GROUPS.includes(group as (typeof MARKET_GROUPS)[number]),
+  );
+
+export const isSecretaireUser = (user: UserProfile | null) =>
+  !!user?.groups?.includes(SECRETAIRE_GROUP);
+
+export const isSecretaireContractualisationUser = (user: UserProfile | null) =>
+  !!user?.groups?.includes(SECRETAIRE_CONTRACTUALISATION_GROUP);
+
+export const isLogistiqueUser = (user: UserProfile | null) =>
+  isAgentMarcheUser(user);
+
+export const canUseGlobalDashboard = (user: UserProfile | null) => !!user;
+
+export const getValidatorGroup = (
+  user: UserProfile | null,
+): (typeof VALIDATOR_GROUPS)[number] | null => {
+  const group = user?.groups?.find(
+    (item): item is (typeof VALIDATOR_GROUPS)[number] =>
+      VALIDATOR_GROUPS.includes(item as (typeof VALIDATOR_GROUPS)[number]),
+  );
+
+  return group ?? null;
+};
+
+export const getValidatorRoleLabel = (user: UserProfile | null) => {
+  const group = getValidatorGroup(user);
+  return group ? VALIDATOR_GROUP_LABELS[group] : "";
+};
+
+export const getFinanceGroup = (user: UserProfile | null) =>
+  user?.groups?.find((item): item is (typeof FINANCE_GROUPS)[number] =>
+    FINANCE_GROUPS.includes(item as (typeof FINANCE_GROUPS)[number]),
+  );
+export const getPublicGroup = (user: UserProfile | null) =>
+  user?.groups?.find((item): item is (typeof PUBLIC_GROUP)[number] =>
+    PUBLIC_GROUP.includes(item as (typeof PUBLIC_GROUP)[number]),
+  );
+
+export const getValidatorStep = (user: UserProfile | null) => {
+  const vGroup = getValidatorGroup(user);
+  if (vGroup) return VALIDATOR_GROUP_TO_STEP[vGroup];
+
+  if (isFinanceUser(user)) return "BUDGETAIRE";
+
+  return null;
+};
+
+export const getFinanceRoleLabel = (user: UserProfile | null) => {
+  const group = getFinanceGroup(user);
+  return group ? FINANCE_GROUP_LABELS[group] : "";
+};
+
+export const getAgentAchatRoleLabel = (user: UserProfile | null) =>
+  isAgentAchatUser(user) ? "Agent achat" : "";
+
+export const getMarketRoleLabel = (user: UserProfile | null) => {
+  if (user?.groups?.includes(LOGISTIQUE_GROUP)) return "Logistique";
+  if (user?.groups?.includes(AGENT_MARCHE_GROUP)) return "Agent marché";
+  if (user?.groups?.includes(MARCHES_GROUP)) return "Service marché";
+  return "";
+};
+
+export const getLandingRouteForUser = (user: UserProfile | null) => {
   if (isSecretaireUser(user)) return "/personnel/ouverture_offre";
   if (isSecretaireContractualisationUser(user))
     return "/personnel/contractualisation";
@@ -220,5 +342,6 @@ export const getLandingRouteForUser = (user: UserProfileValue | null) => {
     return "/personnel/validation";
   if (isAgentAchatUser(user)) return "/personnel/passation";
   if (isAgentMarcheUser(user)) return "/personnel/marche";
+  if (isPublicUser(user)) return "/procurement"
   return "/personnel/dashboard";
 };

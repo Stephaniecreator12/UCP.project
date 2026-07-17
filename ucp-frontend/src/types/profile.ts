@@ -1,5 +1,5 @@
-export interface UserProfileValue{
+export interface UserProfile{
   id:string;
   email:string;
-  group:string[]
+  groups:string[]
 }

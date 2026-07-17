@@ -18,54 +18,54 @@ import {
   useState,
 } from "react";
 
-type Role = "finance" | "validator" | "agent" | "marche" | "public" | "admin";
-
 type MenuLink = {
   label: string;
   href: string;
-  roles: Role[];
+  groups: string[];
   match: (pathname: string) => boolean;
+  allGroups?: boolean;
 };
 
 const MENU_LINKS: MenuLink[] = [
   {
     label: "Procurement",
     href: "/procurement",
-    roles: ["public"],
+    groups: ["PUBLIC"],
     match: (p) => p.startsWith("/procurement"),
+    allGroups: true,
   },
   {
     label: "Suivi Procurement",
     href: "/personnel/log-dashboard",
-    roles: ["admin"],
+    groups: ["ADMIN","DEMANDEUR"],
     match: (p) => p.startsWith("/personnel/validation"),
   },
 
   {
     label: "Validation",
     href: "/personnel/validation",
-    roles: ["validator", "finance"],
+    groups: ["VALIDATOR", "FINANCE"],
     match: (p) => p.startsWith("/personnel/validation"),
   },
 
   {
     label: "TDR",
     href: "/personnel/TdrSt",
-    roles: ["validator", "finance"],
+    groups: ["VALIDATOR", "FINANCE", "DEMANDEUR"],
     match: (p) => p.startsWith("/personnel/TdrSt"),
   },
 
   {
     label: "Passation",
     href: "/personnel/passation",
-    roles: ["agent"],
+    groups: ["AGENT"],
     match: (p) => p.startsWith("/personnel/passation"),
   },
 
   {
     label: "Marché",
     href: "/personnel/marche",
-    roles: ["marche"],
+    groups: ["MARCHE"],
     match: (p) =>
       p.startsWith("/personnel/marche") ||
       p.startsWith("/personnel/logistique"),
@@ -119,14 +119,12 @@ export default function Menu({ className = "" }: { className?: string }) {
     };
   }, [open]);
 
-  const role = Cookies.get("group");
+  const groups: string[] = JSON.parse(Cookies.get("groups") ?? "[]");
 
-  const links = MENU_LINKS.filter((link) => {
-    if(role){
-      return link.roles?.includes(role as Role) ?? false;
-    }
-    return false;
-  });
+  const links = MENU_LINKS.filter(link =>
+    link.allGroups ||
+    link.groups.some(group => groups.includes(group))
+  );
 
   if (!showAuthenticatedActions) return null;
   const handleToggleMenu = () => {

@@ -103,9 +103,8 @@ class PublicProfileRegistrationSerializer(serializers.ModelSerializer):
     
     def create(self, validated_data):
         user = User.objects.create_user(**validated_data)
-        group, _ = Group.objects.get_or_create(name="public")
+        group, _ = Group.objects.get_or_create(name="PUBLIC")
         user.groups.add(group)
-        print("GROUPES USER :", list(user.groups.values_list("name", flat=True)))
         return user
 
 

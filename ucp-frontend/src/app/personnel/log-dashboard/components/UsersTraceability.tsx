@@ -24,8 +24,8 @@ export default function UsersTraceability({ users }: { users: UserTraceability[]
           </thead>
 
           <tbody className="divide-y divide-slate-100 text-slate-700">
-            {users.map((user: UserTraceability) => (
-              <tr key={user.user} className="hover:bg-slate-50/50 transition duration-150">
+            {users.map((user: UserTraceability,index) => (
+              <tr key={`${user.user ?? "unknown"}-${index}`} className="hover:bg-slate-50/50 transition duration-150">
                 <td className="p-3.5 font-bold text-slate-900">
                   <div className="flex items-center gap-2.5">
                     <div className="p-1.5 bg-slate-100 text-slate-500 rounded-md">

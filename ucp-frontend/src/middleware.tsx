@@ -3,23 +3,24 @@ export function middleware(request: NextRequest) {
 
   const path = request.nextUrl.pathname;
 
-  const group =
-    request.cookies.get("group")?.value;
+  const groups = (() => {
+    try {
+      return JSON.parse(request.cookies.get("groups")?.value ?? "[]");
+    } catch {
+      return [];
+    }
+  })();
 
   const { pathname } = request.nextUrl
   if (pathname.startsWith('/auth/login')) {
     return NextResponse.next()
   }
-  const isPublicPersonnelRoute =
-    path.startsWith("/personnel/ouverture_offre/validation/") ||
-    path === "/personnel/evaluation" ||
-    path.startsWith("/personnel/evaluation/");
   if (
     path.startsWith("/personnel") &&
-    group == "public"
+    groups.includes("PUBLIC")
   ) {
     return NextResponse.redirect(
-      new URL("/", request.url)
+      new URL("/procurement", request.url)
     );
   }
   return NextResponse.next();

@@ -69,4 +69,6 @@ class UserCreateSerializer(serializers.ModelSerializer):
         return data
     def create(self, validated_data):
         user = User.objects.create_user(**validated_data)
+        group, _ = Group.objects.get_or_create(name="DEMANDEUR")
+        user.groups.add(group)
         return user

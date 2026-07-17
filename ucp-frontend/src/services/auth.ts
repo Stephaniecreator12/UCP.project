@@ -32,13 +32,9 @@ export const login = async (
           password
         })
       });
-
-
       if (!rhResponse.ok) {
         return getLoginErrorMessage(await rhResponse.json());
       }
-
-
       await fetch(`${API_BASE_URL}/api/users/sync/`, {
         method: "POST",
         headers: {
@@ -49,8 +45,6 @@ export const login = async (
           password
         })
       });
-
-
     }
 
     const response = await fetch(`${API_BASE_URL}/api/users/login/`, {
@@ -64,7 +58,7 @@ export const login = async (
       Cookies.set("access_token", data.access, { expires: 1, secure: process.env.NODE_ENV === 'production' });
       Cookies.set("refresh_token", data.refresh, { expires: 1, secure: process.env.NODE_ENV === 'production' });
       Cookies.set("groups", JSON.stringify(data.user.groups), { expires: 1, secure: process.env.NODE_ENV === 'production' });
-      Cookies.set("role", JSON.stringify(data.user.role), { expires: 1, secure: process.env.NODE_ENV === 'production' });
+      Cookies.set("role", data.user.role, { expires: 1, secure: process.env.NODE_ENV === 'production' });
       return { status: 200, success: true, role: data.group };
     }
     return getLoginErrorMessage(data);
@@ -81,6 +75,7 @@ export const logout = () => {
   if (typeof window === "undefined") return;
   Cookies.remove("access_token");
   Cookies.remove("refresh_token");
+  Cookies.remove("groups");
   Cookies.remove("role");
 };
 

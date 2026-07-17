@@ -17,7 +17,8 @@ ROLE_GROUPS: dict[str, tuple[str, ...]] = {
     "verificateur_technique": ("VALIDATEUR_TECHNIQUE",),
     "approbateur_final": ("APPROBATEUR_NATIONAL",),
     "auditeur": ("AUDITEUR",),
-    "public": ("public",),
+    "public": ("PUBLIC",),
+    "demandeur": ("DEMANDEUR",),
 }
 
 ALL_TDR_GROUPS = tuple(

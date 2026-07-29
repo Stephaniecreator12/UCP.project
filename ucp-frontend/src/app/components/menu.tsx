@@ -37,35 +37,52 @@ const MENU_LINKS: MenuLink[] = [
   {
     label: "Suivi Procurement",
     href: "/personnel/log-dashboard",
-    groups: ["ADMIN","DEMANDEUR"],
+    groups: ["DEMANDEUR"],
     match: (p) => p.startsWith("/personnel/validation"),
   },
 
   {
     label: "Validation",
     href: "/personnel/validation",
-    groups: ["VALIDATOR", "FINANCE"],
+    groups: [
+      "VALIDATEUR_HIERARCHIQUE",
+      "VALIDATEUR_TECHNIQUE",
+      "VALIDATEUR_PROGRAMMATIQUE",
+      "APPROBATEUR_NATIONAL",
+      "FINANCE",
+      "RAF",
+      "VALIDATEUR_BUDGETAIRE",
+    ],
     match: (p) => p.startsWith("/personnel/validation"),
   },
 
   {
     label: "TDR",
     href: "/personnel/TdrSt",
-    groups: ["VALIDATOR", "FINANCE", "DEMANDEUR"],
+    groups: [
+      "VALIDATEUR_HIERARCHIQUE",
+      "VALIDATEUR_TECHNIQUE",
+      "VALIDATEUR_PROGRAMMATIQUE",
+      "APPROBATEUR_NATIONAL",
+      "FINANCE",
+      "RAF",
+      "VALIDATEUR_BUDGETAIRE",
+      "DEMANDEUR",
+    ],
     match: (p) => p.startsWith("/personnel/TdrSt"),
   },
 
   {
     label: "Passation",
     href: "/personnel/passation",
-    groups: ["AGENT"],
+    groups: ["AGENT_ACHAT"],
     match: (p) => p.startsWith("/personnel/passation"),
   },
 
   {
     label: "Marché",
     href: "/personnel/marche",
-    groups: ["MARCHE"],
+    groups: ["AGENT_MARCHE", "MARCHES", "LOGISTIQUE"],
     match: (p) =>
       p.startsWith("/personnel/marche") ||
       p.startsWith("/personnel/logistique"),

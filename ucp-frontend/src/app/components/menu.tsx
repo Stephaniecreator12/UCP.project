@@ -38,7 +38,14 @@ const MENU_LINKS: MenuLink[] = [
     label: "Suivi Procurement",
     href: "/personnel/log-dashboard",
     groups: ["DEMANDEUR"],
-    match: (p) => p.startsWith("/personnel/validation"),
+    match: (p) => p.startsWith("/personnel/log-dashboard"),
+  },
+
+  {
+    label: "Demande d'achat",
+    href: "/personnel/demande-achat",
+    groups: ["DEMANDEUR"],
+    match: (p) => p.startsWith("/personnel/demande-achat"),
   },
 
   {
@@ -68,6 +75,7 @@ const MENU_LINKS: MenuLink[] = [
       "RAF",
       "VALIDATEUR_BUDGETAIRE",
       "DEMANDEUR",
+      "AUDITEUR",
     ],
     match: (p) => p.startsWith("/personnel/TdrSt"),
   },
@@ -87,12 +95,36 @@ const MENU_LINKS: MenuLink[] = [
       p.startsWith("/personnel/marche") ||
       p.startsWith("/personnel/logistique"),
   },
+
+  {
+    label: "Ouverture des offres",
+    href: "/personnel/ouverture_offre",
+    groups: ["SECRETAIRE"],
+    match: (p) => p.startsWith("/personnel/ouverture_offre"),
+  },
+
+  {
+    label: "Contractualisation",
+    href: "/personnel/contractualisation",
+    groups: ["SECRETAIRE_CONTRACTUALISATION"],
+    match: (p) => p.startsWith("/personnel/contractualisation"),
+  },
+
+  {
+    label: "Évaluation des offres",
+    href: "/personnel/evaluation_offre",
+    groups: ["AUDITEUR", "EVALUATEUR", "PRESIDENT"],
+    match: (p) => p.startsWith("/personnel/evaluation_offre"),
+  },
 ];
 const getMenuIcon = (href: string) => {
-  if (href === "/personnel/dashboard") return LayoutDashboard;
-  if (href === "/personnel/demande-achat") return ShoppingBasket;
-  if (href === "/personnel/TdrSt" || href === "/validation") return FileCheck2;
-  if (href === "/personnel/passation" || href === "/marche") return BriefcaseBusiness;
+  if (href === "/procurement") return ClipboardList;
+  if (href === "/personnel/log-dashboard" || href === "/personnel/demande-achat") return LayoutDashboard;
+  if (href === "/personnel/validation" || href === "/personnel/TdrSt") return FileCheck2;
+  if (href === "/personnel/passation" || href === "/personnel/marche" || href === "/personnel/logistique") return BriefcaseBusiness;
+  if (href === "/personnel/ouverture_offre") return ShoppingBasket;
+  if (href === "/personnel/contractualisation") return FileCheck2;
+  if (href === "/personnel/evaluation_offre") return FileCheck2;
   return ClipboardList;
 };
 

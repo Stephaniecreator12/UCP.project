@@ -46,7 +46,7 @@ export default function EvaluationListPage() {
   useEffect(() => {
     const token = getToken();
     if (!token) {
-      router.push("/login");
+      router.push("/auth/login");
       return;
     }
 

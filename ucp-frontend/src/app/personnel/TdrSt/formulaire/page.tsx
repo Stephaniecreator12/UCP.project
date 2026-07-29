@@ -279,7 +279,7 @@ function TdRStPageContent() {
   };
 
   const handleActionClick = (doc: TdrStDocument) => {
-    router.push(`/TdrSt/new?id=${doc.id}`);
+    router.push(`/personnel/TdrSt/new?id=${doc.id}`);
   };
 
   const handleDetailClick = (doc: TdrStDocument) => {
@@ -304,7 +304,7 @@ function TdRStPageContent() {
   };
 
   const handleCreatePendingTdr = (demande: DemandeAchat) => {
-    router.push(`/TdrSt/new?demandeId=${demande.id}&source=demande-achat`);
+    router.push(`/personnel/TdrSt/new?demandeId=${demande.id}&source=demande-achat`);
   };
 
   const handleSubmitDocument = async () => {
@@ -352,7 +352,7 @@ function TdRStPageContent() {
     (selectedDetailDoc.statut === "BROUILLON" || selectedDetailDoc.statut === "A_REVOIR") ? (
       <button
         type="button"
-        onClick={() => router.push(`/TdrSt/new?id=${selectedDetailDoc.id}`)}
+        onClick={() => router.push(`/personnel/TdrSt/new?id=${selectedDetailDoc.id}`)}
         className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100"
       >
         {selectedDetailDoc.statut === "A_REVOIR" ? "Corriger" : "Continuer"}

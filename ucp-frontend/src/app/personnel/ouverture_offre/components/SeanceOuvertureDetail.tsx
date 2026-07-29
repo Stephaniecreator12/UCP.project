@@ -412,7 +412,7 @@ export default function SeanceOuvertureDetail() {
         const nextPath = normalizedId
           ? `/personnel/ouverture_offre/${normalizedId}`
           : "/ouverture_offre";
-        router.replace(`/login?next=${encodeURIComponent(nextPath)}`);
+        router.replace(`/auth/login?next=${encodeURIComponent(nextPath)}`);
         return;
       }
 
@@ -1288,7 +1288,7 @@ export default function SeanceOuvertureDetail() {
             </h1>
             <p className="mt-2 text-sm text-slate-600">{error}</p>
             <Link
-              href="/ouverture_offre"
+              href="/personnel/ouverture_offre"
               className="mt-5 inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
             >
               <ArrowLeft className="h-4 w-4" />
@@ -1388,7 +1388,7 @@ export default function SeanceOuvertureDetail() {
               </button>
             )}
             <Link
-              href="/ouverture_offre"
+              href="/personnel/ouverture_offre"
               className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
             >
               <ArrowLeft className="h-4 w-4" />

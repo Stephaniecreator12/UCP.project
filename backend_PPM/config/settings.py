@@ -92,6 +92,7 @@ INSTALLED_APPS = [
     'apps.contractualisation',
     'apps.log',
     'apps.contrats',
+    'apps.authorization',
 ]
 
 MIDDLEWARE = [

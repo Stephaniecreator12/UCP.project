@@ -46,24 +46,6 @@ class UserProfile(AbstractBaseUser, PermissionsMixin):
     updated_at = models.DateTimeField(auto_now=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
-    groups = models.ManyToManyField(
-        Group,
-        verbose_name=_('groups'),
-        blank=True,
-        related_name='userprofile_group',
-        help_text=_(
-            'The groups this user belongs to. A user will get all permissions '
-            'granted to each of their groups.'
-        ),
-    )
-    user_permissions = models.ManyToManyField(
-        Permission,
-        verbose_name=_('user permissions'),
-        blank=True,
-        related_name='userprofile_permission',
-        help_text=_('Specific permissions for this user.'),
-    )
-
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []
 

@@ -248,7 +248,7 @@ export default function ProcurementPage({
             <p className="text-sm text-gray-500 mt-1">Gestion et suivi des dossiers d appel d offres (DAO)</p>
           </div>
           {
-            group != 'public' && (
+            group.length > 0 && !group.includes("PUBLIC") && (
               <button
                 className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-700 hover:bg-green-800 text-white font-medium text-sm rounded-lg shadow-sm hover:shadow transition-all duration-200"
                 onClick={handleCreateProcurementRedirection}

@@ -1,6 +1,25 @@
 import Cookies from "js-cookie";
 import { API_BASE_URL, API_RH_URL } from "./api";
 import { UserProfile } from "@/types/profile";
+import {
+  PUBLIC as PUBLIC_GROUP,
+  VALIDATEUR_HIERARCHIQUE,
+  VALIDATEUR_TECHNIQUE,
+  VALIDATEUR_PROGRAMMATIQUE,
+  APPROBATEUR_NATIONAL,
+  FINANCE,
+  RAF,
+  VALIDATEUR_BUDGETAIRE,
+  AGENT_ACHAT as AGENT_ACHAT_GROUP,
+  LOGISTIQUE as LOGISTIQUE_GROUP,
+  AGENT_MARCHE as AGENT_MARCHE_GROUP,
+  MARCHES as MARCHES_GROUP,
+  SECRETAIRE as SECRETAIRE_GROUP,
+  SECRETAIRE_CONTRACTUALISATION as SECRETAIRE_CONTRACTUALISATION_GROUP,
+  VALIDATOR_GROUPS,
+  FINANCE_GROUPS,
+  MARCHE_GROUPS as MARKET_GROUPS,
+} from "@/constants/groups";
 interface LoginResult {
   status: number;
   success?: boolean;
@@ -195,30 +214,18 @@ const getLoginErrorMessage = (data: LoginResult): LoginResult => {
   }
   return { status: 500, message: extractAuthErrorMessage(data) || "Connexion impossible pour le moment.", success: false }
 };
-export const VALIDATOR_GROUPS = [
-  "VALIDATEUR_HIERARCHIQUE",
-  "VALIDATEUR_TECHNIQUE",
-  "VALIDATEUR_PROGRAMMATIQUE",
-  "APPROBATEUR_NATIONAL",
-] as const;
-export const FINANCE_GROUPS = [
-  "FINANCE",
-  "RAF",
-  "VALIDATEUR_BUDGETAIRE",
-] as const;
-export const PUBLIC_GROUP = "PUBLIC" as const
-export const AGENT_ACHAT_GROUP = "AGENT_ACHAT" as const;
-export const LOGISTIQUE_GROUP = "LOGISTIQUE" as const;
-export const AGENT_MARCHE_GROUP = "AGENT_MARCHE" as const;
-export const MARCHES_GROUP = "MARCHES" as const;
-const MARKET_GROUPS = [
+export {
+  PUBLIC_GROUP,
+  VALIDATOR_GROUPS,
+  FINANCE_GROUPS,
+  AGENT_ACHAT_GROUP,
+  LOGISTIQUE_GROUP,
   AGENT_MARCHE_GROUP,
   MARCHES_GROUP,
-  LOGISTIQUE_GROUP,
-] as const;
-export const SECRETAIRE_GROUP = "SECRETAIRE" as const;
-export const SECRETAIRE_CONTRACTUALISATION_GROUP =
-  "SECRETAIRE_CONTRACTUALISATION" as const;
+  MARKET_GROUPS,
+  SECRETAIRE_GROUP,
+  SECRETAIRE_CONTRACTUALISATION_GROUP,
+};
 
 const VALIDATOR_GROUP_LABELS: Record<
   (typeof VALIDATOR_GROUPS)[number],

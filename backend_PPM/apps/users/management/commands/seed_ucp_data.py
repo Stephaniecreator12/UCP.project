@@ -1,30 +1,28 @@
 from django.core.management.base import BaseCommand
 from django.contrib.auth.models import Group
 from apps.users.models.agent import Programme, Poste
+from apps.authorization.constants import (
+    DEMANDEUR, VALIDATEUR_HIERARCHIQUE, VALIDATEUR_TECHNIQUE,
+    FINANCE, RAF, VALIDATEUR_BUDGETAIRE,
+    VALIDATEUR_PROGRAMMATIQUE, APPROBATEUR_NATIONAL,
+)
+from apps.authorization.setup import setup_all_groups
 
 
 class Command(BaseCommand):
     help = "Initialise les données de test pour les Programmes, Groupes et Postes de l'UCP"
 
     def handle(self, *args, **options):
-        self.stdout.write("Initialisation des Groupes...")
-        # 1. Créer les groupes Django s'ils n'existent pas
+        self.stdout.write("Configuration des groupes et permissions...")
+        setup_all_groups()
+        self.stdout.write(self.style.SUCCESS("Groupes configurés avec leurs permissions"))
+
         group_names = [
-            "DEMANDEUR",
-            "VALIDATEUR_HIERARCHIQUE",
-            "VALIDATEUR_TECHNIQUE",
-            "FINANCE",
-            "RAF",
-            "VALIDATEUR_BUDGETAIRE",
-            "VALIDATEUR_PROGRAMMATIQUE",
-            "APPROBATEUR_NATIONAL",
+            DEMANDEUR, VALIDATEUR_HIERARCHIQUE, VALIDATEUR_TECHNIQUE,
+            FINANCE, RAF, VALIDATEUR_BUDGETAIRE,
+            VALIDATEUR_PROGRAMMATIQUE, APPROBATEUR_NATIONAL,
         ]
-        groups = {}
-        for name in group_names:
-            group, created = Group.objects.get_or_create(name=name)
-            groups[name] = group
-            if created:
-                self.stdout.write(self.style.SUCCESS(f"Groupe créé : {name}"))
+        groups = {name: Group.objects.get(name=name) for name in group_names}
 
         # 2. Créer les Programmes
         self.stdout.write("\nInitialisation des Programmes...")

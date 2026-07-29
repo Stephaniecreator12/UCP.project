@@ -13,12 +13,16 @@ class TdrStRole:
     PUBLIC = "public"
 
 
+from apps.authorization.constants import (
+    VALIDATEUR_TECHNIQUE, APPROBATEUR_NATIONAL, AUDITEUR, PUBLIC, DEMANDEUR,
+)
+
 ROLE_GROUPS: dict[str, tuple[str, ...]] = {
-    "verificateur_technique": ("VALIDATEUR_TECHNIQUE",),
-    "approbateur_final": ("APPROBATEUR_NATIONAL",),
-    "auditeur": ("AUDITEUR",),
-    "public": ("PUBLIC",),
-    "demandeur": ("DEMANDEUR",),
+    "verificateur_technique": (VALIDATEUR_TECHNIQUE,),
+    "approbateur_final": (APPROBATEUR_NATIONAL,),
+    "auditeur": (AUDITEUR,),
+    "public": (PUBLIC,),
+    "demandeur": (DEMANDEUR,),
 }
 
 ALL_TDR_GROUPS = tuple(

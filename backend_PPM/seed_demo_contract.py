@@ -14,6 +14,8 @@ from django.contrib.auth.models import Group
 from django.core.files.base import ContentFile
 from apps.ouverture_offre.models import SeanceOuverture, OffreOuverture
 from apps.contractualisation.models import Contrat, DocumentContrat
+from apps.authorization.constants import SECRETAIRE_CONTRACTUALISATION
+from apps.authorization.setup import setup_all_groups
 
 User = get_user_model()
 
@@ -38,9 +40,9 @@ def ensure_document_for_contrat(contrat: Contrat, user: User, filename: str) -> 
 
 
 def main():
-    # Utilisateur secretaire contractualisation
-    group_name = "SECRETAIRE_CONTRACTUALISATION"
-    group, _ = Group.objects.get_or_create(name=group_name)
+    setup_all_groups()
+
+    group = Group.objects.get(name=SECRETAIRE_CONTRACTUALISATION)
 
     user, created = User.objects.get_or_create(
         username="demo_secretaire_contractualisation",

@@ -32,8 +32,12 @@ from .validation_access_service import (
     authenticate_seance_assignation,
 )
 
+from apps.authorization.constants import (
+    EVALUATEUR as EVALUATEUR_GROUP,
+    SECRETAIRE, PRESIDENT, SECRETAIRE_CONTRACTUALISATION,
+)
+
 User = get_user_model()
-EVALUATEUR_GROUP = "EVALUATEUR"
 
 
 # ============================================================
@@ -1441,7 +1445,7 @@ def get_classement_seance(seance_id: int, user: object) -> dict:
         if getattr(user, "is_superuser", False):
             is_staff_or_admin = True
         elif hasattr(user, "groups") and user.groups.filter(
-            name__in=["SECRETAIRE", "PRESIDENT", "SECRETAIRE_CONTRACTUALISATION"]
+            name__in=[SECRETAIRE, PRESIDENT, SECRETAIRE_CONTRACTUALISATION]
         ).exists():
             is_staff_or_admin = True
 

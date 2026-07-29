@@ -13,12 +13,14 @@ def sync_user_from_rh(email, password):
 
     if created:
         user.is_active = True
-        user.save()
-
         group, _ = Group.objects.get_or_create(name="DEMANDEUR")
         user.groups.add(group)
-
     else:
-        user.save(update_fields=["password"])
+        # S'assurer que l'utilisateur existant a au moins un groupe
+        if not user.groups.exists():
+            group, _ = Group.objects.get_or_create(name="DEMANDEUR")
+            user.groups.add(group)
+
+    user.save()
 
     return user

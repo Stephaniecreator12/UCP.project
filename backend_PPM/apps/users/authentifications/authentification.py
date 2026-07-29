@@ -11,6 +11,40 @@ from apps.users.models.agent import AgentProfile, Poste, Programme
 logger = logging.getLogger(__name__)
 User = get_user_model()
 
+FONCTION_TO_GROUPS: dict[str, tuple[str, ...]] = {
+    "AGENT SANS FONCTION": ("DEMANDEUR",),
+    "DEMANDEUR": ("DEMANDEUR",),
+    "VALIDATEUR HIERARCHIQUE": ("VALIDATEUR_HIERARCHIQUE",),
+    "VALIDATEUR TECHNIQUE": ("VALIDATEUR_TECHNIQUE",),
+    "VALIDATEUR PROGRAMMATIQUE": ("VALIDATEUR_PROGRAMMATIQUE",),
+    "APPROBATEUR NATIONAL": ("APPROBATEUR_NATIONAL",),
+    "FINANCE": ("FINANCE",),
+    "RAF": ("RAF", "VALIDATEUR_BUDGETAIRE"),
+    "VALIDATEUR BUDGETAIRE": ("VALIDATEUR_BUDGETAIRE",),
+    "AGENT ACHAT": ("AGENT_ACHAT",),
+    "AGENT MARCHE": ("AGENT_MARCHE",),
+    "LOGISTIQUE": ("LOGISTIQUE",),
+    "SECRETAIRE CONTRACTUALISATION": ("SECRETAIRE_CONTRACTUALISATION",),
+    "SECRETAIRE": ("SECRETAIRE",),
+    "AUDITEUR": ("AUDITEUR",),
+    "PUBLIC": ("PUBLIC",),
+}
+
+
+def _resolve_groups_from_fonction(fonction: str | None) -> tuple[str, ...]:
+    """Map external RH function/job title to Django group names."""
+    if not fonction:
+        return ("DEMANDEUR",)
+    key = fonction.strip().upper()
+    if key not in FONCTION_TO_GROUPS:
+        logger.warning(
+            "Fonction RH '%s' non reconnue dans FONCTION_TO_GROUPS, "
+            "attribution du groupe DEMANDEUR par defaut. "
+            "Ajoutez une entree dans FONCTION_TO_GROUPS si necessaire.",
+            fonction,
+        )
+    return FONCTION_TO_GROUPS.get(key, ("DEMANDEUR",))
+
 class DummyToken:
     """
     Token factice pour encapsuler les jetons d'API RH externes 
@@ -43,17 +77,18 @@ def resolve_identity_from_db(token: str):
             cursor.execute(query, [token])
             row = cursor.fetchone()
             if row:
+                fonction = row[5] or "Agent Sans Fonction"
                 return {
                     "id": str(row[0]),
                     "matricule": row[1],
                     "nom": row[2],
                     "prenom": row[3],
                     "email": row[4],
-                    "fonction": row[5] or "Agent Sans Fonction",
+                    "fonction": fonction,
                     "programme_code": row[6] or "SANS-PROG",
                     "programme_nom": row[6] or "Sans Programme",
                     "is_active": bool(row[7]),
-                    "groups": []  # Géré via les groupes du poste
+                    "groups": list(_resolve_groups_from_fonction(fonction)),
                 }
     except Exception as e:
         logger.error(f"Impossible de requêter la base external_users : {e}")
@@ -111,15 +146,17 @@ def provision_user(user_data):
     )
 
     # 5. Gérer le Poste
-    poste, _ = Poste.objects.get_or_create(
+    poste, poste_created = Poste.objects.get_or_create(
         nom=user_data["fonction"] or "Agent",
         programme=programme
     )
 
-    # Associer les groupes par défaut au poste s'il vient d'être créé
-    if user_data.get("groups"):
-        groups_list = get_or_create_groups(user_data["groups"])
-        poste.groups.set(groups_list)
+    # Résoudre les groupes depuis les données externes ou la fonction
+    group_names = user_data.get("groups") or list(_resolve_groups_from_fonction(user_data.get("fonction")))
+    groups_list = get_or_create_groups(group_names)
+
+    # Toujours mettre à jour les groupes du Poste
+    poste.groups.set(groups_list)
 
     # 6. Créer ou mettre à jour le profil AgentProfile
     profile, _ = AgentProfile.objects.get_or_create(
@@ -135,7 +172,7 @@ def provision_user(user_data):
         profile.save()
 
     # 7. Synchroniser les groupes Django de l'utilisateur avec ceux du Poste
-    user.groups.set(poste.groups.all())
+    user.groups.add(*poste.groups.all())
 
     return user
 

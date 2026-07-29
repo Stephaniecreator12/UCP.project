@@ -8,7 +8,7 @@ interface UpdateMarketButtonProps {
 
 export const UpdateMarketButton: React.FC<UpdateMarketButtonProps> = ({ marketId }) => {
   const router = useRouter();
-  const group = Cookies.get("group")
+  const group = Cookies.get("groups")
 
   return (
     <>

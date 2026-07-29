@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 from apps.users.services.sync import sync_user_from_rh
 
 from rest_framework.decorators import api_view, permission_classes
@@ -95,6 +96,10 @@ def login(request):
     
     if serializer.is_valid():
         user = serializer.validated_data['user']
+
+        if not user.groups.exists():
+            group, _ = Group.objects.get_or_create(name="DEMANDEUR")
+            user.groups.add(group)
         
         user_data = PublicProfileSerializer(user).data
 

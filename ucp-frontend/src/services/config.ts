@@ -88,7 +88,7 @@ api.interceptors.response.use(
           if (typeof window !== "undefined") {
             Cookies.remove("access_token");
             Cookies.remove("refresh_token");
-            Cookies.remove("group");
+            Cookies.remove("groups");
             window.location.href = "/auth/login";
           }
         }

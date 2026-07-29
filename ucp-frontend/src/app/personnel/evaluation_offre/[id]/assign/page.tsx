@@ -133,7 +133,7 @@ export default function AssignEvaluatorsPage() {
 
   useEffect(() => {
     if (!getToken()) {
-      router.push("/login");
+      router.push("/auth/login");
       return;
     }
     void loadDetail();

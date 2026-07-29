@@ -147,7 +147,7 @@ export default function DashboardPage() {
             <h2 className="text-xl font-semibold text-red-800 mb-2">Erreur d&apos;authentification</h2>
             <p className="text-red-600">{error}</p>
             <Link
-              href="/login"
+              href="/auth/login"
               className="mt-4 inline-flex items-center gap-2 rounded-full bg-emerald-600 px-4 py-2 text-white hover:bg-emerald-700"
             >
               Aller à la page de connexion
@@ -179,7 +179,7 @@ export default function DashboardPage() {
               <div className="flex flex-wrap items-start justify-between gap-6">
                 <div className="flex items-start gap-4">
                   <Link
-                    href="/TdrSt/formulaire"
+                    href="/personnel/TdrSt/formulaire"
                     className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:-translate-y-[1px] hover:border-slate-300 hover:bg-slate-50"
                   >
                     <span aria-hidden="true">←</span>

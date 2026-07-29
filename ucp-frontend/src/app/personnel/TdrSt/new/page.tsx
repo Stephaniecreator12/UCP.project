@@ -304,7 +304,7 @@ function TdrStNewPageContent() {
             })
           : savedDoc;
 
-      router.replace(`/TdrSt/formulaire?focus=${finalDoc.id}`);
+      router.replace(`/personnel/TdrSt/formulaire?focus=${finalDoc.id}`);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {

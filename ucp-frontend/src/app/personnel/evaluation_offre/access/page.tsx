@@ -24,7 +24,7 @@ function AccessRedirectContent() {
     if (offre) params.set("offre", offre);
     if (email) params.set("email", email);
 
-    router.replace(`/login?${params.toString()}`);
+    router.replace(`/auth/login?${params.toString()}`);
   }, [router, searchParams]);
 
   return (

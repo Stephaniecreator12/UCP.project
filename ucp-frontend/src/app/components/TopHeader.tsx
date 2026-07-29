@@ -29,8 +29,8 @@ export default function TopHeader() {
   const logoHref = isEvaluatorRoute
     ? "/personnel/evaluation/login"
     : showAuthenticatedActions
-      ? "/formulaire"
-      : "/login";
+      ? "/personnel/formulaire"
+      : "/auth/login";
 
   const handleHeaderMove = (event: MouseEvent<HTMLElement>) => {
     const header = headerRef.current;

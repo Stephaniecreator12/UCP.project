@@ -55,10 +55,10 @@ export const login = async (
 
     const data = await response.json();
     if (response.ok) {
-      Cookies.set("access_token", data.access, { expires: 1, secure: process.env.NODE_ENV === 'production' });
-      Cookies.set("refresh_token", data.refresh, { expires: 1, secure: process.env.NODE_ENV === 'production' });
-      Cookies.set("groups", JSON.stringify(data.user.groups), { expires: 1, secure: process.env.NODE_ENV === 'production' });
-      Cookies.set("role", data.user.role, { expires: 1, secure: process.env.NODE_ENV === 'production' });
+      Cookies.set("access_token", data.access, { expires: 1, secure: process.env.NODE_ENV === 'production', path: '/' });
+      Cookies.set("refresh_token", data.refresh, { expires: 1, secure: process.env.NODE_ENV === 'production', path: '/' });
+      Cookies.set("groups", JSON.stringify(data.user.groups), { expires: 1, secure: process.env.NODE_ENV === 'production', path: '/' });
+      Cookies.set("role", data.user.role, { expires: 1, secure: process.env.NODE_ENV === 'production', path: '/' });
       return { status: 200, success: true, role: data.group };
     }
     return getLoginErrorMessage(data);

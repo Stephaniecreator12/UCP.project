@@ -4,7 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useRef, type MouseEvent } from "react";
-import { logout } from "@/services/auth";
+import Cookies from "js-cookie";
+import { logout, getLandingRouteForUser } from "@/services/auth";
 import Menu from "@/app/components/menu";
 const DEFAULT_AFTER_LOGOUT_ROUTE = "/auth/login";
 
@@ -29,7 +30,10 @@ export default function TopHeader() {
   const logoHref = isEvaluatorRoute
     ? "/personnel/evaluation/login"
     : showAuthenticatedActions
-      ? "/personnel/formulaire"
+      ? (() => {
+          const groups: string[] = JSON.parse(Cookies.get("groups") ?? "[]");
+          return getLandingRouteForUser({ id: "", email: "", groups });
+        })()
       : "/auth/login";
 
   const handleHeaderMove = (event: MouseEvent<HTMLElement>) => {

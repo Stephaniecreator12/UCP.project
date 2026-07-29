@@ -1,8 +1,5 @@
 from rest_framework.permissions import BasePermission, SAFE_METHODS
-
-EVALUATEUR_GROUP  = "EVALUATEUR"
-SECRETAIRE_GROUP  = "SECRETAIRE"
-PRESIDENT_GROUP   = "PRESIDENT"
+from apps.authorization.constants import EVALUATEUR, SECRETAIRE, PRESIDENT
 
 
 class IsEvaluateur(BasePermission):
@@ -14,7 +11,7 @@ class IsEvaluateur(BasePermission):
         return bool(
             request.user
             and request.user.is_authenticated
-            and request.user.groups.filter(name=EVALUATEUR_GROUP).exists()
+            and request.user.groups.filter(name=EVALUATEUR).exists()
         )
 
 
@@ -29,7 +26,7 @@ class IsSecretaireOuEvaluateur(BasePermission):
         if request.method in SAFE_METHODS:
             return True
         return request.user.groups.filter(
-            name__in=[SECRETAIRE_GROUP, EVALUATEUR_GROUP]
+            name__in=[SECRETAIRE, EVALUATEUR]
         ).exists()
 
 
@@ -41,7 +38,7 @@ class IsSecretaire(BasePermission):
         return bool(
             request.user
             and request.user.is_authenticated
-            and request.user.groups.filter(name=SECRETAIRE_GROUP).exists()
+            and request.user.groups.filter(name=SECRETAIRE).exists()
         )
 
 
@@ -53,5 +50,5 @@ class IsPresident(BasePermission):
         return bool(
             request.user
             and request.user.is_authenticated
-            and request.user.groups.filter(name=PRESIDENT_GROUP).exists()
+            and request.user.groups.filter(name=PRESIDENT).exists()
         )

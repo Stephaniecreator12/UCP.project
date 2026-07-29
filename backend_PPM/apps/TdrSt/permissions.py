@@ -3,6 +3,7 @@ from __future__ import annotations
 from rest_framework.permissions import BasePermission
 
 from apps.TdrSt.models.TdrSt import TdrStDocument
+from apps.authorization.constants import VALIDATEUR_TECHNIQUE, APPROBATEUR_NATIONAL, AUDITEUR
 
 class CanCreateDocument(BasePermission):
     def has_permission(self, request, view) -> bool:
@@ -32,7 +33,7 @@ class CanReadDocument(BasePermission):
             return False
 
         user_groups = set(user.groups.values_list("name", flat=True))
-        if user_groups.intersection({"VALIDATEUR_TECHNIQUE", "APPROBATEUR_NATIONAL", "AUDITEUR"}):
+        if user_groups.intersection({VALIDATEUR_TECHNIQUE, APPROBATEUR_NATIONAL, AUDITEUR}):
             return True
 
         return obj.demandeur_id == user.id
@@ -43,7 +44,7 @@ class CanTechValidate(BasePermission):
         return bool(
             request.user
             and request.user.is_authenticated
-            and request.user.groups.filter(name="VALIDATEUR_TECHNIQUE").exists()
+            and request.user.groups.filter(name=VALIDATEUR_TECHNIQUE).exists()
         )
 
 
@@ -52,7 +53,7 @@ class CanFinalApprove(BasePermission):
         return bool(
             request.user
             and request.user.is_authenticated
-            and request.user.groups.filter(name="APPROBATEUR_NATIONAL").exists()
+            and request.user.groups.filter(name=APPROBATEUR_NATIONAL).exists()
         )
 
 
@@ -68,7 +69,7 @@ class CanAuditeurRead(BasePermission):
         return bool(
             request.user
             and request.user.is_authenticated
-            and request.user.groups.filter(name="AUDITEUR").exists()
+            and request.user.groups.filter(name=AUDITEUR).exists()
         )
 
     def has_object_permission(self, request, view, obj: TdrStDocument) -> bool:

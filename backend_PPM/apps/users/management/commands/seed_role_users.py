@@ -1,6 +1,13 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.core.management.base import BaseCommand
+from apps.authorization.constants import (
+    VALIDATEUR_HIERARCHIQUE, VALIDATEUR_TECHNIQUE, FINANCE,
+    VALIDATEUR_PROGRAMMATIQUE, APPROBATEUR_NATIONAL,
+    AGENT_ACHAT, AGENT_MARCHE, LOGISTIQUE,
+    SECRETAIRE_CONTRACTUALISATION,
+)
+from apps.authorization.setup import setup_all_groups
 
 
 ROLE_FIXTURES = [
@@ -17,7 +24,7 @@ ROLE_FIXTURES = [
         "email": "demo.hierarchique@ucp.local",
         "first_name": "Demo",
         "last_name": "Hierarchique",
-        "groups": ("VALIDATEUR_HIERARCHIQUE",),
+        "groups": (VALIDATEUR_HIERARCHIQUE,),
         "label": "Validateur hierarchique",
     },
     {
@@ -25,7 +32,7 @@ ROLE_FIXTURES = [
         "email": "demo.technique@ucp.local",
         "first_name": "Demo",
         "last_name": "Technique",
-        "groups": ("VALIDATEUR_TECHNIQUE",),
+        "groups": (VALIDATEUR_TECHNIQUE,),
         "label": "Validateur technique",
     },
     {
@@ -33,7 +40,7 @@ ROLE_FIXTURES = [
         "email": "demo.finance@ucp.local",
         "first_name": "Demo",
         "last_name": "Finance",
-        "groups": ("FINANCE",),
+        "groups": (FINANCE,),
         "label": "Finance",
     },
     {
@@ -41,7 +48,7 @@ ROLE_FIXTURES = [
         "email": "demo.programme@ucp.local",
         "first_name": "Demo",
         "last_name": "Programme",
-        "groups": ("VALIDATEUR_PROGRAMMATIQUE",),
+        "groups": (VALIDATEUR_PROGRAMMATIQUE,),
         "label": "Validateur programmatique",
     },
     {
@@ -49,7 +56,7 @@ ROLE_FIXTURES = [
         "email": "demo.approbateur@ucp.local",
         "first_name": "Demo",
         "last_name": "Approbateur",
-        "groups": ("APPROBATEUR_NATIONAL",),
+        "groups": (APPROBATEUR_NATIONAL,),
         "label": "Approbateur national",
     },
     {
@@ -57,7 +64,7 @@ ROLE_FIXTURES = [
         "email": "demo.achat@ucp.local",
         "first_name": "Demo",
         "last_name": "Achat",
-        "groups": ("AGENT_ACHAT",),
+        "groups": (AGENT_ACHAT,),
         "label": "Agent achat",
     },
     {
@@ -65,7 +72,7 @@ ROLE_FIXTURES = [
         "email": "demo.marche@ucp.local",
         "first_name": "Demo",
         "last_name": "Marche",
-        "groups": ("AGENT_MARCHE",),
+        "groups": (AGENT_MARCHE,),
         "label": "Agent marche",
     },
     {
@@ -73,7 +80,7 @@ ROLE_FIXTURES = [
         "email": "demo.logistique@ucp.local",
         "first_name": "Demo",
         "last_name": "Logistique",
-        "groups": ("LOGISTIQUE",),
+        "groups": (LOGISTIQUE,),
         "label": "Logistique",
     },
     {
@@ -81,7 +88,7 @@ ROLE_FIXTURES = [
         "email": "demo.contractualisation@ucp.local",
         "first_name": "Demo",
         "last_name": "Contractualisation",
-        "groups": ("SECRETAIRE_CONTRACTUALISATION",),
+        "groups": (SECRETAIRE_CONTRACTUALISATION,),
         "label": "Secrétaire contractualisation",
     },
 ]
@@ -110,6 +117,10 @@ class Command(BaseCommand):
         reset_password = options["reset_password"]
         user_model = get_user_model()
 
+        self.stdout.write("Configuration des groupes et permissions...")
+        setup_all_groups()
+        self.stdout.write(self.style.SUCCESS("Groupes configurés avec leurs permissions"))
+
         created_users = 0
         updated_users = 0
 
@@ -118,7 +129,7 @@ class Command(BaseCommand):
 
         for fixture in ROLE_FIXTURES:
             groups = [
-                Group.objects.get_or_create(name=group_name)[0]
+                Group.objects.get(name=group_name)
                 for group_name in fixture["groups"]
             ]
 

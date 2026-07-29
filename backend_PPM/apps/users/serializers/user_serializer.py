@@ -6,6 +6,7 @@ from apps.users.serializers.groups_serializer import GroupDetailSerializer
 from django.contrib.auth.models import Group
 from apps.users.services.permissions import get_user_role
 from django.contrib.auth.password_validation import validate_password
+from apps.authorization.constants import DEMANDEUR
 
 User = get_user_model()
 
@@ -69,6 +70,6 @@ class UserCreateSerializer(serializers.ModelSerializer):
         return data
     def create(self, validated_data):
         user = User.objects.create_user(**validated_data)
-        group, _ = Group.objects.get_or_create(name="DEMANDEUR")
+        group, _ = Group.objects.get_or_create(name=DEMANDEUR)
         user.groups.add(group)
         return user

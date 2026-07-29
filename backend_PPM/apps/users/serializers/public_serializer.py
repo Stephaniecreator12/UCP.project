@@ -5,6 +5,7 @@ from django.contrib.auth.models import Group
 from django.contrib.auth import get_user_model
 from apps.users.services.permissions import get_user_role
 from django.contrib.auth import authenticate
+from apps.authorization.constants import PUBLIC
 User = get_user_model()
 class PublicProfileSerializer(serializers.ModelSerializer): 
     role = serializers.SerializerMethodField()
@@ -103,7 +104,7 @@ class PublicProfileRegistrationSerializer(serializers.ModelSerializer):
     
     def create(self, validated_data):
         user = User.objects.create_user(**validated_data)
-        group, _ = Group.objects.get_or_create(name="PUBLIC")
+        group, _ = Group.objects.get_or_create(name=PUBLIC)
         user.groups.add(group)
         return user
 

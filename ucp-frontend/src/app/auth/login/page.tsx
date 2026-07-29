@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { login } from "@/services/auth";
+import { login, getLandingRouteForUser } from "@/services/auth";
 import { useSearchParams } from "next/navigation";
 const DEFAULT_PUBLIC_REGISTER_ROUTE = "/auth/public/register";
 export default function LoginPage() {
@@ -45,7 +45,8 @@ export default function LoginPage() {
     }
     else{
       setIsSuccess(true);
-      router.push("/procurement")
+      const target = getLandingRouteForUser({ id: "", email, groups: result.groups ?? [] });
+      router.push(target);
     }
 
   };

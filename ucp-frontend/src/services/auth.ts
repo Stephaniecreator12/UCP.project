@@ -24,6 +24,7 @@ interface LoginResult {
   status: number;
   success?: boolean;
   role?: string;
+  groups?: string[];
   message?: string;
   data?: unknown;
   email?: string;
@@ -78,7 +79,7 @@ export const login = async (
       Cookies.set("refresh_token", data.refresh, { expires: 1, secure: process.env.NODE_ENV === 'production', path: '/' });
       Cookies.set("groups", JSON.stringify(data.user.groups), { expires: 1, secure: process.env.NODE_ENV === 'production', path: '/' });
       Cookies.set("role", data.user.role, { expires: 1, secure: process.env.NODE_ENV === 'production', path: '/' });
-      return { status: 200, success: true, role: data.group };
+      return { status: 200, success: true, groups: data.user.groups };
     }
     return getLoginErrorMessage(data);
   } catch {
@@ -337,13 +338,6 @@ export const getMarketRoleLabel = (user: UserProfile | null) => {
 };
 
 export const getLandingRouteForUser = (user: UserProfile | null) => {
-  if (isSecretaireUser(user)) return "/personnel/ouverture_offre";
-  if (isSecretaireContractualisationUser(user))
-    return "/personnel/contractualisation";
-  if (isFinanceUser(user) || isValidatorUser(user))
-    return "/personnel/validation";
-  if (isAgentAchatUser(user)) return "/personnel/passation";
-  if (isAgentMarcheUser(user)) return "/personnel/marche";
-  if (isPublicUser(user)) return "/procurement"
-  return "/personnel/dashboard";
+  if (isPublicUser(user)) return "/procurement";
+  return "/personnel/log-dashboard";
 };

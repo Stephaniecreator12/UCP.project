@@ -138,11 +138,10 @@ DATABASES = {
         'USER': os.getenv("DB_USER", 'postgres'),
         'PASSWORD': os.getenv("DB_PASSWORD", 'passation'),
         'HOST': os.getenv("DB_HOST", 'localhost'),
-        'PORT': os.getenv("DB_PORT", '5432'),
+        'PORT': os.getenv("DB_PORT", '55432'),
         'TEST': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': ':memory:',
-}
+            'NAME': os.getenv("DB_TEST_NAME", 'test_passation_db'),
+        }
     }
 }
 
@@ -273,7 +272,7 @@ OUVERTURE_NOTIFICATION_REPLY_TO = (
     os.getenv("OUVERTURE_NOTIFICATION_REPLY_TO", DEFAULT_FROM_EMAIL) or DEFAULT_FROM_EMAIL
 ).strip()
 
-CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", 'redis://localhost:6379/0')
 ACHATS_NOTIFICATION_EMAILS_ENABLED = env_bool(
     "ACHATS_NOTIFICATION_EMAILS_ENABLED",
     True,

@@ -8,7 +8,7 @@ C'est un système de gestion des appels d'offres et procurements pour l'UCP (Uni
 
 - **Backend** : Django REST API (Python)
 - **Frontend** : Next.js + React (JavaScript/TypeScript)
-- **Base de données** : SQLite
+- **Base de données** : PostgreSQL (isolée dans Docker)
 
 ---
 
@@ -29,6 +29,7 @@ C'est un système de gestion des appels d'offres et procurements pour l'UCP (Uni
 - Python 3.10+
 - Node.js 18+
 - pip et npm
+- **Docker** (pour la base PostgreSQL isolée, le backend et les tests)
 
 ### **Étape 1 : Cloner ou télécharger le projet**
 
@@ -50,6 +51,20 @@ cd ucp-frontend
 npm install
 cd ..
 ```
+
+### **Étape 4 : Démarrer l'infrastructure Docker (PostgreSQL + Redis)**
+
+La base de développement et la base de test vivent **dans des conteneurs Docker**
+(`docker-compose.yml`). Le port hôte `55432` est mappé vers le PostgreSQL du
+conteneur : votre base PostgreSQL locale existante n'est **jamais** touchée.
+
+```bash
+docker compose up -d db redis
+```
+
+Le backend Django et le worker Celery peuvent aussi tourner dans Docker
+(`docker compose up -d --build`), dans ce cas la configuration (hôte `db`,
+port `5432`, broker Redis) est injectée automatiquement.
 
 ---
 
@@ -77,10 +92,10 @@ cd /home/stephanie/UCP/backend_PPM
 celery -A config beat -l info 
 ```
 
-**Terminal 4 - windows (wsl)**
+**Terminal 4 - Redis (Windows / WSL)**
+
 ```bash
-cd /home/stephanie/UCP/backend_PPM
-sudo service redis-server start
+docker compose up -d redis
 ```
 
 **Terminal 5 - Next.js (Frontend)**
@@ -151,6 +166,44 @@ UCP/
     │   └── services/
     │       └── api.ts            ← Appels API
 ```
+
+---
+
+## ✅ Tester (sans toucher à la vraie base de données)
+
+Les tests tournent sur un **PostgreSQL Docker jetable** (comportement
+type Spring Testcontainers) : un conteneur est créé automatiquement au
+début de la suite et **supprimé à la fin** — toutes les données sont
+effacées à chaque exécution. Aucune étape manuelle, la base de
+développement/production n'est jamais contactée.
+
+**Unix** :
+
+```bash
+./run-tests.sh           # toute la suite
+./run-tests.sh apps.users.tests apps.ppm.tests
+```
+
+**Windows (PowerShell)** :
+
+```powershell
+.\run-tests.ps1
+```
+
+Équivalent direct (le runner `config.testcontainers_runner.py` s'occupe
+de tout, conteneur compris) :
+
+```bash
+python backend_PPM/manage.py test --settings=config.test_settings
+```
+
+Variantes :
+- `DB_TEST_USE_EXTERNAL=1` : ne pas créer de conteneur jetable ; utiliser
+  la base externe configurée via les variables `DB_TEST_*`
+  (`config/test_settings.py`), par exemple le service `db` de
+  docker-compose ou une base de CI.
+- Les conteneurs orphelins d'une exécution interrompue sont supprimés
+  automatiquement au lancement suivant.
 
 ---
 
@@ -249,7 +302,7 @@ export DEBUG=False
 
 ## 📝 Notes
 
-- **Base de données** : SQLite pour le développement. Passez à PostgreSQL pour la production.
+- **Base de données** : PostgreSQL isolée dans Docker pour le développement et les tests. Le port hôte `55432` évite toute collision avec un PostgreSQL local.
 - **Authentification** : À ajouter selon vos besoins.
 - **Fichiers** : Les uploads de fichiers sont dans `procurement/` dossier.
 

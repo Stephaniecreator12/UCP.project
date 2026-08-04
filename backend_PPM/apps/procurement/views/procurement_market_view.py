@@ -67,6 +67,7 @@ class ProcurementMarketListViewSet(ReadOnlyModelViewSet):
 
 class DownloadDAOView(APIView):
     permission_classes = [StrictModelPermissions]
+    queryset = ProcurementMarket.objects.all()
 
     def get(self, request, reference_number):
         market = get_object_or_404(ProcurementMarket, reference_number=reference_number)

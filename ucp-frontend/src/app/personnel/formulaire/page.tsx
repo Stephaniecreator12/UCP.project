@@ -143,21 +143,27 @@ const loadData = useCallback(async (): Promise<GridRow[]> => {
       return;
     }
 
-    const currentUser = getme();
-    if (isValidatorUser(currentUser) || isAgentAchatUser(currentUser)) {
-      router.replace(getLandingRouteForUser(currentUser));
-    }
+    void getme().then((res) => {
+      if (res.error) return;
+      const user = res.data ?? null;
+      if (isValidatorUser(user) || isAgentAchatUser(user)) {
+        router.replace(getLandingRouteForUser(user));
+      }
+    });
   }, [router]);
 
   useEffect(() => {
-    const currentUser = getme();
-    if (
-      getToken() &&
-      !isValidatorUser(currentUser) &&
-      !isAgentAchatUser(currentUser)
-    ) {
-      loadData();
-    }
+    void getme().then((res) => {
+      if (res.error) return;
+      const user = res.data ?? null;
+      if (
+        getToken() &&
+        !isValidatorUser(user) &&
+        !isAgentAchatUser(user)
+      ) {
+        loadData();
+      }
+    });
   }, [loadData]);
 
   useEffect(() => {

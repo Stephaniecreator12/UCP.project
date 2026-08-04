@@ -161,7 +161,12 @@ function MarcheDashboardPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const filterParam = searchParams.get("filtre");
-  const [currentUser] = useState(() => getme());
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  useEffect(() => {
+    void getme().then((res) => {
+      if (!res.error) setCurrentUser(res.data ?? null);
+    });
+  }, []);
   const marketRoleLabel = getMarketRoleLabel(currentUser);
   const [demandes, setDemandes] = useState<DemandeAchat[]>([]);
   const [loading, setLoading] = useState(true);
@@ -204,6 +209,7 @@ function MarcheDashboardPageContent() {
       router.replace("/auth/login");
       return;
     }
+    if (currentUser === null) return;
     if (!isLogistiqueUser(currentUser)) {
       router.replace(getLandingRouteForUser(currentUser));
       return;

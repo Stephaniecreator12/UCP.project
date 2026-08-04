@@ -525,13 +525,13 @@ export default function SeanceOuvertureDetail() {
     !!seance &&
     !!currentUser &&
     isSecretaireUser(currentUser) &&
-    seance.secretaire === currentUser.id &&
+    seance.secretaire === Number(currentUser.id) &&
     !isLocked;
   const canResendInvitations =
     !!seance &&
     !!currentUser &&
     isSecretaireUser(currentUser) &&
-    seance.secretaire === currentUser.id &&
+    seance.secretaire === Number(currentUser.id) &&
     (seance.statut === "EN_VALIDATION_MEMBRES" ||
       seance.statut === "EN_VALIDATION_PRESIDENT");
   const showMontantColumn = formData?.etape_ouverture === "COMPLETE";
@@ -567,7 +567,7 @@ export default function SeanceOuvertureDetail() {
   }, [availableUsers, memberSearch, selectedPresidentId]);
 
   const currentMember = seance?.membres.find(
-    (membre) => membre.utilisateur === currentUser?.id,
+    (membre) => membre.utilisateur === Number(currentUser?.id),
   );
   const presentMembers =
     seance?.membres.filter((membre) => membre.est_present) ?? [];
@@ -587,11 +587,11 @@ export default function SeanceOuvertureDetail() {
     !!currentUser &&
     (seance.statut === "EN_VALIDATION_PRESIDENT" ||
       seance.statut === "A_VALIDER") &&
-    seance.president === currentUser.id &&
+    seance.president === Number(currentUser.id) &&
     allPresentMembersDecided &&
     seance.president_decision === "EN_ATTENTE";
   const isPresidentViewer =
-    !!seance && !!currentUser && seance.president === currentUser.id;
+    !!seance && !!currentUser && seance.president === Number(currentUser.id);
   const canRejectAsPresident =
     !!seance &&
     isPresidentViewer &&

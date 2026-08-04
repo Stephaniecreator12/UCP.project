@@ -138,7 +138,12 @@ const filterDemandesByQuery = (items: DemandeAchat[], query: string) => {
 
 export default function PassationDashboardPage() {
   const router = useRouter();
-  const [currentUser] = useState(() => getme());
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  useEffect(() => {
+    void getme().then((res) => {
+      if (!res.error) setCurrentUser(res.data ?? null);
+    });
+  }, []);
   const agentRoleLabel = getAgentAchatRoleLabel(currentUser);
   const [demandes, setDemandes] = useState<DemandeAchat[]>([]);
   const [loading, setLoading] = useState(true);
@@ -170,6 +175,7 @@ export default function PassationDashboardPage() {
       router.replace("/auth/login");
       return;
     }
+    if (currentUser === null) return;
 
     if (!isAgentAchatUser(currentUser)) {
       router.replace(getLandingRouteForUser(currentUser));

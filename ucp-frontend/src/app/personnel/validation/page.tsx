@@ -141,8 +141,10 @@ export default function ValidationDashboardPage() {
   const allScopeHref = "/demande-achat?scope=all";
 
   useEffect(() => {
-    setCurrentUser(getme());
-    setIsHydrated(true);
+    void getme().then((res) => {
+      if (!res.error) setCurrentUser(res.data ?? null);
+      setIsHydrated(true);
+    });
   }, []);
 
   const showToast = (message: string) => {

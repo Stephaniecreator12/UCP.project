@@ -520,8 +520,7 @@ function EvaluationSecretaireContent() {
                 <div className="relative z-10 w-fit rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-bold text-slate-600">
                   Secrétaire :{" "}
                   <span className="text-slate-900">
-                    {`${currentUser.first_name} ${currentUser.last_name}`.trim() ||
-                      currentUser.username}
+                    {currentUser.email}
                   </span>
                 </div>
               )}
@@ -1130,7 +1129,7 @@ function EvaluationStatusSection({
   section: DashboardSection & { rows: DaoDashboardItem[] };
   isActive: boolean;
   onToggle: () => void;
-  router: any;
+  router: ReturnType<typeof useRouter>;
   openPanel: (dao: DaoDashboardItem, mode: PanelMode) => void;
 }) {
   const Icon = section.icon;
@@ -1221,7 +1220,7 @@ function EvaluationDashboardRow({
 }: {
   dao: DaoDashboardItem;
   index: number;
-  router: any;
+  router: ReturnType<typeof useRouter>;
   openPanel: (dao: DaoDashboardItem, mode: PanelMode) => void;
 }) {
   const progression = `${dao.offres_terminees}/${dao.nb_offres} offres terminées`;

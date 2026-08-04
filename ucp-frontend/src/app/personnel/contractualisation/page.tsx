@@ -210,8 +210,7 @@ export default function ContractualisationListPage() {
                   <div className="hidden sm:block rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-bold text-slate-600">
                     Secrétaire :{" "}
                     <span className="text-slate-900">
-                      {`${currentUser.first_name} ${currentUser.last_name}`.trim() ||
-                        currentUser.username}
+                      {currentUser.email}
                     </span>
                   </div>
                 </div>

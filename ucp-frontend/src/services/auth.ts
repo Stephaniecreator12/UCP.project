@@ -1,6 +1,8 @@
 import Cookies from "js-cookie";
 import { API_BASE_URL, API_RH_URL } from "./api";
-import { UserProfile } from "@/types/profile";
+import type { UserProfile } from "@/types/profile";
+import { getme } from "./profile";
+export type { UserProfile };
 import {
   PUBLIC as PUBLIC_GROUP,
   VALIDATEUR_HIERARCHIQUE,
@@ -340,4 +342,19 @@ export const getMarketRoleLabel = (user: UserProfile | null) => {
 export const getLandingRouteForUser = (user: UserProfile | null) => {
   if (isPublicUser(user)) return "/procurement";
   return "/personnel/log-dashboard";
+};
+
+export const fetchCurrentUser = async (): Promise<UserProfile> => {
+  const result = await getme();
+  if (result.error) {
+    const detail =
+      typeof result.message === "string" ? result.message : "";
+    throw new Error(
+      detail || "Impossible de récupérer le profil utilisateur",
+    );
+  }
+  if (!result.data) {
+    throw new Error("Impossible de récupérer le profil utilisateur");
+  }
+  return result.data;
 };

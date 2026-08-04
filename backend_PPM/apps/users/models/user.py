@@ -51,5 +51,25 @@ class UserProfile(AbstractBaseUser, PermissionsMixin):
 
     objects = UserProfileManager()
 
+    @property
+    def username(self):
+        return self.email
+
+    def get_full_name(self):
+        return self.full_name or self.email
+
+    def get_short_name(self):
+        return self.email
+
+    @property
+    def first_name(self):
+        parts = (self.full_name or "").split(" ", 1)
+        return parts[0] if parts and parts[0] else ""
+
+    @property
+    def last_name(self):
+        parts = (self.full_name or "").split(" ", 1)
+        return parts[1] if len(parts) > 1 else ""
+
     def __str__(self):
         return self.email

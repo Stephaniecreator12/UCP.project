@@ -34,7 +34,7 @@ class ContratSerializer(serializers.ModelSerializer):
             "id",
             "numero_marche",
             "projet",
-            "prestataire",
+            "prestataire_id",
             "montant_ttc",
             "date_signature",
             "duree_execution",
@@ -63,7 +63,7 @@ class ContratCreateUpdateSerializer(serializers.ModelSerializer):
         fields = (
             "numero_marche",
             "projet",
-            "prestataire",
+            "prestataire_id",
             "montant_ttc",
             "date_signature",
             "duree_execution",

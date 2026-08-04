@@ -200,16 +200,16 @@ export default function MembresCommissionsPage() {
   const [modalError, setModalError] = useState("");
   const [modalSuccess, setModalSuccess] = useState("");
   const [invalidCinIds, setInvalidCinIds] = useState<string[]>([]);
-  const [targetReference, setTargetReference] = useState<string | null>(null);
+  // Quand on arrive depuis le popup "Compléter", on lit le paramètre ?dossier=REF.
+  const [targetReference] = useState<string | null>(
+    () =>
+      typeof window !== "undefined"
+        ? new URLSearchParams(window.location.search).get("dossier")
+        : null,
+  );
   const [autoOpenedReference, setAutoOpenedReference] = useState<string | null>(
     null,
   );
-
-  // Quand on arrive depuis le popup "Compléter", on ouvre directement le bon dossier.
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    setTargetReference(params.get("dossier"));
-  }, []);
 
   // Données nécessaires pour croiser les DAO avec leurs séances d'ouverture.
   const loadData = async () => {
@@ -454,32 +454,36 @@ export default function MembresCommissionsPage() {
       return;
     }
 
-    const market = markets.find(
-      (item) => item.reference_number === targetReference,
-    );
-    if (!market) return;
+    const openTargetDossier = async () => {
+      const market = markets.find(
+        (item) => item.reference_number === targetReference,
+      );
+      if (!market) return;
 
-    const seance =
-      seances.find(
-        (item) => item.reference_dossier === market.reference_number,
-      ) ?? null;
-    const isLocked = seance
-      ? [
-          "EN_VALIDATION_MEMBRES",
-          "EN_VALIDATION_PRESIDENT",
-          "VALIDEE",
-        ].includes(seance.statut)
-      : false;
+      const seance =
+        seances.find(
+          (item) => item.reference_dossier === market.reference_number,
+        ) ?? null;
+      const isLocked = seance
+        ? [
+            "EN_VALIDATION_MEMBRES",
+            "EN_VALIDATION_PRESIDENT",
+            "VALIDEE",
+          ].includes(seance.statut)
+        : false;
 
-    setSearchQuery(market.reference_number);
-    setActivePanels((current) => ({
-      ...current,
-      none: true,
-      draft: true,
-      final: true,
-    }));
-    setAutoOpenedReference(targetReference);
-    handleOpenMembersModal(market, seance, isLocked);
+      setSearchQuery(market.reference_number);
+      setActivePanels((current) => ({
+        ...current,
+        none: true,
+        draft: true,
+        final: true,
+      }));
+      setAutoOpenedReference(targetReference);
+      handleOpenMembersModal(market, seance, isLocked);
+    };
+
+    void openTargetDossier();
   }, [
     autoOpenedReference,
     handleOpenMembersModal,
@@ -719,7 +723,7 @@ export default function MembresCommissionsPage() {
             Accès Refusé
           </h2>
           <p className="mt-2 text-sm text-slate-600">
-            Seul le secrétaire de la commission d'ouverture des offres est
+            Seul le secrétaire de la commission d&apos;ouverture des offres est
             autorisé à accéder à cet espace de gestion des membres.
           </p>
           <button
@@ -753,7 +757,7 @@ export default function MembresCommissionsPage() {
                 <div className="mt-1 flex items-center gap-2">
                   <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
                   <p className="truncate text-[10px] font-black uppercase tracking-widest text-slate-500 sm:text-[11px]">
-                    Saisie manuelle des comités d'ouverture des plis
+                    Saisie manuelle des comités d&apos;ouverture des plis
                   </p>
                 </div>
               </div>
@@ -904,7 +908,7 @@ export default function MembresCommissionsPage() {
                               <tr className="border-b border-slate-100 bg-slate-50/20 text-[10px] font-black uppercase tracking-wider text-slate-400">
                                 <th className="px-5 py-3">Dossier / DAO</th>
                                 <th className="px-5 py-3">
-                                  Séance d'ouverture
+                                  Séance d&apos;ouverture
                                 </th>
                                 <th className="px-5 py-3">Statut séance</th>
                                 <th className="px-5 py-3">État commission</th>
@@ -1096,7 +1100,7 @@ export default function MembresCommissionsPage() {
                       <th className="px-4 py-3.5 w-1/4">Nom & Prénom</th>
                       <th className="px-4 py-3.5 w-1/4">Adresse e-mail</th>
                       <th className="px-4 py-3.5 w-1/5">
-                        N° Carte d'identité (CIN)
+                        N° Carte d&apos;identité (CIN)
                       </th>
                       <th className="px-4 py-3.5 w-1/6">Poste / Rôle</th>
                       <th className="px-4 py-3.5 w-1/6">Entité</th>
@@ -1112,8 +1116,8 @@ export default function MembresCommissionsPage() {
                           colSpan={isReadOnly ? 5 : 6}
                           className="px-4 py-12 text-center text-slate-500 font-semibold italic"
                         >
-                          Aucun membre n'a été ajouté. Cliquez sur "+ Ajouter
-                          une ligne".
+                          Aucun membre n&apos;a été ajouté. Cliquez sur &quot;+ Ajouter
+                          une ligne&quot;.
                         </td>
                       </tr>
                     ) : (

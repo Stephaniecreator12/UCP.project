@@ -41,11 +41,11 @@ const isPdfFile = (file: File | null) =>
 
 const getDefaultReceptionnaire = (
   demande: DemandeAchat | null,
-  currentUser: ReturnType<typeof getme>,
+  currentUser: UserProfile | null,
 ) => {
   if (demande?.receptionnaire) return demande.receptionnaire;
   if (!currentUser) return "Service logistique";
-  return `${getme()}`.trim() || "Service logistique";
+  return currentUser.email || "Service logistique";
 };
 
 const buildInitialLignes = (demande: DemandeAchat | null): ReceptionFormLigne[] => {
@@ -79,18 +79,12 @@ export default function ReceptionModal({
   onSuccess,
 }: ReceptionModalProps) {
   const issueBlockRef = useRef<HTMLDivElement | null>(null);
-  const [currentUser, setCurrentUser] = useState<UserProfile>();
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   useEffect(() => {
-    async function handleGetMe() {
-      const res = await getme();
-      if (!res.error) {
-        const data = res.data
-        setCurrentUser(data);
-      }
-      return;
-    }
-    handleGetMe();
-  }, [])
+    void getme().then((res) => {
+      if (!res.error) setCurrentUser(res.data ?? null);
+    });
+  }, []);
   const lignesBesoin = useMemo(
     () => (Array.isArray(demande?.lignes_besoin) ? demande.lignes_besoin : []),
     [demande],
@@ -100,7 +94,7 @@ export default function ReceptionModal({
 
   const [dateReception, setDateReception] = useState(() => demande?.date_reception || "");
   const [receptionnaire, setReceptionnaire] = useState(() =>
-    getDefaultReceptionnaire(demande, getme()),
+    getDefaultReceptionnaire(demande, currentUser),
   );
 
   const [conformiteQuantite, setConformiteQuantite] = useState<ReceiveDemandePayload["conformite_quantite"] | "">(() => (demande?.conformite_quantite as ReceiveDemandePayload["conformite_quantite"]) || "");
@@ -176,7 +170,7 @@ export default function ReceptionModal({
 
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setDateReception(demande?.date_reception || "");
-    setReceptionnaire(getDefaultReceptionnaire(demande, getme()));
+    setReceptionnaire(getDefaultReceptionnaire(demande, currentUser));
     setConformiteQuantite(
       (demande?.conformite_quantite as ReceiveDemandePayload["conformite_quantite"]) || "",
     );

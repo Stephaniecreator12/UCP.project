@@ -44,27 +44,26 @@ export default function EvaluationListPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const token = getToken();
-    if (!token) {
-      router.push("/auth/login");
-      return;
-    }
+    const initData = async () => {
+      const token = getToken();
+      if (!token) {
+        router.push("/auth/login");
+        return;
+      }
 
-    loadEvaluations();
+      try {
+        const data = await fetchEvaluationList();
+        setEvaluations(data);
+        setState("ready");
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Erreur inconnue";
+        setError(msg);
+        setState("error");
+      }
+    };
+
+    void initData();
   }, []);
-
-  const loadEvaluations = async () => {
-    try {
-      setState("loading");
-      const data = await fetchEvaluationList();
-      setEvaluations(data);
-      setState("ready");
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Erreur inconnue";
-      setError(msg);
-      setState("error");
-    }
-  };
 
   if (state === "loading") {
     return (
@@ -88,7 +87,7 @@ export default function EvaluationListPage() {
             Mes évaluations assignées
           </h1>
           <p className="text-slate-600 mt-2">
-            Consultez et complétez vos évaluations d'offres.
+            Consultez et complétez vos évaluations d&apos;offres.
           </p>
         </div>
 

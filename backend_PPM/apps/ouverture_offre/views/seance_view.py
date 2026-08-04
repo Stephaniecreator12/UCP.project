@@ -152,7 +152,7 @@ def seance_validation_decision(request, pk):
     navigateur = request.META.get("HTTP_USER_AGENT", "")
     commentaire = data.get("commentaire", "")
 
-    if data[",role"] == "membre":
+    if data["role"] == "membre":
         if data["decision"] == "VALIDER":
             validate_member_with_password(
                 seance,

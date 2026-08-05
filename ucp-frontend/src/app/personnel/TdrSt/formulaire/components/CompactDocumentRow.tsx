@@ -54,7 +54,7 @@ export function CompactDocumentRow({
                 Version {versionNumber}
               </span>
             )}
-            {role === "demandeur" && !isHistorical && document.version > 1 && (
+            {(role === "demandeur" || role === "admin") && !isHistorical && document.version > 1 && (
               <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
                 v{document.version}
               </span>

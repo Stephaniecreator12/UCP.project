@@ -122,7 +122,7 @@ export default function DecisionForm({
           onChange={(e) => setDeclarationConflit(e.target.checked)}
           className="rounded border-gray-300 text-green-700 focus:ring-green-600"
         />
-        Le comité déclare n'avoir aucun lien avec le soumissionnaire.
+        Le comité déclare n&apos;avoir aucun lien avec le soumissionnaire.
       </label>
 
       {error && <p className="text-sm text-red-600">{error}</p>}

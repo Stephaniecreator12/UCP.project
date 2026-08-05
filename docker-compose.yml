@@ -1,0 +1,104 @@
+# Infrastructure Docker pour le backend UCP.
+# Démarrage :
+#   docker compose up -d db redis
+#
+# NOTE : les tests N'UTILISENT PAS ce service `db`. Ils créent leur propre
+# conteneur PostgreSQL jetable (config/testcontainers_runner.py), supprimé
+# automatiquement à la fin. Le service `db` sert à la base de développement
+# (et à la variante DB_TEST_USE_EXTERNAL=1).
+#
+# La base de dev est exposée sur le port hôte 55432 (pas 5432) pour ne jamais
+# entrer en collision avec une base PostgreSQL locale existante.
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: ucp_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: passation_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: passation
+    ports:
+      - "55432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d passation_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  redis:
+    image: redis:7-alpine
+    container_name: ucp_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend_PPM/Dockerfile
+    container_name: ucp_backend
+    restart: unless-stopped
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8000"
+    environment:
+      DB_ENGINE: django.db.backends.postgresql
+      DB_NAME: passation_db
+      DB_USER: postgres
+      DB_PASSWORD: passation
+      DB_HOST: db
+      DB_PORT: "5432"
+      CELERY_BROKER_URL: redis://redis:6379/0
+      DEBUG: "True"
+      ALLOWED_HOSTS: "*"
+      EMAIL_BACKEND: django.core.mail.backends.console.EmailBackend
+      ACHATS_NOTIFICATION_EMAILS_ENABLED: "False"
+      TDRST_NOTIFICATION_EMAILS_ENABLED: "False"
+      OUVERTURE_NOTIFICATION_EMAILS_ENABLED: "False"
+      EVALUATION_NOTIFICATION_EMAILS_ENABLED: "False"
+    ports:
+      - "8000:8000"
+    volumes:
+      - backend_media:/app/backend_PPM/media
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  celery:
+    build:
+      context: .
+      dockerfile: backend_PPM/Dockerfile
+    container_name: ucp_celery
+    restart: unless-stopped
+    command: celery -A config worker -l info -P solo
+    environment:
+      DB_ENGINE: django.db.backends.postgresql
+      DB_NAME: passation_db
+      DB_USER: postgres
+      DB_PASSWORD: passation
+      DB_HOST: db
+      DB_PORT: "5432"
+      CELERY_BROKER_URL: redis://redis:6379/0
+      DEBUG: "False"
+    volumes:
+      - backend_media:/app/backend_PPM/media
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  backend_media:

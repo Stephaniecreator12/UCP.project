@@ -103,7 +103,7 @@ export default function SoumissionnairePicker({
           onClick={() => setShowCreate(true)}
           className="text-xs font-semibold text-green-700 hover:text-green-900"
         >
-          + Ce soumissionnaire n'existe pas encore, l'ajouter
+          + Ce soumissionnaire n&apos;existe pas encore, l&apos;ajouter
         </button>
       ) : (
         <div className="bg-slate-50 border border-gray-200 rounded-lg p-3 space-y-2">

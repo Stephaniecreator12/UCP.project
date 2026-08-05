@@ -102,12 +102,12 @@ export default function ExamenPreliminaireForm({
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-5">
       <h3 className="text-lg font-bold text-gray-900">Examen préliminaire</h3>
       <p className="text-xs text-gray-500">
-        Un seul critère à « Non » élimine l'offre et bloque le passage à l'étape suivante.
+        Un seul critère à « Non » élimine l&apos;offre et bloque le passage à l&apos;étape suivante.
       </p>
 
       {hasNonConforme && (
         <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg p-3">
-          ⚠️ Au moins un critère est non conforme : cette offre sera éliminée à l'examen préliminaire.
+          ⚠️ Au moins un critère est non conforme : cette offre sera éliminée à l&apos;examen préliminaire.
         </div>
       )}
 

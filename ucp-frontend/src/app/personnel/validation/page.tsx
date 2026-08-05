@@ -27,6 +27,7 @@ import {
   getValidatorRoleLabel,
   isFinanceUser,
   isValidatorUser,
+  isAdminUser,
   type UserProfile,
 } from "@/services/auth";
 import { getme } from "@/services/profile";
@@ -137,12 +138,14 @@ export default function ValidationDashboardPage() {
   const [detailViewMode, setDetailViewMode] = useState<DetailViewMode>("detail");
   const [selectedValidationId, setSelectedValidationId] = useState<number | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const mineScopeHref = "/validation";
-  const allScopeHref = "/demande-achat?scope=all";
+  const mineScopeHref = "/personnel/validation";
+  const allScopeHref = "/personnel/demande-achat?scope=all";
 
   useEffect(() => {
-    setCurrentUser(getme());
-    setIsHydrated(true);
+    void getme().then((res) => {
+      if (!res.error) setCurrentUser(res.data ?? null);
+      setIsHydrated(true);
+    });
   }, []);
 
   const showToast = (message: string) => {
@@ -159,7 +162,7 @@ export default function ValidationDashboardPage() {
       return;
     }
 
-    if (!isValidatorUser(currentUser) && !isFinanceUser(currentUser)) {
+    if (!isAdminUser(currentUser) && !isValidatorUser(currentUser) && !isFinanceUser(currentUser)) {
       setLoading(false);
       router.replace(getLandingRouteForUser(currentUser));
       return;

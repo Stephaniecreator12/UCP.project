@@ -550,7 +550,7 @@ export const getDemandePrimaryAction = (
   demande: DemandeAchat,
   user: UserProfile | null,
 ): DemandePrimaryAction | null => {
-  const isOwner = !!user && demande.demandeur === user.id;
+  const isOwner = !!user && demande.demandeur === Number(user.id);
   const validatorStep = getValidatorStep(user);
 
   if (

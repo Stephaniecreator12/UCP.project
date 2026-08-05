@@ -23,7 +23,8 @@ export type UserRole =
   | "demandeur"
   | "verificateur_technique"
   | "approbateur_final"
-  | "auditeur";
+  | "auditeur"
+  | "admin";
 
 type Procedure = "DC" | "AOI" | "AON" | "GRE_A_GRE";
 type DureeUnite = "JOURS" | "MOIS";
@@ -238,13 +239,15 @@ export function useTdrStData() {
       const url =
         r === "demandeur"
           ? `${API_PREFIX}/documents/me/`
-          : r === "verificateur_technique"
-            ? `${API_PREFIX}/validations/tech/documents/`
-            : r === "approbateur_final"
-              ? `${API_PREFIX}/validations/final/documents/`
-              : r === "auditeur"
-                ? `${API_PREFIX}/auditeur/documents/`
-                : `${API_PREFIX}/documents/`;
+          : r === "admin"
+            ? `${API_PREFIX}/documents/list/?scope=all`
+            : r === "verificateur_technique"
+              ? `${API_PREFIX}/validations/tech/documents/`
+              : r === "approbateur_final"
+                ? `${API_PREFIX}/validations/final/documents/`
+                : r === "auditeur"
+                  ? `${API_PREFIX}/auditeur/documents/`
+                  : `${API_PREFIX}/documents/`;
 
       const data = await fetchJson<TdrStDocument[]>(url, { method: "GET", cache: "no-store" });
       setDocuments(data);
@@ -260,13 +263,14 @@ export function useTdrStData() {
     setLoading(true);
     setError(null);
     try {
-      const me = await fetchJson<{ role?: UserRole; username?: string }>(`/api/users/me/`, { method: "GET" });
-      const r = me.role ?? null;
+      const me = await fetchJson<{ data?: { role?: UserRole; username?: string } }>(`/api/users/me/`, { method: "GET" });
+      const userInfo = me?.data ?? {};
+      const r = userInfo.role ?? null;
       if (!r) throw new Error("Rôle utilisateur introuvable.");
       setRole(r);
-      setCurrentUsername(me.username || "");
+      setCurrentUsername(userInfo.username || "");
       const docs = await refreshDocs(r);
-      return { role: r, username: me.username, documents: docs };
+      return { role: r, username: userInfo.username, documents: docs };
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       setError(msg);

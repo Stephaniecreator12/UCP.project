@@ -14,8 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     "test.js",
     "update_layout.js",
-    "src/app/demande-achat/components/update_reception.js",
-    "src/app/demande-achat/components/update_reception_2.js",
+    "src/app/personnel/demande-achat/components/update_reception.js",
+    "src/app/personnel/demande-achat/components/update_reception_2.js",
   ]),
 ]);
 

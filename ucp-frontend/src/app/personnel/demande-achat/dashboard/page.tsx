@@ -402,7 +402,13 @@ function DashboardPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const hasHydrated = useHasHydrated();
-  const currentUser = hasHydrated ? getme() : null;
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  useEffect(() => {
+    if (!hasHydrated) return;
+    void getme().then((res) => {
+      if (!res.error) setCurrentUser(res.data ?? null);
+    });
+  }, [hasHydrated]);
   const [demandes, setDemandes] = useState<DemandeAchat[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

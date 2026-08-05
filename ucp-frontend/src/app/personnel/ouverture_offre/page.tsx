@@ -26,6 +26,7 @@ import {
   fetchCurrentUser,
   getToken,
   isSecretaireUser,
+  isAdminUser,
   type UserProfile,
 } from "@/services/auth";
 import {
@@ -442,7 +443,7 @@ export default function OuvertureOffrePage() {
       try {
         const user = await fetchCurrentUser();
 
-        if (!isSecretaireUser(user)) {
+        if (!isAdminUser(user) && !isSecretaireUser(user)) {
           setCurrentUser(user);
           setMarkets([]);
           setSeances([]);
@@ -513,9 +514,9 @@ export default function OuvertureOffrePage() {
 
       const currentMember =
         seance?.membres.find(
-          (member) => member.utilisateur === currentUser.id,
+          (member) => member.utilisateur === Number(currentUser.id),
         ) ?? null;
-      const isPresident = seance?.president === currentUser.id;
+      const isPresident = seance?.president === Number(currentUser.id);
       const assignedToCurrentUser = Boolean(currentMember || isPresident);
 
       const presentMembers =
@@ -815,8 +816,7 @@ export default function OuvertureOffrePage() {
                 <div className="relative z-10 w-fit rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-bold text-slate-600">
                   {isSecretaire ? "Secrétaire" : "Utilisateur"} :{" "}
                   <span className="text-slate-900">
-                    {`${currentUser.first_name} ${currentUser.last_name}`.trim() ||
-                      currentUser.username}
+                    {currentUser.email}
                   </span>
                 </div>
               )}
@@ -953,13 +953,13 @@ export default function OuvertureOffrePage() {
                               onOpenValidation={(row) => {
                                 if (!row.seance || !currentUser) return;
                                 const validationRole =
-                                  row.seance.president === currentUser.id
+                                  row.seance.president === Number(currentUser.id)
                                     ? "president"
                                     : "membre";
                                 const params = new URLSearchParams({
                                   role: validationRole,
                                   email:
-                                    currentUser.email || currentUser.username,
+                                    currentUser.email,
                                 });
                                 router.push(
                                   `/ouverture_offre/validation/${row.seance.id}?${params.toString()}`,
@@ -988,7 +988,7 @@ export default function OuvertureOffrePage() {
         canResendInvitations={Boolean(
           detailRow?.seance &&
             currentUser &&
-            detailRow.seance.secretaire === currentUser.id &&
+            detailRow.seance.secretaire === Number(currentUser.id) &&
             (detailRow.seance.statut === "EN_VALIDATION_MEMBRES" ||
               detailRow.seance.statut === "EN_VALIDATION_PRESIDENT"),
         )}

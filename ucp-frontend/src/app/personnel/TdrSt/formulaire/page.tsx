@@ -2,7 +2,8 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Activity, ChevronDown, Clock3, FilePlus2 } from "lucide-react";
+import Link from "next/link";
+import { Activity, ChevronDown, Clock3, FilePlus2, LayoutDashboard } from "lucide-react";
 import { TdrStFilterBar, useTdrStFilters } from "./components/FinancementFilter";
 import TopHeader from "@/app/components/TopHeader";
 import { getToken } from "@/services/auth";
@@ -23,6 +24,7 @@ const ROLE_LABEL: Record<UserRole, string> = {
   verificateur_technique: "Point focal / Chargé de programme",
   approbateur_final: "Gestionnaire / Point focal",
   auditeur: "Auditeur (Consultation seule)",
+  admin: "Administrateur",
 };
 
 const formatPendingDate = (value?: string | null) => {
@@ -151,7 +153,7 @@ function TdRStPageContent() {
 
   // Filtre par recherche textuelle
   const filteredBySearch = useMemo(() => {
-    if (role !== "auditeur") return documents;
+    if (role !== "auditeur" && role !== "admin") return documents;
     
     const normalize = (value: unknown) =>
       String(value ?? "")
@@ -189,6 +191,18 @@ function TdRStPageContent() {
         correction: [],
         validation: [],
         all: [],
+      };
+    }
+
+    // Pour admin: voir toutes les sections
+    if (role === "admin") {
+      return {
+        draft: docs.filter((d) => d.statut === "BROUILLON"),
+        pending: docs.filter((d) => d.statut === "SOUMIS"),
+        correction: docs.filter((d) => d.statut === "A_REVOIR"),
+        validation: docs.filter((d) => d.statut === "EN_VALIDATION"),
+        all: docs.filter((d) => !["BROUILLON", "VALIDE", "REJETE", "SUSPENDU"].includes(d.statut)),
+        archive: docs.filter((d) => ["VALIDE", "REJETE", "SUSPENDU"].includes(d.statut)),
       };
     }
 
@@ -253,7 +267,7 @@ function TdRStPageContent() {
     tdrFilterProps.selectedDocumentTypes.length > 0;
 
   const totalDocuments =
-    finalDocuments.length + (role === "demandeur" ? pendingTdrDemandes.length : 0);
+    finalDocuments.length + ((role === "demandeur" || role === "admin") ? pendingTdrDemandes.length : 0);
 
   const [selectedDetailDoc, setSelectedDetailDoc] = useState<TdrStDocument | null>(null);
 
@@ -269,10 +283,10 @@ function TdRStPageContent() {
   }, [documents, focusDocumentId, router]);
 
   const getActionButtonLabel = (doc: TdrStDocument): string | null => {
-    if (role === "demandeur" && doc.statut === "BROUILLON") {
+    if ((role === "demandeur" || role === "admin") && doc.statut === "BROUILLON") {
       return "Continuer";
     }
-    if (role === "demandeur" && doc.statut === "A_REVOIR") {
+    if ((role === "demandeur" || role === "admin") && doc.statut === "A_REVOIR") {
       return "Corriger";
     }
     return null;
@@ -298,7 +312,7 @@ function TdRStPageContent() {
     const nextDoc = refreshedDocs.find((doc) => doc.id === documentId) || null;
     setSelectedDetailDoc(nextDoc);
     setSelectedId(documentId);
-    if (role === "demandeur") {
+    if (role === "demandeur" || role === "admin") {
       await loadPendingTdrDemandes(role);
     }
   };
@@ -308,7 +322,7 @@ function TdRStPageContent() {
   };
 
   const handleSubmitDocument = async () => {
-    if (!selectedDetailDoc || role !== "demandeur") return;
+    if (!selectedDetailDoc || (role !== "demandeur" && role !== "admin")) return;
     setActionLoading(true);
     try {
       const updated = await fetchJson<TdrStDocument>(`/api/TdrSt/documents/${selectedDetailDoc.id}/submit/`, {
@@ -326,7 +340,7 @@ function TdRStPageContent() {
   const handleDecision = async (decision: "FAVORABLE" | "A_REVOIR" | "APPROUVE" | "REJETE") => {
     if (!selectedDetailDoc || !role) return;
     const url =
-      role === "verificateur_technique"
+      role === "verificateur_technique" || role === "admin"
         ? `/api/TdrSt/validations/tech/${selectedDetailDoc.id}/decision/`
         : `/api/TdrSt/validations/final/${selectedDetailDoc.id}/decision/`;
 
@@ -347,7 +361,7 @@ function TdRStPageContent() {
   };
 
   const detailActionSlot =
-    role === "demandeur" &&
+    (role === "demandeur" || role === "admin") &&
     selectedDetailDoc &&
     (selectedDetailDoc.statut === "BROUILLON" || selectedDetailDoc.statut === "A_REVOIR") ? (
       <button
@@ -360,7 +374,7 @@ function TdRStPageContent() {
     ) : null;
 
   const detailFooterSlot =
-    selectedDetailDoc && role === "demandeur" && (selectedDetailDoc.statut === "BROUILLON" || selectedDetailDoc.statut === "A_REVOIR") ? (
+    selectedDetailDoc && (role === "demandeur" || role === "admin") && (selectedDetailDoc.statut === "BROUILLON" || selectedDetailDoc.statut === "A_REVOIR") ? (
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-slate-600">Le document sera transmis au circuit de validation TDR/ST.</p>
         <button
@@ -454,6 +468,13 @@ function TdRStPageContent() {
 
           <div className="flex w-full flex-col gap-3 lg:w-auto lg:min-w-[430px] lg:items-end">
             <div className="flex w-full items-center gap-3">
+              <Link
+                href="/personnel/TdrSt/dashboard"
+                className="inline-flex shrink-0 items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 shadow-sm transition hover:-translate-y-[1px] hover:border-emerald-300 hover:bg-emerald-100"
+              >
+                <LayoutDashboard className="h-4 w-4" />
+                Dashboard
+              </Link>
               <div className="relative flex-1">
                 <input
                   value={searchQuery}
@@ -514,7 +535,7 @@ function TdRStPageContent() {
         {/* Sections */}
         {!loading && (
           <div className="space-y-4">
-            {role === "demandeur" && (pendingTdrLoading || pendingTdrDemandes.length > 0) && (
+            {(role === "demandeur" || role === "admin") && (pendingTdrLoading || pendingTdrDemandes.length > 0) && (
               <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
                 <button
                   type="button"
@@ -628,8 +649,8 @@ function TdRStPageContent() {
               </section>
             )}
 
-            {/* BROUILLONS - visible seulement pour demandeur */}
-            {role === "demandeur" && sections.draft.length > 0 && (
+            {/* BROUILLONS - visible pour demandeur et admin */}
+            {(role === "demandeur" || role === "admin") && sections.draft.length > 0 && (
               <AccordionSection
                 sectionKey="draft"
                 title="Brouillons TDR/ST"
@@ -644,8 +665,8 @@ function TdRStPageContent() {
               />
             )}
 
-            {/* EN ATTENTE DE DECISION - Pour verificateur technique */}
-            {(role === "verificateur_technique" || role === "demandeur") && sections.pending.length > 0 && (
+            {/* EN ATTENTE DE DECISION - Pour verificateur technique et admin */}
+            {(role === "verificateur_technique" || role === "demandeur" || role === "admin") && sections.pending.length > 0 && (
               <AccordionSection
                 sectionKey="pending"
                 title="En attente de décision"
@@ -676,8 +697,8 @@ function TdRStPageContent() {
               />
             )}
 
-            {/* A VALIDER - Pour approbateur final */}
-            {(role === "approbateur_final" || role === "demandeur" || role === "verificateur_technique") && sections.validation.length > 0 && (
+            {/* A VALIDER - Pour approbateur final et admin */}
+            {(role === "approbateur_final" || role === "demandeur" || role === "verificateur_technique" || role === "admin") && sections.validation.length > 0 && (
               <AccordionSection
                 sectionKey="validation"
                 title="À valider"

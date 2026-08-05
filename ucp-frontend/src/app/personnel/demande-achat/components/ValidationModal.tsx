@@ -21,7 +21,7 @@ import {
   EtapeValidation,
   validateDemandeAchat,
 } from "@/services/achats";
-import { getValidatorStep } from "@/services/auth";
+import { getValidatorStep, type UserProfile } from "@/services/auth";
 import { getme } from "@/services/profile";
 
 type ValidationModalProps = {
@@ -187,7 +187,12 @@ export default function ValidationModal({
   onOpenDetail,
   onValidationSuccess,
 }: ValidationModalProps) {
-  const [currentUser] = useState(() => getme());
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  useEffect(() => {
+    void getme().then((res) => {
+      if (!res.error) setCurrentUser(res.data ?? null);
+    });
+  }, []);
   const validatorStep = getValidatorStep(currentUser) as EtapeValidation | null;
   const [form, setForm] = useState<ValidationFormState>(() => createInitialForm(validatorStep));
   const [saving, setSaving] = useState(false);

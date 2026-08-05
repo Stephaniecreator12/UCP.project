@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Cookies from "js-cookie";
 import TopHeader from "@/app/components/TopHeader";
+import { getToken } from "@/services/auth";
 import { DocumentsBarChart } from "@/app/personnel/TdrSt/dashboard/components/documents-bar-chart";
 import { DocumentsPieChart } from "@/app/personnel/TdrSt/dashboard/components/documents-pie-chart";
 import { DocumentsRadialChart } from "@/app/personnel/TdrSt/dashboard/components/documents-radial-chart";
@@ -31,13 +33,8 @@ export default function DashboardPage() {
 
   const asTrend = (value: number) => ({ value, isPositive: value >= 0 });
 
-  const getAccessToken = () => {
-    // JWT access token est stocké ici
-    return localStorage.getItem("access_token");
-  };
-
   const refreshToken = async () => {
-    const refresh = localStorage.getItem("refresh_token");
+    const refresh = Cookies.get("refresh_token") ?? localStorage.getItem("refresh_token");
     if (!refresh) return null;
 
     try {
@@ -51,6 +48,10 @@ export default function DashboardPage() {
 
       if (response.ok) {
         const data = await response.json();
+        Cookies.set("access_token", data.access, {
+          secure: process.env.NODE_ENV === "production",
+          path: "/",
+        });
         localStorage.setItem("access_token", data.access);
         return data.access;
       }
@@ -65,7 +66,7 @@ export default function DashboardPage() {
       setLoading(true);
       setError(null);
 
-      const token = getAccessToken();
+      const token = getToken();
 
       if (!token) {
         throw new Error("Aucun token d'authentification trouvé. Veuillez vous connecter.");
@@ -94,6 +95,8 @@ export default function DashboardPage() {
           // Refresh failed, rediriger vers login
           localStorage.removeItem("access_token");
           localStorage.removeItem("refresh_token");
+          Cookies.remove("access_token");
+          Cookies.remove("refresh_token");
           throw new Error("Session expirée. Veuillez vous reconnecter.");
         }
       }

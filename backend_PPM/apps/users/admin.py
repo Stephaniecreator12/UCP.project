@@ -1,13 +1,122 @@
 from django.contrib import admin
+from django.contrib.auth.admin import UserAdmin
+
+from apps.users.forms import (
+    UserProfileCreationForm,
+    UserProfileChangeForm,
+)
 from apps.users.models.user import UserProfile
 from apps.users.models.agent import Programme, Poste, AgentProfile
 
 
 @admin.register(UserProfile)
-class PublicProfileAdmin(admin.ModelAdmin):
-    list_display = ("id", "email", "full_name", "type_entite", "is_active", "created_at")
-    list_filter = ("type_entite", "is_active")
-    search_fields = ("email", "full_name", "nif")
+class UserProfileAdmin(UserAdmin):
+    add_form = UserProfileCreationForm
+    form = UserProfileChangeForm
+    model = UserProfile
+
+    list_display = (
+        "id",
+        "email",
+        "full_name",
+        "type_entite",
+        "is_staff",
+        "is_active",
+        "created_at",
+    )
+
+    list_filter = (
+        "is_staff",
+        "is_superuser",
+        "is_active",
+        "type_entite",
+        "groups",
+    )
+
+    ordering = ("email",)
+
+    search_fields = (
+        "email",
+        "full_name",
+        "nif",
+    )
+
+    fieldsets = (
+        (
+            None,
+            {
+                "fields": (
+                    "email",
+                    "password",
+                )
+            },
+        ),
+        (
+            "Informations",
+            {
+                "fields": (
+                    "full_name",
+                    "phone",
+                    "type_entite",
+                    "nif",
+                )
+            },
+        ),
+        (
+            "Permissions",
+            {
+                "fields": (
+                    "is_active",
+                    "is_staff",
+                    "is_superuser",
+                    "groups",
+                    "user_permissions",
+                )
+            },
+        ),
+        (
+            "Dates importantes",
+            {
+                "fields": (
+                    "last_login",
+                    "created_at",
+                    "updated_at",
+                )
+            },
+        ),
+    )
+
+    add_fieldsets = (
+        (
+            None,
+            {
+                "classes": ("wide",),
+                "fields": (
+                    "email",
+                    "full_name",
+                    "phone",
+                    "type_entite",
+                    "nif",
+                    "password1",
+                    "password2",
+                    "is_staff",
+                    "is_active",
+                    "groups",
+                ),
+            },
+        ),
+    )
+
+    readonly_fields = (
+        "created_at",
+        "updated_at",
+        "last_login",
+    )
+
+    filter_horizontal = (
+        "groups",
+        "user_permissions",
+    )
 
 
 @admin.register(Programme)
@@ -26,6 +135,17 @@ class PosteAdmin(admin.ModelAdmin):
 
 @admin.register(AgentProfile)
 class AgentProfileAdmin(admin.ModelAdmin):
-    list_display = ("id", "user", "poste", "matricule", "service", "created_at")
+    list_display = (
+        "id",
+        "user",
+        "poste",
+        "matricule",
+        "service",
+        "created_at",
+    )
     list_filter = ("poste__programme", "poste")
-    search_fields = ("user__email", "user__first_name", "user__last_name", "matricule")
+    search_fields = (
+        "user__email",
+        "user__full_name",
+        "matricule",
+    )

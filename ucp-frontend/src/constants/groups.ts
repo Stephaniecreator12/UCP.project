@@ -1,3 +1,4 @@
+export const ADMIN = "ADMIN";
 export const PUBLIC = "PUBLIC";
 export const DEMANDEUR = "DEMANDEUR";
 export const VALIDATEUR_HIERARCHIQUE = "VALIDATEUR_HIERARCHIQUE";

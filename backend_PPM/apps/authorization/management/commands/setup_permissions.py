@@ -85,5 +85,7 @@ class Command(BaseCommand):
         total = results["updated"] + results["created"]
 
         self.stdout.write(self.style.SUCCESS(f"\n✓ {total} groupes configurés avec succès"))
+        if results["deleted"]:
+            self.stdout.write(self.style.WARNING(f"✗ {results['deleted']} groupe(s) supprimé(s)"))
         if results["errors"]:
             self.stdout.write(self.style.ERROR(f"✗ {results['errors']} erreur(s)"))

@@ -23,7 +23,7 @@ VALIDATION_FLOW = [
 # Maps Django groups to the business step they are allowed to validate.
 # This is the main bridge between authentication data and the achats workflow.
 from apps.authorization.constants import (
-    VALIDATEUR_HIERARCHIQUE, VALIDATEUR_TECHNIQUE,
+    ADMIN, VALIDATEUR_HIERARCHIQUE, VALIDATEUR_TECHNIQUE,
     FINANCE, RAF, VALIDATEUR_BUDGETAIRE,
     VALIDATEUR_PROGRAMMATIQUE, APPROBATEUR_NATIONAL,
 )
@@ -124,6 +124,9 @@ def get_user_validation_step(user):
     # determines the queue used by this module.
     user_group_names = set(user.groups.values_list("name", flat=True))
 
+    if ADMIN in user_group_names:
+        return None  # ADMIN can validate at any step
+
     for group_name, step in GROUP_TO_STEP.items():
         if group_name in user_group_names:
             return step
@@ -144,17 +147,25 @@ def get_next_step(current_step):
 
 
 def list_demandes_a_valider(user):
+    user_group_names = set(user.groups.values_list("name", flat=True))
+    is_admin = ADMIN in user_group_names
+
     user_step = get_user_validation_step(user)
 
-    if not user_step:
+    if not user_step and not is_admin:
         return DemandeAchat.objects.none()
 
     from django.db.models import Prefetch
 
-    qs = DemandeAchat.objects.filter(
-        statut=DemandeAchat.STATUT_SOUMISE,
-        etape_validation_actuelle=user_step,
-    )
+    if is_admin:
+        qs = DemandeAchat.objects.filter(
+            statut=DemandeAchat.STATUT_SOUMISE,
+        )
+    else:
+        qs = DemandeAchat.objects.filter(
+            statut=DemandeAchat.STATUT_SOUMISE,
+            etape_validation_actuelle=user_step,
+        )
 
     # Récupérer les informations de poste de l'agent connecté
     try:
@@ -206,14 +217,17 @@ def list_demandes_a_valider(user):
 
 @transaction.atomic
 def traiter_validation(demande, user, decision, commentaire="", donnees_etape=None):
+    user_group_names = set(user.groups.values_list("name", flat=True))
+    is_admin = ADMIN in user_group_names
+
     user_step = get_user_validation_step(user)
 
-    if not user_step:
+    if not user_step and not is_admin:
         raise ValidationError(
             {"detail": "Cet utilisateur n'est associe a aucune etape de validation."}
         )
 
-    if demande.etape_validation_actuelle != user_step:
+    if not is_admin and demande.etape_validation_actuelle != user_step:
         raise ValidationError(
             {"detail": "Cette demande n'est pas a votre etape de validation."}
         )
@@ -224,28 +238,30 @@ def traiter_validation(demande, user, decision, commentaire="", donnees_etape=No
         )
 
     # Sécurité supplémentaire au niveau du service : valider les droits de programme/hiérarchiques
-    try:
-        profile = user.agent_profile
-        user_poste = profile.poste
-    except Exception:
-        profile = None
-        user_poste = None
+    if not is_admin:
+        try:
+            profile = user.agent_profile
+            user_poste = profile.poste
+        except Exception:
+            profile = None
+            user_poste = None
 
-    if user_step == DemandeAchat.ETAPE_HIERARCHIQUE:
-        if not user_poste or not demande.demandeur.agent_profile.poste.superieurs.filter(id=user_poste.id).exists():
-            raise ValidationError(
-                {"detail": "Vous n'êtes pas le supérieur hiérarchique direct du demandeur."}
-            )
-    elif user_step in [
-        DemandeAchat.ETAPE_TECHNIQUE,
-        DemandeAchat.ETAPE_BUDGETAIRE,
-        DemandeAchat.ETAPE_PROGRAMMATIQUE,
-        DemandeAchat.ETAPE_APPROBATION_FINALE,
-    ]:
-        if not user_poste or user_poste.programme.code != demande.source_financement:
-            raise ValidationError(
-                {"detail": "Cette demande concerne un programme/financement différent du vôtre."}
-            )
+        effective_step = user_step or demande.etape_validation_actuelle
+        if effective_step == DemandeAchat.ETAPE_HIERARCHIQUE:
+            if not user_poste or not demande.demandeur.agent_profile.poste.superieurs.filter(id=user_poste.id).exists():
+                raise ValidationError(
+                    {"detail": "Vous n'êtes pas le supérieur hiérarchique direct du demandeur."}
+                )
+        elif effective_step in [
+            DemandeAchat.ETAPE_TECHNIQUE,
+            DemandeAchat.ETAPE_BUDGETAIRE,
+            DemandeAchat.ETAPE_PROGRAMMATIQUE,
+            DemandeAchat.ETAPE_APPROBATION_FINALE,
+        ]:
+            if not user_poste or user_poste.programme.code != demande.source_financement:
+                raise ValidationError(
+                    {"detail": "Cette demande concerne un programme/financement différent du vôtre."}
+                )
 
     donnees_etape = donnees_etape or {}
 

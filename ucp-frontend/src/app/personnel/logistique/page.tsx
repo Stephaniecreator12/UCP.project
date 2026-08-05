@@ -27,6 +27,7 @@ import {
   getMarketRoleLabel,
   getToken,
   isLogistiqueUser,
+  isAdminUser,
   type UserProfile,
 } from "@/services/auth";
 import { getme } from "@/services/profile";
@@ -161,7 +162,12 @@ function MarcheDashboardPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const filterParam = searchParams.get("filtre");
-  const [currentUser] = useState(() => getme());
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  useEffect(() => {
+    void getme().then((res) => {
+      if (!res.error) setCurrentUser(res.data ?? null);
+    });
+  }, []);
   const marketRoleLabel = getMarketRoleLabel(currentUser);
   const [demandes, setDemandes] = useState<DemandeAchat[]>([]);
   const [loading, setLoading] = useState(true);
@@ -184,7 +190,7 @@ function MarcheDashboardPageContent() {
   }, [searchParamsString]);
 
   const allScopeHref = useMemo(() => {
-    return "/demande-achat?scope=all";
+    return "/personnel/demande-achat?scope=all";
   }, []);
 
   const showToast = (message: string) => {
@@ -204,7 +210,8 @@ function MarcheDashboardPageContent() {
       router.replace("/auth/login");
       return;
     }
-    if (!isLogistiqueUser(currentUser)) {
+    if (currentUser === null) return;
+    if (!isAdminUser(currentUser) && !isLogistiqueUser(currentUser)) {
       router.replace(getLandingRouteForUser(currentUser));
       return;
     }

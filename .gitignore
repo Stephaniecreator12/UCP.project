@@ -4,8 +4,13 @@ venv/
 .vscode/
 *.pyc
 __pycache__/
+# Base de données locales / fichiers de test SQLite
+*.sqlite3
+db.sqlite3
+backend_PPM/test_db.sqlite3
 # Node
 node_modules/
 **/node_modules/
 .codex/
 .agents/
+.env

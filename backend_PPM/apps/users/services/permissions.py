@@ -14,7 +14,7 @@ class TdrStRole:
 
 
 from apps.authorization.constants import (
-    VALIDATEUR_TECHNIQUE, APPROBATEUR_NATIONAL, AUDITEUR, PUBLIC, DEMANDEUR,
+    ADMIN, VALIDATEUR_TECHNIQUE, APPROBATEUR_NATIONAL, AUDITEUR, PUBLIC, DEMANDEUR,
 )
 
 ROLE_GROUPS: dict[str, tuple[str, ...]] = {
@@ -34,6 +34,8 @@ ALL_TDR_GROUPS = tuple(
 
 def _group_mapped_role(user) -> str | None:
     group_names = set(user.groups.values_list("name", flat=True))
+    if ADMIN in group_names:
+        return "admin"
     for role, groups in ROLE_GROUPS.items():
         if group_names.intersection(groups):
             return role
@@ -54,6 +56,9 @@ def get_user_role(user) -> str | None:
 def get_users_for_role(role: str):
     User = get_user_model()
     queryset = User.objects.filter(is_active=True)
+
+    if role == "admin":
+        return queryset.filter(groups__name=ADMIN).distinct()
 
     groups = ROLE_GROUPS.get(role, ())
     if groups:

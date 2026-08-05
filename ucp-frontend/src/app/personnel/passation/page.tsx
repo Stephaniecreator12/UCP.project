@@ -24,6 +24,7 @@ import {
   getToken,
   getAgentAchatRoleLabel,
   isAgentAchatUser,
+  isAdminUser,
   type UserProfile,
 } from "@/services/auth";
 import { getme } from "@/services/profile";
@@ -138,7 +139,12 @@ const filterDemandesByQuery = (items: DemandeAchat[], query: string) => {
 
 export default function PassationDashboardPage() {
   const router = useRouter();
-  const [currentUser] = useState(() => getme());
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  useEffect(() => {
+    void getme().then((res) => {
+      if (!res.error) setCurrentUser(res.data ?? null);
+    });
+  }, []);
   const agentRoleLabel = getAgentAchatRoleLabel(currentUser);
   const [demandes, setDemandes] = useState<DemandeAchat[]>([]);
   const [loading, setLoading] = useState(true);
@@ -150,8 +156,8 @@ export default function PassationDashboardPage() {
   const [detailViewMode, setDetailViewMode] = useState<DetailViewMode>("detail");
   const [passationModalDemandeId, setPassationModalDemandeId] = useState<number | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const mineScopeHref = "/passation";
-  const allScopeHref = "/demande-achat?scope=all";
+  const mineScopeHref = "/personnel/passation";
+  const allScopeHref = "/personnel/demande-achat?scope=all";
 
   const showToast = (message: string) => {
     setToastMessage(message);
@@ -170,8 +176,9 @@ export default function PassationDashboardPage() {
       router.replace("/auth/login");
       return;
     }
+    if (currentUser === null) return;
 
-    if (!isAgentAchatUser(currentUser)) {
+    if (!isAdminUser(currentUser) && !isAgentAchatUser(currentUser)) {
       router.replace(getLandingRouteForUser(currentUser));
       return;
     }

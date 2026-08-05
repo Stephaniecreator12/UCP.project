@@ -1,5 +1,5 @@
 from rest_framework.permissions import BasePermission, SAFE_METHODS
-from apps.authorization.constants import SECRETAIRE
+from apps.authorization.constants import ADMIN, SECRETAIRE
 
 
 class IsSecretaireOuLectureSeule(BasePermission):
@@ -15,5 +15,5 @@ class IsSecretaireOuLectureSeule(BasePermission):
         return bool(
             request.user
             and request.user.is_authenticated
-            and request.user.groups.filter(name=SECRETAIRE).exists()
+            and request.user.groups.filter(name__in=[ADMIN, SECRETAIRE]).exists()
         )

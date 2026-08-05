@@ -35,7 +35,7 @@ export default function AuditTrailPanel({
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-4">
-      <h3 className="text-lg font-bold text-gray-900">Piste d'audit</h3>
+      <h3 className="text-lg font-bold text-gray-900">Piste d&apos;audit</h3>
 
       {loading ? (
         <p className="text-sm text-gray-400">Chargement…</p>

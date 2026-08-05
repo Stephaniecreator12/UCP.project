@@ -134,14 +134,12 @@ class Command(BaseCommand):
             ]
 
             defaults = {
-                "email": fixture["email"],
-                "first_name": fixture["first_name"],
-                "last_name": fixture["last_name"],
+                "full_name": f"{fixture['first_name']} {fixture['last_name']}",
                 "is_active": True,
             }
 
             user, created = user_model.objects.update_or_create(
-                username=fixture["username"],
+                email=fixture["email"],
                 defaults=defaults,
             )
 

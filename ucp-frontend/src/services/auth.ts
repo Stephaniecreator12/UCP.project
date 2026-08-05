@@ -1,7 +1,10 @@
 import Cookies from "js-cookie";
 import { API_BASE_URL, API_RH_URL } from "./api";
-import { UserProfile } from "@/types/profile";
+import type { UserProfile } from "@/types/profile";
+import { getme } from "./profile";
+export type { UserProfile };
 import {
+  ADMIN as ADMIN_GROUP,
   PUBLIC as PUBLIC_GROUP,
   VALIDATEUR_HIERARCHIQUE,
   VALIDATEUR_TECHNIQUE,
@@ -216,6 +219,7 @@ const getLoginErrorMessage = (data: LoginResult): LoginResult => {
   return { status: 500, message: extractAuthErrorMessage(data) || "Connexion impossible pour le moment.", success: false }
 };
 export {
+  ADMIN_GROUP,
   PUBLIC_GROUP,
   VALIDATOR_GROUPS,
   FINANCE_GROUPS,
@@ -286,6 +290,9 @@ export const isSecretaireContractualisationUser = (user: UserProfile | null) =>
 export const isLogistiqueUser = (user: UserProfile | null) =>
   isAgentMarcheUser(user);
 
+export const isAdminUser = (user: UserProfile | null) =>
+  !!user?.groups?.includes(ADMIN_GROUP);
+
 export const canUseGlobalDashboard = (user: UserProfile | null) => !!user;
 
 export const getValidatorGroup = (
@@ -340,4 +347,19 @@ export const getMarketRoleLabel = (user: UserProfile | null) => {
 export const getLandingRouteForUser = (user: UserProfile | null) => {
   if (isPublicUser(user)) return "/procurement";
   return "/personnel/log-dashboard";
+};
+
+export const fetchCurrentUser = async (): Promise<UserProfile> => {
+  const result = await getme();
+  if (result.error) {
+    const detail =
+      typeof result.message === "string" ? result.message : "";
+    throw new Error(
+      detail || "Impossible de récupérer le profil utilisateur",
+    );
+  }
+  if (!result.data) {
+    throw new Error("Impossible de récupérer le profil utilisateur");
+  }
+  return result.data;
 };

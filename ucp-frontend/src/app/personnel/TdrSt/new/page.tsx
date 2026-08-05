@@ -22,7 +22,9 @@ import {
 } from "../formulaire/hooks/useTdrStData";
 
 type MeResponse = {
-  role?: string;
+  data?: {
+    role?: string;
+  };
 };
 
 const CATEGORY_OPTIONS = [
@@ -157,10 +159,10 @@ function TdrStNewPageContent() {
       setError(null);
       try {
         const me = await fetchJson<MeResponse>("/api/users/me/", { method: "GET" });
-        const currentRole = me.role ?? null;
+        const currentRole = me?.data?.role ?? null;
         setRole(currentRole);
 
-        if (currentRole && currentRole !== "demandeur" && currentRole !== "initiateur") {
+        if (currentRole && currentRole !== "demandeur" && currentRole !== "initiateur" && currentRole !== "admin") {
           throw new Error("Seul le demandeur peut créer ou modifier un brouillon TDR/ST.");
         }
 

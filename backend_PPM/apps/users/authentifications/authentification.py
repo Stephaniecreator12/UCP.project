@@ -129,16 +129,15 @@ def provision_user(user_data):
     user, created = User.objects.get_or_create(
         email=email,
         defaults={
-            "username": email,
-            "first_name": user_data["prenom"],
-            "last_name": user_data["nom"],
+            "full_name": f"{user_data.get('prenom', '')} {user_data.get('nom', '')}".strip(),
             "is_active": True
         }
     )
 
     if not created:
-        user.first_name = user_data["prenom"]
-        user.last_name = user_data["nom"]
+        full_name = f"{user_data.get('prenom', '')} {user_data.get('nom', '')}".strip()
+        if full_name:
+            user.full_name = full_name
         user.is_active = True
         
     # 3. Forcer le mot de passe local à être inutilisable et sauvegarder

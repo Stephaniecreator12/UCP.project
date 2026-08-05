@@ -11,6 +11,7 @@ import {
   getToken,
   isAgentAchatUser,
   isValidatorUser,
+  isAdminUser,
 } from "@/services/auth";
 import { getme } from "@/services/profile";
 import { MenuItemType, GridRow } from "@/types/grid";
@@ -143,21 +144,28 @@ const loadData = useCallback(async (): Promise<GridRow[]> => {
       return;
     }
 
-    const currentUser = getme();
-    if (isValidatorUser(currentUser) || isAgentAchatUser(currentUser)) {
-      router.replace(getLandingRouteForUser(currentUser));
-    }
+    void getme().then((res) => {
+      if (res.error) return;
+      const user = res.data ?? null;
+      if (!isAdminUser(user) && (isValidatorUser(user) || isAgentAchatUser(user))) {
+        router.replace(getLandingRouteForUser(user));
+      }
+    });
   }, [router]);
 
   useEffect(() => {
-    const currentUser = getme();
-    if (
-      getToken() &&
-      !isValidatorUser(currentUser) &&
-      !isAgentAchatUser(currentUser)
-    ) {
-      loadData();
-    }
+    void getme().then((res) => {
+      if (res.error) return;
+      const user = res.data ?? null;
+      if (
+        getToken() &&
+        (isAdminUser(user) ||
+        (!isValidatorUser(user) &&
+        !isAgentAchatUser(user)))
+      ) {
+        loadData();
+      }
+    });
   }, [loadData]);
 
   useEffect(() => {

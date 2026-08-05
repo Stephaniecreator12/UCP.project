@@ -1,5 +1,5 @@
 from rest_framework.permissions import BasePermission
-from apps.authorization.constants import SECRETAIRE, SECRETAIRE_CONTRACTUALISATION
+from apps.authorization.constants import ADMIN, SECRETAIRE, SECRETAIRE_CONTRACTUALISATION
 
 
 class IsSecretaireContractualisation(BasePermission):
@@ -12,6 +12,6 @@ class IsSecretaireContractualisation(BasePermission):
             request.user
             and request.user.is_authenticated
             and request.user.groups.filter(
-                name__in=[SECRETAIRE, SECRETAIRE_CONTRACTUALISATION]
+                name__in=[ADMIN, SECRETAIRE, SECRETAIRE_CONTRACTUALISATION]
             ).exists()
         )

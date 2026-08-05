@@ -37,14 +37,14 @@ const MENU_LINKS: MenuLink[] = [
   {
     label: "Suivi Procurement",
     href: "/personnel/log-dashboard",
-    groups: ["DEMANDEUR"],
+    groups: ["ADMIN", "DEMANDEUR"],
     match: (p) => p.startsWith("/personnel/log-dashboard"),
   },
 
   {
     label: "Demande d'achat",
     href: "/personnel/demande-achat",
-    groups: ["DEMANDEUR"],
+    groups: ["ADMIN", "DEMANDEUR"],
     match: (p) => p.startsWith("/personnel/demande-achat"),
   },
 
@@ -52,6 +52,7 @@ const MENU_LINKS: MenuLink[] = [
     label: "Validation",
     href: "/personnel/validation",
     groups: [
+      "ADMIN",
       "VALIDATEUR_HIERARCHIQUE",
       "VALIDATEUR_TECHNIQUE",
       "VALIDATEUR_PROGRAMMATIQUE",
@@ -67,6 +68,7 @@ const MENU_LINKS: MenuLink[] = [
     label: "TDR",
     href: "/personnel/TdrSt",
     groups: [
+      "ADMIN",
       "VALIDATEUR_HIERARCHIQUE",
       "VALIDATEUR_TECHNIQUE",
       "VALIDATEUR_PROGRAMMATIQUE",
@@ -83,14 +85,14 @@ const MENU_LINKS: MenuLink[] = [
   {
     label: "Passation",
     href: "/personnel/passation",
-    groups: ["AGENT_ACHAT"],
+    groups: ["ADMIN", "AGENT_ACHAT"],
     match: (p) => p.startsWith("/personnel/passation"),
   },
 
   {
     label: "Marché",
     href: "/personnel/marche",
-    groups: ["AGENT_MARCHE", "MARCHES", "LOGISTIQUE"],
+    groups: ["ADMIN", "AGENT_MARCHE", "MARCHES", "LOGISTIQUE"],
     match: (p) =>
       p.startsWith("/personnel/marche") ||
       p.startsWith("/personnel/logistique"),
@@ -99,21 +101,21 @@ const MENU_LINKS: MenuLink[] = [
   {
     label: "Ouverture des offres",
     href: "/personnel/ouverture_offre",
-    groups: ["SECRETAIRE"],
+    groups: ["ADMIN", "SECRETAIRE"],
     match: (p) => p.startsWith("/personnel/ouverture_offre"),
   },
 
   {
     label: "Contractualisation",
     href: "/personnel/contractualisation",
-    groups: ["SECRETAIRE_CONTRACTUALISATION"],
+    groups: ["ADMIN", "SECRETAIRE_CONTRACTUALISATION"],
     match: (p) => p.startsWith("/personnel/contractualisation"),
   },
 
   {
     label: "Évaluation des offres",
     href: "/personnel/evaluation_offre",
-    groups: ["AUDITEUR", "EVALUATEUR", "PRESIDENT"],
+    groups: ["ADMIN", "AUDITEUR", "EVALUATEUR", "PRESIDENT"],
     match: (p) => p.startsWith("/personnel/evaluation_offre"),
   },
 ];

@@ -13,7 +13,6 @@ class ContratViewSet(viewsets.ModelViewSet):
 
     queryset = (
         Contrat.objects
-        .select_related("projet", "prestataire")
         .prefetch_related(
             "documents",
             "echeances",
@@ -121,12 +120,19 @@ class ContratViewSet(viewsets.ModelViewSet):
 
         contrat = self.get_object()
 
-        # exemple
+        email_prestataire = (request.data.get("email") or "").strip()
+
+        if not email_prestataire:
+            return Response(
+                {"message": "L'email du prestataire est requis."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         send_mail(
             subject=f"Contrat {contrat.numero_marche}",
             message="Votre contrat est disponible.",
             from_email=None,
-            recipient_list=[contrat.prestataire.email],
+            recipient_list=[email_prestataire],
         )
 
         return Response(

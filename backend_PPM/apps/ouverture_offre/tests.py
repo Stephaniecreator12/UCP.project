@@ -30,18 +30,15 @@ class OuvertureNotificationTests(TestCase):
     def setUp(self):
         mail.outbox = []
         self.secretaire = User.objects.create_user(
-            username="secretaire",
             email="secretaire@example.test",
             password="secret123",
         )
         self.president = User.objects.create_user(
-            username="president",
             email="president@example.test",
             password="secret123",
         )
         Group.objects.get_or_create(name="RAF")[0].user_set.add(self.president)
         self.membre = User.objects.create_user(
-            username="membre",
             email="membre@example.test",
             password="normal-member-password",
         )
@@ -74,12 +71,11 @@ class OuvertureNotificationTests(TestCase):
         self.assertNotIn("stephaniehanitriniala4@gmail.com", message.to)
         self.assertEqual(message.from_email, "stephaniehanitriniala4@gmail.com")
         self.assertIn(expected_path, message.body)
-        self.assertIn("Mot de passe de validation :", message.body)
+        self.assertIn("Mot de passe :", message.body)
         self.assertIn(expected_path.replace("&", "&amp;"), message.alternatives[0][0])
 
     def test_each_validator_receives_a_different_dao_code(self):
         membre_2 = User.objects.create_user(
-            username="membre2",
             email="membre2@example.test",
             password="normal-member-password",
         )
@@ -100,7 +96,7 @@ class OuvertureNotificationTests(TestCase):
         for message in mail.outbox:
             password_line = next(
                 line for line in message.body.splitlines()
-                if line.startswith("Mot de passe de validation :")
+                if line.startswith("Mot de passe :")
             )
             passwords.append(password_line.split(":", 1)[1].strip())
 
@@ -129,7 +125,7 @@ class OuvertureNotificationTests(TestCase):
         message = mail.outbox[0]
         password_line = next(
             line for line in message.body.splitlines()
-            if line.startswith("Mot de passe de validation :")
+            if line.startswith("Mot de passe :")
         )
         validation_password = password_line.split(":", 1)[1].strip()
 
@@ -148,7 +144,7 @@ class OuvertureNotificationTests(TestCase):
         message = mail.outbox[0]
         password_line = next(
             line for line in message.body.splitlines()
-            if line.startswith("Mot de passe de validation :")
+            if line.startswith("Mot de passe :")
         )
         validation_password = password_line.split(":", 1)[1].strip()
 
@@ -187,7 +183,7 @@ class OuvertureNotificationTests(TestCase):
         message = mail.outbox[0]
         password_line = next(
             line for line in message.body.splitlines()
-            if line.startswith("Mot de passe de validation :")
+            if line.startswith("Mot de passe :")
         )
         validation_password = password_line.split(":", 1)[1].strip()
 
@@ -229,7 +225,7 @@ class OuvertureNotificationTests(TestCase):
         message = mail.outbox[0]
         password_line = next(
             line for line in message.body.splitlines()
-            if line.startswith("Mot de passe de validation :")
+            if line.startswith("Mot de passe :")
         )
         validation_password = password_line.split(":", 1)[1].strip()
 
@@ -268,10 +264,8 @@ class OuvertureNotificationTests(TestCase):
 
     def test_available_users_excludes_validation_only_commission_accounts(self):
         commission_user = User(
-            username="commission-temp",
             email="commission-temp@example.test",
-            first_name="Commission",
-            last_name="Temp",
+            full_name="Commission Temp",
             is_active=True,
         )
         commission_user.set_unusable_password()

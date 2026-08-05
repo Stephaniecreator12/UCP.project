@@ -22,9 +22,9 @@ class EvaluationNotificationTests(TestCase):
     def setUp(self):
         mail.outbox = []
         self.secretaire = User.objects.create_user(
-            username="secretaire-eval",
             email="secretaire-eval@example.test",
             password="secret123",
+            full_name="Secretaire Eval",
         )
         self.seance = SeanceOuverture.objects.create(
             reference_dossier="DAO/2026/EVAL",
@@ -41,9 +41,9 @@ class EvaluationNotificationTests(TestCase):
     def _create_evaluators(self):
         return [
             User.objects.create_user(
-                username=f"eval-{idx}",
                 email=f"eval-{idx}@example.test",
                 password="secret123",
+                full_name=f"Evaluateur {idx}",
             )
             for idx in range(1, 4)
         ]
@@ -77,10 +77,10 @@ class EvaluationNotificationTests(TestCase):
     def test_assigner_evaluateurs_seance_blocks_evaluator_without_email(self):
         evaluators = self._create_evaluators()
         missing_email_user = User.objects.create_user(
-            username="eval-without-email",
-            email="",
+            email="eval-without-email@example.test",
             password="secret123",
         )
+        User.objects.filter(pk=missing_email_user.pk).update(email="")
 
         with self.assertRaises(ValidationError):
             assigner_evaluateurs_seance(

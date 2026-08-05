@@ -22,6 +22,7 @@ from apps.achats.services.demande_service import (
     update_delivery,
 )
 from apps.achats.services.validation_service import traiter_validation
+from apps.users.models import AgentProfile, Poste, Programme
 
 User = get_user_model()
 
@@ -34,10 +35,9 @@ class AchatsNotificationTests(TestCase):
 
     def _create_user(self, username, email, groups=None):
         user = User.objects.create_user(
-            username=username,
             email=email,
             password="secret123",
-            first_name=username.capitalize(),
+            full_name=username.capitalize(),
         )
 
         for group_name in groups or []:
@@ -45,6 +45,18 @@ class AchatsNotificationTests(TestCase):
             user.groups.add(group)
 
         return user
+
+    def _create_poste(self, code, nom, superieurs=()):
+        programme, _ = Programme.objects.get_or_create(
+            nom=f"Programme {code}", code=code
+        )
+        poste = Poste.objects.create(nom=nom, programme=programme)
+        for superieur in superieurs:
+            poste.superieurs.add(superieur)
+        return poste
+
+    def _assign_poste(self, user, poste):
+        return AgentProfile.objects.create(user=user, poste=poste)
 
     def _create_demande(self, demandeur, **overrides):
         self.sequence += 1
@@ -84,11 +96,23 @@ class AchatsNotificationTests(TestCase):
 
     def test_validation_a_completer_sends_email_to_demandeur(self):
         demandeur = self._create_user("alice", "alice@example.com")
+        chef_poste = self._create_poste(
+            DemandeAchat.SOURCE_SRPS_CS7_FM, "Chef service"
+        )
+        self._assign_poste(
+            demandeur,
+            self._create_poste(
+                DemandeAchat.SOURCE_SRPS_CS7_FM,
+                "Agent",
+                superieurs=[chef_poste],
+            ),
+        )
         validateur = self._create_user(
             "hierarchie",
             "hierarchie@example.com",
             groups=["VALIDATEUR_HIERARCHIQUE"],
         )
+        self._assign_poste(validateur, chef_poste)
         demande = self._create_demande(
             demandeur,
             statut=DemandeAchat.STATUT_SOUMISE,
@@ -114,6 +138,10 @@ class AchatsNotificationTests(TestCase):
             "raf@example.com",
             groups=["FINANCE"],
         )
+        self._assign_poste(
+            finance,
+            self._create_poste(DemandeAchat.SOURCE_SRPS_CS7_FM, "RAF"),
+        )
         self._create_user(
             "programme",
             "programme@example.com",
@@ -124,7 +152,6 @@ class AchatsNotificationTests(TestCase):
             statut=DemandeAchat.STATUT_SOUMISE,
             etape_validation_actuelle=DemandeAchat.ETAPE_BUDGETAIRE,
             ligne_budgetaire="",
-            source_financement="",
             numero_subvention="",
             numero_engagement_budgetaire="",
             solde_disponible_ligne_budgetaire=None,
@@ -168,6 +195,10 @@ class AchatsNotificationTests(TestCase):
             "coordo",
             "coordo@example.com",
             groups=["APPROBATEUR_NATIONAL"],
+        )
+        self._assign_poste(
+            approbateur,
+            self._create_poste(DemandeAchat.SOURCE_SRPS_CS7_FM, "Coordination nationale"),
         )
         self._create_user("agentachat", "achat@example.com", groups=["AGENT_ACHAT"])
         demande = self._create_demande(
@@ -534,10 +565,9 @@ class DashboardScopeApiTests(TestCase):
 
     def _create_user(self, username, email, groups=None):
         user = User.objects.create_user(
-            username=username,
             email=email,
             password="secret123",
-            first_name=username.capitalize(),
+            full_name=username.capitalize(),
         )
 
         for group_name in groups or []:

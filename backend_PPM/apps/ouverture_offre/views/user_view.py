@@ -37,7 +37,7 @@ def available_users(request):
         .exclude(email__endswith="@ucp.local")  # exclut les comptes demo
         .filter(groups__name__in=ALLOWED_GROUPS)  # seulement vrais agents UCP
         .distinct()
-        .order_by("first_name", "last_name", "username")
+        .order_by("full_name", "email")
     )
     serializer = SimpleUserSerializer(users, many=True)
     return Response(serializer.data)

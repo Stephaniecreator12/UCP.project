@@ -24,7 +24,7 @@ BON_COMMANDE_PREFIX = "UCP/BC"
 ENGAGEMENT_PREFIX = "ENG"
 
 from apps.authorization.constants import (
-    AGENT_ACHAT, LOGISTIQUE, AGENT_MARCHE, MARCHES,
+    ADMIN, AGENT_ACHAT, LOGISTIQUE, AGENT_MARCHE, MARCHES,
     FINANCE, RAF, VALIDATEUR_BUDGETAIRE,
 )
 
@@ -106,17 +106,17 @@ def list_mes_demandes(user, scope="mine"):
 
 def is_agent_achat(user):
     # Keep group checks in helpers so the rest of the service layer stays readable.
-    return user.groups.filter(name=AGENT_ACHAT_GROUP).exists()
+    return user.groups.filter(name__in=[ADMIN, AGENT_ACHAT_GROUP]).exists()
 
 def is_agent_marche(user):
-    return user.groups.filter(name__in=MARCHE_GROUPS).exists()
+    return user.groups.filter(name__in=[ADMIN, *MARCHE_GROUPS]).exists()
 
 def is_logistique(user):
     return is_agent_marche(user)
 
 
 def is_finance(user):
-    return user.groups.filter(name__in=FINANCE_GROUPS).exists()
+    return user.groups.filter(name__in=[ADMIN, *FINANCE_GROUPS]).exists()
 
 
 def list_demandes_a_commander(user):

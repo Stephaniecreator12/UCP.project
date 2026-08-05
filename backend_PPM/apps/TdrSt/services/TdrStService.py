@@ -5,7 +5,7 @@ from decimal import Decimal
 from django.conf import settings
 from django.db import models, transaction
 from django.db.models import Q
-from apps.authorization.constants import AUDITEUR, VALIDATEUR_TECHNIQUE, APPROBATEUR_NATIONAL
+from apps.authorization.constants import ADMIN, AUDITEUR, VALIDATEUR_TECHNIQUE, APPROBATEUR_NATIONAL
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
@@ -263,15 +263,17 @@ def list_documents_for_user(user, scope: str = "mine"):
     user_groups = set(user.groups.values_list("name", flat=True))
     queryset = TdrStDocument.objects.none()
 
-    if AUDITEUR in user_groups:
+    is_admin = ADMIN in user_groups
+
+    if is_admin or AUDITEUR in user_groups:
         queryset |= list_auditeur_documents()
-    if VALIDATEUR_TECHNIQUE in user_groups:
+    if is_admin or VALIDATEUR_TECHNIQUE in user_groups:
         queryset |= list_tech_documents(user)
-    if APPROBATEUR_NATIONAL in user_groups:
+    if is_admin or APPROBATEUR_NATIONAL in user_groups:
         queryset |= list_final_documents(user)
 
     is_validator_or_auditor = bool(
-        user_groups.intersection({VALIDATEUR_TECHNIQUE, APPROBATEUR_NATIONAL, AUDITEUR})
+        user_groups.intersection({ADMIN, VALIDATEUR_TECHNIQUE, APPROBATEUR_NATIONAL, AUDITEUR})
     )
     if not is_validator_or_auditor or scope == "mine":
         queryset |= list_my_documents(user)

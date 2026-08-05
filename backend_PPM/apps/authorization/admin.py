@@ -77,6 +77,7 @@ class CustomGroupAdmin(BaseGroupAdmin):
             category = config["category"]
             label = CATEGORIES.get(category, category)
             colors = {
+                "admin": "#dc2626",
                 "public": "#6b7280",
                 "demandeur": "#3b82f6",
                 "validateur": "#8b5cf6",

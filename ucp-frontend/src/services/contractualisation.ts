@@ -33,7 +33,10 @@ export const listContrats = async (): Promise<Contrat[]> => {
   if (!res.ok) {
     throw new Error("Erreur lors du chargement des contrats");
   }
-  return res.json();
+  const data = await res.json();
+  if (Array.isArray(data)) return data;
+  if (data && Array.isArray(data.results)) return data.results;
+  return [];
 };
 
 // ============================================================

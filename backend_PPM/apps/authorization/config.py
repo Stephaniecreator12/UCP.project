@@ -1,6 +1,76 @@
 
 GROUP_DEFINITIONS = [
     {
+        "name": "ADMIN",
+        "category": "admin",
+        "description": "Administrateur système – accès complet à tous les modules et fonctionnalités.",
+        "permissions": {
+            "users": {
+                "userprofile": ["view", "add", "change", "delete"],
+                "programme": ["view", "add", "change", "delete"],
+                "poste": ["view", "add", "change", "delete"],
+                "agentprofile": ["view", "add", "change", "delete"],
+            },
+            "ppm": {
+                "travaux": ["view", "add", "change", "delete"],
+                "biens": ["view", "add", "change", "delete"],
+                "consultance": ["view", "add", "change", "delete"],
+            },
+            "achats": {
+                "demandeachat": ["view", "add", "change", "delete"],
+                "historiquedemande": ["view", "add", "change", "delete"],
+                "lignebesoin": ["view", "add", "change", "delete"],
+                "documentdemande": ["view", "add", "change", "delete"],
+                "validationdemande": ["view", "add", "change", "delete"],
+                "fournisseur": ["view", "add", "change", "delete"],
+            },
+            "TdrSt": {
+                "tdrstdocument": ["view", "add", "change", "delete"],
+                "tdrstdocumentfileversion": ["view", "add", "change", "delete"],
+                "tdrstvalidationaction": ["view", "add", "change", "delete"],
+            },
+            "procurement": {
+                "procurementmarket": ["view", "add", "change", "delete"],
+                "technicaldocument": ["view", "add", "change", "delete"],
+                "annexdocument": ["view", "add", "change", "delete"],
+                "dateatelier": ["view", "add", "change", "delete"],
+            },
+            "ouverture_offre": {
+                "seanceouverture": ["view", "add", "change", "delete"],
+                "offreouverture": ["view", "add", "change", "delete"],
+                "membreseance": ["view", "add", "change", "delete"],
+                "pvdocument": ["view", "add", "change", "delete"],
+            },
+            "evaluation_offre": {
+                "evaluationseanceassignation": ["view", "add", "change", "delete"],
+                "evaluationoffre": ["view", "add", "change", "delete"],
+                "examenpreliminaire": ["view", "add", "change", "delete"],
+                "evaluationtechnique": ["view", "add", "change", "delete"],
+                "evaluationfinanciere": ["view", "add", "change", "delete"],
+                "evaluationconclusion": ["view", "add", "change", "delete"],
+                "decisionfinale": ["view", "add", "change", "delete"],
+                "audittrail": ["view", "add", "change", "delete"],
+                "evaluationreport": ["view", "add", "change", "delete"],
+            },
+            "contractualisation": {
+                "contrat": ["view", "add", "change", "delete"],
+                "echeancierpaiement": ["view", "add", "change", "delete"],
+                "documentcontrat": ["view", "add", "change", "delete"],
+                "audittrailcontrat": ["view", "add", "change", "delete"],
+            },
+            "contrats": {
+                "contrat": ["view", "add", "change", "delete"],
+                "documentcontrat": ["view", "add", "change", "delete"],
+                "echeancepaiement": ["view", "add", "change", "delete"],
+                "contratauditlog": ["view", "add", "change", "delete"],
+            },
+            "log": {
+                "logconsultation": ["view", "add", "change", "delete"],
+                "logdownload": ["view", "add", "change", "delete"],
+            },
+        },
+    },
+    {
         "name": "PUBLIC",
         "category": "public",
         "description": "Utilisateur externe (fournisseur, consultant). Consultation des avis de marché publics.",
@@ -32,6 +102,12 @@ GROUP_DEFINITIONS = [
             "users": {
                 "userprofile": ["view"],
             },
+            "procurement": {
+                            "procurementmarket": ["view"],
+                            "technicaldocument": ["view"],
+                            "annexdocument": ["view"],
+                            "dateatelier": ["view"],
+            },
         },
     },
     {
@@ -43,6 +119,12 @@ GROUP_DEFINITIONS = [
                 "demandeachat": ["view", "change"],
                 "validationdemande": ["view", "add"],
                 "historiquedemande": ["view"],
+            },
+            "procurement": {
+                            "procurementmarket": ["view"],
+                            "technicaldocument": ["view"],
+                            "annexdocument": ["view"],
+                            "dateatelier": ["view"],
             },
         },
     },
@@ -61,6 +143,12 @@ GROUP_DEFINITIONS = [
                 "tdrstdocumentfileversion": ["view", "add"],
                 "tdrstvalidationaction": ["view", "add"],
             },
+            "procurement": {
+                            "procurementmarket": ["view"],
+                            "technicaldocument": ["view"],
+                            "annexdocument": ["view"],
+                            "dateatelier": ["view"],
+            },
         },
     },
     {
@@ -72,6 +160,12 @@ GROUP_DEFINITIONS = [
                 "demandeachat": ["view", "change"],
                 "validationdemande": ["view", "add"],
                 "historiquedemande": ["view"],
+            },
+            "procurement": {
+                            "procurementmarket": ["view"],
+                            "technicaldocument": ["view"],
+                            "annexdocument": ["view"],
+                            "dateatelier": ["view"],
             },
         },
     },
@@ -89,6 +183,12 @@ GROUP_DEFINITIONS = [
                 "tdrstdocument": ["view", "change"],
                 "tdrstvalidationaction": ["view", "add"],
             },
+            "procurement": {
+                            "procurementmarket": ["view"],
+                            "technicaldocument": ["view"],
+                            "annexdocument": ["view"],
+                            "dateatelier": ["view"],
+            },
         },
     },
     {
@@ -100,6 +200,12 @@ GROUP_DEFINITIONS = [
                 "demandeachat": ["view", "change"],
                 "validationdemande": ["view", "add"],
                 "historiquedemande": ["view"],
+            },
+            "procurement": {
+                            "procurementmarket": ["view"],
+                            "technicaldocument": ["view"],
+                            "annexdocument": ["view"],
+                            "dateatelier": ["view"],
             },
         },
     },
@@ -113,6 +219,12 @@ GROUP_DEFINITIONS = [
                 "validationdemande": ["view", "add"],
                 "historiquedemande": ["view"],
             },
+            "procurement": {
+                            "procurementmarket": ["view"],
+                            "technicaldocument": ["view"],
+                            "annexdocument": ["view"],
+                            "dateatelier": ["view"],
+            },
         },
     },
     {
@@ -124,6 +236,12 @@ GROUP_DEFINITIONS = [
                 "demandeachat": ["view", "change"],
                 "validationdemande": ["view", "add"],
                 "historiquedemande": ["view"],
+            },
+            "procurement": {
+                            "procurementmarket": ["view"],
+                            "technicaldocument": ["view"],
+                            "annexdocument": ["view"],
+                            "dateatelier": ["view"],
             },
         },
     },
@@ -143,6 +261,7 @@ GROUP_DEFINITIONS = [
                 "procurementmarket": ["view", "add", "change"],
                 "technicaldocument": ["view", "add", "change"],
                 "annexdocument": ["view", "add", "change"],
+                "dateatelier": ["view", "add", "change"],
             },
             "users": {
                 "userprofile": ["view"],
@@ -163,6 +282,7 @@ GROUP_DEFINITIONS = [
                 "procurementmarket": ["view", "change"],
                 "technicaldocument": ["view", "add"],
                 "annexdocument": ["view", "add"],
+                "dateatelier": ["view", "add"],
             },
             "users": {
                 "userprofile": ["view"],
@@ -183,6 +303,7 @@ GROUP_DEFINITIONS = [
                 "procurementmarket": ["view", "add", "change"],
                 "technicaldocument": ["view", "add", "change"],
                 "annexdocument": ["view", "add", "change"],
+                "dateatelier": ["view", "add", "change"],
             },
             "users": {
                 "userprofile": ["view"],
@@ -228,6 +349,12 @@ GROUP_DEFINITIONS = [
             "contractualisation": {
                 "contrat": ["view"],
             },
+            "procurement": {
+                            "procurementmarket": ["view"],
+                            "technicaldocument": ["view"],
+                            "annexdocument": ["view"],
+                            "dateatelier": ["view"],
+            },
         },
     },
     {
@@ -243,6 +370,12 @@ GROUP_DEFINITIONS = [
             },
             "achats": {
                 "demandeachat": ["view"],
+            },
+            "procurement": {
+                            "procurementmarket": ["view"],
+                            "technicaldocument": ["view"],
+                            "annexdocument": ["view"],
+                            "dateatelier": ["view"],
             },
         },
     },
@@ -263,6 +396,12 @@ GROUP_DEFINITIONS = [
                 "evaluationfinanciere": ["view"],
                 "audittrail": ["view"],
             },
+            "procurement": {
+                            "procurementmarket": ["view"],
+                            "technicaldocument": ["view"],
+                            "annexdocument": ["view"],
+                            "dateatelier": ["view"],
+            },
         },
     },
     {
@@ -278,6 +417,12 @@ GROUP_DEFINITIONS = [
                 "evaluationfinanciere": ["view", "add", "change"],
                 "evaluationconclusion": ["view", "add", "change"],
                 "evaluationreport": ["view"],
+            },
+            "procurement": {
+                            "procurementmarket": ["view"],
+                            "technicaldocument": ["view"],
+                            "annexdocument": ["view"],
+                            "dateatelier": ["view"],
             },
         },
     },
@@ -297,11 +442,18 @@ GROUP_DEFINITIONS = [
                 "audittrail": ["view"],
                 "evaluationreport": ["view", "add", "change"],
             },
+            "procurement": {
+                            "procurementmarket": ["view"],
+                            "technicaldocument": ["view"],
+                            "annexdocument": ["view"],
+                            "dateatelier": ["view"],
+            },
         },
     },
 ]
 
 CATEGORIES = {
+    "admin": "Administrateur",
     "public": "Utilisateurs publics",
     "demandeur": "Demandeurs",
     "validateur": "Validateurs / Approbateurs",

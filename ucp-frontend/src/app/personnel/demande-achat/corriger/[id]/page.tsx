@@ -19,6 +19,7 @@ import {
   isAgentAchatUser,
   isFinanceUser,
   isValidatorUser,
+  isAdminUser,
 } from "@/services/auth";
 import { getme } from "@/services/profile";
 import {
@@ -372,8 +373,13 @@ export default function CorrigerDemandePage() {
   
   useEffect(() => {
     if (!getToken()) return router.replace("/auth/login");
-    const u = getme(); 
-    if (isValidatorUser(u) || isAgentAchatUser(u) || isFinanceUser(u)) router.replace(getLandingRouteForUser(u));
+    void getme().then((res) => {
+      if (!res.error) {
+        const u = res.data ?? null;
+        if (!isAdminUser(u) && (isValidatorUser(u) || isAgentAchatUser(u) || isFinanceUser(u)))
+          router.replace(getLandingRouteForUser(u));
+      }
+    });
 
     const load = async () => {
       if (!demandeId) return;

@@ -63,25 +63,41 @@ def create_group(definition):
         name,
         len(permission_objects),
     )
-    return group
+    return group, created
 
 
 def setup_all_groups():
-    results = {"created": 0, "updated": 0, "errors": 0}
+    results = {"created": 0, "updated": 0, "deleted": 0, "errors": 0}
+    configured_names = {d["name"] for d in GROUP_DEFINITIONS}
+
     for definition in GROUP_DEFINITIONS:
         try:
-            create_group(definition)
-            if Group.objects.filter(name=definition["name"]).exists():
-                results["updated"] += 1
-            else:
+            group, created = create_group(definition)
+            if created:
                 results["created"] += 1
+            else:
+                results["updated"] += 1
         except Exception as e:
             logger.error("Erreur lors de la création du groupe '%s': %s", definition["name"], e)
             results["errors"] += 1
 
+    stale_groups = Group.objects.exclude(name__in=configured_names)
+    stale_count = stale_groups.count()
+    if stale_count:
+        stale_names = list(stale_groups.values_list("name", flat=True))
+        stale_groups.delete()
+        results["deleted"] = stale_count
+        logger.info(
+            "Suppression de %d groupe(s) obsolète(s) : %s",
+            stale_count,
+            ", ".join(stale_names),
+        )
+
     logger.info(
-        "Configuration terminée : %d groupes à jour, %d erreurs",
+        "Configuration terminée : %d créés, %d mis à jour, %d supprimés, %d erreurs",
+        results["created"],
         results["updated"],
+        results["deleted"],
         results["errors"],
     )
     return results

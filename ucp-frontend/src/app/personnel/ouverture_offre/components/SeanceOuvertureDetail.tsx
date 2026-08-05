@@ -30,6 +30,7 @@ import {
   fetchCurrentUser,
   getToken,
   isSecretaireUser,
+  isAdminUser,
   logout,
   type UserProfile,
 } from "@/services/auth";
@@ -426,7 +427,7 @@ export default function SeanceOuvertureDetail() {
 
       try {
         const user = await fetchCurrentUser();
-        if (!isSecretaireUser(user)) {
+        if (!isAdminUser(user) && !isSecretaireUser(user)) {
           logout();
           router.replace("/auth/login");
           return;
@@ -496,7 +497,7 @@ export default function SeanceOuvertureDetail() {
         const localStatus = localStorage.getItem(
           `ucp_commission_membres_status_${seanceData.reference_dossier}`,
         );
-        const isSecretaire = isSecretaireUser(user);
+        const isSecretaire = isSecretaireUser(user) || isAdminUser(user);
         if (
           isSecretaire &&
           localStatus !== "final" &&
@@ -524,14 +525,14 @@ export default function SeanceOuvertureDetail() {
   const canEdit =
     !!seance &&
     !!currentUser &&
-    isSecretaireUser(currentUser) &&
-    seance.secretaire === currentUser.id &&
+    (isAdminUser(currentUser) || (isSecretaireUser(currentUser) &&
+    seance.secretaire === Number(currentUser.id))) &&
     !isLocked;
   const canResendInvitations =
     !!seance &&
     !!currentUser &&
-    isSecretaireUser(currentUser) &&
-    seance.secretaire === currentUser.id &&
+    (isAdminUser(currentUser) || (isSecretaireUser(currentUser) &&
+    seance.secretaire === Number(currentUser.id))) &&
     (seance.statut === "EN_VALIDATION_MEMBRES" ||
       seance.statut === "EN_VALIDATION_PRESIDENT");
   const showMontantColumn = formData?.etape_ouverture === "COMPLETE";
@@ -567,7 +568,7 @@ export default function SeanceOuvertureDetail() {
   }, [availableUsers, memberSearch, selectedPresidentId]);
 
   const currentMember = seance?.membres.find(
-    (membre) => membre.utilisateur === currentUser?.id,
+    (membre) => membre.utilisateur === Number(currentUser?.id),
   );
   const presentMembers =
     seance?.membres.filter((membre) => membre.est_present) ?? [];
@@ -587,11 +588,11 @@ export default function SeanceOuvertureDetail() {
     !!currentUser &&
     (seance.statut === "EN_VALIDATION_PRESIDENT" ||
       seance.statut === "A_VALIDER") &&
-    seance.president === currentUser.id &&
+    seance.president === Number(currentUser.id) &&
     allPresentMembersDecided &&
     seance.president_decision === "EN_ATTENTE";
   const isPresidentViewer =
-    !!seance && !!currentUser && seance.president === currentUser.id;
+    !!seance && !!currentUser && seance.president === Number(currentUser.id);
   const canRejectAsPresident =
     !!seance &&
     isPresidentViewer &&

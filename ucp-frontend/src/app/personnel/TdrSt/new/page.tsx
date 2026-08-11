@@ -6,11 +6,11 @@ import { ArrowLeft, FilePlus2, Loader2, Save, SendHorizontal } from "lucide-reac
 
 import TopHeader from "@/app/components/TopHeader";
 import {
-  FINANCE_FAMILY_OPTIONS,
   findFinanceCatalogEntry,
   getFinanceCatalogByFamily,
   getFinanceCatalogByOptionKey,
 } from "@/lib/financeCatalog";
+import { useReferenceChoices } from "@/hooks/useReferenceChoices";
 import { buildTdrDraftPayloadFromDemande } from "@/lib/tdrDraftFromDemande";
 import { getToken } from "@/services/auth";
 import { getDemandeAchat, type DemandeAchat } from "@/services/achats";
@@ -42,12 +42,18 @@ const CATEGORY_OPTIONS = [
   ["INFRASTRUCTURE", "Infrastructure"],
 ] as const;
 
-const PROCEDURE_OPTIONS = [
-  ["DC", "DC"],
-  ["AOI", "AOI"],
-  ["AON", "AON"],
-  ["GRE_A_GRE", "Gré à gré"],
-] as const;
+const PROCEDURE_OPTIONS_FALLBACK = [
+  { code: "DC", label: "DC" },
+  { code: "AOI", label: "AOI" },
+  { code: "AON", label: "AON" },
+  { code: "GRE_A_GRE", label: "Gré à gré" },
+];
+
+const FINANCING_SOURCE_FALLBACK = [
+  { code: "FM", label: "Fonds mondial" },
+  { code: "GAVI", label: "Alliance GAVI" },
+  { code: "BM", label: "Banque mondiale" },
+];
 
 const EDITABLE_STATUSES = new Set(["BROUILLON", "A_REVOIR"]);
 
@@ -130,6 +136,8 @@ function TdrStNewPageContent() {
   const [role, setRole] = useState<string | null>(null);
   const [selectedSourceFamily, setSelectedSourceFamily] = useState("");
   const saving = savingAction !== null;
+  const procedureTypes = useReferenceChoices("PROCEDURE_TYPE", PROCEDURE_OPTIONS_FALLBACK);
+  const financingSources = useReferenceChoices("FINANCING_SOURCE", FINANCING_SOURCE_FALLBACK);
 
   const isEditable = !activeDoc || EDITABLE_STATUSES.has(activeDoc.statut);
   const isLinkedToDemande = Boolean(activeDoc?.demande_achat_id || linkedDemande?.id || demandeId);
@@ -249,6 +257,16 @@ function TdrStNewPageContent() {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
+  useEffect(() => {
+    if (!activeDoc || financingSources.length === 0) return;
+    const raw = normalizeFundingSource(form.sources_financement);
+    if (!raw || selectedSourceFamily === raw) return;
+    if (findFinanceCatalogEntry(raw, form.numero_subvention, form.ligne_budgetaire)) return;
+    if (financingSources.some((source) => source.code === raw)) {
+      setSelectedSourceFamily(raw);
+    }
+  }, [financingSources, activeDoc, form.sources_financement, form.numero_subvention, form.ligne_budgetaire, selectedSourceFamily]);
+
   const validateForm = (mode: "draft" | "submit") => {
     if (!form.unite_technique.trim()) return "Le champ unité technique est obligatoire.";
     if (!form.type_document) return "Le type de document est obligatoire.";
@@ -258,7 +276,8 @@ function TdrStNewPageContent() {
     if (!form.periode_debut) return "La date de début est obligatoire.";
     if (!form.periode_fin) return "La date de fin est obligatoire.";
     if (mode === "submit" && !form.sources_financement.trim()) return "La source de financement est obligatoire.";
-    if (mode === "submit" && !form.ligne_budgetaire.trim()) return "La ligne budgétaire est obligatoire.";
+    if (mode === "submit" && financeLineOptions.length > 0 && !form.ligne_budgetaire.trim())
+      return "La ligne budgétaire est obligatoire.";
     if (!form.montant_estime_usd.trim()) return "Le montant estimé est obligatoire.";
     return null;
   };
@@ -437,9 +456,9 @@ function TdrStNewPageContent() {
                     disabled={saving || !isEditable}
                     className={inputClassName}
                   >
-                    {PROCEDURE_OPTIONS.map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
+                    {procedureTypes.map((option) => (
+                      <option key={option.code} value={option.code}>
+                        {option.label}
                       </option>
                     ))}
                   </select>
@@ -532,10 +551,14 @@ function TdrStNewPageContent() {
                   <select
                     value={selectedSourceFamily}
                     onChange={(e) => {
-                      setSelectedSourceFamily(e.target.value);
+                      const family = e.target.value;
+                      setSelectedSourceFamily(family);
                       handleChange("sources_financement", "");
                       handleChange("ligne_budgetaire", "");
                       handleChange("numero_subvention", "");
+                      if (family && getFinanceCatalogByFamily(family).length === 0) {
+                        handleChange("sources_financement", family);
+                      }
                     }}
                     disabled={saving || !isEditable}
                     className={inputClassName}
@@ -543,9 +566,9 @@ function TdrStNewPageContent() {
                     <option value="" disabled>
                       Sélectionner une source de financement
                     </option>
-                    {FINANCE_FAMILY_OPTIONS.map((item) => (
-                      <option key={item.value} value={item.value}>
-                        {item.label}
+                    {financingSources.map((source) => (
+                      <option key={source.code} value={source.code}>
+                        {source.label}
                       </option>
                     ))}
                   </select>

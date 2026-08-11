@@ -3,6 +3,7 @@ from django.contrib.auth import get_user_model
 from django.core.validators import FileExtensionValidator, MinValueValidator
 from decimal import Decimal
 
+from apps.common.models import ChoiceGroup, reference_choices
 from apps.ouverture_offre.models import OffreOuverture, SeanceOuverture
 
 User = get_user_model()
@@ -15,6 +16,19 @@ class StatutContrat(models.TextChoices):
     TERMINE = "TERMINE", "Terminé"
     SUSPENDU = "SUSPENDU", "Suspendu"
     ANNULE = "ANNULE", "Annulé"
+
+
+def _statut_contrat_choices():
+    # Données partagées avec le module contrats (statut de contrat).
+    return reference_choices(ChoiceGroup.CONTRAT_STATUT, StatutContrat.choices)
+
+
+def _type_document_contrat_choices():
+    # Données partagées avec le module contrats (type de document contrat).
+    return reference_choices(
+        ChoiceGroup.DOCUMENT_TYPE_CONTRAT,
+        DocumentContrat.TypeDocument.choices,
+    )
 
 
 # ============================================================
@@ -47,7 +61,7 @@ class Contrat(models.Model):
     )
     statut = models.CharField(
         max_length=20,
-        choices=StatutContrat.choices,
+        choices=_statut_contrat_choices,
         default=StatutContrat.BROUILLON,
     )
 
@@ -162,7 +176,7 @@ class DocumentContrat(models.Model):
 
     type_document = models.CharField(
         max_length=20,
-        choices=TypeDocument.choices,
+        choices=_type_document_contrat_choices,
         default=TypeDocument.CONTRAT_SIGNE,
     )
 

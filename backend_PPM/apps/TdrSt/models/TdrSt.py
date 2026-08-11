@@ -6,6 +6,27 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 
+from apps.common.models import ChoiceGroup, reference_choices, reference_codes
+from apps.procurement.models.procurement_market import ProcedureType, FinancingSource
+
+
+def _procedure_envisagee_choices():
+    # Données partagées avec le module procurement (type de procédure).
+    return reference_choices(ChoiceGroup.PROCEDURE_TYPE, ProcedureType.choices)
+
+
+def valid_financing_sources():
+    """Codes de financement acceptés pour un TDR/ST.
+
+    Union des sources centralisées (familles FM/GAVI/BM, modifiables via l'admin)
+    et des codes budgétaires fins du module achats (SRPS_CS7_FM, RSS3_GAVI, ...).
+    """
+    from apps.achats.models.demande_achat import DemandeAchat
+
+    valid = set(reference_codes(ChoiceGroup.FINANCING_SOURCE, FinancingSource.choices))
+    valid.update(code for code, _ in DemandeAchat.SOURCE_FINANCEMENT_CHOICES)
+    return valid
+
 
 class TdrStDocument(models.Model):
     class TypeDocument(models.TextChoices):
@@ -90,7 +111,7 @@ class TdrStDocument(models.Model):
     montant_estime_usd = models.DecimalField(max_digits=14, decimal_places=2)
 
     seuil_passation = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
-    procedure_envisagee = models.CharField(max_length=20, choices=ProcedureEnvisagee.choices)
+    procedure_envisagee = models.CharField(max_length=20, choices=_procedure_envisagee_choices)
 
     fichier_courant = models.ForeignKey(
         "TdrStDocumentFileVersion",
@@ -110,6 +131,13 @@ class TdrStDocument(models.Model):
 
         if not isinstance(self.sources_financement, list):
             raise ValidationError({"sources_financement": "Ce champ doit être une liste."})
+
+        valid_sources = valid_financing_sources()
+        for source in self.sources_financement:
+            if source not in valid_sources:
+                raise ValidationError(
+                    {"sources_financement": f"'{source}' n'est pas une source de financement valide."}
+                )
 
 
 def _upload_to(instance: "TdrStDocumentFileVersion", filename: str) -> str:

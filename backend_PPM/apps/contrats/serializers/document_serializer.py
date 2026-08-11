@@ -1,9 +1,16 @@
 from rest_framework import serializers
 
+from apps.common.models import ChoiceGroup, reference_choices
+from apps.common.serializers import DynamicChoiceField
 from apps.contrats.models.document import DocumentContrat
+from apps.contrats.models.enums import TypeDocumentContrat
 
 
 class DocumentContratSerializer(serializers.ModelSerializer):
+
+    type_document = DynamicChoiceField(
+        choices=lambda: reference_choices(ChoiceGroup.DOCUMENT_TYPE_CONTRAT, TypeDocumentContrat.choices)
+    )
 
     class Meta:
         model = DocumentContrat

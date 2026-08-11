@@ -32,6 +32,7 @@ urlpatterns = [
     path("", home_view, name="home"),
     path("admin/", admin.site.urls),
     path("api/ppm/", include("apps.ppm.urls")),
+    path("api/common/", include("apps.common.urls")),
     path("api/users/", include("apps.users.urls")),
     path("api/TdrSt/", include("apps.TdrSt.urls")),
     path("api/logs/", include("apps.log.urls")),

@@ -6,6 +6,21 @@ import { UseFormReturn } from "react-hook-form";
 
 import { ProcurementFormValues }
 from "../../../../../types/procurement";
+import { useReferenceChoices } from "@/hooks/useReferenceChoices";
+
+const PROCEDURE_TYPE_FALLBACK = [
+  { code: "AOI", label: "AOI" },
+  { code: "AON", label: "AON" },
+  { code: "DC", label: "DC" },
+  { code: "GRE_A_GRE", label: "Gré à gré" },
+];
+
+const CATEGORY_TYPE_FALLBACK = [
+  { code: "BIENS", label: "Biens" },
+  { code: "SERVICES", label: "Services" },
+  { code: "INFRA", label: "Infrastructures" },
+];
+
 interface Props {
   form: UseFormReturn<ProcurementFormValues>;
 }
@@ -17,6 +32,8 @@ export function BasicInfoSection({
     register,
     formState: { errors },
   } = form;
+  const procedureTypes = useReferenceChoices("PROCEDURE_TYPE", PROCEDURE_TYPE_FALLBACK);
+  const categoryTypes = useReferenceChoices("CATEGORY_TYPE", CATEGORY_TYPE_FALLBACK);
   const inputClassName = "w-full px-3 py-2.5 text-sm font-medium text-slate-800 bg-white border border-slate-200 rounded-lg focus:border-slate-300 focus:bg-slate-50/50 focus:outline-none shadow-3xs transition-all duration-150 placeholder:text-slate-400";
   return (
     <Card className="shadow-xs border border-slate-200/80 rounded-xl overflow-hidden">
@@ -49,21 +66,11 @@ export function BasicInfoSection({
               className={inputClassName}
             >
               <option value="">Aucun</option>
-              <option value="AOI">
-                AOI
-              </option>
-
-              <option value="AON">
-                AON
-              </option>
-
-              <option value="DC">
-                DC
-              </option>
-
-              <option value="GRE_A_GRE">
-                Gré à gré
-              </option>
+              {procedureTypes.map((option) => (
+                <option key={option.code} value={option.code}>
+                  {option.label}
+                </option>
+              ))}
             </select>
             {errors.procedure_type && (
               <p className="text-red-600 font-medium text-xs">⚠️ {errors.procedure_type.message}</p>
@@ -78,17 +85,11 @@ export function BasicInfoSection({
               className={inputClassName}
             >
               <option value="">Aucun</option>
-              <option value="BIENS">
-                Biens
-              </option>
-
-              <option value="SERVICES">
-                Services
-              </option>
-
-              <option value="INFRA">
-                Infrastructures
-              </option>
+              {categoryTypes.map((option) => (
+                <option key={option.code} value={option.code}>
+                  {option.label}
+                </option>
+              ))}
             </select>
             {errors.category && (
               <p className="text-red-600 font-medium text-xs">⚠️ {errors.category.message}</p>

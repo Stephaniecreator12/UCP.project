@@ -4,7 +4,7 @@
 import { getToken, logout } from "./auth";
 
 export type TdrStDocumentType = "TDR" | "ST";
-export type TdrStProcedure = "DC" | "AOI" | "AON" | "GRE_A_GRE";
+export type TdrStProcedure = string;
 export type TdrStDureeUnite = "JOURS" | "MOIS";
 export type TdrStCategorieActivite =
   | "FORMATION"

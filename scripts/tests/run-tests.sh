@@ -5,7 +5,7 @@
 # Usage : ./run-tests.sh [options django, ex: apps.users.tests]
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 # Choisir l'interpreteur Python du venv s'il existe.
 if [ -x "$ROOT_DIR/.venv/bin/python" ]; then

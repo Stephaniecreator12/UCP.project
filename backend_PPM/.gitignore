@@ -15,3 +15,9 @@ media/
 !**/submission_models/.gitkeep
 !**/tdr_st/.gitkeep
 !**/technical_documents/.gitkeep
+
+demandes/documents/
+!**/demandes/documents/.gitkeep
+
+tdr_st/
+!**/tdr_st/.gitkeep

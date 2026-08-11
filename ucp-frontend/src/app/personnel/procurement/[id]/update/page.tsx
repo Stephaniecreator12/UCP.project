@@ -4,7 +4,7 @@ import { ProcurementUpdateForm } from "../../components/procurementUpdateForm";
 import TopHeader from "@/app/components/TopHeader";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react"
-export default function CreateProcurementPage() {
+export default function UpdateProcurementPage() {
   const router = useRouter()
     const handleListRedirection=()=>{
       router.replace("/procurement")

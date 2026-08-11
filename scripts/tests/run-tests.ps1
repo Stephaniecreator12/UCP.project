@@ -7,7 +7,8 @@
 # PowerShell 5.1 enverrait alors sur le flux d'erreur la sortie stderr de
 # Django ("Creating test database...") et interromprait le script en cours
 # de route.
-$Root = Split-Path -Parent $MyInvocation.MyCommand.Path
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$Root = (Resolve-Path (Join-Path $ScriptDir "..\..")).Path
 
 $Py = Join-Path $Root ".venv\Scripts\python.exe"
 if (-not (Test-Path $Py)) {

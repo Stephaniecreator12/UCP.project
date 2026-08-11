@@ -41,7 +41,7 @@ cd /home/stephanie/UCP
 
 ```bash
 source .venv/bin/activate
-pip install -r requirements.txt
+pip install -r backend_PPM/requirements.txt
 ```
 
 ### **Étape 3 : Installer les dépendances JavaScript**
@@ -77,7 +77,7 @@ port `5432`, broker Redis) est injectée automatiquement.
 ```bash
 cd /home/stephanie/UCP
 source .venv/bin/activate
-python manage.py runserver
+python backend_PPM/manage.py runserver
 ```
 
 **Terminal 2 - Django (celery-worker)**
@@ -131,9 +131,10 @@ Pour débuter sans te perdre, lis d'abord:
 
 ```
 UCP/
-├── manage.py                    ← Django
-├── db.sqlite3                   ← Base de données
-├── requirements.txt             ← Dépendances Python
+├── backend_PPM/                  ← Backend Django
+│   ├── manage.py                 ← Django
+│   ├── requirements.txt          ← Dépendances Python
+│   └── config/                   ← Configuration (settings, URLs)
 ├── start.sh                     ← Script de démarrage
 ├── docs/                         ← Documentation (rangée)
 │   ├── essentiels/               ← À lire (débutante)
@@ -171,23 +172,25 @@ UCP/
 
 ## ✅ Tester (sans toucher à la vraie base de données)
 
-Les tests tournent sur un **PostgreSQL Docker jetable** (comportement
-type Spring Testcontainers) : un conteneur est créé automatiquement au
-début de la suite et **supprimé à la fin** — toutes les données sont
+Les tests tournent sur un **PostgreSQL Docker jetable** géré par la
+librairie officielle [testcontainers-python](https://testcontainers-python.readthedocs.io/)
+(`testcontainers[postgres]`) : un conteneur est démarré automatiquement au
+début de la suite et **arrêté/supprimé à la fin** — toutes les données sont
 effacées à chaque exécution. Aucune étape manuelle, la base de
-développement/production n'est jamais contactée.
+développement/production n'est jamais contactée. Prérequis : Docker doit
+être démarré sur la machine.
 
 **Unix** :
 
 ```bash
-./run-tests.sh           # toute la suite
-./run-tests.sh apps.users.tests apps.ppm.tests
+scripts/tests/run-tests.sh           # toute la suite
+scripts/tests/run-tests.sh apps.users.tests apps.ppm.tests
 ```
 
 **Windows (PowerShell)** :
 
 ```powershell
-.\run-tests.ps1
+scripts\tests\run-tests.ps1
 ```
 
 Équivalent direct (le runner `config.testcontainers_runner.py` s'occupe
@@ -196,14 +199,6 @@ de tout, conteneur compris) :
 ```bash
 python backend_PPM/manage.py test --settings=config.test_settings
 ```
-
-Variantes :
-- `DB_TEST_USE_EXTERNAL=1` : ne pas créer de conteneur jetable ; utiliser
-  la base externe configurée via les variables `DB_TEST_*`
-  (`config/test_settings.py`), par exemple le service `db` de
-  docker-compose ou une base de CI.
-- Les conteneurs orphelins d'une exécution interrompue sont supprimés
-  automatiquement au lancement suivant.
 
 ---
 
@@ -275,7 +270,7 @@ Next.js basculera automatiquement sur le port `3001`.
 
 1. Vérifiez Django : `http://localhost:8000/api/procurements/`
 2. Consultez la console (F12) pour les erreurs
-3. Vérifiez les migrations : `python manage.py migrate`
+3. Vérifiez les migrations : `python backend_PPM/manage.py migrate`
 
 ---
 

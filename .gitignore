@@ -14,3 +14,7 @@ node_modules/
 .codex/
 .agents/
 .env
+
+# Fichiers runtime / logs / etat celery
+*.log
+celerybeat-schedule.*

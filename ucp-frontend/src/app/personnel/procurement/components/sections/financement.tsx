@@ -1,5 +1,4 @@
 "use client";
-import { FINANCING_SOURCE_LABELS } from "@/lib/locales/french";
 import { Card, CardHeader, CardTitle, CardContent } from "../card";
 import { TextLabel, TextTitle } from "@/app/components/textStyle";
 import { useWatch } from "react-hook-form";
@@ -8,6 +7,14 @@ import { useEffect } from "react";
 import { ProcurementFormValues }
   from "../../../../../types/procurement";
 import { FINANCE_CATALOG } from "@/lib/financeCatalog";
+import { getChoiceLabel } from "@/services/choices";
+import { useReferenceChoices } from "@/hooks/useReferenceChoices";
+
+const FINANCING_SOURCE_FALLBACK = [
+  { code: "FM", label: "Fonds Mondial" },
+  { code: "GAVI", label: "Alliance Gavi" },
+  { code: "BM", label: "Banque Mondiale" },
+];
 
 function generateProjectCode(bailleur: string | undefined, optionKey: string | undefined) {
   if (!bailleur || !optionKey) return "";
@@ -45,6 +52,7 @@ export function FinancingSection({
     control: form.control,
     name: "optionKey",
   });
+  const financingSources = useReferenceChoices("FINANCING_SOURCE", FINANCING_SOURCE_FALLBACK);
   useEffect(() => {
     if (!selected) return;
 
@@ -82,20 +90,19 @@ export function FinancingSection({
         <div className="flex flex-col">
         <TextTitle text="Source de financement"></TextTitle>
         <div className="flex flex-row flex-wrap items-center gap-5 bg-slate-50/50 p-4 border border-slate-100 rounded-xl">
-          {Array.from(new Set(FINANCE_CATALOG.map((e) => e.family))).map((family) => {
-            const entry = FINANCE_CATALOG.find((e) => e.family === family);
+          {financingSources.map((source) => {
             return (
               <label
-                key={family}
+                key={source.code}
                 className="flex items-center gap-2.5 cursor-pointer bg-white border border-slate-150 px-3 py-1.5 rounded-lg shadow-3xs hover:bg-slate-50 hover:border-slate-300 transition-all duration-150"
               >
                 <input
                   type="checkbox"
-                  value={family}
+                  value={source.code}
                   className="w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-transparent cursor-pointer"
                   {...form.register("financing_sources")}
                 />
-                <TextLabel text={entry?.familyLabel}>
+                <TextLabel text={source.label}>
                 </TextLabel>
               </label>
             );
@@ -122,14 +129,14 @@ export function FinancingSection({
                   key={item}
                   value={item}
                 >
-                  {FINANCING_SOURCE_LABELS[item]}
+                  {getChoiceLabel(financingSources, item)}
                 </option>
               ))}
             </select>
           ) : (
             <div className="px-3 py-2 bg-slate-50 border border-slate-100 rounded-lg w-fit min-w-[150px] shadow-3xs">
               {selected.length ?
-                <TextLabel text={FINANCING_SOURCE_LABELS[selected[0]]}></TextLabel> : <TextLabel text="Aucun"></TextLabel>}
+                <TextLabel text={getChoiceLabel(financingSources, selected[0])}></TextLabel> : <TextLabel text="Aucun"></TextLabel>}
             </div>
           )
           }

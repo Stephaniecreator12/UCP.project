@@ -82,6 +82,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',#librairie JWT pour l’authentification :login,token,refresh token
     'django_filters',#librairie pour les filtres sur les APIs
 
+    'apps.common',
     'apps.users',
     'apps.ppm',
     'apps.achats',

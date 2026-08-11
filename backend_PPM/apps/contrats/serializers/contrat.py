@@ -2,14 +2,22 @@
 
 from rest_framework import serializers
 
+from apps.common.models import ChoiceGroup, reference_choices
+from apps.common.serializers import DynamicChoiceField
 from apps.contrats.models.contrats import Contrat
 from apps.contrats.models.echeances import EcheancePaiement
+from apps.contrats.models.enums import ContratStatut
 from apps.contrats.serializers.document_serializer import DocumentContratSerializer
 from apps.contrats.serializers.echeance_serializer import EcheancePaiementSerializer
 from apps.contrats.serializers.audit_serializer import ContratAuditSerializer
 
 
 class ContratSerializer(serializers.ModelSerializer):
+
+    statut = DynamicChoiceField(
+        choices=lambda: reference_choices(ChoiceGroup.CONTRAT_STATUT, ContratStatut.choices),
+        required=False
+    )
 
     echeances = EcheancePaiementSerializer(
         many=True,
@@ -50,6 +58,11 @@ class ContratSerializer(serializers.ModelSerializer):
         )
 
 class ContratCreateUpdateSerializer(serializers.ModelSerializer):
+
+    statut = DynamicChoiceField(
+        choices=lambda: reference_choices(ChoiceGroup.CONTRAT_STATUT, ContratStatut.choices),
+        required=False
+    )
 
     echeances = EcheancePaiementSerializer(
         many=True,

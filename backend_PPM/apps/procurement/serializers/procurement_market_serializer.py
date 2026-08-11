@@ -2,9 +2,13 @@ from rest_framework import serializers
 from django.utils import timezone
 from django.db import transaction
 import json
+from apps.common.models import ChoiceGroup, reference_codes, reference_choices
+from apps.common.serializers import DynamicChoiceField
 from apps.procurement.models.procurement_market import (
     ProcurementMarket,
     ProcedureType,
+    CategoryType,
+    PublicationStatus,
     FinancingSource
 )
 from apps.procurement.models.atelier import (
@@ -22,7 +26,25 @@ from apps.procurement.serializers.technical_document_serializer import (
     TechnicalDocumentListSerializer
 )
 
+
 class ProcurementMarketSerializer(serializers.ModelSerializer):
+
+    procedure_type = DynamicChoiceField(
+        choices=lambda: reference_choices(ChoiceGroup.PROCEDURE_TYPE, ProcedureType.choices)
+    )
+    category = DynamicChoiceField(
+        choices=lambda: reference_choices(ChoiceGroup.CATEGORY_TYPE, CategoryType.choices)
+    )
+    reference_bailleur = DynamicChoiceField(
+        choices=lambda: reference_choices(ChoiceGroup.FINANCING_SOURCE, FinancingSource.choices),
+        required=False,
+        allow_null=True,
+        allow_blank=True
+    )
+    status = DynamicChoiceField(
+        choices=lambda: reference_choices(ChoiceGroup.PUBLICATION_STATUS, PublicationStatus.choices),
+        required=False
+    )
 
     technical_documents = (
         TechnicalDocumentSerializer(
@@ -100,11 +122,10 @@ class ProcurementMarketSerializer(serializers.ModelSerializer):
                 "financing_sources doit être une liste."
             )
 
-        valid_choices = [
-            choice[0]
-            for choice
-            in FinancingSource.choices
-        ]
+        valid_choices = reference_codes(
+            ChoiceGroup.FINANCING_SOURCE,
+            FinancingSource.choices,
+        )
 
         for item in value:
 
@@ -123,11 +144,10 @@ class ProcurementMarketSerializer(serializers.ModelSerializer):
         if value is None:
             return value
 
-        valid_choices = [
-            choice[0]
-            for choice
-            in FinancingSource.choices
-        ]
+        valid_choices = reference_codes(
+            ChoiceGroup.FINANCING_SOURCE,
+            FinancingSource.choices,
+        )
 
         if value not in valid_choices:
 
@@ -139,7 +159,10 @@ class ProcurementMarketSerializer(serializers.ModelSerializer):
 
     def validate_procedure_type(self, value):
 
-        valid = [c[0] for c in ProcedureType.choices]
+        valid = reference_codes(
+            ChoiceGroup.PROCEDURE_TYPE,
+            ProcedureType.choices,
+        )
 
         if value not in valid:
             raise serializers.ValidationError(
@@ -309,6 +332,22 @@ class ProcurementMarketSerializer(serializers.ModelSerializer):
 
 
 class ProcurementMarketListSerializer(serializers.ModelSerializer):
+    procedure_type = DynamicChoiceField(
+        choices=lambda: reference_choices(ChoiceGroup.PROCEDURE_TYPE, ProcedureType.choices)
+    )
+    category = DynamicChoiceField(
+        choices=lambda: reference_choices(ChoiceGroup.CATEGORY_TYPE, CategoryType.choices)
+    )
+    reference_bailleur = DynamicChoiceField(
+        choices=lambda: reference_choices(ChoiceGroup.FINANCING_SOURCE, FinancingSource.choices),
+        required=False,
+        allow_null=True,
+        allow_blank=True
+    )
+    status = DynamicChoiceField(
+        choices=lambda: reference_choices(ChoiceGroup.PUBLICATION_STATUS, PublicationStatus.choices),
+        required=False
+    )
     annexes = AnnexDocumentListSerializer(many=True, read_only=True)
     technical_documents = TechnicalDocumentListSerializer(many=True, read_only=True)
     dates_atelier_details = DateAtelierSerializer(many=True, read_only=True, source='dates_previsionnelles')

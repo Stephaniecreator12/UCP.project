@@ -26,7 +26,7 @@ export type UserRole =
   | "auditeur"
   | "admin";
 
-type Procedure = "DC" | "AOI" | "AON" | "GRE_A_GRE";
+type Procedure = string;
 type DureeUnite = "JOURS" | "MOIS";
 
 type CategorieActivite =

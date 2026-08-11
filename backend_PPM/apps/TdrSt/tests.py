@@ -74,6 +74,15 @@ class TdrStDocumentLifecycleTests(UCPAPITestCase):
         response = self._create(periode_debut="2026-03-15", periode_fin="2026-02-01")
         self.assertEqual(response.status_code, 400)
 
+    def test_create_accepts_granular_achats_source_code(self):
+        response = self._create(sources_financement=["SRPS_CS7_FM"])
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json()["sources_financement"], ["SRPS_CS7_FM"])
+
+    def test_create_rejects_unknown_source_code(self):
+        response = self._create(sources_financement=["BADEA"])
+        self.assertEqual(response.status_code, 400)
+
     def test_my_documents_lists_own_only(self):
         self._create()
         other = self.auth_client(self.create_user("other.tdrst@test.local"))

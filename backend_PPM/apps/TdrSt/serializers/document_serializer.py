@@ -1,10 +1,17 @@
 from rest_framework import serializers
 
-from apps.TdrSt.models.TdrSt import TdrStDocument, TdrStDocumentFileVersion, TdrStValidationAction
+from apps.common.models import ChoiceGroup, reference_choices
+from apps.common.serializers import DynamicChoiceField
+from apps.procurement.models.procurement_market import ProcedureType, FinancingSource
+from apps.TdrSt.models.TdrSt import TdrStDocument, TdrStDocumentFileVersion, TdrStValidationAction, valid_financing_sources
 
 
 class TdrStDocumentWriteSerializer(serializers.ModelSerializer):
     demande_achat_id = serializers.IntegerField(required=False, write_only=True)
+
+    procedure_envisagee = DynamicChoiceField(
+        choices=lambda: reference_choices(ChoiceGroup.PROCEDURE_TYPE, ProcedureType.choices)
+    )
 
     class Meta:
         model = TdrStDocument
@@ -29,6 +36,18 @@ class TdrStDocumentWriteSerializer(serializers.ModelSerializer):
             "ligne_budgetaire": {"required": False, "allow_blank": True},
             "numero_subvention": {"required": False, "allow_blank": True},
         }
+
+    def validate_sources_financement(self, value):
+        if not isinstance(value, list):
+            raise serializers.ValidationError("Ce champ doit être une liste.")
+
+        valid_sources = valid_financing_sources()
+        for source in value:
+            if source not in valid_sources:
+                raise serializers.ValidationError(
+                    f"'{source}' n'est pas une source de financement valide."
+                )
+        return value
 
     def validate(self, attrs):
         periode_debut = attrs.get("periode_debut")

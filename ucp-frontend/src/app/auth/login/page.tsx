@@ -1,11 +1,20 @@
 "use client";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { login, getLandingRouteForUser } from "@/services/auth";
 import { useSearchParams } from "next/navigation";
 const DEFAULT_PUBLIC_REGISTER_ROUTE = "/auth/public/register";
+
 export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginPageContent />
+    </Suspense>
+  );
+}
+
+function LoginPageContent() {
   const searchParams = useSearchParams();
   const isVerifiedParam = searchParams.get("verified");
   const [email, setEmail] = useState("");

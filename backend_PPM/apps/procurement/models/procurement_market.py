@@ -3,6 +3,8 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 from django.core.validators import FileExtensionValidator
 
+from apps.common.models import ChoiceGroup, reference_choices
+
 
 class ProcedureType(models.TextChoices):
     AOI = "AOI", "Appel d'offres international"
@@ -29,6 +31,22 @@ class FinancingSource(models.TextChoices):
     BM = "BM", "Banque Mondiale"
 
 
+def _procedure_type_choices():
+    return reference_choices(ChoiceGroup.PROCEDURE_TYPE, ProcedureType.choices)
+
+
+def _category_type_choices():
+    return reference_choices(ChoiceGroup.CATEGORY_TYPE, CategoryType.choices)
+
+
+def _publication_status_choices():
+    return reference_choices(ChoiceGroup.PUBLICATION_STATUS, PublicationStatus.choices)
+
+
+def _financing_source_choices():
+    return reference_choices(ChoiceGroup.FINANCING_SOURCE, FinancingSource.choices)
+
+
 
 class ProcurementMarket(models.Model):
     class Meta:
@@ -47,19 +65,19 @@ class ProcurementMarket(models.Model):
 
     procedure_type = models.CharField(
         max_length=20,
-        choices=ProcedureType.choices
+        choices=_procedure_type_choices
     )
 
     category = models.CharField(
         max_length=20,
-        choices=CategoryType.choices
+        choices=_category_type_choices
     )
 
     financing_sources = models.JSONField(default=list)
 
     reference_bailleur = models.CharField(
         max_length=50,
-        choices=FinancingSource.choices,
+        choices=_financing_source_choices,
         null=True,
         blank=True
     )
@@ -81,7 +99,7 @@ class ProcurementMarket(models.Model):
 
     status = models.CharField(
         max_length=20,
-        choices=PublicationStatus.choices,
+        choices=_publication_status_choices,
         default=PublicationStatus.PUBLISHED
     )
 

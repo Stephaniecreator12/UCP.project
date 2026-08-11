@@ -4,7 +4,13 @@ import uuid
 
 from django.db import models
 
+from apps.common.models import ChoiceGroup, reference_choices
 from apps.contrats.models.enums import ContratStatut
+
+
+def _contrat_statut_choices():
+    # Données partagées avec le module contractualisation (statut de contrat).
+    return reference_choices(ChoiceGroup.CONTRAT_STATUT, ContratStatut.choices)
 
 
 class Contrat(models.Model):
@@ -47,7 +53,7 @@ class Contrat(models.Model):
 
     statut = models.CharField(
         max_length=30,
-        choices=ContratStatut.choices,
+        choices=_contrat_statut_choices,
         default=ContratStatut.BROUILLON
     )
 

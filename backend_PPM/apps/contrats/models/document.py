@@ -2,8 +2,15 @@ import hashlib
 
 from django.db import models
 
+from apps.common.models import ChoiceGroup, reference_choices
 from apps.contrats.models.enums import TypeDocumentContrat
 from apps.contrats.models.contrats import Contrat
+
+
+def _type_document_choices():
+    # Données partagées avec le module contractualisation (type de document contrat).
+    return reference_choices(ChoiceGroup.DOCUMENT_TYPE_CONTRAT, TypeDocumentContrat.choices)
+
 
 class DocumentContrat(models.Model):
 
@@ -15,7 +22,7 @@ class DocumentContrat(models.Model):
 
     type_document = models.CharField(
         max_length=30,
-        choices=TypeDocumentContrat.choices
+        choices=_type_document_choices
     )
 
     fichier = models.FileField(

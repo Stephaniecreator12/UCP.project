@@ -3,9 +3,9 @@
 #   docker compose up -d db redis
 #
 # NOTE : les tests N'UTILISENT PAS ce service `db`. Ils créent leur propre
-# conteneur PostgreSQL jetable (config/testcontainers_runner.py), supprimé
-# automatiquement à la fin. Le service `db` sert à la base de développement
-# (et à la variante DB_TEST_USE_EXTERNAL=1).
+# conteneur PostgreSQL jetable via la librairie testcontainers-python
+# (config/testcontainers_runner.py), arrêté/supprimé automatiquement à la fin.
+# Le service `db` sert uniquement à la base de développement locale.
 #
 # La base de dev est exposée sur le port hôte 55432 (pas 5432) pour ne jamais
 # entrer en collision avec une base PostgreSQL locale existante.

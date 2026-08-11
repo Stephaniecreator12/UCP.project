@@ -9,7 +9,7 @@
 #   chmod +x quick-start.sh
 #   ./quick-start.sh
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 BACKEND_DIR="$ROOT_DIR/backend_PPM"
 FRONTEND_DIR="$ROOT_DIR/ucp-frontend"
 
@@ -32,12 +32,12 @@ if command -v tmux &> /dev/null; then
     tmux new-session -d -s "ucp" -x 200 -y 50
     
     # Onglet 1 : Django
-    tmux send-keys -t "ucp" "cd $ROOT_DIR && if [ -f .env ]; then set -a && . ./.env && set +a; fi && source .venv/bin/activate && echo '🟢 Backend Django en cours de démarrage...' && python3 $BACKEND_DIR/manage.py runserver 0.0.0.0:8000" Enter
+    tmux send-keys -t "ucp" "cd $ROOT_DIR && if [ -f $BACKEND_DIR/.env ]; then set -a && . $BACKEND_DIR/.env && set +a; fi && source .venv/bin/activate && echo '🟢 Backend Django en cours de démarrage...' && python3 $BACKEND_DIR/manage.py runserver 0.0.0.0:8000" Enter
     sleep 3
     
     # Onglet 2 : Next.js
     tmux new-window -t "ucp"
-    tmux send-keys -t "ucp" "cd $ROOT_DIR && if [ -f .env ]; then set -a && . ./.env && set +a; fi && cd $FRONTEND_DIR && echo '🟢 Frontend Next.js en cours de démarrage...' && npm run dev" Enter
+    tmux send-keys -t "ucp" "cd $FRONTEND_DIR && echo '🟢 Frontend Next.js en cours de démarrage...' && npm run dev" Enter
     
     # Afficher les infos
     sleep 2

@@ -3,7 +3,7 @@
 # Script pour démarrer le projet entier (Django + Next.js)
 # Utilisation: ./start.sh
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 BACKEND_DIR="$ROOT_DIR/backend_PPM"
 
 echo "🚀 Démarrage du projet e-Proc UCP"
@@ -20,11 +20,11 @@ echo "1️⃣  Démarrage du serveur Django (Backend)..."
 echo "   Port: http://localhost:8000"
 echo ""
 
-# Charger les variables d'environnement si .env existe
-if [ -f "$ROOT_DIR/.env" ]; then
-    echo "⚙️ Chargement du fichier .env"
+# Charger les variables d'environnement backend si backend_PPM/.env existe
+if [ -f "$BACKEND_DIR/.env" ]; then
+    echo "⚙️ Chargement du fichier backend_PPM/.env"
     set -a
-    . "$ROOT_DIR/.env"
+    . "$BACKEND_DIR/.env"
     set +a
 fi
 

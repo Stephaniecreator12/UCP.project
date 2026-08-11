@@ -17,8 +17,8 @@ from celery.schedules import crontab
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Load environment variables from .env file
-load_dotenv(os.path.join(BASE_DIR.parent, '.env'), override=True)
+# Load environment variables from backend_PPM/.env
+load_dotenv(os.path.join(BASE_DIR, '.env'), override=True)
 
 def env_bool(name, default=False):
     value = os.getenv(name)

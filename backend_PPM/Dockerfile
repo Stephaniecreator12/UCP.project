@@ -6,7 +6,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-COPY requirements.txt .
+COPY backend_PPM/requirements.txt .
 RUN pip install -r requirements.txt
 
 COPY backend_PPM /app/backend_PPM

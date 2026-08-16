@@ -5,6 +5,7 @@ from django.contrib.auth.models import Group
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.exceptions import InvalidToken, AuthenticationFailed
 from django.db import connections
+from django.core.exceptions import MultipleObjectsReturned
 
 from apps.users.models.agent import AgentProfile, Poste, Programme
 
@@ -74,6 +75,18 @@ MOCK_RH_DATABASE = {
         "programme_nom": "Fonds Mondial",
         "is_active": True,
         "groups": ["SECRETAIRE"]
+    },
+    "mock_token_contractualisation_101": {
+        "id": "101",
+        "matricule": "101/UCP",
+        "nom": "RAKOTO",
+        "prenom": "Contractualisation",
+        "email": "contractualisation@ucp.mg",
+        "fonction": "Secrétaire Contractualisation",
+        "programme_code": "FM",
+        "programme_nom": "Fonds Mondial",
+        "is_active": True,
+        "groups": ["SECRETAIRE", "SECRETAIRE_CONTRACTUALISATION"]
     }
 }
 
@@ -136,15 +149,35 @@ def provision_user(user_data):
         raise AuthenticationFailed("Ce compte RH a été désactivé.")
 
     # 2. Récupérer ou créer l'utilisateur Django
-    user, created = User.objects.get_or_create(
-        email=email,
-        defaults={
-            "username": email,
-            "first_name": user_data["prenom"],
-            "last_name": user_data["nom"],
-            "is_active": True
-        }
-    )
+    try:
+        user, created = User.objects.get_or_create(
+            email=email,
+            defaults={
+                "username": email,
+                "first_name": user_data["prenom"],
+                "last_name": user_data["nom"],
+                "is_active": True
+            }
+        )
+    except MultipleObjectsReturned:
+        # Si plusieurs comptes locaux existent pour le même email,
+        # choisir un enregistrement canonique (le plus ancien) et
+        # mettre à jour ses champs. Ne pas lever d'exception pour
+        # éviter d'interrompre le flux d'authentification.
+        logger.warning("Multiple users found for email %s during provisioning; selecting the first.", email)
+        qs = User.objects.filter(email=email).order_by('id')
+        user = qs.first()
+        created = False
+        if user is None:
+            # Très improbable : si aucun utilisateur n'est trouvé, créer un nouveau.
+            user = User.objects.create(
+                username=email,
+                email=email,
+                first_name=user_data["prenom"],
+                last_name=user_data["nom"],
+                is_active=True,
+            )
+            created = True
 
     if not created:
         # Mettre à jour les informations de base

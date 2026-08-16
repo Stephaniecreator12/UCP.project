@@ -10,6 +10,9 @@ User = get_user_model()
 # Groupes autorisés dans le dropdown président
 ALLOWED_GROUPS = [
     "SECRETAIRE",
+    "RPM",
+    "GP",
+    "CN",
     "VALIDATEUR_HIERARCHIQUE",
     "VALIDATEUR_TECHNIQUE",
     "VALIDATEUR_PROGRAMMATIQUE",

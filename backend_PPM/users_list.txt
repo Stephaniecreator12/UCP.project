@@ -1,0 +1,72 @@
+Username: agent_achat | Email: hashlah940@gmail.com | Groups: AGENT_ACHAT
+Username: hashalh940 | Email: hashalh940@gmail.com | Groups: EVALUATEUR
+Username: demo_technique | Email: demo.technique@ucp.local | Groups: VALIDATEUR_TECHNIQUE
+Username: haslah940 | Email: haslah940@gmail.com | Groups: EVALUATEUR
+Username: ucpdev62 | Email: ucpdev62@gmail.com | Groups: EVALUATEUR
+Username: validateur5 | Email: hashlah940@gmail.com | Groups: APPROBATEUR_NATIONAL
+Username: validateur2 | Email: hashlah940@gmail.com | Groups: VALIDATEUR_TECHNIQUE
+Username: validateur3 | Email: hashlah940@gmail.com | Groups: VALIDATEUR_BUDGETAIRE
+Username: naly.fitahiana2 | Email: naly.fitahiana@gmail.com | Groups: EVALUATEUR
+Username: nali.fitahiana | Email: nali.fitahiana@gmail.com | Groups: 
+Username: demandeur2 | Email: hashlah940@gmail.com | Groups: 
+Username: demo_finance | Email: demo.finance@ucp.local | Groups: FINANCE
+Username: logistique | Email: hashlah940@gmail.com | Groups: LOGISTIQUE
+Username: stephaniehanitriniala4 | Email: stephaniehanitriniala4@gmail.com | Groups: EVALUATEUR
+Username: admin | Email: admin@test.com | Groups: 
+Username: demo_programme | Email: demo.programme@ucp.local | Groups: VALIDATEUR_PROGRAMMATIQUE
+Username: finance | Email: hashlah940@gmail.com | Groups: 
+Username: validateur4 | Email: hashlah940@gmail.com | Groups: VALIDATEUR_PROGRAMMATIQUE
+Username: secretaire1 | Email: hashlah940@gmail.com | Groups: SECRETAIRE
+Username: demo_approbateur | Email: demo.approbateur@ucp.local | Groups: APPROBATEUR_NATIONAL
+Username: stephannie.maminiaina23 | Email: stephannie.maminiaina23@gmail.com | Groups: EVALUATEUR
+Username: ucpdev52 | Email: ucpdev52@gmail.com | Groups: 
+Username: demandeur | Email: hashlah940@gmail.com | Groups: EVALUATEUR
+Username: stephanie.maminiaina23 | Email: stephanie.maminiaina23@gmail.com | Groups: EVALUATEUR
+Username: demo_agent_achat | Email: demo.achat@ucp.local | Groups: AGENT_ACHAT
+Username: stephanie.maminiana23 | Email: stephanie.maminiana23@gmail.com | Groups: 
+Username: demo_agent_marche | Email: demo.marche@ucp.local | Groups: AGENT_MARCHE
+Username: razanajatovoravo02 | Email: razanajatovoravo02@gmail.com | Groups: EVALUATEUR
+Username: demo_demandeur | Email: demo.demandeur@ucp.local | Groups: 
+Username: demo_logistique | Email: demo.logistique@ucp.local | Groups: LOGISTIQUE
+Username: demo_hierarchique | Email: demo.hierarchique@ucp.local | Groups: VALIDATEUR_HIERARCHIQUE
+Username: stephanie.hanitriniala23 | Email: stephanie.hanitriniala23@gmail.com | Groups: 
+Username: paul.rabe | Email: paul.rabe@gmail.com | Groups: EVALUATEUR
+Username: stephanie.maminiaina | Email: stephanie.maminiaina@gmail.com | Groups: 
+Username: naly.fitahiaina | Email: naly.fitahiaina@gmail.com | Groups: 
+Username: jean.andry | Email: jean.andry@gmail.com | Groups: EVALUATEUR
+Username: kevinfitia29 | Email: kevinfitia29@gmail.com | Groups: EVALUATEUR
+Username: nalisoa@ucp.mg | Email: nalisoa@ucp.mg | Groups: VALIDATEUR_TECHNIQUE, DEMANDEUR
+Username: stephanie | Email: hashlah940@ucp.com | Groups: Secrétaire Contractualisation
+Username: hashlah9402 | Email: hashlah940@gmail.com | Groups: EVALUATEUR
+Username: stephaniehanitriniala42 | Email: stephaniehanitriniala4@gmail.com | Groups: 
+Username: hashlah940 | Email: hashlah940@gmail.com | Groups: 
+Username: naly.fitahiana | Email: naly.fitahiana@gmail.com | Groups: 
+Username: raf.gavi@ucp.mg | Email: raf.gavi@ucp.mg | Groups: SECRETAIRE, RAF
+Username: secretaire@ucp.mg | Email: secretaire@ucp.mg | Groups: SECRETAIRE
+Username: membre1 | Email: membre1@ucp.mg | Groups: 
+Username: membre2 | Email: membre2@ucp.mg | Groups: 
+Username: president | Email: president@ucp.mg | Groups: 
+Username: evaluateur1 | Email: evaluateur1@ucp.mg | Groups: 
+Username: ucpdev63 | Email: ucpdev63@gmail.com | Groups: 
+Username: membre1_test | Email: membre1@test.mg | Groups: 
+Username: president_test | Email: president@test.mg | Groups: 
+Username: test_final_1 | Email: test.final.1@gmail.com | Groups: 
+Username: test_final_2 | Email: test.final.2@gmail.com | Groups: 
+Username: test_final_3 | Email: test.final.3@gmail.com | Groups: 
+Username: sec_final_test | Email: secfinal@test.mg | Groups: 
+Username: pres_final_test | Email: presfinal@test.mg | Groups: 
+Username: ucpdev622 | Email: ucpdev62@gmail.com | Groups: 
+Username: stagrdev5 | Email: stagrdev5@gmail.com | Groups: 
+Username: stephanie.maminaina23 | Email: stephanie.maminaina23@gmail.com | Groups: 
+Username: alice | Email: alice@ucp.mg | Groups: SECRETAIRE_CONTRACTUALISATION
+Username: razafimahaleomami | Email: razafimahaleomami@gmail.com | Groups: EVALUATEUR
+Username: hashlah9403 | Email: hashlah940@mgail.com | Groups: 
+Username: alice@ucp.mg | Email: alice@ucp.mg | Groups: DEMANDEUR
+Username: s | Email: s@gmail.com | Groups: 
+Username: as | Email: as@gmail.com | Groups: 
+Username: ds | Email: ds@gmail.com | Groups: 
+Username: secretaire | Email: secretaire@example.test | Groups: 
+Username: secretaire_52dfcc22 | Email: secretaire_52dfcc22@example.test | Groups: 
+Username: president_52dfcc22 | Email: president_52dfcc22@example.test | Groups: RAF
+Username: membre_52dfcc22 | Email: membre_52dfcc22@example.test | Groups: 
+Username: demo_secretaire_contractualisation | Email: demo.contractualisation@ucp.local | Groups: SECRETAIRE_CONTRACTUALISATION

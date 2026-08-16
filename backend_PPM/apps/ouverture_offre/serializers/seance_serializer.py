@@ -1,7 +1,13 @@
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
-from apps.ouverture_offre.models import MembreSeance, SeanceOuverture, OffreOuverture, PVDocument
+from apps.ouverture_offre.models import (
+    MembreSeance,
+    SeanceOuverture,
+    OffreOuverture,
+    PVDocument,
+    ValidationCompositionMembre,
+)
 from .user_serializer import SimpleUserSerializer
 
 User = get_user_model()
@@ -72,6 +78,35 @@ class PVDocumentSerializer(serializers.ModelSerializer):
         ]
 
 
+class ValidationCompositionMembreSerializer(serializers.ModelSerializer):
+    validateur_detail = SimpleUserSerializer(source="validateur", read_only=True)
+    role_code = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ValidationCompositionMembre
+        fields = [
+            "id",
+            "role",
+            "role_code",
+            "validateur",
+            "validateur_detail",
+            "decision",
+            "commentaire",
+            "date_validation",
+            "notification_sent_at",
+        ]
+        read_only_fields = fields
+
+    def get_role_code(self, obj):
+        # map RPM -> rp, GP -> gp, CN -> cn
+        if not obj or not getattr(obj, "role", None):
+            return None
+        role = obj.role
+        if role == "RPM":
+            return "rp"
+        return role.lower()
+
+
 class MembreSeanceSerializer(serializers.ModelSerializer):
     utilisateur_detail = SimpleUserSerializer(source="utilisateur", read_only=True)
 
@@ -119,6 +154,10 @@ class OffreOuvertureSerializer(serializers.ModelSerializer):
             "enveloppe_administrative",
             "enveloppe_technique",
             "enveloppe_financiere",
+            "etat_scelle",
+            "presence_rature",
+            "description_rature",
+            "document_substitution_present",
             "montant_global",
             "observations",
         ]
@@ -142,6 +181,10 @@ class SeanceOuvertureSerializer(serializers.ModelSerializer):
     secretaire_detail = SimpleUserSerializer(source="secretaire", read_only=True)
     president_detail = SimpleUserSerializer(source="president", read_only=True)
     membres = MembreSeanceSerializer(many=True, read_only=True)
+    validations_composition = ValidationCompositionMembreSerializer(
+        many=True,
+        read_only=True,
+    )
     membre_ids = serializers.ListField(
         child=serializers.IntegerField(),
         write_only=True,
@@ -154,6 +197,10 @@ class SeanceOuvertureSerializer(serializers.ModelSerializer):
         required=False,
     )
     pv_document = PVDocumentSerializer(read_only=True)
+    composition_validation_statut = serializers.SerializerMethodField()
+    composition_validation_role_courant = serializers.SerializerMethodField()
+    composition_validation_est_urgent = serializers.SerializerMethodField()
+
     class Meta:
         model = SeanceOuverture
         fields = [
@@ -165,15 +212,21 @@ class SeanceOuvertureSerializer(serializers.ModelSerializer):
             "lieu",
             "observations",
             "statut",
+            "membres_verrouilles",
+            "date_soumission_membres",
             "secretaire",
             "secretaire_detail",
             "president",
             "president_detail",
             "membres",
+            "validations_composition",
             "membre_ids",
             "commission_members",
             "created_at",
             "updated_at",
+            "composition_validation_statut",
+            "composition_validation_role_courant",
+            "composition_validation_est_urgent",
             "president_a_valide",
             "president_decision",
             "president_commentaire",
@@ -267,10 +320,6 @@ class SeanceOuvertureSerializer(serializers.ModelSerializer):
                 errors["heure_seance"] = "Renseigne l heure de seance."
             if not lieu:
                 errors["lieu"] = "Renseigne le lieu."
-            if not etat_scelle:
-                errors["etat_scelle"] = "Renseigne l etat du scelle."
-            if presence_rature and not description_rature:
-                errors["description_rature"] = "Decris la rature ou la manipulation constatee."
             if errors:
                 raise serializers.ValidationError(errors)
 
@@ -289,6 +338,32 @@ class SeanceOuvertureSerializer(serializers.ModelSerializer):
                     })
                     
         return attrs
+
+    def get_composition_validation_statut(self, obj):
+        from apps.ouverture_offre.services.composition_validation_service import (
+            get_composition_dashboard_statut,
+        )
+
+        return get_composition_dashboard_statut(obj)
+
+    def get_composition_validation_role_courant(self, obj):
+        from apps.ouverture_offre.services.composition_validation_service import (
+            get_active_composition_role,
+        )
+
+        role = get_active_composition_role(obj)
+        if not role:
+            return None
+        if role == "RPM":
+            return "rp"
+        return role.lower()
+
+    def get_composition_validation_est_urgent(self, obj):
+        from apps.ouverture_offre.services.composition_validation_service import (
+            is_composition_urgent,
+        )
+
+        return is_composition_urgent(obj)
 
 class ValidationMembreSerializer(serializers.Serializer):
     commentaire = serializers.CharField(required=False, allow_blank=True)

@@ -156,6 +156,17 @@ export default function ContratDetailPage() {
       setSending(true);
       setError(null);
       setSuccess(null);
+
+      // Auto-save the current form state to the database before sending
+      await updateContrat(contrat.id, {
+        email_prestataire: email,
+        telephone_prestataire: telephone,
+        representant_signataire: representant,
+        duree_execution: dureeExecution,
+        clauses_particulieres: clausesParticulieres,
+        date_signature: dateSignature || undefined,
+      });
+
       const updated = await sendContrat(contrat.id);
       setContrat(updated);
       setSuccess(
@@ -409,6 +420,49 @@ export default function ContratDetailPage() {
         </div>
       )}
 
+      {/* General Error Modal */}
+      {error && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-md rounded-3xl border border-rose-200 bg-white shadow-2xl overflow-hidden animate-scale-in">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-rose-50 to-red-50 border-b border-rose-200 px-6 py-5">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-rose-100">
+                  <AlertCircle className="h-5 w-5 text-rose-600" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black uppercase tracking-widest text-rose-950">
+                    Une erreur est survenue
+                  </h3>
+                  <p className="text-xs text-rose-600 font-semibold mt-0.5">
+                    Détail de l&apos;erreur
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Error Message */}
+            <div className="px-6 py-5">
+              <div className="flex items-start gap-3 rounded-xl border border-rose-100 bg-rose-50/60 p-3">
+                <p className="text-xs font-semibold text-rose-900 leading-relaxed">
+                  {error}
+                </p>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="border-t border-rose-100 bg-slate-50 px-6 py-4">
+              <button
+                onClick={() => setError(null)}
+                className="w-full inline-flex items-center justify-center rounded-xl bg-rose-600 px-4 py-2.5 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-rose-500/20 transition-all hover:-translate-y-0.5 hover:bg-rose-700"
+              >
+                Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <TopHeader />
 
       <div className="zoom-content mx-auto mt-2 max-w-[1680px] px-4 pb-12 pt-6">
@@ -457,12 +511,7 @@ export default function ContratDetailPage() {
           </div>
         </div>
 
-        {error && (
-          <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 text-rose-800 mb-6 text-sm flex items-center gap-2 shadow-sm animate-pulse">
-            <AlertCircle className="h-5 w-5 text-rose-600 shrink-0" />
-            <div>{error}</div>
-          </div>
-        )}
+
 
         {success && (
           <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 text-emerald-800 mb-6 text-sm flex items-center gap-2 shadow-sm animate-fade-in">

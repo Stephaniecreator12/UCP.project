@@ -118,13 +118,16 @@ def creer_contrat_brouillon(
     Rempli auto les champs depuis l'offre gagnante
     """
     seance = SeanceOuverture.objects.get(id=seance_id)
-    offre = OffreOuverture.objects.get(id=offre_id, seance=seance)
+    offre = OffreOuverture.objects.select_related("decision_finale").get(id=offre_id, seance=seance)
 
-    # Vérifier que c'est bien le Rang 1
+    # Vérifier que l'offre est éligible (attribuée ou rang 1)
     classement = _get_classement_info(seance_id)
-    if not classement or classement["offre_id"] != offre_id:
+    decision = getattr(offre, "decision_finale", None)
+    is_attribuee = decision and decision.recommandation == "ATRIBUER"
+    is_rang_1 = classement and classement["offre_id"] == offre_id
+    if not is_attribuee and not is_rang_1:
         raise ValidationError(
-            {"detail": "Cette offre n'est pas classée Rang 1. Impossible de créer un contrat."}
+            {"detail": "Cette offre n'est pas éligible à la contractualisation."}
         )
 
     # Générer le numéro marché si pas déjà existant
@@ -289,6 +292,48 @@ def upload_document_contrat(
     )
 
     return document
+
+
+# ============================================================
+# SUPPRIMER UN DOCUMENT
+# ============================================================
+
+@transaction.atomic
+def supprimer_document_contrat(
+    contrat_id: int,
+    document_id: int,
+    utilisateur: User,
+    ip_adresse: str = "",
+    navigateur: str = "",
+) -> None:
+    """
+    Supprime un document du contrat
+    Autorisé uniquement si le contrat est en BROUILLON
+    """
+    contrat = Contrat.objects.get(id=contrat_id)
+    document = DocumentContrat.objects.get(id=document_id, contrat=contrat)
+
+    if contrat.statut != StatutContrat.BROUILLON:
+        raise ValidationError(
+            {"detail": "Impossible de supprimer un document d'un contrat non en brouillon."}
+        )
+
+    # Stocker les info avant suppression pour l'audit
+    doc_type = document.get_type_document_display()
+    doc_hash = document.hash_sha256[:16] if document.hash_sha256 else "N/A"
+
+    # Supprimer le document
+    document.delete()
+
+    # Audit
+    _log_audit(
+        contrat,
+        AuditTrailContrat.Action.DELETE,
+        utilisateur,
+        description=f"Document {doc_type} supprimé (SHA256: {doc_hash}...)",
+        ip_adresse=ip_adresse,
+        navigateur=navigateur,
+    )
 
 
 # ============================================================

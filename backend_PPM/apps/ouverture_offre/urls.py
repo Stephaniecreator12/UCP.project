@@ -12,12 +12,22 @@ from .views import (
     seance_validate_member,
     seance_validate_president,
     download_pv,
+    composition_pending_list,
+    composition_detail,
+    composition_valider,
+    composition_rejeter,
+    seance_soumettre_membres,
 )
 
 urlpatterns = [
     path("utilisateurs/", available_users, name="ouverture-users"),
     path("seances/", seance_list_create, name="ouverture-seances"),
     path("seances/<int:pk>/", seance_detail, name="ouverture-seance-detail"),
+    path("seances/<int:pk>/soumettre-membres/", seance_soumettre_membres, name="ouverture-seance-soumettre-membres"),
+    path("validations-membres/pending/", composition_pending_list, name="ouverture-composition-pending"),
+    path("validations-membres/<int:seance_id>/", composition_detail, name="ouverture-composition-detail"),
+    path("validations-membres/<int:seance_id>/valider/", composition_valider, name="ouverture-composition-valider"),
+    path("validations-membres/<int:seance_id>/rejeter/", composition_rejeter, name="ouverture-composition-rejeter"),
     path("seances/<int:pk>/validation-acces/", seance_validation_access, name="ouverture-seance-validation-acces"),
     path("seances/<int:pk>/validation-decision/", seance_validation_decision, name="ouverture-seance-validation-decision"),
     path("seances/<int:pk>/renvoyer-invitations/", seance_resend_invitations, name="ouverture-seance-renvoyer-invitations"),

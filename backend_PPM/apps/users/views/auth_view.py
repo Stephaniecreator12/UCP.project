@@ -6,8 +6,54 @@ from django.contrib.auth import get_user_model
 from django.core.signing import TimestampSigner, SignatureExpired, BadSignature
 from django.core.mail import send_mail
 from django.conf import settings
+from rest_framework_simplejwt.tokens import RefreshToken
 from apps.users.tasks.envoyer_confirmation_email_task import envoyer_confirmation_email
 User = get_user_model()
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def personnel_login_view(request):
+    email = (request.data.get('email') or '').strip().lower()
+    password = request.data.get('password') or ''
+
+    if not email or not password:
+        return Response({
+            "success": False,
+            "message": "L'adresse e-mail et le mot de passe sont requis."
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    user = User.objects.filter(email__iexact=email).first()
+    if not user or not user.check_password(password):
+        return Response({
+            "success": False,
+            "message": "l'adresse e-mail ou mot de passe incorrect"
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    if not user.is_active:
+        return Response({
+            "success": False,
+            "message": "Ce compte est inactif."
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    refresh = RefreshToken.for_user(user)
+    user_payload = {
+        "id": user.id,
+        "username": getattr(user, "username", "") or user.email,
+        "email": user.email,
+        "first_name": getattr(user, "first_name", "") or "",
+        "last_name": getattr(user, "last_name", "") or "",
+        "is_active": user.is_active,
+        "is_staff": user.is_staff,
+        "groups": list(user.groups.values_list("name", flat=True)),
+    }
+
+    return Response({
+        "success": True,
+        "token": str(refresh.access_token),
+        "refresh": str(refresh),
+        "user": user_payload,
+    }, status=status.HTTP_200_OK)
 
 @api_view(['POST'])
 @permission_classes([AllowAny]) 

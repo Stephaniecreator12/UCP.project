@@ -9,7 +9,7 @@ User = get_user_model()
 
 
 class StatutContrat(models.TextChoices):
-    BROUILLON = "BROUILLON", "Brouillon"
+    BROUILLON = "BROUILLON", "À contractualiser"
     ATTENTE_SIGNATURE = "ATTENTE_SIGNATURE", "En attente de signature"
     EXECUTION = "EXECUTION", "En exécution"
     TERMINE = "TERMINE", "Terminé"
@@ -204,6 +204,7 @@ class AuditTrailContrat(models.Model):
         CREATE = "CREATE", "Création"
         UPDATE = "UPDATE", "Modification"
         UPLOAD = "UPLOAD", "Upload document"
+        DELETE = "DELETE", "Suppression document"
         SEND = "SEND", "Envoi au prestataire"
         SIGN = "SIGN", "Signature"
         VALIDATE = "VALIDATE", "Validation"

@@ -236,6 +236,13 @@ const getOfferObservation = (offre: OfferItem) => {
   return offre.observations || "Aucune observation";
 };
 
+const getOfferScelleLabel = (value: OfferItem["etat_scelle"]) => {
+  if (value === "INTACT") return "Intact";
+  if (value === "ALTERE") return "Altéré";
+  if (value === "ABSENT") return "Absent";
+  return "Non précisé";
+};
+
 function EnvelopeBadge({
   value,
   notApplicable = false,
@@ -304,10 +311,10 @@ export default function SeanceOverviewDetails({
       ? "grid gap-3 xl:grid-cols-1"
       : "grid gap-4 xl:grid-cols-1";
   const primarySectionClass = compact
-    ? "rounded-3xl border border-slate-200 bg-slate-50 p-4 shadow-sm"
+    ? "rounded-3xl border border-slate-200 bg-slate-50 p-3 shadow-sm"
     : "rounded-3xl border border-slate-200 bg-slate-50 p-5 shadow-sm";
   const cardSectionClass = compact
-    ? "rounded-3xl border border-slate-200 bg-white p-4 shadow-sm"
+    ? "rounded-3xl border border-slate-200 bg-white p-3 shadow-sm"
     : "rounded-3xl border border-slate-200 bg-white p-5 shadow-sm";
   const progressGridClass = compact
     ? "grid gap-2 sm:grid-cols-3 xl:grid-cols-1"
@@ -788,6 +795,7 @@ export default function SeanceOverviewDetails({
                     <th className={`w-32 ${tablePaddingClass}`}>Env. admin.</th>
                     <th className={`w-32 ${tablePaddingClass}`}>Env. tech.</th>
                     <th className={`w-32 ${tablePaddingClass}`}>Env. fin.</th>
+                    <th className={`w-52 ${tablePaddingClass}`}>Scellés</th>
                     {showMontantColumn && (
                       <th className={`w-32 ${tablePaddingClass}`}>Montant</th>
                     )}
@@ -829,6 +837,42 @@ export default function SeanceOverviewDetails({
                             seance.etape_ouverture === "ADMIN_TECH"
                           }
                         />
+                      </td>
+                      <td className={tablePaddingClass}>
+                        <div className="space-y-1.5">
+                          <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
+                            {getOfferScelleLabel(offre.etat_scelle)}
+                          </span>
+                          <div className="flex flex-wrap gap-1.5 text-[11px] font-semibold">
+                            <span
+                              className={`inline-flex rounded-full border px-2 py-0.5 ${
+                                offre.presence_rature
+                                  ? "border-amber-200 bg-amber-50 text-amber-700"
+                                  : "border-slate-200 bg-slate-50 text-slate-500"
+                              }`}
+                            >
+                              Rature {offre.presence_rature ? "Oui" : "Non"}
+                            </span>
+                            <span
+                              className={`inline-flex rounded-full border px-2 py-0.5 ${
+                                offre.document_substitution_present
+                                  ? "border-blue-200 bg-blue-50 text-blue-700"
+                                  : "border-slate-200 bg-slate-50 text-slate-500"
+                              }`}
+                            >
+                              Substitution{" "}
+                              {offre.document_substitution_present
+                                ? "Oui"
+                                : "Non"}
+                            </span>
+                          </div>
+                          {offre.presence_rature &&
+                            offre.description_rature && (
+                              <p className="text-[11px] leading-relaxed text-amber-700">
+                                {offre.description_rature}
+                              </p>
+                            )}
+                        </div>
                       </td>
                       {showMontantColumn && (
                         <td className={tablePaddingClass}>

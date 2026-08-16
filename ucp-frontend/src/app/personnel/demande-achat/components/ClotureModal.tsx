@@ -40,8 +40,12 @@ export default function ClotureModal({
   useEffect(() => {
     if (open && demande) {
       const today = getTodayDate();
+      const initialDate =
+        demande.date_cloture && demande.date_cloture >= today
+          ? demande.date_cloture
+          : today;
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setDateCloture(demande.date_cloture || today);
+      setDateCloture(initialDate);
       setStatutFinal((demande.statut_final as CloseDemandePayload["statut_final"]) || "");
       setNiveauSatisfaction(demande.niveau_satisfaction || 0);
       setCommentairesFinaux(demande.commentaires_finaux || "");

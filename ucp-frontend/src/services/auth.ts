@@ -20,6 +20,117 @@ export const rhLogin = async (
   // --- MODE SIMULATION POUR LE DÉVELOPPEMENT LOCAL ---
   const emailLower = email.trim().toLowerCase();
 
+  if (
+    emailLower === "hashlah940@gmail.com" ||
+    emailLower === "cn@ucp.mg" ||
+    emailLower === "cn"
+  ) {
+    Cookies.set("access_token", "mock_token_cn_hashlah_940", { expires: 1 });
+    const stringUser = JSON.stringify({
+      id: 940,
+      email: "hashlah940@gmail.com",
+      nom: "CN",
+      prenom: "Validateur CN",
+    });
+    const encryptedUser = CryptoJS.AES.encrypt(
+      stringUser,
+      process.env.NEXT_PUBLIC_COOKIE_SECRET || "default_secret_key",
+    ).toString();
+    Cookies.set("user_info", encryptedUser, { expires: 1 });
+    const accessType = "private";
+    storeCurrentUser({
+      id: 940,
+      username: "validateur5",
+      email: "hashlah940@gmail.com",
+      first_name: "Validateur CN",
+      last_name: "CN",
+      is_active: true,
+      is_staff: false,
+      groups: ["APPROBATEUR_NATIONAL", "CN"],
+    });
+    setAccess(accessType);
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("access_token", "mock_token_cn_hashlah_940");
+      } catch {}
+    }
+    return { status: 200, success: true, accessType: "private" };
+  }
+
+  if (
+    emailLower === "raknaliarisoa@gmail.com" ||
+    emailLower === "rpm@ucp.mg" ||
+    emailLower === "rpm"
+  ) {
+    Cookies.set("access_token", "mock_token_rpm_raknaliarisoa", { expires: 1 });
+    const stringUser = JSON.stringify({
+      id: 941,
+      email: "raknaliarisoa@gmail.com",
+      nom: "RAKOTO",
+      prenom: "RPM Validateur",
+    });
+    const encryptedUser = CryptoJS.AES.encrypt(
+      stringUser,
+      process.env.NEXT_PUBLIC_COOKIE_SECRET || "default_secret_key",
+    ).toString();
+    Cookies.set("user_info", encryptedUser, { expires: 1 });
+    const accessType = "private";
+    storeCurrentUser({
+      id: 941,
+      username: "rpm_validation",
+      email: "raknaliarisoa@gmail.com",
+      first_name: "RPM Validateur",
+      last_name: "RAKOTO",
+      is_active: true,
+      is_staff: false,
+      groups: ["RPM", "VALIDATEUR_PROGRAMMATIQUE"],
+    });
+    setAccess(accessType);
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("access_token", "mock_token_rpm_raknaliarisoa");
+      } catch {}
+    }
+    return { status: 200, success: true, accessType: "private" };
+  }
+
+  if (
+    emailLower === "razafimahaleomami@gmail.com" ||
+    emailLower === "gp@ucp.mg" ||
+    emailLower === "gp"
+  ) {
+    Cookies.set("access_token", "mock_token_gp_razafi", { expires: 1 });
+    const stringUser = JSON.stringify({
+      id: 942,
+      email: "razafimahaleomami@gmail.com",
+      nom: "RAZAFY",
+      prenom: "GP Validateur",
+    });
+    const encryptedUser = CryptoJS.AES.encrypt(
+      stringUser,
+      process.env.NEXT_PUBLIC_COOKIE_SECRET || "default_secret_key",
+    ).toString();
+    Cookies.set("user_info", encryptedUser, { expires: 1 });
+    const accessType = "private";
+    storeCurrentUser({
+      id: 942,
+      username: "razafimahaleomami",
+      email: "razafimahaleomami@gmail.com",
+      first_name: "GP Validateur",
+      last_name: "RAZAFY",
+      is_active: true,
+      is_staff: false,
+      groups: ["GP", "VALIDATEUR_TECHNIQUE"],
+    });
+    setAccess(accessType);
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("access_token", "mock_token_gp_razafi");
+      } catch {}
+    }
+    return { status: 200, success: true, accessType: "private" };
+  }
+
   if (emailLower === "nalisoa@ucp.mg" || emailLower === "nalisoa@ucp") {
     Cookies.set("access_token", "mock_token_nalisoa_87", { expires: 1 });
     const stringUser = JSON.stringify({
@@ -109,7 +220,7 @@ export const rhLogin = async (
       last_name: "RAF_GAVI",
       is_active: true,
       is_staff: false,
-      groups: ["SECRETAIRE"], // ← SECRÉTAIRE (default role)
+      groups: ["SECRETAIRE"],
     });
     setAccess(accessType);
     if (typeof window !== "undefined") {
@@ -214,7 +325,7 @@ export const rhLogin = async (
       last_name: "RAKOTO",
       is_active: true,
       is_staff: false,
-      groups: ["SECRETAIRE"],
+      groups: ["LOGISTIQUE"],
     });
     setAccess(accessType);
     if (typeof window !== "undefined") {
@@ -230,7 +341,7 @@ export const rhLogin = async (
   // ----------------------------------------------------
 
   try {
-    const response = await fetch(`${API_RH_URL}/api/login`, {
+    const response = await fetch(`${API_RH_URL}/api/login/`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
@@ -341,7 +452,7 @@ export const login = async (
   setAccess: (access: string) => void,
 ): Promise<LoginResult> => {
   try {
-    if (isUCPDomain(email)) {
+    if (isPrivatePersonnelEmail(email)) {
       return await rhLogin(email, password, setAccess);
     }
     return await publicLogin(email, password, setAccess);
@@ -444,6 +555,22 @@ export const isUCPDomain = (email: string): boolean => {
   const domain = email.split("@")[1].toLowerCase();
   return domain === "ucp.mg" || domain === "ucp";
 };
+
+const getPrivateLoginEmails = () => {
+  const configuredEmails = (process.env.NEXT_PUBLIC_PRIVATE_LOGIN_EMAILS || "")
+    .split(",")
+    .map((item) => item.trim().toLowerCase())
+    .filter(Boolean);
+
+  return [...DEFAULT_PRIVATE_LOGIN_EMAILS, ...configuredEmails];
+};
+
+export const isPrivatePersonnelEmail = (email: string): boolean => {
+  const emailLower = email.trim().toLowerCase();
+  return (
+    isUCPDomain(emailLower) || getPrivateLoginEmails().includes(emailLower)
+  );
+};
 const extractAuthErrorMessage = (data: unknown): string | null => {
   if (!data) return null;
 
@@ -510,10 +637,23 @@ export interface UserProfile {
 }
 
 const USER_STORAGE_KEY = "user_profile";
+const DEFAULT_PRIVATE_LOGIN_EMAILS = [
+  "raknaliarisoa@gmail.com",
+  "razafimahaleomami@gmail.com",
+  "stephanie.maminiaina23@gmail.com",
+] as const;
 export const VALIDATOR_GROUPS = [
   "VALIDATEUR_HIERARCHIQUE",
   "VALIDATEUR_TECHNIQUE",
   "VALIDATEUR_PROGRAMMATIQUE",
+  "APPROBATEUR_NATIONAL",
+] as const;
+export const COMPOSITION_VALIDATOR_GROUPS = [
+  "RPM",
+  "GP",
+  "CN",
+  "VALIDATEUR_PROGRAMMATIQUE",
+  "VALIDATEUR_TECHNIQUE",
   "APPROBATEUR_NATIONAL",
 ] as const;
 export const FINANCE_GROUPS = [
@@ -541,6 +681,18 @@ const VALIDATOR_GROUP_LABELS: Record<
   VALIDATEUR_HIERARCHIQUE: "Supérieur hiérarchique",
   VALIDATEUR_TECHNIQUE: "Responsable technique",
   VALIDATEUR_PROGRAMMATIQUE: "Point focal programme",
+  APPROBATEUR_NATIONAL: "Coordonnateur national",
+};
+
+const COMPOSITION_VALIDATOR_GROUP_LABELS: Record<
+  (typeof COMPOSITION_VALIDATOR_GROUPS)[number],
+  string
+> = {
+  RPM: "Responsable Passation de Marché",
+  GP: "Gestionnaire de Programme",
+  CN: "Coordonnateur national",
+  VALIDATEUR_PROGRAMMATIQUE: "Responsable Passation de Marché",
+  VALIDATEUR_TECHNIQUE: "Gestionnaire de Programme",
   APPROBATEUR_NATIONAL: "Coordonnateur national",
 };
 
@@ -589,6 +741,14 @@ export const isValidatorUser = (user: UserProfile | null) =>
     VALIDATOR_GROUPS.includes(group as (typeof VALIDATOR_GROUPS)[number]),
   );
 
+export const isCompositionValidatorUser = (user: UserProfile | null) =>
+  !!user?.groups?.some(
+    (group): group is (typeof COMPOSITION_VALIDATOR_GROUPS)[number] =>
+      COMPOSITION_VALIDATOR_GROUPS.includes(
+        group as (typeof COMPOSITION_VALIDATOR_GROUPS)[number],
+      ),
+  );
+
 export const isAgentAchatUser = (user: UserProfile | null) =>
   !!user?.groups?.includes(AGENT_ACHAT_GROUP);
 
@@ -629,6 +789,16 @@ export const getValidatorRoleLabel = (user: UserProfile | null) => {
   return group ? VALIDATOR_GROUP_LABELS[group] : "";
 };
 
+export const getCompositionValidatorRoleLabel = (user: UserProfile | null) => {
+  const group = user?.groups?.find(
+    (item): item is (typeof COMPOSITION_VALIDATOR_GROUPS)[number] =>
+      COMPOSITION_VALIDATOR_GROUPS.includes(
+        item as (typeof COMPOSITION_VALIDATOR_GROUPS)[number],
+      ),
+  );
+  return group ? COMPOSITION_VALIDATOR_GROUP_LABELS[group] : "";
+};
+
 export const getFinanceGroup = (user: UserProfile | null) =>
   user?.groups?.find((item): item is (typeof FINANCE_GROUPS)[number] =>
     FINANCE_GROUPS.includes(item as (typeof FINANCE_GROUPS)[number]),
@@ -662,8 +832,10 @@ export const getLandingRouteForUser = (user: UserProfile | null) => {
   if (isSecretaireUser(user)) return "/personnel/ouverture_offre";
   if (isSecretaireContractualisationUser(user))
     return "/personnel/contractualisation";
-  if (isFinanceUser(user) || isValidatorUser(user))
-    return "/personnel/validation";
+  if (isFinanceUser(user)) return "/personnel/validation";
+  if (isCompositionValidatorUser(user))
+    return "/personnel/ouverture_offre/validation-membres";
+  if (isValidatorUser(user)) return "/personnel/validation";
   if (isAgentAchatUser(user)) return "/personnel/passation";
   if (isAgentMarcheUser(user)) return "/personnel/marche";
   return "/personnel/dashboard";
@@ -686,12 +858,15 @@ export const fetchCurrentUser = async (): Promise<UserProfile> => {
     );
   }
 
-  const rawData = (await readApiResponse(response)) as any;
+  const rawData = (await readApiResponse(response)) as
+    | UserProfile
+    | { data?: UserProfile }
+    | null;
   if (!rawData) {
     throw new Error("Réponse utilisateur invalide.");
   }
 
-  const user = (rawData.data ? rawData.data : rawData) as UserProfile;
+  const user = "data" in rawData && rawData.data ? rawData.data : rawData;
   storeCurrentUser(user);
   return user;
 };

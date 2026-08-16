@@ -51,7 +51,12 @@ import {
   stepLabels,
   typeLabels,
 } from "@/app/personnel/demande-achat/components/demandeAchatShared";
-import { getCurrentUser, getToken, type UserProfile } from "@/services/auth";
+import {
+  fetchCurrentUser,
+  getCurrentUser,
+  getToken,
+  type UserProfile,
+} from "@/services/auth";
 import {
   type DashboardScope,
   DemandeAchat,
@@ -401,7 +406,7 @@ function DashboardPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const hasHydrated = useHasHydrated();
-  const currentUser = hasHydrated ? getCurrentUser() : null;
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [demandes, setDemandes] = useState<DemandeAchat[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -451,6 +456,27 @@ function DashboardPageContent() {
     setToastMessage(message);
     setTimeout(() => setToastMessage(null), 3000);
   };
+
+  useEffect(() => {
+    if (!hasHydrated) return;
+
+    let isCancelled = false;
+    setCurrentUser(getCurrentUser());
+
+    fetchCurrentUser()
+      .then((user) => {
+        if (!isCancelled) {
+          setCurrentUser(user);
+        }
+      })
+      .catch(() => {
+        // Le dashboard garde le profil local si le serveur ne répond pas.
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [hasHydrated]);
 
   const { filteredDemandes, filterProps } = useDashboardFilters(demandes);
   const { setSelectedFinancements, setSelectedTypes } = filterProps;

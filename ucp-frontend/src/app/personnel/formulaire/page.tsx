@@ -312,15 +312,15 @@ const handleRowSave = async (row: GridRow) => {
 
 
   return (
-    <div className="min-h-dvh overflow-x-hidden overflow-y-auto bg-[radial-gradient(circle_at_10%_0%,#f6faf8_0%,transparent_25%),linear-gradient(180deg,#eceeef_0%,#e8eaed_100%)] text-[#17212e] font-sans min-[1151px]:h-screen min-[1151px]:overflow-hidden">
+    <div className="flex min-h-dvh flex-col overflow-x-hidden overflow-y-auto bg-[radial-gradient(circle_at_10%_0%,#f6faf8_0%,transparent_25%),linear-gradient(180deg,#eceeef_0%,#e8eaed_100%)] text-[#17212e] font-sans min-[1151px]:h-[125vh] min-[1151px]:overflow-hidden">
       <TopHeader />
-      <div className="page-enter grid grid-cols-[auto_minmax(0,1fr)] gap-2 p-2 max-[1150px]:grid-cols-1 min-[1151px]:overflow-hidden">
+      <div className="page-enter grid min-h-0 flex-1 grid-cols-[auto_minmax(0,1fr)] gap-2 p-2 max-[1150px]:grid-cols-1 min-[1151px]:overflow-hidden">
         <div className="page-enter-up" style={{ animationDelay: "0.08s" }}>
           <SidebarMenu activeMenu={activeMenu} onMenuSelect={setActiveMenu} />
         </div>
 
         <main
-          className="page-enter-up flex min-w-0 flex-col rounded-[14px] border border-[#d9dee3] bg-white p-3 py-2 shadow-[0_18px_36px_-30px_rgba(34,44,52,0.5)] max-[1150px]:min-h-0 min-[1151px]:h-[calc(100vh-15px)] min-[1151px]:overflow-hidden"
+          className="page-enter-up flex min-h-0 min-w-0 flex-col rounded-[14px] border border-[#d9dee3] bg-white p-3 py-2 shadow-[0_18px_36px_-30px_rgba(34,44,52,0.5)] max-[1150px]:min-h-0 min-[1151px]:h-full min-[1151px]:overflow-hidden"
           style={{ animationDelay: "0.14s", position: "relative" }}
         >
           <header
@@ -377,7 +377,7 @@ const handleRowSave = async (row: GridRow) => {
             className="page-enter-up mt-[0.9rem] flex min-h-0 flex-1 flex-col overflow-hidden rounded-[14px] border border-[#d9dee3] bg-white shadow-[0_18px_36px_-30px_rgba(34,44,52,0.5)]"
             style={{ animationDelay: "0.28s" }}
           >
-            <div className="min-h-0 flex-1 overflow-hidden max-[1150px]:max-h-none min-[1151px]:max-h-[80vh]">
+            <div className="min-h-0 flex-1 overflow-hidden">
               <GridTable
                 columns={columnsForGrid}
                 rows={rows}
@@ -390,7 +390,7 @@ const handleRowSave = async (row: GridRow) => {
               />
             </div>
 
-            <div className="relative z-50 flex min-h-[58px] items-center justify-start border-t border-[rgba(171,187,177,0.7)] bg-[linear-gradient(180deg,rgba(246,250,248,0.98),rgba(236,243,239,0.98))] px-[14px] py-[10px] max-[900px]:hidden">
+            <div className="sticky bottom-0 z-50 flex min-h-[58px] shrink-0 items-center justify-start border-t border-[rgba(171,187,177,0.7)] bg-[linear-gradient(180deg,rgba(246,250,248,0.98),rgba(236,243,239,0.98))] px-[14px] py-[10px] max-[900px]:hidden">
               <button
                 type="button"
                 className="inline-flex items-center gap-[0.44rem] rounded-full border border-[#76cba0] bg-[linear-gradient(180deg,#15ba66,#078848)] px-4 py-[0.52rem] font-bold text-white transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-55"

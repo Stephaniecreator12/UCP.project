@@ -282,15 +282,15 @@ export const getDemandeTrackingStageLabel = (demande: DemandeAchat) => {
     return stepLabels[demande.etape_validation_actuelle] ?? "Validation";
   }
   if (demande.statut === "VALIDEE_BUDGETAIRE") return "Passation";
+  if (needsClosureAction(demande)) {
+    return "Clôture";
+  }
   if (
     ["EN_COMMANDE", "EN_LIVRAISON", "LIVREE"].includes(demande.statut) ||
     needsReceptionAction(demande) ||
     needsIssueResolutionAction(demande)
   ) {
     return "Réception";
-  }
-  if (needsClosureAction(demande)) {
-    return "Clôture";
   }
   if (demande.statut === "CLOTUREE") return "Archivé - clôturé";
   if (demande.statut === "REJETEE") return "Archivé - rejeté";
@@ -307,11 +307,11 @@ export const getDemandeCurrentOwnerLabel = (demande: DemandeAchat) => {
   if (["EN_COMMANDE", "EN_LIVRAISON"].includes(demande.statut)) {
     return "Service logistique";
   }
-  if (needsReceptionAction(demande) || demande.statut === "LIVREE") {
-    return "Service logistique";
-  }
   if (needsClosureAction(demande)) {
     return "Demandeur";
+  }
+  if (needsReceptionAction(demande) || demande.statut === "LIVREE") {
+    return "Service logistique";
   }
   if (demande.statut === "CLOTUREE" || demande.statut === "REJETEE") {
     return "Dossier terminé";
@@ -550,7 +550,7 @@ export const getDemandePrimaryAction = (
   demande: DemandeAchat,
   user: UserProfile | null,
 ): DemandePrimaryAction | null => {
-  const isOwner = !!user && demande.demandeur === user.id;
+  const isOwner = !!user && Number(demande.demandeur) === Number(user.id);
   const validatorStep = getValidatorStep(user);
 
   if (
@@ -559,9 +559,18 @@ export const getDemandePrimaryAction = (
     demande.etape_validation_actuelle === validatorStep
   ) {
     return {
-      href: `/demande-achat/${demande.id}/validation`,
+      href: `/personnel/validation?demande=${demande.id}`,
       label: "Valider",
       tone: "emerald",
+    };
+  }
+
+  // Le demandeur reprend la main au moment de la clôture finale.
+  if (needsClosureAction(demande) && isOwner) {
+    return {
+      href: `/demande-achat/${demande.id}/cloture`,
+      label: "Clôturer",
+      tone: "slate",
     };
   }
 
@@ -603,15 +612,6 @@ export const getDemandePrimaryAction = (
     }
 
     return null;
-  }
-
-  // Le demandeur reprend la main au moment de la clôture finale.
-  if (needsClosureAction(demande) && isOwner) {
-    return {
-      href: `/demande-achat/${demande.id}/cloture`,
-      label: "Clôturer",
-      tone: "slate",
-    };
   }
 
   if (demande.statut === "A_COMPLETER" && isOwner) {

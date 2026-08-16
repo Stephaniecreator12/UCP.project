@@ -109,9 +109,15 @@ class OffreEvaluationSerializer(serializers.ModelSerializer):
             "statut_seance",
             "ordre_passage",
             "nom_soumissionnaire",
+            "etat_scelle",
+            "presence_rature",
+            "description_rature",
+            "document_substitution_present",
             "montant_global",
             "observations",
             "lot_numero",
+            "nif",
+            "stat",
             "nif_stat",
         ]
 
@@ -265,9 +271,6 @@ class SaveFinanciereSerializer(serializers.Serializer):
 
 
 class SaveConclusionSerializer(serializers.Serializer):
-    recommandation = serializers.ChoiceField(
-        choices=RecommandationType.choices, required=False, allow_null=True,
-    )
     justification = serializers.CharField(required=False, allow_blank=True)
     declaration_conflit = serializers.ChoiceField(
         choices=DeclarationConflitType.choices, required=False, allow_blank=True,
@@ -352,11 +355,11 @@ class EvaluationOffreDetailSerializer(serializers.ModelSerializer):
         return message
 
     def get_peut_saisir_financiere(self, obj):
-        allowed, _message = _financial_gate(obj.offre)
+        allowed, _message = _financial_gate(obj.offre, obj)
         return allowed
 
     def get_blocage_financier(self, obj):
-        _allowed, message = _financial_gate(obj.offre)
+        _allowed, message = _financial_gate(obj.offre, obj)
         return message
 
     def get_evaluateurs_avancement(self, obj):
@@ -525,6 +528,8 @@ class OffreAssignationSerializer(serializers.ModelSerializer):
             "montant_global",
             "observations",
             "lot_numero",
+            "nif",
+            "stat",
             "nif_stat",
             "evaluateurs_assignes",
             "statut_dashboard",
@@ -570,6 +575,8 @@ class CommissionMemberSerializer(serializers.Serializer):
 class OffreAssignationMetaSerializer(serializers.Serializer):
     offre_id = serializers.IntegerField()
     lot_numero = serializers.CharField(required=False, allow_blank=True)
+    nif = serializers.CharField(required=False, allow_blank=True)
+    stat = serializers.CharField(required=False, allow_blank=True)
     nif_stat = serializers.CharField(required=False, allow_blank=True)
 
 
@@ -591,7 +598,10 @@ class AssignationEvaluateursSerializer(serializers.Serializer):
         required=False,
     )
     lot_numero = serializers.CharField(required=False, allow_blank=True)
+    nif = serializers.CharField(required=False, allow_blank=True)
+    stat = serializers.CharField(required=False, allow_blank=True)
     nif_stat = serializers.CharField(required=False, allow_blank=True)
+
     nom_soumissionnaire = serializers.CharField(required=False, allow_blank=True)
     date_evaluation = serializers.DateField(required=False, allow_null=True)
     heure_evaluation = serializers.TimeField(required=False, allow_null=True)
@@ -641,6 +651,12 @@ class AssignationEvaluateursSerializer(serializers.Serializer):
 # ============================================================
 class DecisionFinaleSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True)
+    recommandation = serializers.ChoiceField(
+        choices=RecommandationType.choices,
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
 
     class Meta:
         model = DecisionFinale
@@ -663,11 +679,6 @@ class DecisionFinaleSerializer(serializers.ModelSerializer):
             "score_final",
             "created_at",
         ]
-
-    def validate_recommandation(self, value):
-        if not value:
-            raise serializers.ValidationError("La recommandation est obligatoire.")
-        return value
 
     def validate_declaration_conflit(self, value):
         if not value:

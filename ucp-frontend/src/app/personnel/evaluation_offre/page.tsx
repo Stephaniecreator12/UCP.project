@@ -11,9 +11,9 @@ import {
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   AlertCircle,
+  Archive,
   CheckCircle2,
   ChevronDown,
-  ChevronRight,
   ClipboardList,
   Clock,
   Hourglass,
@@ -25,7 +25,6 @@ import {
   Users,
   X,
   Sparkles,
-  ShieldCheck,
   Layers,
   ArrowRight,
   User,
@@ -46,9 +45,11 @@ import {
   type ClassementLigne,
 } from "@/services/evaluationService";
 import { fetchCurrentUser, getToken, type UserProfile } from "@/services/auth";
+import { createContrat } from "@/services/contractualisation";
 
 type ScreenState = "loading" | "ready" | "error";
 type PanelMode = "assign" | "detail";
+type AppRouter = ReturnType<typeof useRouter>;
 
 type DashboardSection = {
   key: StatutDao;
@@ -95,14 +96,28 @@ const sectionConfigs: Record<StatutDao, Omit<DashboardSection, "key">> = {
     badgeClass: "border-emerald-200 bg-emerald-500 text-white",
     emptyText: "Aucun DAO terminé.",
   },
+  ARCHIVE: {
+    title: "Archivés",
+    subtitle: "Dossiers d'évaluation clos et archivés (contrat en cours).",
+    icon: Archive,
+    iconClass: "border-slate-205 bg-slate-100 text-slate-800",
+    badgeClass: "border-slate-250 bg-slate-500 text-white",
+    emptyText: "Aucun DAO archivé.",
+  },
 };
 
-const sectionOrder: StatutDao[] = ["A_ASSIGNER", "EN_EVALUATION", "TERMINE"];
+const sectionOrder: StatutDao[] = [
+  "A_ASSIGNER",
+  "EN_EVALUATION",
+  "TERMINE",
+  "ARCHIVE",
+];
 
 const statusClassMap: Record<string, string> = {
   A_ASSIGNER: "border-amber-200 bg-amber-50 text-amber-700",
   EN_EVALUATION: "border-blue-200 bg-blue-50 text-blue-700",
   TERMINE: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  ARCHIVE: "border-slate-250 bg-slate-50 text-slate-700",
 };
 
 const offreStatutConfig: Record<
@@ -145,6 +160,15 @@ const progressionLabels: Record<ProgressionStatut, string> = {
   TERMINEE: "Terminée",
 };
 
+const contratStatusLabels: Record<string, string> = {
+  BROUILLON: "À contractualiser",
+  ATTENTE_SIGNATURE: "En attente signature",
+  EXECUTION: "En exécution",
+  TERMINE: "Terminé",
+  SUSPENDU: "Suspendu",
+  ANNULE: "Annulé",
+};
+
 const fieldClass =
   "w-full rounded-xl border border-slate-250 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-800 transition-all placeholder:text-slate-400 focus:border-slate-400 focus:ring-4 focus:ring-slate-100 focus:outline-none";
 const disabledClass =
@@ -157,6 +181,15 @@ const emptyMembers = (): ManualMember[] => [
   { key: "2", nomPrenom: "", email: "", entite: "", poste: "", cin: "" },
   { key: "3", nomPrenom: "", email: "", entite: "", poste: "", cin: "" },
 ];
+
+function splitNifStat(value?: string) {
+  const raw = (value ?? "").trim();
+  if (!raw) {
+    return { nif: "", stat: "" };
+  }
+  const [nif, ...rest] = raw.split("/");
+  return { nif: nif.trim(), stat: rest.join("/").trim() };
+}
 
 function formatDateTime(value?: string | null) {
   if (!value) return "—";
@@ -210,11 +243,12 @@ function EvaluationSecretaireContent() {
   const [panelSuccess, setPanelSuccess] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [resendSubmitting, setResendSubmitting] = useState(false);
+  const [dispoLoading, setDispoLoading] = useState<Record<number, boolean>>({});
   const [dateEvaluation, setDateEvaluation] = useState("");
   const [heureEvaluation, setHeureEvaluation] = useState("09:00");
   const [members, setMembers] = useState<ManualMember[]>(emptyMembers());
   const [offreMeta, setOffreMeta] = useState<
-    Record<number, { lot: string; nif: string }>
+    Record<number, { lot: string; nif: string; stat: string }>
   >({});
 
   const loadDaos = useCallback(async () => {
@@ -253,7 +287,7 @@ function EvaluationSecretaireContent() {
       const data = await fetchDaoDetail(seanceId);
       setDetail(data);
 
-      if (data.statut_dao === "TERMINE") {
+      if (data.statut_dao === "TERMINE" || data.statut_dao === "ARCHIVE") {
         fetchClassement(seanceId)
           .then((c) => setClassementLignes(c.lignes || []))
           .catch(() => setClassementLignes([]));
@@ -268,10 +302,17 @@ function EvaluationSecretaireContent() {
       setHeureEvaluation(data.heure_evaluation?.slice(0, 5) || "09:00");
       setOffreMeta(
         Object.fromEntries(
-          data.offres.map((o) => [
-            o.offre_id,
-            { lot: o.lot_numero || "", nif: o.nif_stat || "" },
-          ]),
+          data.offres.map((o) => {
+            const parsed = splitNifStat(o.nif_stat);
+            return [
+              o.offre_id,
+              {
+                lot: o.lot_numero || "",
+                nif: o.nif || parsed.nif,
+                stat: o.stat || parsed.stat,
+              },
+            ];
+          }),
         ),
       );
       if (data.evaluateurs.length > 0) {
@@ -307,7 +348,7 @@ function EvaluationSecretaireContent() {
       try {
         const user = await fetchCurrentUser();
         setCurrentUser(user);
-      } catch (e) {
+      } catch {
         // Ignored
       }
       void loadDaos().then(() => {
@@ -380,7 +421,11 @@ function EvaluationSecretaireContent() {
         return;
       }
       if (!meta?.nif.trim()) {
-        setPanelError(`NIF / STAT requis pour ${offre.nom_soumissionnaire}.`);
+        setPanelError(`NIF requis pour ${offre.nom_soumissionnaire}.`);
+        return;
+      }
+      if (!meta?.stat.trim()) {
+        setPanelError(`STAT requis pour ${offre.nom_soumissionnaire}.`);
         return;
       }
     }
@@ -414,7 +459,8 @@ function EvaluationSecretaireContent() {
         offres: detail.offres.map((o) => ({
           offre_id: o.offre_id,
           lot_numero: offreMeta[o.offre_id]?.lot.trim(),
-          nif_stat: offreMeta[o.offre_id]?.nif.trim(),
+          nif: offreMeta[o.offre_id]?.nif.trim(),
+          stat: offreMeta[o.offre_id]?.stat.trim(),
         })),
         commission_members: members.map((m) => ({
           nomPrenom: m.nomPrenom.trim(),
@@ -457,6 +503,49 @@ function EvaluationSecretaireContent() {
       );
     } finally {
       setResendSubmitting(false);
+    }
+  };
+
+  const handleMakeDispoContrat = async (seanceId: number) => {
+    try {
+      setDispoLoading((prev) => ({ ...prev, [seanceId]: true }));
+      setPanelError("");
+      setPanelSuccess("");
+      setError("");
+
+      const classement = await fetchClassement(seanceId);
+      if (!classement || !classement.lignes || classement.lignes.length === 0) {
+        throw new Error("Impossible de récupérer le classement de la séance.");
+      }
+      const moinsDisante = classement.lignes.find(
+        (l) => l.est_moins_disante === true,
+      );
+      const targetLine =
+        moinsDisante ?? classement.lignes.find((l) => l.rang === 1);
+      if (!targetLine) {
+        throw new Error(
+          "Aucune offre éligible à l'attribution n'a été trouvée pour cette séance.",
+        );
+      }
+
+      const contrat = await createContrat(seanceId, targetLine.offre_id);
+      const statutContrat =
+        contrat.statut_label ||
+        contratStatusLabels[contrat.statut] ||
+        "statut contrat à vérifier";
+      setPanelSuccess(
+        `Dossier disponible dans contractualisation (${statutContrat}).`,
+      );
+      await loadDaos();
+    } catch (err) {
+      const errMsg =
+        err instanceof Error
+          ? err.message
+          : "Erreur lors de la mise à disposition pour le contrat";
+      setPanelError(errMsg);
+      setError(errMsg);
+    } finally {
+      setDispoLoading((prev) => ({ ...prev, [seanceId]: false }));
     }
   };
 
@@ -650,6 +739,8 @@ function EvaluationSecretaireContent() {
                           }
                           router={router}
                           openPanel={openPanel}
+                          onMakeDispoContrat={handleMakeDispoContrat}
+                          dispoLoading={dispoLoading}
                         />
                       ))}
                     </div>
@@ -799,7 +890,7 @@ function EvaluationSecretaireContent() {
                             Offre {offre.ordre_passage} —{" "}
                             {offre.nom_soumissionnaire}
                           </p>
-                          <div className="grid gap-3 sm:grid-cols-2">
+                          <div className="grid gap-3 sm:grid-cols-3">
                             <label>
                               <span className={labelClass}>Lot n° *</span>
                               <input
@@ -809,16 +900,17 @@ function EvaluationSecretaireContent() {
                                   setOffreMeta((p) => ({
                                     ...p,
                                     [offre.offre_id]: {
-                                      ...p[offre.offre_id],
                                       lot: e.target.value,
                                       nif: p[offre.offre_id]?.nif ?? "",
+                                      stat: p[offre.offre_id]?.stat ?? "",
                                     },
                                   }))
                                 }
+                                placeholder="Ex: Lot 1, Global, etc."
                               />
                             </label>
                             <label>
-                              <span className={labelClass}>NIF / STAT *</span>
+                              <span className={labelClass}>NIF *</span>
                               <input
                                 className={fieldClass}
                                 value={offreMeta[offre.offre_id]?.nif ?? ""}
@@ -828,9 +920,29 @@ function EvaluationSecretaireContent() {
                                     [offre.offre_id]: {
                                       lot: p[offre.offre_id]?.lot ?? "",
                                       nif: e.target.value,
+                                      stat: p[offre.offre_id]?.stat ?? "",
                                     },
                                   }))
                                 }
+                                placeholder="NIF du soumissionnaire"
+                              />
+                            </label>
+                            <label>
+                              <span className={labelClass}>STAT *</span>
+                              <input
+                                className={fieldClass}
+                                value={offreMeta[offre.offre_id]?.stat ?? ""}
+                                onChange={(e) =>
+                                  setOffreMeta((p) => ({
+                                    ...p,
+                                    [offre.offre_id]: {
+                                      lot: p[offre.offre_id]?.lot ?? "",
+                                      nif: p[offre.offre_id]?.nif ?? "",
+                                      stat: e.target.value,
+                                    },
+                                  }))
+                                }
+                                placeholder="Identifiant STAT du soumissionnaire"
                               />
                             </label>
                           </div>
@@ -1016,80 +1128,112 @@ function EvaluationSecretaireContent() {
                   </section>
 
                   {/* Classement direct */}
-                  {detail.statut_dao === "TERMINE" && classementLignes && (
-                    <section className="rounded-2xl border border-emerald-200 bg-white p-5 space-y-4 shadow-sm">
-                      <h3 className="text-xs font-black uppercase tracking-wider text-emerald-800">
-                        Classement Final Officiel
-                      </h3>
-                      <div className="overflow-x-auto rounded-xl border border-slate-200">
-                        <table className="min-w-full text-sm">
-                          <thead className="bg-slate-50 text-left text-xs uppercase tracking-wider text-slate-500">
-                            <tr>
-                              <th className="px-4 py-3">Rang</th>
-                              <th className="px-4 py-3">Soumissionnaire</th>
-                              <th className="px-4 py-3 text-center">
-                                Score Total
-                              </th>
-                              <th className="px-4 py-3 text-center">
-                                Technique
-                              </th>
-                              <th className="px-4 py-3 text-center">
-                                Financier
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {classementLignes.map((ligne) => (
-                              <tr
-                                key={ligne.offre_id}
-                                className="border-t border-slate-100"
-                              >
-                                <td className="px-4 py-4 font-bold text-slate-900">
-                                  {ligne.rang ?? "—"}
-                                </td>
-                                <td className="px-4 py-4 font-semibold text-slate-800">
-                                  {ligne.nom_soumissionnaire}
-                                  {ligne.rang === 1 && (
-                                    <span className="ml-2 inline-flex rounded bg-emerald-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-emerald-700">
-                                      Lauréat
-                                    </span>
-                                  )}
-                                </td>
-                                <td className="px-4 py-4 text-center font-bold text-emerald-800">
-                                  {ligne.score_total != null
-                                    ? `${ligne.score_total.toFixed(2)}/100`
-                                    : "—"}
-                                </td>
-                                <td className="px-4 py-4 text-center text-slate-600">
-                                  {ligne.score_technique?.toFixed(2) ?? "—"}
-                                </td>
-                                <td className="px-4 py-4 text-center text-slate-600">
-                                  {ligne.score_financier?.toFixed(2) ?? "—"}
-                                </td>
+                  {(detail.statut_dao === "TERMINE" ||
+                    detail.statut_dao === "ARCHIVE") &&
+                    classementLignes && (
+                      <section className="rounded-2xl border border-emerald-200 bg-white p-5 space-y-4 shadow-sm">
+                        <h3 className="text-xs font-black uppercase tracking-wider text-emerald-800">
+                          Classement Final Officiel
+                        </h3>
+                        <div className="overflow-x-auto rounded-xl border border-slate-200">
+                          <table className="min-w-full text-sm">
+                            <thead className="bg-slate-50 text-left text-xs uppercase tracking-wider text-slate-500">
+                              <tr>
+                                <th className="px-4 py-3">Rang</th>
+                                <th className="px-4 py-3">Soumissionnaire</th>
+                                <th className="px-4 py-3 text-center">
+                                  Score Total
+                                </th>
+                                <th className="px-4 py-3 text-center">
+                                  Technique
+                                </th>
+                                <th className="px-4 py-3 text-center">
+                                  Financier
+                                </th>
+                                <th className="px-4 py-3 text-center">
+                                  Action
+                                </th>
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                      <div className="flex justify-end pt-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            closePanel();
-                            router.push(
-                              `/personnel/evaluation/classement/${detail.seance_id}`,
-                            );
-                          }}
-                          className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-6 text-xs font-black uppercase tracking-widest text-white shadow-lg transition-all hover:-translate-y-0.5 hover:bg-emerald-700"
-                        >
-                          Voir le classement
-                          <ChevronRight className="h-4.5 w-4.5" />
-                        </button>
-                      </div>
-                    </section>
-                  )}
+                            </thead>
+                            <tbody>
+                              {classementLignes.map((ligne) => (
+                                <tr
+                                  key={ligne.offre_id}
+                                  className={`border-t border-slate-100 ${
+                                    ligne.est_moins_disante
+                                      ? "bg-emerald-50/60"
+                                      : ""
+                                  }`}
+                                >
+                                  <td className="px-4 py-4 font-bold text-slate-900">
+                                    {ligne.rang ?? "—"}
+                                  </td>
+                                  <td className="px-4 py-4 font-semibold text-slate-800">
+                                    {ligne.nom_soumissionnaire}
+                                    {ligne.est_moins_disante && (
+                                      <span className="ml-2 inline-flex items-center gap-1 rounded bg-emerald-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-emerald-700">
+                                        <CheckCircle2 className="h-3 w-3" />
+                                        Moins disante
+                                      </span>
+                                    )}
+                                  </td>
+                                  <td className="px-4 py-4 text-center font-bold text-emerald-800">
+                                    {ligne.score_total != null
+                                      ? `${ligne.score_total.toFixed(2)}/100`
+                                      : "—"}
+                                  </td>
+                                  <td className="px-4 py-4 text-center text-slate-600">
+                                    {ligne.score_technique?.toFixed(2) ?? "—"}
+                                  </td>
+                                  <td className="px-4 py-4 text-center text-slate-600">
+                                    {ligne.score_financier?.toFixed(2) ?? "—"}
+                                  </td>
+                                  <td className="px-4 py-4 text-center">
+                                    {ligne.rang === 1 ||
+                                    ligne.est_moins_disante ? (
+                                      <button
+                                        type="button"
+                                        disabled={
+                                          dispoLoading[detail.seance_id] ||
+                                          false
+                                        }
+                                        onClick={() =>
+                                          void handleMakeDispoContrat(
+                                            detail.seance_id,
+                                          )
+                                        }
+                                        className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-black uppercase tracking-widest text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-emerald-700 disabled:opacity-60"
+                                      >
+                                        {dispoLoading[detail.seance_id] && (
+                                          <Loader className="h-4 w-4 animate-spin" />
+                                        )}
+                                        Attribuer
+                                      </button>
+                                    ) : (
+                                      <span className="text-xs font-semibold text-slate-400">
+                                        —
+                                      </span>
+                                    )}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </section>
+                    )}
                 </>
               )}
+            </div>
+            {/* Modal Footer */}
+            <div className="flex items-center justify-end border-t border-slate-150 bg-slate-50 px-6 py-4 shrink-0">
+              <button
+                type="button"
+                onClick={closePanel}
+                className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-xs font-black uppercase tracking-widest text-slate-700 transition hover:bg-slate-50 hover:shadow-sm"
+              >
+                Quitter
+              </button>
             </div>
           </div>
         </div>
@@ -1126,12 +1270,16 @@ function EvaluationStatusSection({
   onToggle,
   router,
   openPanel,
+  onMakeDispoContrat,
+  dispoLoading,
 }: {
   section: DashboardSection & { rows: DaoDashboardItem[] };
   isActive: boolean;
   onToggle: () => void;
-  router: any;
+  router: AppRouter;
   openPanel: (dao: DaoDashboardItem, mode: PanelMode) => void;
+  onMakeDispoContrat: (seanceId: number) => void;
+  dispoLoading: Record<number, boolean>;
 }) {
   const Icon = section.icon;
   const hasRows = section.rows.length > 0;
@@ -1200,6 +1348,8 @@ function EvaluationStatusSection({
                 index={index}
                 router={router}
                 openPanel={openPanel}
+                onMakeDispoContrat={onMakeDispoContrat}
+                dispoLoading={dispoLoading}
               />
             ))
           ) : (
@@ -1218,13 +1368,21 @@ function EvaluationDashboardRow({
   index,
   router,
   openPanel,
+  onMakeDispoContrat,
+  dispoLoading,
 }: {
   dao: DaoDashboardItem;
   index: number;
-  router: any;
+  router: AppRouter;
   openPanel: (dao: DaoDashboardItem, mode: PanelMode) => void;
+  onMakeDispoContrat: (seanceId: number) => void;
+  dispoLoading: Record<number, boolean>;
 }) {
   const progression = `${dao.offres_terminees}/${dao.nb_offres} offres terminées`;
+  const isPending = dispoLoading[dao.seance_id] || false;
+  const contratStatus =
+    dao.contrat_statut_label ||
+    (dao.contrat_statut ? contratStatusLabels[dao.contrat_statut] : null);
 
   return (
     <div className="flex flex-col justify-between gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-colors hover:border-emerald-300 sm:flex-row sm:items-center">
@@ -1245,7 +1403,9 @@ function EvaluationDashboardRow({
                 ? "À assigner"
                 : dao.statut_dao === "EN_EVALUATION"
                   ? "En évaluation"
-                  : "Terminé"}
+                  : dao.statut_dao === "ARCHIVE"
+                    ? "Archivé"
+                    : "Terminé"}
             </span>
           </div>
 
@@ -1264,6 +1424,11 @@ function EvaluationDashboardRow({
             <span className="rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-1 font-semibold text-emerald-700">
               Progression : {progression}
             </span>
+            {contratStatus && (
+              <span className="rounded-full border border-violet-100 bg-violet-50 px-2.5 py-1 font-semibold text-violet-700">
+                Contrat : {contratStatus}
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -1272,17 +1437,36 @@ function EvaluationDashboardRow({
         {dao.statut_dao === "TERMINE" && (
           <button
             type="button"
-            onClick={() =>
-              router.push(`/personnel/evaluation/classement/${dao.seance_id}`)
-            }
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-2.5 text-[10px] font-black uppercase tracking-widest text-emerald-700 transition-all hover:-translate-y-0.5 hover:bg-emerald-100 sm:flex-none"
+            disabled={isPending}
+            onClick={() => void onMakeDispoContrat(dao.seance_id)}
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-[10px] font-black uppercase tracking-widest text-white transition-all hover:-translate-y-0.5 hover:bg-emerald-700 disabled:opacity-60 sm:flex-none"
           >
-            Voir le classement
-            <ChevronRight className="h-4 w-4" />
+            {isPending && <Loader className="h-4 w-4 animate-spin" />}
+            Dispo pour contrat
           </button>
         )}
 
-        {dao.statut_dao === "A_ASSIGNER" ? (
+        {dao.statut_dao === "ARCHIVE" && dao.contrat_id ? (
+          <>
+            <button
+              type="button"
+              onClick={() =>
+                router.push(`/personnel/contractualisation/${dao.contrat_id}`)
+              }
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-5 py-2.5 text-[10px] font-black uppercase tracking-widest text-white transition-all hover:-translate-y-0.5 hover:bg-emerald-800 sm:flex-none"
+            >
+              Voir contrat
+              <ArrowRight className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => openPanel(dao, "detail")}
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-250 bg-white px-5 py-2.5 text-[10px] font-black uppercase tracking-widest text-slate-700 transition-all hover:-translate-y-0.5 hover:bg-slate-50 sm:flex-none"
+            >
+              Suivi
+            </button>
+          </>
+        ) : dao.statut_dao === "A_ASSIGNER" ? (
           <button
             type="button"
             onClick={() =>

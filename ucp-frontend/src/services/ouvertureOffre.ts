@@ -1,6 +1,7 @@
 import { getToken } from "@/services/auth";
 import type {
   CreateSeancePayload,
+  CommissionMemberPayload,
   PublicValidationAccessPayload,
   PublicValidationContext,
   PublicValidationDecisionPayload,
@@ -228,6 +229,171 @@ export async function resendOpeningInvitations(
     detail: string;
     emails_envoyes: number;
   };
+}
+
+export type CompositionValidationRole = "CN" | "GP" | "RPM";
+export type CompositionValidationDecision = "EN_ATTENTE" | "VALIDEE" | "REJETEE";
+export type CompositionDashboardStatut =
+  | "BROUILLON"
+  | "EN_ATTENTE_RPM"
+  | "EN_ATTENTE_GP"
+  | "EN_ATTENTE_CN"
+  | "VALIDEE"
+  | "REJETEE";
+
+export interface CompositionValidationSummary {
+  role: CompositionValidationRole;
+  decision: CompositionValidationDecision;
+  validateur: number | null;
+  date_validation: string | null;
+  commentaire?: string;
+  notification_sent_at?: string | null;
+}
+
+export interface CompositionMemberItem {
+  nom_prenom: string;
+  email: string;
+  poste: string;
+  entite: string;
+  numero_carte: string;
+}
+
+export interface CompositionPendingItem {
+  seance_id: number;
+  reference_dossier: string;
+  objet_dossier: string;
+  date_soumission_membres: string | null;
+  membres_count: number;
+  statut_dashboard: CompositionDashboardStatut;
+  est_urgent?: boolean;
+  validations: CompositionValidationSummary[];
+  ma_decision: CompositionValidationDecision;
+}
+
+export interface CompositionDetail {
+  seance_id: number;
+  reference_dossier: string;
+  objet_dossier: string;
+  statut: string;
+  membres: CompositionMemberItem[];
+  statut_dashboard: CompositionDashboardStatut;
+  est_urgent?: boolean;
+  ma_decision: CompositionValidationDecision;
+  validations: Array<{
+    role: CompositionValidationRole;
+    decision: CompositionValidationDecision;
+    commentaire?: string;
+    date_validation: string | null;
+    notification_sent_at?: string | null;
+  }>;
+}
+
+export interface CompositionDecisionPayload {
+  commentaire?: string;
+}
+
+export interface SubmitCommissionMembersResponse {
+  detail: string;
+  seance: SeanceOuverture;
+  emails_envoyes?: number;
+}
+
+export async function submitCommissionMembers(
+  id: number,
+  payload: { commission_members: CommissionMemberPayload[] },
+): Promise<SubmitCommissionMembersResponse> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/ouverture/seances/${id}/soumettre-membres/`,
+    {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  return (await response.json()) as SubmitCommissionMembersResponse;
+}
+
+export async function fetchCompositionPending(): Promise<
+  CompositionPendingItem[]
+> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/ouverture/validations-membres/pending/`,
+    {
+      method: "GET",
+      headers: getAuthHeaders(),
+      cache: "no-store",
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  return (await response.json()) as CompositionPendingItem[];
+}
+
+export async function fetchCompositionDetail(
+  seanceId: number,
+): Promise<CompositionDetail> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/ouverture/validations-membres/${seanceId}/`,
+    {
+      method: "GET",
+      headers: getAuthHeaders(),
+      cache: "no-store",
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  return (await response.json()) as CompositionDetail;
+}
+
+export async function validateComposition(
+  seanceId: number,
+  payload: CompositionDecisionPayload = {},
+): Promise<Record<string, unknown>> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/ouverture/validations-membres/${seanceId}/valider/`,
+    {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  return response.json();
+}
+
+export async function rejectComposition(
+  seanceId: number,
+  payload: CompositionDecisionPayload = {},
+): Promise<Record<string, unknown>> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/ouverture/validations-membres/${seanceId}/rejeter/`,
+    {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  return response.json();
 }
 
 export async function validateMember(

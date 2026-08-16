@@ -65,6 +65,15 @@ const disabledClass =
 const labelClass =
   "mb-1 block text-[11px] font-bold uppercase tracking-wider text-slate-500";
 
+function splitNifStat(value?: string) {
+  const raw = (value ?? "").trim();
+  if (!raw) {
+    return { nif: "", stat: "" };
+  }
+  const [nif, ...rest] = raw.split("/");
+  return { nif: nif.trim(), stat: rest.join("/").trim() };
+}
+
 export default function AssignEvaluatorsPage() {
   const params = useParams();
   const router = useRouter();
@@ -81,7 +90,7 @@ export default function AssignEvaluatorsPage() {
   const [heureEvaluation, setHeureEvaluation] = useState("09:00");
   const [members, setMembers] = useState<ManualMember[]>(emptyMembers());
   const [offreMeta, setOffreMeta] = useState<
-    Record<number, { lot: string; nif: string }>
+    Record<number, { lot: string; nif: string; stat: string }>
   >({});
 
   const loadDetail = useCallback(async () => {
@@ -99,10 +108,17 @@ export default function AssignEvaluatorsPage() {
 
       setOffreMeta(
         Object.fromEntries(
-          data.offres.map((o) => [
-            o.offre_id,
-            { lot: o.lot_numero || "", nif: o.nif_stat || "" },
-          ]),
+          data.offres.map((o) => {
+            const parsed = splitNifStat(o.nif_stat);
+            return [
+              o.offre_id,
+              {
+                lot: o.lot_numero || "",
+                nif: o.nif || parsed.nif,
+                stat: o.stat || parsed.stat,
+              },
+            ];
+          }),
         ),
       );
 
@@ -170,7 +186,11 @@ export default function AssignEvaluatorsPage() {
         return;
       }
       if (!meta?.nif.trim()) {
-        setError(`NIF / STAT requis pour ${offre.nom_soumissionnaire}.`);
+        setError(`NIF requis pour ${offre.nom_soumissionnaire}.`);
+        return;
+      }
+      if (!meta?.stat.trim()) {
+        setError(`STAT requis pour ${offre.nom_soumissionnaire}.`);
         return;
       }
     }
@@ -208,7 +228,8 @@ export default function AssignEvaluatorsPage() {
         offres: detail.offres.map((o) => ({
           offre_id: o.offre_id,
           lot_numero: offreMeta[o.offre_id]?.lot.trim(),
-          nif_stat: offreMeta[o.offre_id]?.nif.trim(),
+          nif: offreMeta[o.offre_id]?.nif.trim(),
+          stat: offreMeta[o.offre_id]?.stat.trim(),
         })),
         commission_members: members.map((m) => ({
           nomPrenom: m.nomPrenom.trim(),
@@ -423,8 +444,8 @@ export default function AssignEvaluatorsPage() {
                         Offre {offre.ordre_passage} —{" "}
                         {offre.nom_soumissionnaire}
                       </p>
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <div>
+                      <div className="grid gap-3 sm:grid-cols-3">
+                        <label>
                           <span className={labelClass}>Lot n° *</span>
                           <input
                             disabled={!canAssign}
@@ -436,14 +457,15 @@ export default function AssignEvaluatorsPage() {
                                 [offre.offre_id]: {
                                   lot: e.target.value,
                                   nif: p[offre.offre_id]?.nif ?? "",
+                                  stat: p[offre.offre_id]?.stat ?? "",
                                 },
                               }))
                             }
                             placeholder="Ex: Lot 1, Global, etc."
                           />
-                        </div>
-                        <div>
-                          <span className={labelClass}>NIF / STAT *</span>
+                        </label>
+                        <label>
+                          <span className={labelClass}>NIF *</span>
                           <input
                             disabled={!canAssign}
                             className={canAssign ? fieldClass : disabledClass}
@@ -454,12 +476,32 @@ export default function AssignEvaluatorsPage() {
                                 [offre.offre_id]: {
                                   lot: p[offre.offre_id]?.lot ?? "",
                                   nif: e.target.value,
+                                  stat: p[offre.offre_id]?.stat ?? "",
                                 },
                               }))
                             }
-                            placeholder="Identifiant fiscal du soumissionnaire"
+                            placeholder="NIF du soumissionnaire"
                           />
-                        </div>
+                        </label>
+                        <label>
+                          <span className={labelClass}>STAT *</span>
+                          <input
+                            disabled={!canAssign}
+                            className={canAssign ? fieldClass : disabledClass}
+                            value={offreMeta[offre.offre_id]?.stat ?? ""}
+                            onChange={(e) =>
+                              setOffreMeta((p) => ({
+                                ...p,
+                                [offre.offre_id]: {
+                                  lot: p[offre.offre_id]?.lot ?? "",
+                                  nif: p[offre.offre_id]?.nif ?? "",
+                                  stat: e.target.value,
+                                },
+                              }))
+                            }
+                            placeholder="Identifiant STAT du soumissionnaire"
+                          />
+                        </label>
                       </div>
                     </div>
                   ))}

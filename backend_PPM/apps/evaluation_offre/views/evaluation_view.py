@@ -18,6 +18,8 @@ from apps.evaluation_offre.serializers import (
 from apps.evaluation_offre.services.evaluation_service import (
     assigner_evaluateurs,
     assigner_evaluateurs_seance,
+    attribuer_marche,
+    comparer_technique,
     consolider_decision_finale,
     get_classement_seance,
     get_dao_detail,
@@ -200,6 +202,8 @@ def assigner_evaluateurs_view(request, offre_id: int):
         evaluateur_ids=evaluateur_ids,
         commission_members=commission_members,
         lot_numero=validated.get("lot_numero"),
+        nif=validated.get("nif"),
+        stat=validated.get("stat"),
         nif_stat=validated.get("nif_stat"),
         nom_soumissionnaire=validated.get("nom_soumissionnaire"),
         date_evaluation=validated.get("date_evaluation"),
@@ -277,6 +281,24 @@ def soumettre_technique_view(request, offre_id: int):
 
 
 # ============================================================
+# COMPARAISON TECHNIQUE / CONSENSUS
+# POST /evaluations/<offre_id>/comparer/
+# ============================================================
+@api_view(["POST"])
+def comparer_technique_view(request, offre_id: int):
+    if request.user and request.user.is_authenticated:
+        acting_user = request.user
+    else:
+        email = (request.data.get("email") or "").strip()
+        code = (request.data.get("code") or "").strip()
+        evaluation = get_evaluation_with_password(offre_id, email=email, password=code)
+        acting_user = evaluation.evaluateur
+
+    payload = comparer_technique(offre_id, acting_user)
+    return Response(payload, status=status.HTTP_200_OK)
+
+
+# ============================================================
 # SECTION 4 — ÉVALUATION FINANCIÈRE (double aveugle)
 # POST /evaluations/<offre_id>/financiere/
 # Body: { "montant_lu": 5000000, ... }
@@ -343,6 +365,17 @@ def consolider_decision_view(request, offre_id: int):
         DecisionFinaleSerializer(decision).data,
         status=status.HTTP_200_OK,
     )
+
+
+# ============================================================
+# ATTRIBUER LE MARCHÉ DEPUIS LE CLASSEMENT
+# POST /evaluations/dao/<seance_id>/attribuer/<offre_id>/
+# ============================================================
+@api_view(["POST"])
+@permission_classes([IsAuthenticated, IsSecretaire])
+def attribuer_marche_view(request, seance_id: int, offre_id: int):
+    result = attribuer_marche(seance_id, offre_id, request.user)
+    return Response(result, status=status.HTTP_200_OK)
 
 
 # ============================================================

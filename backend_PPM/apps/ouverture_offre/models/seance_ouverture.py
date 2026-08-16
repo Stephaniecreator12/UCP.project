@@ -6,7 +6,8 @@ class SeanceOuverture(models.Model):
     class Statut(models.TextChoices):
         BROUILLON = "BROUILLON", "Brouillon"
         EN_SAISIE = "EN_SAISIE", "En saisie"
-        EN_VALIDATION_MEMBRES = "EN_VALIDATION_MEMBRES", "En validation membres"
+        EN_VALIDATION_MEMBRES = "EN_VALIDATION_MEMBRES", "En validation composition membres"
+        MEMBRES_CONFIRMES = "MEMBRES_CONFIRMES", "Membres confirmes"
         EN_VALIDATION_PRESIDENT = "EN_VALIDATION_PRESIDENT", "En validation president"
         VALIDEE = "VALIDEE", "Validee"
         REJETEE = "REJETEE", "Rejetee"
@@ -43,6 +44,8 @@ class SeanceOuverture(models.Model):
         default=Statut.BROUILLON,
         db_index=True,
     )
+    membres_verrouilles = models.BooleanField(default=False)
+    date_soumission_membres = models.DateTimeField(null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

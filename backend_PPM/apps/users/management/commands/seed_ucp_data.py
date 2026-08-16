@@ -11,6 +11,9 @@ class Command(BaseCommand):
         # 1. Créer les groupes Django s'ils n'existent pas
         group_names = [
             "DEMANDEUR",
+            "RPM",
+            "GP",
+            "CN",
             "VALIDATEUR_HIERARCHIQUE",
             "VALIDATEUR_TECHNIQUE",
             "FINANCE",
@@ -51,7 +54,7 @@ class Command(BaseCommand):
         
         # Point Focal GAVI
         pf_gavi, _ = Poste.objects.get_or_create(nom="Point Focal", programme=p_gavi)
-        pf_gavi.groups.add(groups["VALIDATEUR_PROGRAMMATIQUE"])
+        pf_gavi.groups.add(groups["RPM"], groups["VALIDATEUR_PROGRAMMATIQUE"])
         
         # RAF GAVI
         raf_gavi, _ = Poste.objects.get_or_create(nom="Responsable Administratif Financier", programme=p_gavi)
@@ -68,11 +71,11 @@ class Command(BaseCommand):
         
         # Coordonnateur National FM
         cn_fm, _ = Poste.objects.get_or_create(nom="Coordonnateur National", programme=p_fm)
-        cn_fm.groups.add(groups["APPROBATEUR_NATIONAL"])
+        cn_fm.groups.add(groups["CN"], groups["APPROBATEUR_NATIONAL"])
         
         # Gestionnaire Programme FM
         gp_fm, _ = Poste.objects.get_or_create(nom="Gestionnaire Programme", programme=p_fm)
-        gp_fm.groups.add(groups["VALIDATEUR_TECHNIQUE"])
+        gp_fm.groups.add(groups["GP"], groups["VALIDATEUR_TECHNIQUE"])
         gp_fm.superieurs.add(cn_fm)
 
         # --- PROGRAMME PARN ---
@@ -80,7 +83,7 @@ class Command(BaseCommand):
         
         # Point Focal PARN
         pf_parn, _ = Poste.objects.get_or_create(nom="Point Focal", programme=p_parn)
-        pf_parn.groups.add(groups["VALIDATEUR_PROGRAMMATIQUE"])
+        pf_parn.groups.add(groups["RPM"], groups["VALIDATEUR_PROGRAMMATIQUE"])
         
         # RAF PARN
         raf_parn, _ = Poste.objects.get_or_create(nom="Responsable Administratif Financier", programme=p_parn)

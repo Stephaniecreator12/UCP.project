@@ -2,6 +2,9 @@
 @import "tailwindcss";
 
 :root {
+  --font-ui: "Inter", "Segoe UI", Roboto, Arial, sans-serif;
+  --font-display: "Inter", "Segoe UI", Roboto, Arial, sans-serif;
+  --font-code: "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   --bg: #eceeef;
   --surface: #ffffff;
   --panel: #f6f7f8;

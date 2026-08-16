@@ -53,7 +53,11 @@ function EvaluationOffreContent() {
     try {
       setLoading(true);
       setError("");
-      setDetail(await fetchEvaluationDetail(offreId));
+      const res = await fetchEvaluationDetail(offreId);
+      setDetail(res);
+      if (typeof window !== "undefined" && res.evaluateur_nom_prenom) {
+        localStorage.setItem("evaluator_name", res.evaluateur_nom_prenom);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur inconnue");
     } finally {

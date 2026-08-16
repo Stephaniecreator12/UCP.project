@@ -16,6 +16,7 @@ import {
   Search,
   ShieldCheck,
   Sparkles,
+  Users,
   X,
 } from "lucide-react";
 
@@ -46,6 +47,7 @@ type ScreenState = "loading" | "ready" | "forbidden" | "error";
 type OpeningState =
   | "DRAFT"
   | "ONGOING"
+  | "MEMBERS_REQUIRED"
   | "READY"
   | "VALIDATION_MEMBERS"
   | "VALIDATION_PRESIDENT"
@@ -141,8 +143,9 @@ type CommissionBlock = {
 const stateLabels: Record<OpeningState, string> = {
   DRAFT: "Brouillon",
   ONGOING: "Dépôt en cours",
+  MEMBERS_REQUIRED: "En attente de membres",
   READY: "En attente d'ouverture",
-  VALIDATION_MEMBERS: "Validation membres",
+  VALIDATION_MEMBERS: "En attente de membre",
   VALIDATION_PRESIDENT: "Validation président",
   VALIDATED: "Validée",
   REJECTED: "Rejetée",
@@ -152,6 +155,7 @@ const stateLabels: Record<OpeningState, string> = {
 const stateClasses: Record<OpeningState, string> = {
   DRAFT: "border-amber-200 bg-amber-50 text-amber-700",
   ONGOING: "border-sky-200 bg-sky-50 text-sky-700",
+  MEMBERS_REQUIRED: "border-teal-200 bg-teal-50 text-teal-700",
   READY: "border-amber-200 bg-amber-50 text-amber-700",
   VALIDATION_MEMBERS: "border-indigo-200 bg-indigo-50 text-indigo-700",
   VALIDATION_PRESIDENT: "border-violet-200 bg-violet-50 text-violet-700",
@@ -173,6 +177,15 @@ const sectionConfigs: Record<
     badgeClass: "border-amber-200 bg-amber-500 text-white",
     emptyText: "Aucun brouillon disponible.",
   },
+  MEMBERS_REQUIRED: {
+    title: "En attente de membres",
+    subtitle:
+      "Le délai de dépôt est atteint. Complétez la commission avant l'ouverture.",
+    icon: Users,
+    iconClass: "border-teal-200 bg-teal-100 text-teal-800",
+    badgeClass: "border-teal-200 bg-teal-500 text-white",
+    emptyText: "Aucun DAO en attente de membres.",
+  },
   READY: {
     title: "En attente d'ouverture",
     subtitle:
@@ -183,12 +196,12 @@ const sectionConfigs: Record<
     emptyText: "Aucun DAO en attente d'ouverture.",
   },
   VALIDATION_MEMBERS: {
-    title: "Validation membres",
+    title: "En attente de membre",
     subtitle: "Les membres présents doivent contrôler et valider la saisie.",
     icon: Hourglass,
     iconClass: "border-indigo-200 bg-indigo-100 text-indigo-800",
     badgeClass: "border-indigo-200 bg-indigo-500 text-white",
-    emptyText: "Aucune séance en validation membres.",
+    emptyText: "Aucune séance en attente de membre.",
   },
   VALIDATION_PRESIDENT: {
     title: "Validation président",
@@ -234,6 +247,7 @@ const sectionConfigs: Record<
 
 const sectionOrder: OpeningState[] = [
   "DRAFT",
+  "MEMBERS_REQUIRED",
   "READY",
   "VALIDATION_MEMBERS",
   "VALIDATION_PRESIDENT",
@@ -289,6 +303,7 @@ const getOpeningState = (
   if (seance) {
     if (seance.statut === "VALIDEE") return "VALIDATED";
     if (seance.statut === "REJETEE") return "REJECTED";
+    if (seance.statut === "MEMBRES_CONFIRMES") return "READY";
     if (seance.statut === "EN_VALIDATION_PRESIDENT")
       return "VALIDATION_PRESIDENT";
     if (seance.statut === "A_VALIDER") {
@@ -306,7 +321,8 @@ const getOpeningState = (
     return "DRAFT";
   }
 
-  if (market.status === "CLOSED" || isDeadlineReached(market)) return "READY";
+  if (market.status === "CLOSED" || isDeadlineReached(market))
+    return "MEMBERS_REQUIRED";
 
   return "ONGOING";
 };
@@ -399,7 +415,23 @@ const getStoredCommissionMembers = (
   }
 };
 
-const isCommissionComplete = (reference: string) => {
+const isCommissionComplete = (
+  reference: string,
+  seance?: SeanceOuverture | null,
+) => {
+  if (
+    seance?.membres_verrouilles ||
+    seance?.statut === "MEMBRES_CONFIRMES" ||
+    seance?.composition_validation_statut === "VALIDEE"
+  ) {
+    return true;
+  }
+  if (
+    seance?.membres &&
+    seance.membres.filter((m) => m.est_present).length >= MIN_COMMISSION_MEMBERS
+  ) {
+    return true;
+  }
   if (typeof window === "undefined") return false;
 
   const status = window.localStorage.getItem(
@@ -422,7 +454,9 @@ export default function OuvertureOffrePage() {
   const [activeReviewSection, setActiveReviewSection] =
     useState<OpeningState | null>(null);
   const [openingMarketId, setOpeningMarketId] = useState<number | null>(null);
-  const [resendingSeanceId, setResendingSeanceId] = useState<number | null>(null);
+  const [resendingSeanceId, setResendingSeanceId] = useState<number | null>(
+    null,
+  );
   const [detailRow, setDetailRow] = useState<OpeningRow | null>(null);
   const [commissionBlock, setCommissionBlock] =
     useState<CommissionBlock | null>(null);
@@ -662,20 +696,32 @@ export default function OuvertureOffrePage() {
       row.market.reference_number,
     );
     const hasBackendCommission =
-      (row.seance?.membres.filter((member) => member.est_present).length ??
-        0) >= MIN_COMMISSION_MEMBERS;
+      (row.seance?.membres.filter((member) => member.est_present).length ?? 0) >=
+        MIN_COMMISSION_MEMBERS ||
+      Boolean(row.seance?.membres_verrouilles) ||
+      row.seance?.statut === "MEMBRES_CONFIRMES" ||
+      row.seance?.composition_validation_statut === "VALIDEE";
 
     // Avant d'ouvrir, on vérifie la commission: sans 3 membres complets, pas de séance.
     if (
       isSecretaire &&
       !hasBackendCommission &&
-      !isCommissionComplete(row.market.reference_number)
+      !isCommissionComplete(row.market.reference_number, row.seance)
     ) {
       setCommissionBlock({
         reference: row.market.reference_number,
         title: row.market.title,
         memberCount: commissionMembers.length,
       });
+      return;
+    }
+
+    if (row.state === "MEMBERS_REQUIRED") {
+      router.push(
+        `/personnel/ouverture_offre/membres?dossier=${encodeURIComponent(
+          row.market.reference_number,
+        )}`,
+      );
       return;
     }
 
@@ -987,10 +1033,10 @@ export default function OuvertureOffrePage() {
         onResendInvitations={handleResendInvitations}
         canResendInvitations={Boolean(
           detailRow?.seance &&
-            currentUser &&
-            detailRow.seance.secretaire === currentUser.id &&
-            (detailRow.seance.statut === "EN_VALIDATION_MEMBRES" ||
-              detailRow.seance.statut === "EN_VALIDATION_PRESIDENT"),
+          currentUser &&
+          detailRow.seance.secretaire === currentUser.id &&
+          (detailRow.seance.statut === "EN_VALIDATION_MEMBRES" ||
+            detailRow.seance.statut === "EN_VALIDATION_PRESIDENT"),
         )}
         resendInvitationsLoading={
           !!detailRow?.seance && resendingSeanceId === detailRow.seance.id
@@ -1307,6 +1353,7 @@ function OpeningDaoRow({
   const { market, seance, state } = row;
   const isDraft = state === "DRAFT";
   const isReady = state === "READY";
+  const isMembersRequired = state === "MEMBERS_REQUIRED";
   const hasSeance = !!seance;
   const isDisabled = state === "ONGOING" || state === "CANCELLED";
   const shouldShowDetailAction =
@@ -1315,6 +1362,9 @@ function OpeningDaoRow({
       state === "VALIDATION_PRESIDENT" ||
       state === "VALIDATED" ||
       state === "REJECTED");
+  const shouldHideOpenAction =
+    hasSeance &&
+    (state === "VALIDATION_MEMBERS" || state === "VALIDATION_PRESIDENT");
 
   return (
     <div className="flex flex-col justify-between gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-colors hover:border-emerald-300 sm:flex-row sm:items-center">
@@ -1384,7 +1434,7 @@ function OpeningDaoRow({
               <ArrowRight className="h-4 w-4" />
             </button>
           </>
-        ) : hasSeance ? (
+        ) : hasSeance && !shouldHideOpenAction ? (
           <button
             type="button"
             onClick={onOpen}
@@ -1397,15 +1447,20 @@ function OpeningDaoRow({
           <button
             type="button"
             onClick={onOpen}
-            disabled={isDisabled || opening}
+            disabled={isDisabled || opening || (!isReady && !isMembersRequired)}
             className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all sm:flex-none ${
-              isReady
+              isReady || isMembersRequired
                 ? "bg-emerald-600 text-white shadow-lg shadow-emerald-500/20 hover:-translate-y-0.5 hover:bg-emerald-700"
                 : "cursor-not-allowed border border-slate-200 bg-slate-50 text-slate-400"
             }`}
           >
             {opening ? (
               "Création..."
+            ) : isMembersRequired ? (
+              <>
+                <ClipboardList className="h-4 w-4" />
+                Compléter membres
+              </>
             ) : isReady ? (
               <>
                 <Plus className="h-4 w-4" />

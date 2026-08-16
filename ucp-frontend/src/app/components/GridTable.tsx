@@ -597,7 +597,10 @@ const handleCalculate = async (row: GridRow) => {
       -webkit-appearance: none; }
       `}</style>
       
-      <div className="relative overflow-auto max-h-[56vh] bg-white" ref={wrapperRef}>
+      <div
+        className="relative h-full min-h-[320px] overflow-auto bg-white max-[1150px]:max-h-[70vh]"
+        ref={wrapperRef}
+      >
         <table className="w-full border-collapse mb-0">
           <thead>
             <tr>

@@ -5,10 +5,22 @@ from django.core import mail
 from django.test import TestCase, override_settings
 from rest_framework.test import APIRequestFactory, force_authenticate
 
-from apps.ouverture_offre.models import MembreSeance, SeanceOuverture
+from apps.ouverture_offre.models import (
+    MembreSeance,
+    SeanceOuverture,
+    ValidationCompositionMembre,
+)
 from apps.ouverture_offre.services.notification_service import (
     notify_members_validation_requested,
     notify_president_validation_requested,
+)
+from apps.ouverture_offre.services.composition_validation_service import (
+    get_composition_dashboard_statut,
+    get_composition_detail,
+    list_composition_pending,
+    rejeter_composition,
+    soumettre_membres_a_valider,
+    valider_composition,
 )
 from apps.ouverture_offre.views.seance_view import (
     seance_validation_access,
@@ -266,6 +278,71 @@ class OuvertureNotificationTests(TestCase):
 
         self.assertEqual(response.status_code, 400)
 
+    def test_president_validation_flow_consumes_temporary_password(self):
+        import sys
+        import types
+
+        self.participation.decision = MembreSeance.Decision.VALIDEE
+        self.participation.a_valide = True
+        self.participation.save(update_fields=["decision", "a_valide"])
+        self.seance.statut = SeanceOuverture.Statut.EN_VALIDATION_PRESIDENT
+        self.seance.save()
+
+        with self.captureOnCommitCallbacks(execute=True):
+            notify_president_validation_requested(self.seance)
+
+        message = mail.outbox[0]
+        password_line = next(
+            line for line in message.body.splitlines()
+            if line.startswith("Mot de passe de validation :")
+        )
+        validation_password = password_line.split(":", 1)[1].strip()
+
+        factory = APIRequestFactory()
+        request = factory.post(
+            f"/api/ouverture/seances/{self.seance.id}/validation-acces/",
+            {
+                "role": "president",
+                "email": "president@example.test",
+                "password": validation_password,
+            },
+            format="json",
+        )
+        response = seance_validation_access(request, self.seance.id)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["participant"]["email"], "president@example.test")
+        self.assertEqual(response.data["role"], "president")
+
+        decision_request = factory.post(
+            f"/api/ouverture/seances/{self.seance.id}/validation-decision/",
+            {
+                "role": "president",
+                "email": "president@example.test",
+                "password": validation_password,
+                "decision": "APPROUVER",
+            },
+            format="json",
+        )
+        fake_pdf_service = types.ModuleType("apps.ouverture_offre.services.pdf_service")
+        fake_pdf_service.generate_and_archive_pv = lambda seance: None
+        previous_pdf_service = sys.modules.get("apps.ouverture_offre.services.pdf_service")
+        sys.modules["apps.ouverture_offre.services.pdf_service"] = fake_pdf_service
+        try:
+            response = seance_validation_decision(decision_request, self.seance.id)
+        finally:
+            if previous_pdf_service is None:
+                sys.modules.pop("apps.ouverture_offre.services.pdf_service", None)
+            else:
+                sys.modules["apps.ouverture_offre.services.pdf_service"] = previous_pdf_service
+
+        self.assertEqual(response.status_code, 200)
+        self.seance.refresh_from_db()
+        self.assertEqual(self.seance.president_decision, SeanceOuverture.Decision.VALIDEE)
+        self.assertEqual(self.seance.statut, SeanceOuverture.Statut.VALIDEE)
+        self.assertEqual(self.seance.president_validation_password_hash, "")
+        self.assertIsNotNone(self.seance.president_validation_password_consumed_at)
+
     def test_available_users_excludes_validation_only_commission_accounts(self):
         commission_user = User(
             username="commission-temp",
@@ -317,6 +394,131 @@ class OuvertureNotificationTests(TestCase):
                     },
                 ],
             )
+
+    def test_composition_validation_goes_rpm_gp_cn_then_waits_for_opening(self):
+        rpm, gp, cn = self._create_composition_validators()
+        seance = self._create_composition_seance("DAO/2026/COMPO-1")
+
+        seance = soumettre_membres_a_valider(
+            seance,
+            self.secretaire,
+            self._composition_members(),
+        )
+
+        self.assertEqual(seance.statut, SeanceOuverture.Statut.EN_VALIDATION_MEMBRES)
+        self.assertFalse(seance.membres_verrouilles)
+        self.assertEqual(get_composition_dashboard_statut(seance), "EN_ATTENTE_RPM")
+        self.assertEqual(getattr(seance, "_emails_envoyes"), 1)
+        self.assertEqual(mail.outbox[-1].to, [rpm.email])
+
+        valider_composition(seance.id, rpm, commentaire="OK RPM")
+        seance.refresh_from_db()
+        self.assertEqual(get_composition_dashboard_statut(seance), "EN_ATTENTE_GP")
+        self.assertEqual(mail.outbox[-1].to, [gp.email])
+
+        rpm_archive = get_composition_detail(seance.id, rpm)
+        self.assertEqual(rpm_archive["ma_decision"], ValidationCompositionMembre.Decision.VALIDEE)
+        self.assertEqual(list_composition_pending(gp)[0]["seance_id"], seance.id)
+
+        valider_composition(seance.id, gp, commentaire="OK GP")
+        seance.refresh_from_db()
+        self.assertEqual(get_composition_dashboard_statut(seance), "EN_ATTENTE_CN")
+        self.assertEqual(mail.outbox[-1].to, [cn.email])
+
+        valider_composition(seance.id, cn, commentaire="OK CN")
+        seance.refresh_from_db()
+        self.assertEqual(seance.statut, SeanceOuverture.Statut.MEMBRES_CONFIRMES)
+        self.assertTrue(seance.membres_verrouilles)
+        self.assertEqual(get_composition_dashboard_statut(seance), "VALIDEE")
+
+    def test_composition_rejection_returns_to_secretary_and_can_be_resubmitted(self):
+        rpm, gp, _cn = self._create_composition_validators()
+        seance = self._create_composition_seance("DAO/2026/COMPO-2")
+
+        seance = soumettre_membres_a_valider(
+            seance,
+            self.secretaire,
+            self._composition_members(),
+        )
+        valider_composition(seance.id, rpm)
+
+        rejeter_composition(seance.id, gp, commentaire="Corriger la liste.")
+        seance.refresh_from_db()
+
+        self.assertEqual(seance.statut, SeanceOuverture.Statut.EN_SAISIE)
+        self.assertFalse(seance.membres_verrouilles)
+        self.assertEqual(get_composition_dashboard_statut(seance), "REJETEE")
+        self.assertEqual(get_composition_detail(seance.id, gp)["ma_decision"], ValidationCompositionMembre.Decision.REJETEE)
+
+        mail.outbox = []
+        resubmitted = soumettre_membres_a_valider(
+            seance,
+            self.secretaire,
+            self._composition_members("corrige"),
+        )
+
+        self.assertEqual(resubmitted.statut, SeanceOuverture.Statut.EN_VALIDATION_MEMBRES)
+        self.assertEqual(get_composition_dashboard_statut(resubmitted), "EN_ATTENTE_RPM")
+        self.assertEqual(mail.outbox[-1].to, [rpm.email])
+        self.assertEqual(
+            list(
+                resubmitted.validations_composition.order_by("role").values_list(
+                    "decision",
+                    flat=True,
+                )
+            ),
+            [
+                ValidationCompositionMembre.Decision.EN_ATTENTE,
+                ValidationCompositionMembre.Decision.EN_ATTENTE,
+                ValidationCompositionMembre.Decision.EN_ATTENTE,
+            ],
+        )
+
+    def _create_composition_validators(self):
+        validators = []
+        for role in ("RPM", "GP", "CN"):
+            group = Group.objects.get_or_create(name=role)[0]
+            user = User.objects.create_user(
+                username=f"{role.lower()}-validator",
+                email=f"{role.lower()}@example.test",
+                password="secret123",
+            )
+            user.groups.add(group)
+            validators.append(user)
+        return validators
+
+    def _create_composition_seance(self, reference):
+        return SeanceOuverture.objects.create(
+            reference_dossier=reference,
+            objet_dossier="Validation composition",
+            secretaire=self.secretaire,
+            statut=SeanceOuverture.Statut.BROUILLON,
+        )
+
+    def _composition_members(self, suffix="initial"):
+        return [
+            {
+                "nomPrenom": f"Membre A {suffix}",
+                "email": f"membre-a-{suffix}@example.test",
+                "cin": "100000000001",
+                "poste": "Membre",
+                "entite": "UCP",
+            },
+            {
+                "nomPrenom": f"Membre B {suffix}",
+                "email": f"membre-b-{suffix}@example.test",
+                "cin": "100000000002",
+                "poste": "Membre",
+                "entite": "UCP",
+            },
+            {
+                "nomPrenom": f"Membre C {suffix}",
+                "email": f"membre-c-{suffix}@example.test",
+                "cin": "100000000003",
+                "poste": "Membre",
+                "entite": "UCP",
+            },
+        ]
 
         with self.assertRaisesMessage(Exception, "president"):
             replace_members_from_commission(

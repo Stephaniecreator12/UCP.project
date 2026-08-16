@@ -22,4 +22,17 @@ urlpatterns = [
         views.document_download,
         name="document-download",
     ),
+    path(
+        "contrats/<int:contrat_id>/documents/<int:document_id>/",
+        views.document_delete,
+        name="document-delete",
+    ),
+
+    # Public endpoints
+    path("public/contrats/<int:contrat_id>/", views.public_contrats_detail, name="public-contrats-detail"),
+    path(
+        "public/contrats/<int:contrat_id>/documents/<int:document_id>/download/",
+        views.public_document_download,
+        name="public-document-download",
+    ),
 ]

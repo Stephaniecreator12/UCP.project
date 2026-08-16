@@ -9,7 +9,6 @@ import {
   ChevronDown,
   CheckCircle2,
   ClipboardList,
-  FileText,
   Hourglass,
   Layers,
   Search,
@@ -36,7 +35,7 @@ type ContratSection = {
 };
 
 const stateLabels: Record<string, string> = {
-  BROUILLON: "Brouillon",
+  BROUILLON: "À contractualiser",
   ATTENTE_SIGNATURE: "Attente signature",
   EXECUTION: "En exécution",
   TERMINE: "Terminé",
@@ -55,13 +54,13 @@ const stateClasses: Record<string, string> = {
 
 const sectionConfigs: Record<string, Omit<ContratSection, "key" | "rows">> = {
   BROUILLON: {
-    title: "À contractualiser (Brouillons)",
+    title: "À contractualiser",
     subtitle:
       "Contrats en cours de préparation ou à compléter avant envoi au prestataire.",
     icon: ClipboardList,
     iconClass: "border-amber-200 bg-amber-100 text-amber-800",
     badgeClass: "border-amber-200 bg-amber-500 text-white",
-    emptyText: "Aucun contrat en brouillon.",
+    emptyText: "Aucun contrat à contractualiser.",
   },
   ATTENTE_SIGNATURE: {
     title: "En attente signature",
@@ -122,6 +121,10 @@ export default function ContractualisationListPage() {
         ]);
         setCurrentUser(user);
         setContrats(data);
+        const firstActive = sectionOrder.find((key) =>
+          data.some((contrat) => getContratStateKey(contrat.statut) === key),
+        );
+        setActiveSection(firstActive ?? "BROUILLON");
         setScreenState("ready");
       } catch (err) {
         setError(
@@ -499,7 +502,7 @@ function ContratDashboardRow({
           href={`/personnel/contractualisation/${contrat.id}`}
           className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-[10px] font-black uppercase tracking-widest text-white transition-all hover:-translate-y-0.5 hover:bg-slate-800 sm:flex-none"
         >
-          Voir le contrat
+          {contrat.statut === "BROUILLON" ? "Faire le contrat" : "Voir le contrat"}
           <ArrowRight className="h-4 w-4" />
         </Link>
       </div>

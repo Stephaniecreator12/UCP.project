@@ -74,6 +74,10 @@ class ContratListSerializer(serializers.ModelSerializer):
         source="seance.reference_dossier",
         read_only=True,
     )
+    seance_objet = serializers.CharField(
+        source="seance.objet_dossier",
+        read_only=True,
+    )
     offre_soumissionnaire = serializers.CharField(
         source="offre_gagnante.nom_soumissionnaire",
         read_only=True,
@@ -89,7 +93,9 @@ class ContratListSerializer(serializers.ModelSerializer):
             "id",
             "numero_marche",
             "seance_reference",
+            "seance_objet",
             "offre_soumissionnaire",
+            "nom_prestataire",
             "statut",
             "statut_label",
             "montant_ttc",

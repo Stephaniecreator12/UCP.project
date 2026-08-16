@@ -2,12 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import {
-  AlertTriangle,
-  CheckCircle2,
-  ChevronRight,
-  XCircle,
-} from "lucide-react";
+import { AlertTriangle, CheckCircle2, Loader2, XCircle } from "lucide-react";
 import EvaluatorHeader from "@/app/personnel/evaluation/components/EvaluatorHeader";
 import {
   ActionPageShell,
@@ -15,9 +10,17 @@ import {
   LoadingCard,
 } from "@/app/personnel/demande-achat/components/ActionPageShell";
 import {
+  fetchCurrentUser,
+  getCurrentUser,
+  getToken,
+  isSecretaireContractualisationUser,
+  isSecretaireUser,
+  type UserProfile,
+} from "@/services/auth";
+import {
+  attribuerMarche,
   fetchClassement,
   type ClassementResponse,
-  getToken,
 } from "@/services/evaluationService";
 
 export default function ClassementPage() {
@@ -28,11 +31,21 @@ export default function ClassementPage() {
   const [data, setData] = useState<ClassementResponse | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
 
   useEffect(() => {
     if (!getToken()) {
       router.push(`/personnel/evaluation/login?seance=${seanceId}`);
       return;
+    }
+    const user = getCurrentUser();
+    if (user) {
+      setCurrentUser(user);
+    } else {
+      void fetchCurrentUser()
+        .then((profile) => setCurrentUser(profile))
+        .catch(() => setCurrentUser(null));
     }
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -50,7 +63,22 @@ export default function ClassementPage() {
     }
   };
 
-  const rank1OffreId = data?.lignes.find((ligne) => ligne.rang === 1)?.offre_id;
+  const handleAttribuer = async (offreId: number) => {
+    try {
+      setActionLoadingId(offreId);
+      setError("");
+      const result = await attribuerMarche(seanceId, offreId);
+      router.push(`/personnel/contractualisation/${result.contrat_id}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur inconnue");
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const canAward =
+    isSecretaireUser(currentUser) ||
+    isSecretaireContractualisationUser(currentUser);
 
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#f8faf9_0%,#f1f5f3_100%)]">
@@ -87,19 +115,28 @@ export default function ClassementPage() {
                   <th className="px-4 py-3 text-center">Technique</th>
                   <th className="px-4 py-3 text-center">Financier</th>
                   <th className="px-4 py-3 text-center">Statut</th>
+                  <th className="px-4 py-3 text-center">Action</th>
                 </tr>
               </thead>
               <tbody>
                 {data.lignes.map((ligne) => (
                   <tr
                     key={ligne.offre_id}
-                    className="border-t border-slate-100"
+                    className={`border-t border-slate-100 ${
+                      ligne.est_moins_disante ? "bg-emerald-50/60" : "bg-white"
+                    }`}
                   >
                     <td className="px-4 py-4 font-bold text-slate-900">
                       {ligne.rang ?? "—"}
                     </td>
                     <td className="px-4 py-4 font-semibold text-slate-800">
                       {ligne.nom_soumissionnaire}
+                      {ligne.est_moins_disante && (
+                        <span className="ml-2 inline-flex items-center gap-1 rounded bg-emerald-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-emerald-700">
+                          <CheckCircle2 className="h-3 w-3" />
+                          Moins disante
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-4 text-center font-bold text-emerald-800">
                       {ligne.score_total != null
@@ -125,27 +162,34 @@ export default function ClassementPage() {
                         )}
                       </div>
                     </td>
+                    <td className="px-4 py-4 text-center">
+                      {ligne.attribuee ? (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-800">
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          Attribué
+                        </span>
+                      ) : canAward && ligne.rang === 1 ? (
+                        <button
+                          type="button"
+                          onClick={() => void handleAttribuer(ligne.offre_id)}
+                          disabled={actionLoadingId === ligne.offre_id}
+                          className="inline-flex items-center gap-2 rounded-full bg-emerald-700 px-4 py-2 text-xs font-black uppercase tracking-widest text-white transition-all hover:-translate-y-0.5 hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {actionLoadingId === ligne.offre_id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : null}
+                          Attribuer
+                        </button>
+                      ) : (
+                        <span className="text-xs font-semibold text-slate-400">
+                          {canAward ? "—" : "Réservé"}
+                        </span>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
-        )}
-
-        {data?.classement_disponible && rank1OffreId != null && (
-          <div className="mt-6 flex justify-end">
-            <button
-              type="button"
-              onClick={() =>
-                router.push(
-                  `/personnel/contractualisation/new?seance_id=${data.seance_id}&offre_id=${rank1OffreId}`,
-                )
-              }
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-black uppercase tracking-widest text-white shadow-lg transition-all hover:-translate-y-0.5 hover:bg-emerald-700"
-            >
-              Créer le contrat
-              <ChevronRight className="h-4 w-4" />
-            </button>
           </div>
         )}
 

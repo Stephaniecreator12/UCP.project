@@ -37,6 +37,10 @@ export type OffreOuverture = {
   enveloppe_administrative: "" | "DEPOSEE" | "MANQUANTE" | "RECU" | "INTEGRE" | "MANQUANT";
   enveloppe_technique: "" | "DEPOSEE" | "MANQUANTE" | "RECU" | "INTEGRE" | "MANQUANT";
   enveloppe_financiere: "" | "DEPOSEE" | "MANQUANTE" | "RECU" | "INTEGRE" | "MANQUANT";
+  etat_scelle: "" | "INTACT" | "ALTERE" | "ABSENT";
+  presence_rature: boolean;
+  description_rature: string;
+  document_substitution_present: boolean;
   montant_global: string | number | null;
   observations: string;
 };
@@ -46,9 +50,24 @@ export type SeanceStatut =
   | "EN_SAISIE"
   | "A_VALIDER"
   | "EN_VALIDATION_MEMBRES"
+  | "MEMBRES_CONFIRMES"
   | "EN_VALIDATION_PRESIDENT"
   | "VALIDEE"
   | "REJETEE";
+
+export type CompositionValidationRole = "CN" | "GP" | "RPM";
+export type CompositionValidationDecision = "EN_ATTENTE" | "VALIDEE" | "REJETEE";
+
+export type CompositionValidationRecord = {
+  id: number;
+  role: CompositionValidationRole;
+  validateur: number | null;
+  validateur_detail?: OuvertureUser | null;
+  decision: CompositionValidationDecision;
+  commentaire: string;
+  date_validation: string | null;
+  notification_sent_at: string | null;
+};
 
 export type PVDocument = {
   id: number;
@@ -72,8 +91,14 @@ export type SeanceOuverture = {
   president: number | null;
   president_detail: OuvertureUser | null;
   membres: MembreSeance[];
+  validations_composition: CompositionValidationRecord[];
   created_at: string;
   updated_at: string;
+  membres_verrouilles: boolean;
+  date_soumission_membres: string | null;
+  composition_validation_statut?: string;
+  composition_validation_role_courant?: CompositionValidationRole | null;
+  composition_validation_est_urgent?: boolean;
   president_a_valide: boolean;
   president_decision: "EN_ATTENTE" | "VALIDEE" | "REJETEE" | "REPORTEE";
   president_commentaire: string;

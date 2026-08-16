@@ -36,8 +36,9 @@ type StoredCommissionMember = {
 const statusLabels: Record<SeanceOuverture["statut"], string> = {
   BROUILLON: "Brouillon",
   EN_SAISIE: "En saisie",
-  A_VALIDER: "Validation membres",
-  EN_VALIDATION_MEMBRES: "Validation membres",
+  A_VALIDER: "En attente de membre",
+  EN_VALIDATION_MEMBRES: "En attente de membre",
+  MEMBRES_CONFIRMES: "En attente d'ouverture",
   EN_VALIDATION_PRESIDENT: "Validation président",
   VALIDEE: "Validée",
   REJETEE: "Rejetée",
@@ -48,6 +49,7 @@ const statusClasses: Record<SeanceOuverture["statut"], string> = {
   EN_SAISIE: "border-sky-200 bg-sky-50 text-sky-800",
   A_VALIDER: "border-indigo-200 bg-indigo-50 text-indigo-800",
   EN_VALIDATION_MEMBRES: "border-indigo-200 bg-indigo-50 text-indigo-800",
+  MEMBRES_CONFIRMES: "border-amber-200 bg-amber-50 text-amber-800",
   EN_VALIDATION_PRESIDENT: "border-violet-200 bg-violet-50 text-violet-800",
   VALIDEE: "border-emerald-200 bg-emerald-50 text-emerald-800",
   REJETEE: "border-rose-200 bg-rose-50 text-rose-800",
@@ -102,8 +104,9 @@ const parseStoredCommissionMembers = (
     if (!Array.isArray(parsed)) return [];
 
     return parsed
-      .filter((member): member is Record<string, unknown> =>
-        typeof member === "object" && member !== null,
+      .filter(
+        (member): member is Record<string, unknown> =>
+          typeof member === "object" && member !== null,
       )
       .map((member) => ({
         nomPrenom:
@@ -118,13 +121,15 @@ const parseStoredCommissionMembers = (
   }
 };
 
-const normalizeEmail = (value?: string | null) => value?.trim().toLowerCase() || "";
+const normalizeEmail = (value?: string | null) =>
+  value?.trim().toLowerCase() || "";
 
 const mapStoredMemberToSeanceMember = (
   member: StoredCommissionMember,
   index: number,
 ): SeanceOuverture["membres"][number] => {
-  const label = member.nomPrenom?.trim() || member.email?.trim() || `Membre ${index + 1}`;
+  const label =
+    member.nomPrenom?.trim() || member.email?.trim() || `Membre ${index + 1}`;
 
   return {
     id: -(index + 1),
@@ -158,14 +163,21 @@ const mergeCommissionMembers = (
 
   const merged = backendMembers.map((backendMember) => {
     const backendEmail = normalizeEmail(backendMember.utilisateur_detail.email);
-    const backendName = normalizeEmail(backendMember.nom_prenom || backendMember.utilisateur_detail.full_name);
+    const backendName = normalizeEmail(
+      backendMember.nom_prenom || backendMember.utilisateur_detail.full_name,
+    );
 
     const storedMember = storedMembers.find((member) => {
       const storedEmail = normalizeEmail(member.utilisateur_detail.email);
-      const storedName = normalizeEmail(member.nom_prenom || member.utilisateur_detail.full_name);
+      const storedName = normalizeEmail(
+        member.nom_prenom || member.utilisateur_detail.full_name,
+      );
       return (
         (backendEmail && storedEmail && backendEmail === storedEmail) ||
-        (!backendEmail && backendName && storedName && backendName === storedName)
+        (!backendEmail &&
+          backendName &&
+          storedName &&
+          backendName === storedName)
       );
     });
 
@@ -210,33 +222,49 @@ function MarketOverviewDetails({ market }: { market: ProcurementMarket }) {
         <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
           <div className="mb-2 flex items-center gap-2 text-slate-500">
             <CalendarDays className="h-4 w-4" />
-            <span className="text-[10px] font-black uppercase tracking-widest">Publication</span>
+            <span className="text-[10px] font-black uppercase tracking-widest">
+              Publication
+            </span>
           </div>
-          <p className="text-sm font-bold text-slate-900">{formatDateTime(market.publication_date)}</p>
+          <p className="text-sm font-bold text-slate-900">
+            {formatDateTime(market.publication_date)}
+          </p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
           <div className="mb-2 flex items-center gap-2 text-slate-500">
             <CalendarDays className="h-4 w-4" />
-            <span className="text-[10px] font-black uppercase tracking-widest">Limite de dépôt</span>
+            <span className="text-[10px] font-black uppercase tracking-widest">
+              Limite de dépôt
+            </span>
           </div>
-          <p className="text-sm font-bold text-slate-900">{formatDateTime(market.deadline)}</p>
+          <p className="text-sm font-bold text-slate-900">
+            {formatDateTime(market.deadline)}
+          </p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
           <div className="mb-2 flex items-center gap-2 text-slate-500">
             <FileText className="h-4 w-4" />
-            <span className="text-[10px] font-black uppercase tracking-widest">Procédure</span>
+            <span className="text-[10px] font-black uppercase tracking-widest">
+              Procédure
+            </span>
           </div>
           <p className="text-sm font-bold text-slate-900">
-            {procedureLabels[market.procedure_type] || market.procedure_type || "Non renseignée"}
+            {procedureLabels[market.procedure_type] ||
+              market.procedure_type ||
+              "Non renseignée"}
           </p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
           <div className="mb-2 flex items-center gap-2 text-slate-500">
             <Layers3 className="h-4 w-4" />
-            <span className="text-[10px] font-black uppercase tracking-widest">Catégorie</span>
+            <span className="text-[10px] font-black uppercase tracking-widest">
+              Catégorie
+            </span>
           </div>
           <p className="text-sm font-bold text-slate-900">
-            {categoryLabels[market.category] || market.category || "Non renseignée"}
+            {categoryLabels[market.category] ||
+              market.category ||
+              "Non renseignée"}
           </p>
         </div>
       </section>
@@ -244,7 +272,9 @@ function MarketOverviewDetails({ market }: { market: ProcurementMarket }) {
       <section className="rounded-3xl border border-slate-200 bg-slate-50 p-5 shadow-sm">
         <div className="mb-4 flex items-center gap-2">
           <CircleSlash className="h-5 w-5 text-slate-600" />
-          <h3 className="text-base font-black text-slate-900">État du dossier</h3>
+          <h3 className="text-base font-black text-slate-900">
+            État du dossier
+          </h3>
         </div>
 
         <div className="grid gap-3 md:grid-cols-2">
@@ -253,7 +283,9 @@ function MarketOverviewDetails({ market }: { market: ProcurementMarket }) {
               Statut publication
             </p>
             <div className="mt-2">
-              <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${marketStatusClasses[market.status]}`}>
+              <span
+                className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${marketStatusClasses[market.status]}`}
+              >
                 {marketStatusLabels[market.status]}
               </span>
             </div>
@@ -335,7 +367,8 @@ export default function SeanceOverviewModal({
 
   if (!open || (!seance && !market)) return null;
 
-  const referenceLabel = seance?.reference_dossier || market?.reference_number || "N/A";
+  const referenceLabel =
+    seance?.reference_dossier || market?.reference_number || "N/A";
   const title = seance?.objet_dossier || market?.title || "Dossier d'ouverture";
 
   return (

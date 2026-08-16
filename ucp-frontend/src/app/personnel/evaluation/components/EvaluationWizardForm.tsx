@@ -15,15 +15,18 @@ import {
   FileText,
   Loader,
   Lock,
+  RefreshCw,
   Save,
   Trophy,
   XCircle,
 } from "lucide-react";
 import {
+  compareTechnique,
   saveEvaluation,
   verifyEvaluateurPassword,
   type EvaluationDetail,
   type SaveEvaluationPayload,
+  type TechnicalConsensusResponse,
 } from "@/services/evaluationService";
 
 const STEPS = [
@@ -150,8 +153,14 @@ function isExamenCompleteOnServer(detail: EvaluationDetail): boolean {
   const ex = detail.examen_preliminaire;
   if (!ex) return false;
   return EXAMEN_CRITERES.every(
-    (c) => ex[c.key as keyof typeof ex] !== null && ex[c.key as keyof typeof ex] !== undefined,
+    (c) =>
+      ex[c.key as keyof typeof ex] !== null &&
+      ex[c.key as keyof typeof ex] !== undefined,
   );
+}
+
+function isExamenConformeOnServer(detail: EvaluationDetail): boolean {
+  return Boolean(detail.examen_preliminaire?.est_conforme);
 }
 
 function isTechniqueCompleteOnServer(detail: EvaluationDetail): boolean {
@@ -175,7 +184,10 @@ function isStepComplete(stepId: number, detail: EvaluationDetail): boolean {
     case 4:
       return isFinanciereCompleteOnServer(detail);
     case 5:
-      return isTechniqueCompleteOnServer(detail) && isFinanciereCompleteOnServer(detail);
+      return (
+        isTechniqueCompleteOnServer(detail) &&
+        isFinanciereCompleteOnServer(detail)
+      );
     case 6:
       return Boolean(detail.conclusion?.signe_le);
     default:
@@ -200,7 +212,9 @@ function allExamenDone(
 function allTechniqueDone(
   avancement: EvaluationDetail["evaluateurs_avancement"],
 ): boolean {
-  return avancement.length >= 3 && avancement.every((ev) => ev.technique_termine);
+  return (
+    avancement.length >= 3 && avancement.every((ev) => ev.technique_termine)
+  );
 }
 
 const CONSENSUS_SEUIL = 15;
@@ -270,7 +284,9 @@ function SyncStatusBanner({
     tone === "emerald" ? CheckCircle2 : tone === "rose" ? AlertTriangle : Clock;
 
   return (
-    <div className={`flex items-start gap-3 rounded-xl border px-4 py-3 text-sm ${styles}`}>
+    <div
+      className={`flex items-start gap-3 rounded-xl border px-4 py-3 text-sm ${styles}`}
+    >
       <Icon className="mt-0.5 h-5 w-5 shrink-0" />
       <div className="min-w-0 flex-1">
         <p className="font-semibold">{title}</p>
@@ -368,6 +384,10 @@ export default function EvaluationWizardForm({
     const initial = computeInitialStep(initialDetail);
     setStep(initial);
     setMaxStepReached(initial);
+    setComparison(null);
+    setHasCurrentConsensus(
+      initialDetail.peut_saisir_financiere && !initialDetail.consensus_alerte,
+    );
   }, [initialDetail]);
 
   const seanceId = detail.offre_detail.seance_id;
@@ -384,6 +404,13 @@ export default function EvaluationWizardForm({
   const [modalError, setModalError] = useState("");
   const [modalLoading, setModalLoading] = useState(false);
   const [pendingStep, setPendingStep] = useState<number | null>(null);
+  const [comparison, setComparison] =
+    useState<TechnicalConsensusResponse | null>(null);
+  const [comparing, setComparing] = useState(false);
+  const [hasCurrentConsensus, setHasCurrentConsensus] = useState(
+    () =>
+      initialDetail.peut_saisir_financiere && !initialDetail.consensus_alerte,
+  );
 
   const [examen, setExamen] = useState<ExamenState>({
     offre_signee: null,
@@ -408,7 +435,6 @@ export default function EvaluationWizardForm({
   });
 
   const [conclusion, setConclusion] = useState({
-    recommandation: "" as "" | "ATTRIBUER" | "REJETER" | "RELANCER",
     justification: "",
     noConflit: false,
     password: "",
@@ -450,8 +476,6 @@ export default function EvaluationWizardForm({
     const concl = detail.conclusion;
     if (concl) {
       setConclusion({
-        recommandation:
-          (concl.recommandation as typeof conclusion.recommandation) || "",
         justification: concl.justification || "",
         noConflit: concl.declaration_conflit === "OUI",
         password: "",
@@ -468,6 +492,15 @@ export default function EvaluationWizardForm({
 
   const techScore = computeTechScore(technique);
   const techQualifie = techScore != null && techScore >= SEUIL_TECHNIQUE;
+  const techniqueChangedAfterSaved = useMemo(() => {
+    const savedTechnique = detail.evaluation_technique;
+    if (!savedTechnique) return true;
+    return TECH_CRITERES.some(
+      (c) =>
+        savedTechnique[c.key as keyof typeof savedTechnique] !==
+        technique[c.key],
+    );
+  }, [detail.evaluation_technique, technique]);
 
   const montantFinal = useMemo(() => {
     const lu = parseFloat(financiere.montant_lu) || 0;
@@ -496,12 +529,19 @@ export default function EvaluationWizardForm({
     scoreTechPart != null && scoreFinPart != null
       ? Math.round((scoreTechPart + scoreFinPart) * 10) / 10
       : null;
-  const isReadOnly = step > 1 && isStepComplete(step, detail);
+  const isReadOnly =
+    step > 1 &&
+    isStepComplete(step, detail) &&
+    !(step === 3 && !detail.peut_saisir_financiere);
   const examenSaved = isExamenCompleteOnServer(detail);
   const techniqueSaved = isTechniqueCompleteOnServer(detail);
 
   const getSaveSuccessMessage = (updated: EvaluationDetail) => {
     if (step === 2) {
+      const examenConformeOnServer = isExamenConformeOnServer(updated);
+      if (!examenConformeOnServer) {
+        return "Enregistré — préliminaire non conforme. L'offre est bloquée et ne peut plus progresser.";
+      }
       if (!allExamenDone(updated.evaluateurs_avancement)) {
         return "Enregistré — en attente des autres évaluateurs.";
       }
@@ -513,6 +553,9 @@ export default function EvaluationWizardForm({
       }
       if (!allTechniqueDone(updated.evaluateurs_avancement)) {
         return "Enregistré — en attente des autres évaluateurs.";
+      }
+      if (!updated.peut_saisir_financiere) {
+        return "Enregistré — cliquez sur Comparer pour valider le consensus technique.";
       }
       return "Enregistré — vous pouvez passer à l'évaluation financière.";
     }
@@ -526,6 +569,15 @@ export default function EvaluationWizardForm({
     section?: "examen" | "technique";
   } | null => {
     if (step === 2 && examenSaved) {
+      if (examenBlocked) {
+        return {
+          tone: "rose",
+          title: "Préliminaire non conforme",
+          message:
+            "Un examen préliminaire a été marqué non conforme. L'offre est bloquée et ne peut plus progresser.",
+          section: "examen",
+        };
+      }
       if (!detail.peut_saisir_technique) {
         return {
           tone: "amber",
@@ -538,7 +590,8 @@ export default function EvaluationWizardForm({
       return {
         tone: "emerald",
         title: "Examen collectif terminé",
-        message: "Tous les évaluateurs ont validé l'examen préliminaire. Vous pouvez continuer.",
+        message:
+          "Tous les évaluateurs ont validé l'examen préliminaire. Vous pouvez continuer.",
         section: "examen",
       };
     }
@@ -551,19 +604,32 @@ export default function EvaluationWizardForm({
           section: "technique",
         };
       }
+      if (!hasCurrentConsensus) {
+        return {
+          tone: "amber",
+          title: "Notes modifiées",
+          message:
+            "Vos notes ont changé depuis le dernier comparatif. Enregistrez puis comparez à nouveau pour valider le consensus technique.",
+          section: "technique",
+        };
+      }
       if (!detail.peut_saisir_financiere) {
         return {
           tone: "amber",
-          title: "En attente des autres évaluateurs",
-          message:
-            "Votre évaluation technique est enregistrée. Le bouton Suivant sera disponible lorsque les 3 évaluateurs auront terminé.",
+          title: allTechniqueDone(detail.evaluateurs_avancement)
+            ? "Consensus à valider"
+            : "En attente des autres évaluateurs",
+          message: allTechniqueDone(detail.evaluateurs_avancement)
+            ? "Vos notes sont enregistrées. Cliquez sur Comparer pour valider le consensus technique."
+            : "Votre évaluation technique est enregistrée. Le bouton Suivant sera disponible lorsque les 3 évaluateurs auront terminé.",
           section: "technique",
         };
       }
       return {
         tone: "emerald",
         title: "Évaluation technique collective terminée",
-        message: "Tous les évaluateurs sont prêts. Vous pouvez passer à l'évaluation financière.",
+        message:
+          "Tous les évaluateurs sont prêts. Vous pouvez passer à l'évaluation financière.",
         section: "technique",
       };
     }
@@ -594,7 +660,6 @@ export default function EvaluationWizardForm({
     }
     if (includeConclusion) {
       payload.conclusion = {
-        recommandation: conclusion.recommandation || null,
         justification: conclusion.justification,
         declaration_conflit: conclusion.noConflit ? "OUI" : "NON",
         password: conclusion.password || undefined,
@@ -613,6 +678,9 @@ export default function EvaluationWizardForm({
         buildPayload(step === 6),
       );
       setDetail(updatedDetail);
+      if (step === 3) {
+        setComparison(null);
+      }
       setSuccess(getSaveSuccessMessage(updatedDetail));
       const reached = computeInitialStep(updatedDetail);
       setMaxStepReached((prev) => Math.max(prev, reached));
@@ -623,13 +691,44 @@ export default function EvaluationWizardForm({
     }
   };
 
-  const handleSubmit = async () => {
-    if (!conclusion.recommandation) {
-      setError("Choisissez une recommandation.");
-      return;
+  const handleCompare = async () => {
+    setComparing(true);
+    setError("");
+    setSuccess("");
+    try {
+      const result = await compareTechnique(detail.offre);
+      setComparison(result);
+      setDetail((prev) => ({
+        ...prev,
+        consensus_alerte: result.alerte,
+        consensus_ecart: result.ecart_max,
+        peut_saisir_financiere: result.peut_passer_financiere,
+        blocage_financier: result.peut_passer_financiere
+          ? ""
+          : "Consensus technique en attente de validation.",
+      }));
+      setHasCurrentConsensus(!result.alerte);
+      setSuccess(
+        result.alerte
+          ? `Consensus à corriger — écart ${result.ecart_max} pts. Ajustez vos notes puis comparez à nouveau.`
+          : "Consensus validé. Vous pouvez passer à l'étape financière.",
+      );
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Erreur lors de la comparaison",
+      );
+    } finally {
+      setComparing(false);
     }
+  };
+
+  const handleSubmit = async () => {
     if (!conclusion.noConflit) {
       setError("Cochez la déclaration de non-conflit d'intérêt.");
+      return;
+    }
+    if (conclusion.justification.trim().length < 10) {
+      setError("La justification doit contenir au moins 10 caractères.");
       return;
     }
     if (!conclusion.password.trim()) {
@@ -660,8 +759,21 @@ export default function EvaluationWizardForm({
 
   const requestNext = (target: number) => {
     if (step === 2 && (!examenAllAnswered || examenBlocked)) return;
-    if (step === 3 && (!techQualifie || !techniqueSaved)) return;
-    if (step === 4 && !isFinanciereCompleteOnServer(detail) && !financiere.montant_lu)
+    if (
+      step === 3 &&
+      (!techQualifie ||
+        !techniqueSaved ||
+        techniqueChangedAfterSaved ||
+        !hasCurrentConsensus ||
+        detail.consensus_alerte ||
+        !detail.peut_saisir_financiere)
+    )
+      return;
+    if (
+      step === 4 &&
+      !isFinanciereCompleteOnServer(detail) &&
+      !financiere.montant_lu
+    )
       return;
 
     if (step === 1) {
@@ -708,16 +820,14 @@ export default function EvaluationWizardForm({
   const canGoNext = () => {
     if (step === 1) return true;
     if (step === 2) {
-      return (
-        examenConforme &&
-        examenSaved &&
-        detail.peut_saisir_technique
-      );
+      return examenConforme && examenSaved && detail.peut_saisir_technique;
     }
     if (step === 3) {
       return (
         techQualifie &&
         techniqueSaved &&
+        !techniqueChangedAfterSaved &&
+        hasCurrentConsensus &&
         !detail.consensus_alerte &&
         detail.peut_saisir_financiere
       );
@@ -830,7 +940,9 @@ export default function EvaluationWizardForm({
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_16px_40px_-28px_rgba(15,23,42,0.35)]">
           <div className="h-1 bg-gradient-to-r from-emerald-600 via-teal-500 to-emerald-400" />
 
-          <div className={`p-4 sm:p-5 lg:p-6 ${isReadOnly ? "opacity-75" : ""}`}>
+          <div
+            className={`p-4 sm:p-5 lg:p-6 ${isReadOnly ? "opacity-75" : ""}`}
+          >
             {isReadOnly && (
               <div className="mb-3 flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-100 px-4 py-2.5 text-sm font-medium text-slate-600">
                 <Lock className="h-4 w-4 shrink-0" />
@@ -848,502 +960,633 @@ export default function EvaluationWizardForm({
                 />
               </div>
             )}
-            <fieldset disabled={isReadOnly} className={isReadOnly ? "pointer-events-none" : undefined}>
-            {step === 1 && (
-              <div className="space-y-3">
-                <SectionHeader
-                  stepId={1}
-                  title="Identification de l'offre"
-                  subtitle="Informations clés du soumissionnaire et du DAO."
-                />
-                <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-                  {[
-                    ["N° AO/DP", detail.offre_detail.reference_dossier],
-                    ["Intitulé du marché", detail.offre_detail.objet_dossier],
-                    [
-                      "Nom du soumissionnaire",
-                      detail.offre_detail.nom_soumissionnaire,
-                    ],
-                    ["NIF / STAT", detail.offre_detail.nif_stat || "—"],
-                    ["Lot n°", detail.offre_detail.lot_numero || "—"],
-                    [
-                      "Montant global",
-                      `${Number(detail.offre_detail.montant_global).toLocaleString("fr-FR")} MGA`,
-                    ],
-                    ...detail.evaluateurs_seance.map(
-                      (ev, i) =>
-                        [`Évaluateur ${i + 1}`, ev.nom || ev.email] as const,
-                    ),
-                    ["Date d'évaluation", detail.date_evaluation || "—"],
-                  ].map(([label, val]) => (
-                    <div
-                      key={label}
-                      className={`rounded-xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-3.5 shadow-sm hover:border-emerald-300 ${cardHover}`}
-                    >
-                      <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-emerald-600/80">
-                        {label}
-                      </p>
-                      <p className="mt-1.5 text-sm font-bold leading-snug text-slate-900">
-                        {val}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {step === 2 && (
-              <div className="space-y-3">
-                <SectionHeader
-                  stepId={2}
-                  title="Examen préliminaire"
-                  subtitle="Un « Non » bloque la suite de l'évaluation."
-                />
-                <div className="grid gap-2.5 lg:grid-cols-2 xl:grid-cols-3">
-                  {EXAMEN_CRITERES.map((critere) => (
-                    <div
-                      key={critere.key}
-                      className={`flex flex-col justify-between gap-3 rounded-xl border border-slate-100 bg-gradient-to-br from-white to-blue-50/30 p-3.5 shadow-sm hover:border-blue-300 sm:flex-row sm:items-center ${cardHover}`}
-                    >
-                      <p className="min-w-0 flex-1 text-xs font-medium text-slate-800 sm:text-sm">
-                        {critere.label}
-                      </p>
-                      <div className="flex shrink-0 gap-3">
-                        {([true, false] as const).map((val) => (
-                          <label
-                            key={String(val)}
-                            className="flex cursor-pointer items-center gap-1.5 rounded-lg px-2 py-1 text-sm font-semibold text-slate-600 transition-all duration-200 hover:bg-white hover:shadow-sm"
-                          >
-                            <input
-                              type="radio"
-                              name={critere.key}
-                              className="h-4 w-4 accent-emerald-600"
-                              checked={examen[critere.key] === val}
-                              onChange={() =>
-                                setExamen((p) => ({ ...p, [critere.key]: val }))
-                              }
-                            />
-                            {val ? "Oui" : "Non"}
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <label className="block">
-                  <span className="text-xs font-semibold text-slate-600">
-                    Commentaire
-                  </span>
-                  <textarea
-                    className={`${inputClass} mt-1 min-h-[48px] resize-y`}
-                    value={examen.commentaire}
-                    onChange={(e) =>
-                      setExamen((p) => ({ ...p, commentaire: e.target.value }))
-                    }
-                    placeholder="Notes…"
+            <fieldset
+              disabled={isReadOnly}
+              className={isReadOnly ? "pointer-events-none" : undefined}
+            >
+              {step === 1 && (
+                <div className="space-y-3">
+                  <SectionHeader
+                    stepId={1}
+                    title="Identification de l'offre"
+                    subtitle="Informations clés du soumissionnaire et du DAO."
                   />
-                </label>
-                <div
-                  className={`flex items-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold ${
-                    !examenAllAnswered
-                      ? "border-slate-200 bg-slate-50 text-slate-500"
-                      : examenConforme
-                        ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                        : "border-rose-200 bg-rose-50 text-rose-800"
-                  }`}
-                >
-                  {!examenAllAnswered ? (
-                    <>
-                      <CircleDashed className="h-4 w-4" />
-                      En attente…
-                    </>
-                  ) : examenConforme ? (
-                    <>
-                      <CheckCircle2 className="h-4 w-4" />
-                      Conforme
-                    </>
+                  <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+                    {[
+                      ["N° AO/DP", detail.offre_detail.reference_dossier],
+                      ["Intitulé du marché", detail.offre_detail.objet_dossier],
+                      [
+                        "Nom du soumissionnaire",
+                        detail.offre_detail.nom_soumissionnaire,
+                      ],
+                      ["NIF / STAT", detail.offre_detail.nif_stat || "—"],
+                      ["Lot n°", detail.offre_detail.lot_numero || "—"],
+                      [
+                        "Montant global",
+                        `${Number(detail.offre_detail.montant_global).toLocaleString("fr-FR")} MGA`,
+                      ],
+                      ...detail.evaluateurs_seance.map(
+                        (ev, i) =>
+                          [`Évaluateur ${i + 1}`, ev.nom || ev.email] as const,
+                      ),
+                      ["Date d'évaluation", detail.date_evaluation || "—"],
+                    ].map(([label, val]) => (
+                      <div
+                        key={label}
+                        className={`rounded-xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-3.5 shadow-sm hover:border-emerald-300 ${cardHover}`}
+                      >
+                        <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-emerald-600/80">
+                          {label}
+                        </p>
+                        <p className="mt-1.5 text-sm font-bold leading-snug text-slate-900">
+                          {val}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {step === 2 && (
+                <div className="space-y-3">
+                  <SectionHeader
+                    stepId={2}
+                    title="Examen préliminaire"
+                    subtitle="Un « Non » bloque la suite de l'évaluation."
+                  />
+                  <div className="grid gap-2.5 lg:grid-cols-2 xl:grid-cols-3">
+                    {EXAMEN_CRITERES.map((critere) => (
+                      <div
+                        key={critere.key}
+                        className={`flex flex-col justify-between gap-3 rounded-xl border border-slate-100 bg-gradient-to-br from-white to-blue-50/30 p-3.5 shadow-sm hover:border-blue-300 sm:flex-row sm:items-center ${cardHover}`}
+                      >
+                        <p className="min-w-0 flex-1 text-xs font-medium text-slate-800 sm:text-sm">
+                          {critere.label}
+                        </p>
+                        <div className="flex shrink-0 gap-3">
+                          {([true, false] as const).map((val) => (
+                            <label
+                              key={String(val)}
+                              className="flex cursor-pointer items-center gap-1.5 rounded-lg px-2 py-1 text-sm font-semibold text-slate-600 transition-all duration-200 hover:bg-white hover:shadow-sm"
+                            >
+                              <input
+                                type="radio"
+                                name={critere.key}
+                                className="h-4 w-4 accent-emerald-600"
+                                checked={examen[critere.key] === val}
+                                onChange={() =>
+                                  setExamen((p) => ({
+                                    ...p,
+                                    [critere.key]: val,
+                                  }))
+                                }
+                              />
+                              {val ? "Oui" : "Non"}
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <label className="block">
+                    <span className="text-xs font-semibold text-slate-600">
+                      Commentaire
+                    </span>
+                    <textarea
+                      className={`${inputClass} mt-1 min-h-[48px] resize-y`}
+                      value={examen.commentaire}
+                      onChange={(e) =>
+                        setExamen((p) => ({
+                          ...p,
+                          commentaire: e.target.value,
+                        }))
+                      }
+                      placeholder="Notes…"
+                    />
+                  </label>
+                  <div
+                    className={`flex items-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold ${
+                      !examenAllAnswered
+                        ? "border-slate-200 bg-slate-50 text-slate-500"
+                        : examenConforme
+                          ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                          : "border-rose-200 bg-rose-50 text-rose-800"
+                    }`}
+                  >
+                    {!examenAllAnswered ? (
+                      <>
+                        <CircleDashed className="h-4 w-4" />
+                        En attente…
+                      </>
+                    ) : examenConforme ? (
+                      <>
+                        <CheckCircle2 className="h-4 w-4" />
+                        Conforme
+                      </>
+                    ) : (
+                      <>
+                        <XCircle className="h-4 w-4" />
+                        Non conforme — passage bloqué
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {step === 3 && (
+                <div className="space-y-3">
+                  <SectionHeader
+                    stepId={3}
+                    title="Évaluation technique"
+                    subtitle="Notation sur 4 critères — seuil éliminatoire 70/100."
+                  />
+                  {!detail.peut_saisir_technique ? (
+                    <WaitBanner
+                      icon={Clock}
+                      title="En attente des autres évaluateurs"
+                      message={detail.blocage_technique}
+                      avancement={detail.evaluateurs_avancement}
+                      section="examen"
+                    />
                   ) : (
                     <>
-                      <XCircle className="h-4 w-4" />
-                      Non conforme — passage bloqué
+                      <div className="overflow-hidden rounded-xl border border-violet-100 shadow-sm">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="bg-gradient-to-r from-violet-50 to-purple-50 text-left text-[10px] font-bold uppercase tracking-wider text-violet-800">
+                              <th className="p-2.5 sm:p-3">Critère</th>
+                              <th className="p-2.5 text-center sm:p-3">
+                                Pond.
+                              </th>
+                              <th className="p-2.5 text-center sm:p-3">
+                                Note /5
+                              </th>
+                              <th className="p-2.5 text-center sm:p-3">/100</th>
+                              <th className="p-2.5 text-center sm:p-3">
+                                Pondérée
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {TECH_CRITERES.map((critere, idx) => {
+                              const note = technique[critere.key];
+                              const sur100 =
+                                note != null
+                                  ? Math.round((Number(note) / 5) * 100)
+                                  : null;
+                              const ponderee =
+                                sur100 != null
+                                  ? Math.round(
+                                      sur100 * (critere.poids / 100) * 10,
+                                    ) / 10
+                                  : null;
+                              return (
+                                <tr
+                                  key={critere.key}
+                                  className={`border-t border-slate-100 transition-colors duration-200 hover:bg-violet-50/40 ${idx % 2 === 0 ? "bg-white" : "bg-slate-50/40"}`}
+                                >
+                                  <td className="p-2.5 text-xs font-medium leading-tight text-slate-800 break-words sm:p-3">
+                                    {critere.label}
+                                  </td>
+                                  <td className="p-2.5 text-center text-xs text-slate-500 sm:p-3">
+                                    {critere.poids}%
+                                  </td>
+                                  <td className="p-2.5 text-center sm:p-3">
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      max={5}
+                                      step={0.5}
+                                      className="w-14 rounded-lg border border-slate-200 px-2 py-1 text-center text-xs font-semibold transition-all duration-200 hover:border-purple-300 focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-50"
+                                      value={note ?? ""}
+                                      onChange={(e) => {
+                                        setTechnique((p) => ({
+                                          ...p,
+                                          [critere.key]: e.target.value
+                                            ? parseFloat(e.target.value)
+                                            : null,
+                                        }));
+                                        setComparison(null);
+                                        setHasCurrentConsensus(false);
+                                      }}
+                                    />
+                                  </td>
+                                  <td className="p-2.5 text-center text-xs font-semibold sm:p-3">
+                                    {sur100 ?? "—"}
+                                  </td>
+                                  <td className="p-2.5 text-center text-xs font-semibold text-purple-700 sm:p-3">
+                                    {ponderee != null
+                                      ? ponderee.toFixed(1)
+                                      : "—"}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                            <tr className="border-t-2 border-slate-200 bg-gradient-to-r from-slate-100 to-slate-50 text-sm font-bold">
+                              <td
+                                className="p-2.5 text-slate-900 sm:p-3"
+                                colSpan={4}
+                              >
+                                Total technique
+                              </td>
+                              <td className="p-2.5 text-center sm:p-3">
+                                {techScore != null ? (
+                                  <span
+                                    className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${
+                                      techQualifie
+                                        ? "bg-emerald-100 text-emerald-800"
+                                        : "bg-rose-100 text-rose-800"
+                                    }`}
+                                  >
+                                    {techScore.toFixed(1)}
+                                  </span>
+                                ) : (
+                                  "—"
+                                )}
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                      {techScore != null && (
+                        <div
+                          className={`flex items-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold ${
+                            techQualifie
+                              ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                              : "border-rose-200 bg-rose-50 text-rose-800"
+                          }`}
+                        >
+                          {techQualifie ? (
+                            <>
+                              <CheckCircle2 className="h-4 w-4" />
+                              Qualifié pour ouverture financière
+                            </>
+                          ) : (
+                            <>
+                              <XCircle className="h-4 w-4" />
+                              Éliminé (score &lt; {SEUIL_TECHNIQUE})
+                            </>
+                          )}
+                        </div>
+                      )}
+                      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                        <button
+                          type="button"
+                          onClick={() => void handleCompare()}
+                          disabled={
+                            comparing ||
+                            !techniqueSaved ||
+                            techniqueChangedAfterSaved ||
+                            !allTechniqueDone(detail.evaluateurs_avancement)
+                          }
+                          className="inline-flex items-center gap-2 rounded-full bg-violet-700 px-4 py-2 text-xs font-bold uppercase tracking-widest text-white transition-all hover:-translate-y-0.5 hover:bg-violet-800 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {comparing ? (
+                            <Loader className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <RefreshCw className="h-4 w-4" />
+                          )}
+                          Comparer
+                        </button>
+                        {!techniqueSaved ? (
+                          <p className="text-xs font-medium text-slate-500">
+                            Enregistrez vos notes avant de comparer.
+                          </p>
+                        ) : techniqueChangedAfterSaved ? (
+                          <p className="text-xs font-medium text-slate-500">
+                            Enregistrez vos modifications avant de comparer.
+                          </p>
+                        ) : !allTechniqueDone(detail.evaluateurs_avancement) ? (
+                          <p className="text-xs font-medium text-slate-500">
+                            Attendez que les 3 évaluateurs aient complété leurs
+                            notes.
+                          </p>
+                        ) : (
+                          <p
+                            className={`text-xs font-semibold ${
+                              detail.consensus_alerte
+                                ? "text-rose-700"
+                                : "text-emerald-700"
+                            }`}
+                          >
+                            {detail.consensus_alerte
+                              ? `Consensus requis — écart ${detail.consensus_ecart} pts.`
+                              : "Consensus validé. La phase financière est ouverte."}
+                          </p>
+                        )}
+                      </div>
+                      {comparison && (
+                        <div
+                          className={`space-y-3 rounded-xl border p-4 shadow-sm ${
+                            comparison.alerte
+                              ? "border-rose-200 bg-rose-50"
+                              : "border-emerald-200 bg-emerald-50"
+                          }`}
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                              <p
+                                className={`text-[10px] font-black uppercase tracking-[0.2em] ${
+                                  comparison.alerte
+                                    ? "text-rose-700"
+                                    : "text-emerald-700"
+                                }`}
+                              >
+                                Comparaison technique
+                              </p>
+                              <p className="text-sm font-semibold text-slate-800">
+                                Écart maximal {comparison.ecart_max} pts · seuil{" "}
+                                {comparison.seuil} pts
+                              </p>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {comparison.evaluateurs.map(
+                                (evaluateur, index) => (
+                                  <span
+                                    key={`${evaluateur.evaluateur_id}-${index}`}
+                                    className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700"
+                                  >
+                                    {evaluateur.evaluateur}:{" "}
+                                    {evaluateur.score_technique_total.toFixed(
+                                      1,
+                                    )}
+                                  </span>
+                                ),
+                              )}
+                            </div>
+                          </div>
+                          <div className="overflow-hidden rounded-xl border border-white/70 bg-white/80">
+                            <table className="min-w-full text-xs">
+                              <thead className="bg-slate-50 text-left uppercase tracking-wider text-slate-500">
+                                <tr>
+                                  <th className="px-3 py-2">Critère</th>
+                                  <th className="px-3 py-2">
+                                    Notes des évaluateurs
+                                  </th>
+                                  <th className="px-3 py-2 text-center">
+                                    Écart
+                                  </th>
+                                  <th className="px-3 py-2 text-center">
+                                    Statut
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {comparison.criteres.map((critere) => (
+                                  <tr
+                                    key={critere.champ}
+                                    className={`border-t border-slate-100 ${
+                                      critere.alerte
+                                        ? "bg-rose-50/70"
+                                        : "bg-white"
+                                    }`}
+                                  >
+                                    <td className="px-3 py-2 font-semibold text-slate-800">
+                                      {critere.label}
+                                    </td>
+                                    <td className="px-3 py-2">
+                                      <div className="flex flex-wrap gap-2">
+                                        {critere.notes.map((note) => (
+                                          <span
+                                            key={`${critere.champ}-${note.evaluateur_id}`}
+                                            className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${
+                                              critere.alerte
+                                                ? "border-rose-200 bg-white text-rose-700"
+                                                : "border-slate-200 bg-slate-50 text-slate-700"
+                                            }`}
+                                          >
+                                            {note.evaluateur}:{" "}
+                                            {note.valeur.toFixed(1)}/5
+                                          </span>
+                                        ))}
+                                      </div>
+                                    </td>
+                                    <td
+                                      className={`px-3 py-2 text-center font-bold ${
+                                        critere.alerte
+                                          ? "text-rose-700"
+                                          : "text-emerald-700"
+                                      }`}
+                                    >
+                                      {critere.ecart.toFixed(1)}
+                                    </td>
+                                    <td
+                                      className={`px-3 py-2 text-center text-[11px] font-black uppercase tracking-widest ${
+                                        critere.alerte
+                                          ? "text-rose-700"
+                                          : "text-emerald-700"
+                                      }`}
+                                    >
+                                      {critere.alerte ? "Ajuster" : "OK"}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
                     </>
                   )}
                 </div>
-              </div>
-            )}
+              )}
 
-            {step === 3 && (
-              <div className="space-y-3">
-                <SectionHeader
-                  stepId={3}
-                  title="Évaluation technique"
-                  subtitle="Notation sur 4 critères — seuil éliminatoire 70/100."
-                />
-                {!detail.peut_saisir_technique ? (
-                  <WaitBanner
-                    icon={Clock}
-                    title="En attente des autres évaluateurs"
-                    message={detail.blocage_technique}
-                    avancement={detail.evaluateurs_avancement}
-                    section="examen"
+              {step === 4 && (
+                <div className="space-y-3">
+                  <SectionHeader
+                    stepId={4}
+                    title="Évaluation financière"
+                    subtitle="Montant lu, corrections et rabais."
                   />
-                ) : (
-                  <>
-                    <div className="overflow-hidden rounded-xl border border-violet-100 shadow-sm">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="bg-gradient-to-r from-violet-50 to-purple-50 text-left text-[10px] font-bold uppercase tracking-wider text-violet-800">
-                            <th className="p-2.5 sm:p-3">Critère</th>
-                            <th className="p-2.5 text-center sm:p-3">Pond.</th>
-                            <th className="p-2.5 text-center sm:p-3">
-                              Note /5
-                            </th>
-                            <th className="p-2.5 text-center sm:p-3">/100</th>
-                            <th className="p-2.5 text-center sm:p-3">
-                              Pondérée
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {TECH_CRITERES.map((critere, idx) => {
-                            const note = technique[critere.key];
-                            const sur100 =
-                              note != null
-                                ? Math.round((Number(note) / 5) * 100)
-                                : null;
-                            const ponderee =
-                              sur100 != null
-                                ? Math.round(
-                                    sur100 * (critere.poids / 100) * 10,
-                                  ) / 10
-                                : null;
-                            return (
-                              <tr
-                                key={critere.key}
-                                className={`border-t border-slate-100 transition-colors duration-200 hover:bg-violet-50/40 ${idx % 2 === 0 ? "bg-white" : "bg-slate-50/40"}`}
-                              >
-                                <td className="p-2.5 text-xs font-medium leading-tight text-slate-800 break-words sm:p-3">
-                                  {critere.label}
-                                </td>
-                                <td className="p-2.5 text-center text-xs text-slate-500 sm:p-3">
-                                  {critere.poids}%
-                                </td>
-                                <td className="p-2.5 text-center sm:p-3">
-                                  <input
-                                    type="number"
-                                    min={0}
-                                    max={5}
-                                    step={0.5}
-                                    className="w-14 rounded-lg border border-slate-200 px-2 py-1 text-center text-xs font-semibold transition-all duration-200 hover:border-purple-300 focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-50"
-                                    value={note ?? ""}
-                                    onChange={(e) =>
-                                      setTechnique((p) => ({
-                                        ...p,
-                                        [critere.key]: e.target.value
-                                          ? parseFloat(e.target.value)
-                                          : null,
-                                      }))
-                                    }
-                                  />
-                                </td>
-                                <td className="p-2.5 text-center text-xs font-semibold sm:p-3">
-                                  {sur100 ?? "—"}
-                                </td>
-                                <td className="p-2.5 text-center text-xs font-semibold text-purple-700 sm:p-3">
-                                  {ponderee != null ? ponderee.toFixed(1) : "—"}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                          <tr className="border-t-2 border-slate-200 bg-gradient-to-r from-slate-100 to-slate-50 text-sm font-bold">
-                            <td
-                              className="p-2.5 text-slate-900 sm:p-3"
-                              colSpan={4}
-                            >
-                              Total technique
-                            </td>
-                            <td className="p-2.5 text-center sm:p-3">
-                              {techScore != null ? (
-                                <span
-                                  className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${
-                                    techQualifie
-                                      ? "bg-emerald-100 text-emerald-800"
-                                      : "bg-rose-100 text-rose-800"
-                                  }`}
-                                >
-                                  {techScore.toFixed(1)}
-                                </span>
-                              ) : (
-                                "—"
-                              )}
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-                    {techScore != null && (
-                      <div
-                        className={`flex items-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold ${
-                          techQualifie
-                            ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                            : "border-rose-200 bg-rose-50 text-rose-800"
-                        }`}
-                      >
-                        {techQualifie ? (
-                          <>
-                            <CheckCircle2 className="h-4 w-4" />
-                            Qualifié pour ouverture financière
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="h-4 w-4" />
-                            Éliminé (score &lt; {SEUIL_TECHNIQUE})
-                          </>
-                        )}
+                  {!detail.peut_saisir_financiere ? (
+                    <WaitBanner
+                      icon={Lock}
+                      title="Double aveugle — section bloquée"
+                      message={detail.blocage_financier}
+                      avancement={detail.evaluateurs_avancement}
+                      section="technique"
+                    />
+                  ) : (
+                    <>
+                      <p className="text-xs text-slate-500">
+                        Saisissez les montants. Le montant final se calcule
+                        automatiquement.
+                      </p>
+                      <div className="grid gap-2.5 lg:grid-cols-3">
+                        {(
+                          [
+                            ["Montant lu (MGA)", "montant_lu", Coins],
+                            [
+                              "Corrections (MGA)",
+                              "corrections_arithmetiques",
+                              BarChart3,
+                            ],
+                            ["Rabais (MGA)", "rabais_accordes", Trophy],
+                          ] as const
+                        ).map(([label, key, Icon]) => (
+                          <div
+                            key={key}
+                            className={`rounded-xl border border-amber-100 bg-gradient-to-br from-white to-amber-50/40 p-3.5 shadow-sm hover:border-amber-300 ${cardHover}`}
+                          >
+                            <label className="block">
+                              <span className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-amber-800">
+                                <Icon className="h-4 w-4" />
+                                {label}
+                              </span>
+                              <input
+                                type="number"
+                                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-right text-sm font-semibold text-slate-900 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-50"
+                                value={
+                                  financiere[key as keyof typeof financiere]
+                                }
+                                onChange={(e) =>
+                                  setFinanciere((p) => ({
+                                    ...p,
+                                    [key]: e.target.value,
+                                  }))
+                                }
+                              />
+                            </label>
+                          </div>
+                        ))}
                       </div>
-                    )}
-                  </>
-                )}
-              </div>
-            )}
-
-            {step === 4 && (
-              <div className="space-y-3">
-                <SectionHeader
-                  stepId={4}
-                  title="Évaluation financière"
-                  subtitle="Montant et score financier automatique."
-                />
-                {!detail.peut_saisir_financiere ? (
-                  <WaitBanner
-                    icon={Lock}
-                    title="Double aveugle — section bloquée"
-                    message={detail.blocage_financier}
-                    avancement={detail.evaluateurs_avancement}
-                    section="technique"
-                  />
-                ) : (
-                  <>
-                    <p className="text-xs text-slate-500">
-                      Les montants et le score financier se calculent automatiquement à la saisie.
-                    </p>
-                    <div className="grid gap-2.5 lg:grid-cols-3">
-                      {([
-                        ["Montant lu (MGA)", "montant_lu", Coins],
-                        [
-                          "Corrections (MGA)",
-                          "corrections_arithmetiques",
-                          BarChart3,
-                        ],
-                        ["Rabais (MGA)", "rabais_accordes", Trophy],
-                      ] as const).map(([label, key, Icon]) => (
-                        <div
-                          key={key}
-                          className={`rounded-xl border border-amber-100 bg-gradient-to-br from-white to-amber-50/40 p-3.5 shadow-sm hover:border-amber-300 ${cardHover}`}
-                        >
-                          <label className="block">
-                            <span className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-amber-800">
-                              <Icon className="h-4 w-4" />
-                              {label}
-                            </span>
-                            <input
-                              type="number"
-                              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-right text-sm font-semibold text-slate-900 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-50"
-                              value={financiere[key as keyof typeof financiere]}
-                              onChange={(e) =>
-                                setFinanciere((p) => ({
-                                  ...p,
-                                  [key]: e.target.value,
-                                }))
-                              }
-                            />
-                          </label>
+                      <div className="grid gap-2.5 sm:grid-cols-2">
+                        <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-slate-50 to-slate-100 p-3">
+                          <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                            Montant final
+                          </p>
+                          <p className="text-lg font-bold text-slate-900">
+                            {montantFinal != null
+                              ? montantFinal.toLocaleString("fr-FR")
+                              : "—"}
+                          </p>
                         </div>
-                      ))}
-                    </div>
-                    <div className="grid gap-2.5 sm:grid-cols-3">
-                      <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-slate-50 to-slate-100 p-3">
-                        <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-                          Montant final
-                        </p>
-                        <p className="text-lg font-bold text-slate-900">
-                          {montantFinal
-                            ? montantFinal.toLocaleString("fr-FR")
-                            : "—"}
-                        </p>
                       </div>
-                      <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-slate-50 to-slate-100 p-3">
-                        <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-                          Offre moins-disante
-                        </p>
-                        <p className="text-lg font-bold text-slate-900">
-                          {moinsDisant
-                            ? moinsDisant.toLocaleString("fr-FR")
-                            : "—"}
-                        </p>
-                      </div>
-                      <div className="rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50 p-3">
-                        <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-600">
-                          Score financier
-                        </p>
-                        <p className="text-2xl font-bold text-emerald-900">
-                          {finScore != null
-                            ? `${finScore.toFixed(1)} / 100`
-                            : "—"}
-                        </p>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
+                    </>
+                  )}
+                </div>
+              )}
 
-            {step === 5 && (
-              <div className="space-y-3">
-                <SectionHeader
-                  stepId={5}
-                  title="Score final"
-                  subtitle="60 % technique + 40 % financière."
-                />
-                <div className="grid gap-2.5 lg:grid-cols-3">
-                  <div
-                    className={`rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50 p-4 text-center shadow-sm hover:border-emerald-300 ${cardHover}`}
-                  >
-                    <BarChart3 className="mx-auto h-5 w-5 text-emerald-600" />
-                    <p className="mt-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                      Technique × 60%
-                    </p>
-                    <p className="mt-1 text-3xl font-bold text-emerald-700">
-                      {scoreTechPart != null ? scoreTechPart.toFixed(1) : "—"}
-                    </p>
-                  </div>
-                  <div
-                    className={`rounded-xl border border-sky-200 bg-gradient-to-br from-sky-50 to-blue-50 p-4 text-center shadow-sm hover:border-sky-300 ${cardHover}`}
-                  >
-                    <Coins className="mx-auto h-5 w-5 text-sky-600" />
-                    <p className="mt-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                      Financière × 40%
-                    </p>
-                    <p className="mt-1 text-3xl font-bold text-sky-700">
-                      {scoreFinPart != null ? scoreFinPart.toFixed(1) : "—"}
-                    </p>
-                  </div>
-                  <div
-                    className={`rounded-xl border-2 border-slate-300 bg-gradient-to-br from-white to-slate-50 p-4 text-center shadow-md hover:border-slate-400 ${cardHover}`}
-                  >
-                    <Trophy className="mx-auto h-5 w-5 text-slate-700" />
-                    <p className="mt-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                      Score total
-                    </p>
-                    <p className="mt-1 text-3xl font-bold text-slate-900">
-                      {scoreFinal != null
-                        ? `${scoreFinal.toFixed(1)}/100`
-                        : "—"}
-                    </p>
+              {step === 5 && (
+                <div className="space-y-3">
+                  <SectionHeader
+                    stepId={5}
+                    title="Score final"
+                    subtitle="60 % technique + 40 % financière."
+                  />
+                  <div className="grid gap-2.5 lg:grid-cols-3">
+                    <div
+                      className={`rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50 p-4 text-center shadow-sm hover:border-emerald-300 ${cardHover}`}
+                    >
+                      <BarChart3 className="mx-auto h-5 w-5 text-emerald-600" />
+                      <p className="mt-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                        Technique × 60%
+                      </p>
+                      <p className="mt-1 text-3xl font-bold text-emerald-700">
+                        {scoreTechPart != null ? scoreTechPart.toFixed(1) : "—"}
+                      </p>
+                    </div>
+                    <div
+                      className={`rounded-xl border border-sky-200 bg-gradient-to-br from-sky-50 to-blue-50 p-4 text-center shadow-sm hover:border-sky-300 ${cardHover}`}
+                    >
+                      <Coins className="mx-auto h-5 w-5 text-sky-600" />
+                      <p className="mt-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                        Financière × 40%
+                      </p>
+                      <p className="mt-1 text-3xl font-bold text-sky-700">
+                        {scoreFinPart != null ? scoreFinPart.toFixed(1) : "—"}
+                      </p>
+                    </div>
+                    <div
+                      className={`rounded-xl border-2 border-slate-300 bg-gradient-to-br from-white to-slate-50 p-4 text-center shadow-md hover:border-slate-400 ${cardHover}`}
+                    >
+                      <Trophy className="mx-auto h-5 w-5 text-slate-700" />
+                      <p className="mt-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                        Score total
+                      </p>
+                      <p className="mt-1 text-3xl font-bold text-slate-900">
+                        {scoreFinal != null
+                          ? `${scoreFinal.toFixed(1)}/100`
+                          : "—"}
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {step === 6 && (
-              <div className="space-y-3">
-                <SectionHeader
-                  stepId={6}
-                  title="Conclusion et recommandation"
-                  subtitle="Recommandation finale et signature électronique."
-                />
-                <div className="grid gap-2.5 lg:grid-cols-3">
-                  {[
-                    { value: "ATTRIBUER", label: "Attribuer le marché" },
-                    { value: "REJETER", label: "Rejeter l'offre" },
-                    { value: "RELANCER", label: "Relancer l'appel d'offres" },
-                  ].map((opt) => (
-                    <label
-                      key={opt.value}
-                      className={`flex cursor-pointer flex-col gap-1.5 rounded-xl border px-4 py-3.5 text-sm font-semibold transition-all duration-200 ${
-                        conclusion.recommandation === opt.value
-                          ? "border-emerald-300 bg-gradient-to-br from-emerald-50 to-teal-50 text-emerald-900 shadow-md ring-1 ring-emerald-200/60"
-                          : `border-slate-200 bg-white text-slate-700 hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-emerald-50/30 hover:shadow-md ${cardHover}`
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        className="accent-emerald-600"
-                        checked={conclusion.recommandation === opt.value}
-                        onChange={() =>
+              {step === 6 && (
+                <div className="space-y-3">
+                  <SectionHeader
+                    stepId={6}
+                    title="Conclusion et signature"
+                    subtitle="Justification, déclaration et signature électronique."
+                  />
+                  <div className="grid gap-3 lg:grid-cols-2">
+                    <label className="block">
+                      <span className="text-xs font-semibold text-slate-600">
+                        Justification détaillée
+                      </span>
+                      <textarea
+                        className={`${inputClass} mt-1 min-h-[72px] resize-y`}
+                        value={conclusion.justification}
+                        onChange={(e) =>
                           setConclusion((p) => ({
                             ...p,
-                            recommandation:
-                              opt.value as typeof conclusion.recommandation,
+                            justification: e.target.value,
                           }))
                         }
                       />
-                      {opt.label}
                     </label>
-                  ))}
+                    <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm transition-all duration-200 hover:border-emerald-200 hover:bg-emerald-50/30 lg:col-span-2">
+                      <input
+                        type="checkbox"
+                        className="mt-0.5 h-4 w-4 accent-emerald-600"
+                        checked={conclusion.noConflit}
+                        onChange={(e) =>
+                          setConclusion((p) => ({
+                            ...p,
+                            noConflit: e.target.checked,
+                          }))
+                        }
+                      />
+                      <span>
+                        Je déclare n&apos;avoir aucun lien avec ce
+                        soumissionnaire (déclaration de non-conflit
+                        d&apos;intérêt)
+                      </span>
+                    </label>
+                    <label className="block lg:col-span-2">
+                      <span className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-emerald-800">
+                        <Lock className="h-4 w-4" />
+                        Signature électronique de {
+                          detail.evaluateur_nom_prenom
+                        }{" "}
+                        (mot de passe DAO)
+                      </span>
+                      <input
+                        type="password"
+                        className={`${inputClass} mt-1`}
+                        value={conclusion.password}
+                        onChange={(e) =>
+                          setConclusion((p) => ({
+                            ...p,
+                            password: e.target.value,
+                          }))
+                        }
+                        placeholder="Mot de passe reçu par mail"
+                      />
+                    </label>
+                    {detail.conclusion?.signe_le && (
+                      <p className="text-sm font-medium text-emerald-700 lg:col-span-2">
+                        Signé le{" "}
+                        {new Date(detail.conclusion.signe_le).toLocaleString(
+                          "fr-FR",
+                        )}
+                      </p>
+                    )}
+                  </div>
                 </div>
-                <div className="grid gap-3 lg:grid-cols-2">
-                  <label className="block">
-                    <span className="text-xs font-semibold text-slate-600">
-                      Justification détaillée
-                    </span>
-                    <textarea
-                      className={`${inputClass} mt-1 min-h-[72px] resize-y`}
-                      value={conclusion.justification}
-                      onChange={(e) =>
-                        setConclusion((p) => ({
-                          ...p,
-                          justification: e.target.value,
-                        }))
-                      }
-                    />
-                  </label>
-                  <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm transition-all duration-200 hover:border-emerald-200 hover:bg-emerald-50/30 lg:col-span-2">
-                    <input
-                      type="checkbox"
-                      className="mt-0.5 h-4 w-4 accent-emerald-600"
-                      checked={conclusion.noConflit}
-                      onChange={(e) =>
-                        setConclusion((p) => ({
-                          ...p,
-                          noConflit: e.target.checked,
-                        }))
-                      }
-                    />
-                    <span>
-                      Je déclare n&apos;avoir aucun lien avec ce soumissionnaire
-                      (déclaration de non-conflit d&apos;intérêt)
-                    </span>
-                  </label>
-                  <label className="block lg:col-span-2">
-                    <span className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-emerald-800">
-                      <Lock className="h-4 w-4" />
-                      Signature électronique (mot de passe DAO)
-                    </span>
-                    <input
-                      type="password"
-                      className={`${inputClass} mt-1`}
-                      value={conclusion.password}
-                      onChange={(e) =>
-                        setConclusion((p) => ({
-                          ...p,
-                          password: e.target.value,
-                        }))
-                      }
-                      placeholder="Mot de passe reçu par mail"
-                    />
-                  </label>
-                  {detail.conclusion?.signe_le && (
-                    <p className="text-sm font-medium text-emerald-700 lg:col-span-2">
-                      Signé le{" "}
-                      {new Date(detail.conclusion.signe_le).toLocaleString(
-                        "fr-FR",
-                      )}
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
+              )}
             </fieldset>
           </div>
         </div>
@@ -1415,7 +1658,11 @@ export default function EvaluationWizardForm({
               Confirmation requise
             </h3>
             <p className="mt-2 text-sm text-slate-500">
-              Saisissez votre mot de passe DAO pour passer à l&apos;étape
+              Bonjour{" "}
+              <strong className="text-slate-800 font-bold">
+                {detail.evaluateur_nom_prenom}
+              </strong>
+              , saisissez votre mot de passe DAO pour passer à l&apos;étape
               suivante.
             </p>
             <input

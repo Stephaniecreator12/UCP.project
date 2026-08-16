@@ -6,6 +6,8 @@ from apps.evaluation_offre.views import (
     assignation_list,
     assigner_evaluateurs_view,
     assigner_evaluateurs_seance_view,
+    attribuer_marche_view,
+    comparer_technique_view,
     soumettre_examen_view,
     soumettre_technique_view,
     soumettre_financiere_view,
@@ -49,10 +51,14 @@ urlpatterns = [
 
     # Section 3 : évaluation technique
     path("<int:offre_id>/technique/", soumettre_technique_view, name="evaluation-technique"),
+    path("<int:offre_id>/comparer/", comparer_technique_view, name="evaluation-comparer"),
 
     # Section 4 : évaluation financière (double aveugle)
     path("<int:offre_id>/financiere/", soumettre_financiere_view, name="evaluation-financiere"),
 
     # Consolidation finale + recommandation
     path("<int:offre_id>/consolider/", consolider_decision_view, name="evaluation-consolider"),
+
+    # Attribution finale depuis le classement
+    path("dao/<int:seance_id>/attribuer/<int:offre_id>/", attribuer_marche_view, name="evaluation-attribuer-marche"),
 ]

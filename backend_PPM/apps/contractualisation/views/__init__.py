@@ -2,10 +2,11 @@ from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.exceptions import ValidationError as DRFValidationError
 from django.http import FileResponse
 from django.shortcuts import get_object_or_404
 
-from ..models import Contrat
+from ..models import Contrat, StatutContrat
 from ..permissions import IsSecretaireContractualisation
 from ..serializers import (
     ContratListSerializer,
@@ -19,8 +20,10 @@ from ..services import (
     mettre_a_jour_contrat,
     ajouter_echeancier,
     upload_document_contrat,
+    supprimer_document_contrat,
     envoyer_contrat_prestataire,
     get_contrat_detail,
+    _log_audit,
 )
 
 
@@ -64,6 +67,8 @@ def contrats_create(request):
             ContratDetailSerializer(contrat).data,
             status=status.HTTP_201_CREATED,
         )
+    except DRFValidationError as e:
+        raise e
     except Exception as e:
         return Response(
             {"detail": str(e)},
@@ -110,6 +115,8 @@ def contrats_update(request, contrat_id: int):
             ContratDetailSerializer(contrat).data,
             status=status.HTTP_200_OK,
         )
+    except DRFValidationError as e:
+        raise e
     except Exception as e:
         return Response(
             {"detail": str(e)},
@@ -150,6 +157,8 @@ def echeancier_add(request, contrat_id: int):
             },
             status=status.HTTP_201_CREATED,
         )
+    except DRFValidationError as e:
+        raise e
     except Exception as e:
         return Response(
             {"detail": str(e)},
@@ -167,7 +176,7 @@ def echeancier_detail(request, contrat_id: int, echeancier_id: int):
     PATCH /api/contrats/<id>/echeancier/<echeancier_id>/
     DELETE /api/contrats/<id>/echeancier/<echeancier_id>/
     """
-    from .models import EcheancierPaiement
+    from ..models import EcheancierPaiement
     
     contrat = get_object_or_404(Contrat, id=contrat_id)
     ligne = get_object_or_404(EcheancierPaiement, id=echeancier_id, contrat=contrat)
@@ -241,6 +250,8 @@ def document_upload(request, contrat_id: int):
             },
             status=status.HTTP_201_CREATED,
         )
+    except DRFValidationError as e:
+        raise e
     except Exception as e:
         return Response(
             {"detail": str(e)},
@@ -273,6 +284,8 @@ def contrats_send(request, contrat_id: int):
             },
             status=status.HTTP_200_OK,
         )
+    except DRFValidationError as e:
+        raise e
     except Exception as e:
         return Response(
             {"detail": str(e)},
@@ -292,6 +305,88 @@ def document_download(request, contrat_id: int, document_id: int):
     from ..models import DocumentContrat
 
     contrat = get_object_or_404(Contrat, id=contrat_id)
+    document = get_object_or_404(DocumentContrat, id=document_id, contrat=contrat)
+
+    if not document.fichier:
+        return Response(
+            {"detail": "Fichier non trouvé"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    return FileResponse(
+        document.fichier.open("rb"),
+        as_attachment=False,
+        filename=f"{contrat.numero_marche}_signe.pdf",
+        content_type="application/pdf",
+    )
+
+
+# ============================================================
+# SUPPRIMER UN DOCUMENT
+# ============================================================
+@api_view(["DELETE"])
+@permission_classes([IsAuthenticated, IsSecretaireContractualisation])
+def document_delete(request, contrat_id: int, document_id: int):
+    """
+    DELETE /api/contrats/<id>/documents/<doc_id>/
+    Supprime un document uploadé (uniquement si contrat en BROUILLON)
+    """
+    try:
+        supprimer_document_contrat(
+            contrat_id=contrat_id,
+            document_id=document_id,
+            utilisateur=request.user,
+            ip_adresse=request.META.get("REMOTE_ADDR", ""),
+            navigateur=request.META.get("HTTP_USER_AGENT", "")[:255],
+        )
+        return Response(
+            {"detail": "Document supprimé avec succès."},
+            status=status.HTTP_204_NO_CONTENT,
+        )
+    except DRFValidationError as e:
+        raise e
+    except Exception as e:
+        return Response(
+            {"detail": str(e)},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+
+# ============================================================
+# ENDPOINTS PUBLICS (POUR LE PRESTATAIRE)
+# ============================================================
+@api_view(["GET"])
+@permission_classes([])  # Public
+def public_contrats_detail(request, contrat_id: int):
+    """
+    GET /api/public/contrats/<id>/
+    """
+    contrat = get_object_or_404(Contrat, id=contrat_id)
+    # Only allow access if the status is NOT draft
+    if contrat.statut == StatutContrat.BROUILLON:
+        return Response(
+            {"detail": "Ce contrat n'est pas encore disponible."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+    serializer = ContratDetailSerializer(contrat)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@api_view(["GET"])
+@permission_classes([])  # Public
+def public_document_download(request, contrat_id: int, document_id: int):
+    """
+    GET /api/public/contrats/<id>/documents/<doc_id>/download/
+    """
+    from ..models import DocumentContrat
+
+    contrat = get_object_or_404(Contrat, id=contrat_id)
+    if contrat.statut == StatutContrat.BROUILLON:
+        return Response(
+            {"detail": "Ce contrat n'est pas encore disponible."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+        
     document = get_object_or_404(DocumentContrat, id=document_id, contrat=contrat)
 
     if not document.fichier:

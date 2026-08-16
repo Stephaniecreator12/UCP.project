@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -21,8 +22,19 @@ export default function EvaluatorHeader({ seanceId }: { seanceId?: number }) {
     ? `/personnel/evaluation/dao/${resolvedSeanceId}/offres`
     : "/personnel/evaluation/login";
 
+  const [evaluatorName, setEvaluatorName] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setEvaluatorName(localStorage.getItem("evaluator_name"));
+    }
+  }, []);
+
   const handleLogout = () => {
     logoutEvaluator();
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("evaluator_name");
+    }
     const loginHref = resolvedSeanceId
       ? `/personnel/evaluation/login?seance=${resolvedSeanceId}`
       : "/personnel/evaluation/login";
@@ -63,14 +75,21 @@ export default function EvaluatorHeader({ seanceId }: { seanceId?: number }) {
           </div>
         </Link>
 
-        <button
-          type="button"
-          onClick={handleLogout}
-          className="inline-flex shrink-0 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-rose-300 hover:bg-rose-50 hover:text-rose-800 hover:shadow-md active:translate-y-0"
-        >
-          <LogOut className="h-4 w-4" />
-          <span>Quitter</span>
-        </button>
+        <div className="flex items-center gap-3 sm:gap-4">
+          {evaluatorName && (
+            <span className="hidden text-xs font-bold text-slate-600 sm:inline-block bg-slate-100 rounded-full px-3.5 py-1.5 border border-slate-200/60 max-w-[200px] truncate">
+              {evaluatorName}
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="inline-flex shrink-0 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-rose-300 hover:bg-rose-50 hover:text-rose-800 hover:shadow-md active:translate-y-0"
+          >
+            <LogOut className="h-4 w-4" />
+            <span>Quitter</span>
+          </button>
+        </div>
       </div>
     </header>
   );

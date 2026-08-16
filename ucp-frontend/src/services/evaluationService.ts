@@ -78,6 +78,8 @@ export interface DaoOffreItem {
   nom_soumissionnaire: string;
   montant_global: string;
   lot_numero?: string;
+  nif?: string;
+  stat?: string;
   nif_stat?: string;
   progression: ProgressionStatut;
   peut_saisir_financiere: boolean;
@@ -92,6 +94,7 @@ export interface DaoOffresResponse {
   objet_dossier: string;
   date_seance?: string;
   offres: DaoOffreItem[];
+  evaluateur_nom?: string;
 }
 
 export interface EvaluationDetail {
@@ -105,9 +108,16 @@ export interface EvaluationDetail {
     nom_soumissionnaire: string;
     montant_global: string;
     lot_numero?: string;
+    nif?: string;
+    stat?: string;
     nif_stat?: string;
     ordre_passage?: number;
+    etat_scelle?: "" | "INTACT" | "ALTERE" | "ABSENT";
+    presence_rature?: boolean;
+    description_rature?: string;
+    document_substitution_present?: boolean;
   };
+
   evaluateur_nom_prenom: string;
   evaluateur_email: string;
   date_evaluation?: string;
@@ -180,13 +190,47 @@ export interface SaveEvaluationPayload {
     rabais_accordes?: number | null;
   };
   conclusion?: {
-    recommandation?: RecommandationType | null;
     justification?: string;
     declaration_conflit?: DeclarationConflit;
     password?: string;
   };
   email?: string;
   code?: string;
+}
+
+export interface TechnicalConsensusEvaluatorNote {
+  evaluateur: string;
+  evaluateur_id: number;
+  valeur: number;
+}
+
+export interface TechnicalConsensusCriterion {
+  champ: string;
+  label: string;
+  notes: TechnicalConsensusEvaluatorNote[];
+  ecart: number;
+  alerte: boolean;
+}
+
+export interface TechnicalConsensusResponse {
+  alerte: boolean;
+  ecart_max: number;
+  scores: number[];
+  evaluateurs: Array<{
+    evaluateur: string;
+    evaluateur_id: number;
+    note_conformite_technique: number | null;
+    note_delai_livraison: number | null;
+    note_experience: number | null;
+    note_sav_garantie: number | null;
+    score_technique_total: number;
+  }>;
+  criteres_en_ecart: string[];
+  criteres: TechnicalConsensusCriterion[];
+  seuil: number;
+  seuil_critere: number;
+  consensus_valide: boolean;
+  peut_passer_financiere: boolean;
 }
 
 export interface ClassementLigne {
@@ -199,6 +243,8 @@ export interface ClassementLigne {
   est_conforme: boolean | null;
   qualifie_technique: boolean;
   consensus_alerte: boolean;
+  est_moins_disante?: boolean;
+  attribuee?: boolean;
 }
 
 export interface ClassementResponse {
@@ -210,7 +256,7 @@ export interface ClassementResponse {
   lignes: ClassementLigne[];
 }
 
-export type StatutDao = "A_ASSIGNER" | "EN_EVALUATION" | "TERMINE";
+export type StatutDao = "A_ASSIGNER" | "EN_EVALUATION" | "TERMINE" | "ARCHIVE";
 
 export type StatutDashboard =
   | "A_ASSIGNER"
@@ -230,6 +276,9 @@ export interface DaoDashboardItem {
   nb_offres: number;
   offres_terminees: number;
   evaluateurs_assignes: number;
+  contrat_id?: number | null;
+  contrat_statut?: string | null;
+  contrat_statut_label?: string | null;
 }
 
 export interface DaoOffreStatutDetail {
@@ -238,6 +287,8 @@ export interface DaoOffreStatutDetail {
   nom_soumissionnaire: string;
   montant_global: string;
   lot_numero?: string;
+  nif?: string;
+  stat?: string;
   nif_stat?: string;
   evaluations_signees: number;
   evaluations_total: number;
@@ -259,6 +310,8 @@ export interface DaoEvaluateurAssigne {
 export interface OffreAssignationMeta {
   offre_id: number;
   lot_numero?: string;
+  nif?: string;
+  stat?: string;
   nif_stat?: string;
 }
 
@@ -278,6 +331,9 @@ export interface DaoDetail {
   statut_dao: StatutDao;
   nb_offres: number;
   offres_terminees: number;
+  contrat_id?: number | null;
+  contrat_statut?: string | null;
+  contrat_statut_label?: string | null;
   evaluateurs: DaoEvaluateurAssigne[];
   offres: DaoOffreStatutDetail[];
 }
@@ -294,6 +350,8 @@ export interface OffreAssignation {
   nom_soumissionnaire: string;
   montant_global: string;
   lot_numero?: string;
+  nif?: string;
+  stat?: string;
   nif_stat?: string;
   date_seance?: string;
   observations?: string;
@@ -359,11 +417,14 @@ export interface AssignationPayload {
   commission_members?: CommissionMemberPayload[];
   offres?: OffreAssignationMeta[];
   lot_numero?: string;
+  nif?: string;
+  stat?: string;
   nif_stat?: string;
   nom_soumissionnaire?: string;
   date_evaluation?: string;
   heure_evaluation?: string;
 }
+
 
 export interface EvaluationList {
   id: number;
@@ -445,6 +506,23 @@ export async function fetchClassement(
   if (!res.ok) {
     const error = await res.json().catch(() => ({}));
     throw new Error(error.detail || "Impossible de charger le classement");
+  }
+  return res.json();
+}
+
+export async function compareTechnique(
+  offreId: number,
+): Promise<TechnicalConsensusResponse> {
+  const res = await fetchWithAuthRetry(
+    `${EVALUATION_API_BASE}/${offreId}/comparer/`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    },
+  );
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.detail || "Impossible de comparer les notes");
   }
   return res.json();
 }
@@ -574,10 +652,14 @@ export async function loginEvaluationDao(
     refresh: string;
     seance_id: number;
     email: string;
+    nom?: string;
   };
   if (typeof window !== "undefined") {
     localStorage.setItem("access_token", data.access);
     localStorage.setItem("refresh_token", data.refresh);
+    if (data.nom) {
+      localStorage.setItem("evaluator_name", data.nom);
+    }
   }
   return { seance_id: data.seance_id, email: data.email };
 }
@@ -677,6 +759,24 @@ export async function submitDecisionFinale(
   if (!res.ok) {
     const error = await res.json().catch(() => ({}));
     throw new Error(error.detail || "Erreur lors de la consolidation");
+  }
+  return res.json();
+}
+
+export async function attribuerMarche(
+  seanceId: number,
+  offreId: number,
+): Promise<{ detail: string; offre_id: number; contrat_id: number }> {
+  const res = await fetchWithAuthRetry(
+    `${EVALUATION_API_BASE}/dao/${seanceId}/attribuer/${offreId}/`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    },
+  );
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.detail || "Impossible d'attribuer le marché");
   }
   return res.json();
 }

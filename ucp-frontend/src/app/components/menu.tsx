@@ -62,6 +62,19 @@ const VALIDATOR_LINKS: MenuLink[] = [
   },
 ];
 
+const COMPOSITION_VALIDATOR_LINKS: MenuLink[] = [
+  {
+    label: "Validation membres",
+    href: "/personnel/ouverture_offre/validation-membres",
+    match: (p) => p.startsWith("/personnel/ouverture_offre/validation-membres"),
+  },
+  {
+    label: "TDR-ST",
+    href: "/personnel/TdrSt",
+    match: (p) => p.startsWith("/personnel/TdrSt"),
+  },
+];
+
 const AGENT_ACHAT_LINKS: MenuLink[] = [
   {
     label: "Passation",
@@ -135,7 +148,7 @@ const getMenuIcon = (href: string) => {
 
 /**
  * Mappe les groupes Django aux liens de menu
- * Groups disponibles: VALIDATEUR_HIERARCHIQUE, VALIDATEUR_TECHNIQUE, VALIDATEUR_BUDGETAIRE,
+ * Groups disponibles: RPM, GP, CN, VALIDATEUR_HIERARCHIQUE, VALIDATEUR_TECHNIQUE, VALIDATEUR_BUDGETAIRE,
  * VALIDATEUR_PROGRAMMATIQUE, APPROBATEUR_NATIONAL, SECRETAIRE, SECRETAIRE_CONTRACTUALISATION,
  * EVALUATEUR, AGENT_ACHAT, AGENT_MARCHE, LOGISTIQUE, RAF, FINANCE, PRESIDENT
  */
@@ -175,12 +188,27 @@ const getMenuLinksForGroups = (groups: string[]): MenuLink[] => {
   }
 
   // Si n'importe quel VALIDATEUR ou APPROBATEUR ou FINANCE ou RAF
+  const compositionValidator = groups.some((group) =>
+    [
+      "RPM",
+      "GP",
+      "CN",
+      "APPROBATEUR_NATIONAL",
+      "VALIDATEUR_TECHNIQUE",
+      "VALIDATEUR_PROGRAMMATIQUE",
+    ].includes(group),
+  );
+
   if (
+    compositionValidator ||
     groups.some((g) => g.startsWith("VALIDATEUR_")) ||
     groups.includes("APPROBATEUR_NATIONAL") ||
     groups.includes("FINANCE") ||
     groups.includes("RAF")
   ) {
+    if (compositionValidator && !groups.some((group) => ["FINANCE", "RAF", "VALIDATEUR_BUDGETAIRE"].includes(group))) {
+      return COMPOSITION_VALIDATOR_LINKS;
+    }
     return VALIDATOR_LINKS;
   }
 
@@ -192,23 +220,25 @@ export default function Menu({ className = "" }: { className?: string }) {
   const pathname = usePathname();
   const buttonId = useId();
   const menuId = `${buttonId}-menu`;
+  const showAuthenticatedActions = !pathname.startsWith("/auth");
 
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [open, setOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
-  const [userGroups, setUserGroups] = useState<string[]>([]);
-
-  const showAuthenticatedActions = !pathname.startsWith("/auth");
+  const [userGroups, setUserGroups] = useState<string[]>(
+    () => getCurrentUser()?.groups || [],
+  );
 
   useEffect(() => {
-    setIsMounted(true);
+    const frame = window.requestAnimationFrame(() => setIsMounted(true));
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
+
+  useEffect(() => {
     if (!showAuthenticatedActions) return;
 
     const currentUser = getCurrentUser();
-    if (currentUser) {
-      setUserGroups(currentUser.groups || []);
-      return;
-    }
+    if (currentUser) return;
 
     void fetchCurrentUser()
       .then((user) => setUserGroups(user?.groups || []))

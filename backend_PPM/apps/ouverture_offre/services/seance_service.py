@@ -23,7 +23,11 @@ User = get_user_model()
 def list_visible_seances(user):
     return (
         SeanceOuverture.objects.select_related("secretaire", "president")
-        .prefetch_related("membres__utilisateur")
+        .prefetch_related(
+            "membres__utilisateur",
+            "validations_composition",
+            "validations_composition__validateur",
+        )
         .distinct()
         .order_by("-created_at")
     )
@@ -36,7 +40,12 @@ def get_visible_seance(user, pk):
 def get_public_validation_seance(pk):
     return (
         SeanceOuverture.objects.select_related("secretaire", "president")
-        .prefetch_related("membres__utilisateur", "offres")
+        .prefetch_related(
+            "membres__utilisateur",
+            "offres",
+            "validations_composition",
+            "validations_composition__validateur",
+        )
         .filter(pk=pk)
         .first()
     )
@@ -86,8 +95,17 @@ def resend_validation_notifications(seance, user):
     ]:
         return {"detail": "Aucune notification de validation à renvoyer pour cette séance."}
 
-    reset_validation_state(seance)
     if seance.statut == SeanceOuverture.Statut.EN_VALIDATION_MEMBRES:
+        if seance.validations_composition.exists() and not seance.membres_verrouilles:
+            from .notification_service import notify_composition_validators_requested
+
+            sent_members = notify_composition_validators_requested(seance)
+            setattr(seance, "_emails_envoyes", sent_members)
+            return {
+                "detail": "Notifications de validation renvoyées.",
+                "emails_envoyes": sent_members,
+            }
+
         sent_members = notify_members_validation_requested(seance)
         setattr(seance, "_emails_envoyes", sent_members)
         return {
@@ -129,8 +147,15 @@ def update_seance(seance, validated_data, user):
     if seance.statut not in [
         SeanceOuverture.Statut.BROUILLON,
         SeanceOuverture.Statut.EN_SAISIE,
+        SeanceOuverture.Statut.MEMBRES_CONFIRMES,
     ]:
         raise ValidationError({"detail": "Impossible de modifier une seance deja transmise."})
+
+    if seance.membres_verrouilles and (
+        validated_data.get("commission_members") is not None
+        or validated_data.get("membre_ids") is not None
+    ):
+        raise ValidationError({"detail": "La composition des membres est verrouillée."})
 
     previous_status = seance.statut
     membre_ids = validated_data.pop("membre_ids", None)
@@ -141,17 +166,30 @@ def update_seance(seance, validated_data, user):
         setattr(seance, attr, value)
     seance.save()
 
-    if commission_members is not None:
-        replace_members_from_commission(seance, commission_members)
-    elif membre_ids is not None:
-        replace_members(seance, membre_ids)
+    if not seance.membres_verrouilles:
+        if commission_members is not None:
+            replace_members_from_commission(seance, commission_members)
+        elif membre_ids is not None:
+            replace_members(seance, membre_ids)
         
     if offres_data is not None:
         replace_offres(seance, offres_data)
 
-    if seance.statut == SeanceOuverture.Statut.EN_VALIDATION_MEMBRES:
+    if seance.statut == SeanceOuverture.Statut.EN_VALIDATION_PRESIDENT:
         if not seance.president_id:
             raise ValidationError({"detail": "Le president de seance est obligatoire avant validation."})
+        if not seance.membres_verrouilles:
+            raise ValidationError({
+                "detail": "La composition des membres doit être validée avant la validation président."
+            })
+
+    if (
+        previous_status != SeanceOuverture.Statut.EN_VALIDATION_PRESIDENT
+        and seance.statut == SeanceOuverture.Statut.EN_VALIDATION_PRESIDENT
+    ):
+        reset_validation_state(seance)
+        sent_count = notify_president_validation_requested(seance)
+        setattr(seance, "_emails_envoyes", sent_count)
 
     if (
         previous_status != SeanceOuverture.Statut.EN_VALIDATION_MEMBRES
@@ -555,6 +593,12 @@ def replace_offres(seance, offres_data):
                 enveloppe_administrative=offre.get("enveloppe_administrative", ""),
                 enveloppe_technique=offre.get("enveloppe_technique", ""),
                 enveloppe_financiere=offre.get("enveloppe_financiere", ""),
+                etat_scelle=offre.get("etat_scelle", ""),
+                presence_rature=bool(offre.get("presence_rature", False)),
+                description_rature=offre.get("description_rature", ""),
+                document_substitution_present=bool(
+                    offre.get("document_substitution_present", False)
+                ),
                 montant_global=offre.get("montant_global"),
                 observations=offre.get("observations", ""),
             )

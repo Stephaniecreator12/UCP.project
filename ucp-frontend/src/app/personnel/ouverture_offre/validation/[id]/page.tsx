@@ -280,7 +280,7 @@ function PublicOuvertureValidationContent() {
 
     void Promise.resolve().then(async () => {
       try {
-        await getMarkets("1",context.seance.reference_dossier);
+        await getMarkets("1", context.seance.reference_dossier);
         if (cancelled) return;
       } catch {
         if (!cancelled) {
@@ -389,6 +389,7 @@ function PublicOuvertureValidationContent() {
         commentaire,
         date_report: pendingDecision === "REPORTER" ? dateReport : null,
       });
+      clearPublicValidationSession();
       setSuccess(response.detail);
       setPendingDecision(null);
       setConfirmPassword("");

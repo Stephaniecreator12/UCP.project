@@ -34,6 +34,15 @@ from .validation_access_service import (
 
 User = get_user_model()
 EVALUATEUR_GROUP = "EVALUATEUR"
+CONSENSUS_TECHNIQUE_SEUIL_TOTAL = 15
+CONSENSUS_TECHNIQUE_SEUIL_CRITERE = 2
+
+TECHNIQUE_CONSENSUS_CRITERES = (
+    ("note_conformite_technique", "Conformité technique"),
+    ("note_delai_livraison", "Délai de livraison"),
+    ("note_experience", "Expérience"),
+    ("note_sav_garantie", "SAV / garantie"),
+)
 
 
 # ============================================================
@@ -398,7 +407,23 @@ def _examen_est_complete(evaluation: "EvaluationOffre") -> bool:
     return ExamenPreliminaire.objects.filter(evaluation=evaluation).exists()
 
 
+def _offre_eliminee_examen(offre: "OffreOuverture") -> bool:
+    if offre.eliminee_examen:
+        return True
+    evaluations = EvaluationOffre.objects.filter(offre=offre)
+    for eval_obj in evaluations:
+        try:
+            if not eval_obj.examen_preliminaire.est_conforme:
+                return True
+        except ExamenPreliminaire.DoesNotExist:
+            continue
+    return False
+
+
 def _technical_gate(offre: "OffreOuverture") -> tuple[bool, str]:
+    if _offre_eliminee_examen(offre):
+        return False, "Offre non conforme — évaluation terminée pour tous les évaluateurs."
+
     evaluations = EvaluationOffre.objects.filter(offre=offre)
     if evaluations.count() < 3:
         return False, "Les 3 évaluateurs doivent être assignés."
@@ -450,38 +475,171 @@ def _check_technique_done_for_all(offre: "OffreOuverture") -> None:
             })
 
 
-def _financial_gate(offre: "OffreOuverture") -> tuple[bool, str]:
+def _financial_gate(offre: "OffreOuverture", evaluation: "EvaluationOffre | None" = None) -> tuple[bool, str]:
+    """
+    Vérifie si l'évaluation financière peut être saisie.
+    """
+    if _offre_eliminee_examen(offre):
+        return False, "Offre non conforme — évaluation terminée pour tous les évaluateurs."
+
     evaluations = EvaluationOffre.objects.filter(offre=offre)
     if evaluations.count() < 3:
         return False, "Les 3 évaluateurs doivent être assignés."
 
     for eval_obj in evaluations:
+        # Vérifier que tous les évaluateurs ont complété l'examen préliminaire
+        try:
+            if not eval_obj.examen_preliminaire:
+                return False, "En attente de l'examen préliminaire des 3 évaluateurs."
+        except ExamenPreliminaire.DoesNotExist:
+            return False, "En attente de l'examen préliminaire des 3 évaluateurs."
+        
         tech = EvaluationTechnique.objects.filter(evaluation=eval_obj).first()
         if not _technique_est_complete(tech):
             return False, "En attente de la validation technique des 3 évaluateurs."
+
+    if not offre.consensus_technique_valide:
+        return False, "Le consensus technique doit être validé via le bouton Comparer."
+
+    # Vérifications spécifiques pour l'évaluateur courant
+    if evaluation:
+        try:
+            examen = evaluation.examen_preliminaire
+            if not examen.est_conforme:
+                return False, "L'examen préliminaire n'est pas conforme. L'évaluation financière est bloquée."
+        except ExamenPreliminaire.DoesNotExist:
+            return False, "L'examen préliminaire doit être complété avant la saisie financière."
+        
+        tech = EvaluationTechnique.objects.filter(evaluation=evaluation).first()
+        if tech and tech.score_technique_total is not None:
+            if tech.score_technique_total < 70:
+                return False, "Le score technique est inférieur à 70/100. L'évaluation financière est bloquée."
+        elif not _technique_est_complete(tech):
+            return False, "L'évaluation technique doit être complétée avant la saisie financière."
 
     return True, ""
 
 
 def _compute_consensus_info(offre: "OffreOuverture") -> dict:
+    evaluations = list(
+        EvaluationOffre.objects.filter(offre=offre).select_related("evaluateur")
+    )
     scores = []
-    for eval_obj in EvaluationOffre.objects.filter(offre=offre):
+    evaluateurs_notes = []
+    for eval_obj in evaluations:
         tech = EvaluationTechnique.objects.filter(evaluation=eval_obj).first()
         if tech and tech.score_technique_total is not None:
             scores.append(float(tech.score_technique_total))
+            evaluateurs_notes.append({
+                "evaluateur": eval_obj.evaluateur_nom_prenom or eval_obj.evaluateur_email,
+                "evaluateur_id": eval_obj.evaluateur_id,
+                "note_conformite_technique": float(tech.note_conformite_technique)
+                if tech.note_conformite_technique is not None else None,
+                "note_delai_livraison": float(tech.note_delai_livraison)
+                if tech.note_delai_livraison is not None else None,
+                "note_experience": float(tech.note_experience)
+                if tech.note_experience is not None else None,
+                "note_sav_garantie": float(tech.note_sav_garantie)
+                if tech.note_sav_garantie is not None else None,
+                "score_technique_total": float(tech.score_technique_total),
+            })
+
+    criteres_detail = []
+    criteres_en_ecart = []
+    for champ, label in TECHNIQUE_CONSENSUS_CRITERES:
+        notes = []
+        valeurs = []
+        for eval_obj in evaluations:
+            tech = EvaluationTechnique.objects.filter(evaluation=eval_obj).first()
+            if not tech or tech.score_technique_total is None:
+                continue
+            valeur = getattr(tech, champ)
+            if valeur is None:
+                continue
+            valeur_float = float(valeur)
+            valeurs.append(valeur_float)
+            notes.append({
+                "evaluateur": eval_obj.evaluateur_nom_prenom or eval_obj.evaluateur_email,
+                "evaluateur_id": eval_obj.evaluateur_id,
+                "valeur": valeur_float,
+            })
+
+        ecart = 0.0
+        alerte_critere = False
+        if len(valeurs) >= 2:
+            ecart = max(
+                abs(valeurs[i] - valeurs[j])
+                for i in range(len(valeurs))
+                for j in range(i + 1, len(valeurs))
+            )
+            alerte_critere = ecart >= CONSENSUS_TECHNIQUE_SEUIL_CRITERE
+            if alerte_critere:
+                criteres_en_ecart.append(champ)
+
+        criteres_detail.append({
+            "champ": champ,
+            "label": label,
+            "notes": notes,
+            "ecart": round(ecart, 2),
+            "alerte": alerte_critere,
+        })
 
     if len(scores) < 2:
-        return {"alerte": False, "ecart_max": 0, "scores": scores}
+        return {
+            "alerte": False,
+            "ecart_max": 0,
+            "scores": scores,
+            "evaluateurs": evaluateurs_notes,
+            "criteres_en_ecart": criteres_en_ecart,
+            "criteres": criteres_detail,
+            "seuil": CONSENSUS_TECHNIQUE_SEUIL_TOTAL,
+            "seuil_critere": CONSENSUS_TECHNIQUE_SEUIL_CRITERE,
+        }
 
-    ecart_max = max(abs(scores[i] - scores[j]) for i in range(len(scores)) for j in range(i + 1, len(scores)))
+    ecart_max = max(
+        abs(scores[i] - scores[j])
+        for i in range(len(scores))
+        for j in range(i + 1, len(scores))
+    )
+
     return {
-        "alerte": ecart_max > 15,
+        "alerte": ecart_max > CONSENSUS_TECHNIQUE_SEUIL_TOTAL,
         "ecart_max": round(ecart_max, 2),
         "scores": scores,
+        "evaluateurs": evaluateurs_notes,
+        "criteres_en_ecart": criteres_en_ecart,
+        "criteres": criteres_detail,
+        "seuil": CONSENSUS_TECHNIQUE_SEUIL_TOTAL,
+        "seuil_critere": CONSENSUS_TECHNIQUE_SEUIL_CRITERE,
+    }
+
+
+@transaction.atomic
+def comparer_technique(offre_id: int, user: object) -> dict:
+    evaluation = _get_evaluation_or_403(offre_id, user)
+    offre = evaluation.offre
+
+    if _offre_eliminee_examen(offre):
+        raise ValidationError({"detail": "Offre non conforme — comparaison impossible."})
+
+    _check_technique_done_for_all(offre)
+    consensus = _compute_consensus_info(offre)
+
+    offre.consensus_technique_valide = not consensus["alerte"]
+    offre.save(update_fields=["consensus_technique_valide"])
+
+    return {
+        **consensus,
+        "consensus_valide": offre.consensus_technique_valide,
+        "peut_passer_financiere": offre.consensus_technique_valide,
     }
 
 
 def _compute_progress_status(evaluation: "EvaluationOffre") -> str:
+    # Si l'offre est non conforme (éliminée à l'examen préliminaire), l'évaluation est automatiquement terminée
+    if evaluation.offre.eliminee_examen:
+        return "TERMINEE"
+    
     try:
         conclusion = evaluation.conclusion
         if conclusion.signe_le:
@@ -566,22 +724,6 @@ def compute_offre_statut_dashboard(offre: "OffreOuverture") -> str:
     if len(evaluations) < 3:
         return "A_ASSIGNER"
 
-    completes = [e for e in evaluations if e.statut == StatutEvaluation.COMPLETE]
-    if len(completes) == 3:
-        recos = []
-        for evaluation in evaluations:
-            try:
-                if evaluation.conclusion.recommandation:
-                    recos.append(evaluation.conclusion.recommandation)
-            except EvaluationConclusion.DoesNotExist:
-                continue
-        attribuer = sum(1 for r in recos if r == "ATTRIBUER")
-        rejeter = sum(1 for r in recos if r == "REJETER")
-        if attribuer >= 2:
-            return "VALIDEE"
-        if rejeter >= 2:
-            return "REJETEE"
-
     non_conformes = 0
     for evaluation in evaluations:
         try:
@@ -589,7 +731,10 @@ def compute_offre_statut_dashboard(offre: "OffreOuverture") -> str:
                 non_conformes += 1
         except ExamenPreliminaire.DoesNotExist:
             continue
-    if non_conformes >= 2:
+    if non_conformes >= 1:
+        return "NON_CONFORME"
+
+    if _offre_eliminee_examen(offre):
         return "NON_CONFORME"
 
     tech_scores = []
@@ -600,10 +745,17 @@ def compute_offre_statut_dashboard(offre: "OffreOuverture") -> str:
                 tech_scores.append(float(score))
         except EvaluationTechnique.DoesNotExist:
             continue
+
     if len(tech_scores) == 3 and (sum(tech_scores) / 3) < 70:
         return "ELIMINEE"
 
-    if _compute_consensus_info(offre)["alerte"]:
+    if all(
+        _evaluation_terminee(evaluation)
+        for evaluation in evaluations
+    ):
+        return "TERMINE"
+
+    if _compute_consensus_info(offre)["alerte"] and not offre.consensus_technique_valide:
         return "CONSENSUS_REQUIS"
 
     return "EN_EVALUATION"
@@ -661,7 +813,7 @@ def list_dao_offres(seance_id: int, user: object) -> dict:
     offres_payload = []
     for evaluation in evaluations:
         offre = evaluation.offre
-        peut_fin, blocage = _financial_gate(offre)
+        peut_fin, blocage = _financial_gate(offre, evaluation)
         consensus = _compute_consensus_info(offre)
         offres_payload.append({
             "offre_id": offre.id,
@@ -669,6 +821,8 @@ def list_dao_offres(seance_id: int, user: object) -> dict:
             "nom_soumissionnaire": offre.nom_soumissionnaire,
             "montant_global": offre.montant_global,
             "lot_numero": offre.lot_numero,
+            "nif": offre.nif,
+            "stat": offre.stat,
             "nif_stat": offre.nif_stat,
             "progression": _compute_progress_status(evaluation),
             "peut_saisir_financiere": peut_fin,
@@ -683,6 +837,7 @@ def list_dao_offres(seance_id: int, user: object) -> dict:
         "objet_dossier": seance.objet_dossier,
         "date_seance": seance.date_seance,
         "offres": offres_payload,
+        "evaluateur_nom": assignation.evaluateur_nom_prenom if assignation else (user.get_full_name() or user.username),
     }
 
 
@@ -759,6 +914,8 @@ def compute_offre_statut_detail(offre: OffreOuverture) -> dict:
         "nom_soumissionnaire": offre.nom_soumissionnaire,
         "montant_global": offre.montant_global,
         "lot_numero": offre.lot_numero,
+        "nif": offre.nif,
+        "stat": offre.stat,
         "nif_stat": offre.nif_stat,
         "evaluations_signees": signees,
         "evaluations_total": max(len(evaluations), 3),
@@ -780,6 +937,8 @@ def compute_offre_statut_detail(offre: OffreOuverture) -> dict:
 
 
 def list_dao_dashboard(user: object) -> list:
+    from apps.contractualisation.models import Contrat
+
     seances = (
         SeanceOuverture.objects
         .filter(statut="VALIDEE")
@@ -792,7 +951,13 @@ def list_dao_dashboard(user: object) -> list:
         if nb_offres == 0:
             continue
         terminees = _count_offres_terminees_seance(seance)
-        statut = compute_dao_statut(seance)
+        
+        contrat = Contrat.objects.filter(seance=seance).order_by("-created_at").first()
+        if contrat:
+            statut = "ARCHIVE"
+        else:
+            statut = compute_dao_statut(seance)
+
         items.append({
             "seance_id": seance.id,
             "reference_dossier": seance.reference_dossier,
@@ -802,6 +967,9 @@ def list_dao_dashboard(user: object) -> list:
             "nb_offres": nb_offres,
             "offres_terminees": terminees,
             "evaluateurs_assignes": EvaluationSeanceAssignation.objects.filter(seance=seance).count(),
+            "contrat_id": contrat.id if contrat else None,
+            "contrat_statut": contrat.statut if contrat else None,
+            "contrat_statut_label": contrat.get_statut_display() if contrat else None,
         })
     return items
 
@@ -839,6 +1007,7 @@ def _get_date_limite_soumission(seance: SeanceOuverture):
 
 
 def get_dao_detail(seance_id: int, user: object) -> dict:
+    from apps.contractualisation.models import Contrat
     seance = (
         SeanceOuverture.objects
         .filter(pk=seance_id, statut="VALIDEE")
@@ -851,6 +1020,7 @@ def get_dao_detail(seance_id: int, user: object) -> dict:
     assignations = list(seance.evaluation_assignations.all())
     offres = [compute_offre_statut_detail(offre) for offre in seance.offres.all()]
     first_assign = assignations[0] if assignations else None
+    contrat = Contrat.objects.filter(seance=seance).order_by("-created_at").first()
 
     return {
         "seance_id": seance.id,
@@ -869,9 +1039,12 @@ def get_dao_detail(seance_id: int, user: object) -> dict:
             if first_assign and first_assign.heure_evaluation
             else None
         ),
-        "statut_dao": compute_dao_statut(seance),
+        "statut_dao": "ARCHIVE" if contrat else compute_dao_statut(seance),
         "nb_offres": len(offres),
         "offres_terminees": _count_offres_terminees_seance(seance),
+        "contrat_id": contrat.id if contrat else None,
+        "contrat_statut": contrat.statut if contrat else None,
+        "contrat_statut_label": contrat.get_statut_display() if contrat else None,
         "evaluateurs": [
             {
                 "id": a.id,
@@ -906,6 +1079,7 @@ def login_evaluateur_dao(email: str, password: str, seance_id: int | None = None
         "refresh": str(refresh),
         "seance_id": assignation.seance_id,
         "email": assignation.evaluateur_email or assignation.evaluateur.email,
+        "nom": assignation.evaluateur_nom_prenom,
     }
 
 
@@ -920,6 +1094,8 @@ def assigner_evaluateurs(
     evaluateur_ids: list | None = None,
     commission_members: list | None = None,
     lot_numero: str | None = None,
+    nif: str | None = None,
+    stat: str | None = None,
     nif_stat: str | None = None,
     nom_soumissionnaire: str | None = None,
     date_evaluation: object | None = None,
@@ -931,6 +1107,10 @@ def assigner_evaluateurs(
     # Update metadata on OffreOuverture
     if lot_numero is not None:
         offre.lot_numero = lot_numero
+    if nif is not None:
+        offre.nif = nif
+    if stat is not None:
+        offre.stat = stat
     if nif_stat is not None:
         offre.nif_stat = nif_stat
     if nom_soumissionnaire is not None:
@@ -1043,6 +1223,13 @@ def soumettre_examen_preliminaire(offre_id: int, data: dict, user: object):
         examen.commentaire = data.get("commentaire", "")
     examen.save()
 
+    if not examen.est_conforme:
+        offre = evaluation.offre
+        offre.eliminee_examen = True
+        offre.consensus_technique_valide = False
+        offre.save(update_fields=["eliminee_examen", "consensus_technique_valide"])
+        EvaluationOffre.objects.filter(offre=offre).update(statut=StatutEvaluation.ELIMINEE)
+
     action = "CREATE" if created else "UPDATE"
     _log_audit(
         user, "ExamenPreliminaire", examen.pk, action,
@@ -1073,6 +1260,11 @@ def soumettre_evaluation_technique(offre_id: int, data: dict, user: object):
         if field in data and data[field] is not None:
             setattr(tech, field, data[field])
     tech.save()
+
+    offre = evaluation.offre
+    if offre.consensus_technique_valide:
+        offre.consensus_technique_valide = False
+        offre.save(update_fields=["consensus_technique_valide"])
 
     action = "CREATE" if created else "UPDATE"
     _log_audit(
@@ -1116,13 +1308,6 @@ def soumettre_evaluation_financiere(offre_id: int, data: dict, user: object):
             })
 
     # Sauvegarde intermédiaire pour calculer et persister montant_evalue_final en base de données
-    fin.save()
-
-    # Le calcul du moins-disant se basera sur les données désormais persistées
-    moins_disant = _compute_moins_disant(evaluation.offre.seance_id, user)
-    fin.offre_moins_disante = moins_disant
-    
-    # Sauvegarde finale pour calculer le score_financier
     fin.save()
 
     action = "CREATE" if created else "UPDATE"
@@ -1237,7 +1422,7 @@ def sauvegarder_evaluation(offre_id: int, data: dict, user: object) -> "Evaluati
 
     financiere_data = data.get("financiere")
     if financiere_data:
-        peut_fin, message = _financial_gate(evaluation.offre)
+        peut_fin, message = _financial_gate(evaluation.offre, evaluation)
         if not peut_fin:
             raise ValidationError({"detail": message})
         for champ in ["montant_lu", "corrections_arithmetiques", "rabais_accordes"]:
@@ -1275,8 +1460,6 @@ def sauvegarder_evaluation(offre_id: int, data: dict, user: object) -> "Evaluati
                 else:
                     msg = str(detail)
                 raise ValidationError({"detail": msg}) from exc
-            if not conclusion.recommandation:
-                raise ValidationError({"detail": "La recommandation est obligatoire pour signer."})
             if not conclusion.declaration_conflit:
                 raise ValidationError({"detail": "La déclaration de conflit d'intérêt est obligatoire."})
             if len((conclusion.justification or "").strip()) < 10:
@@ -1330,9 +1513,31 @@ def assigner_evaluateurs_seance(
                 continue
             if meta.get("lot_numero") is not None:
                 offre.lot_numero = str(meta.get("lot_numero") or "").strip()
+            if meta.get("nif") is not None:
+                offre.nif = str(meta.get("nif") or "").strip()
+            if meta.get("stat") is not None:
+                offre.stat = str(meta.get("stat") or "").strip()
             if meta.get("nif_stat") is not None:
                 offre.nif_stat = str(meta.get("nif_stat") or "").strip()
-            offre.save(update_fields=["lot_numero", "nif_stat"])
+            for field in (
+                "etat_scelle",
+                "presence_rature",
+                "description_rature",
+                "document_substitution_present",
+            ):
+                if meta.get(field) is not None:
+                    setattr(offre, field, meta[field])
+            update_fields = [
+                "lot_numero",
+                "nif",
+                "stat",
+                "nif_stat",
+                "etat_scelle",
+                "presence_rature",
+                "description_rature",
+                "document_substitution_present",
+            ]
+            offre.save()
 
     evaluateur_ids = evaluateur_ids or []
     commission_members = commission_members or []
@@ -1429,6 +1634,7 @@ def get_classement_seance(seance_id: int, user: object) -> dict:
             "evaluations__evaluation_financiere",
             "evaluations__conclusion",
             "evaluations__examen_preliminaire",
+            "decision_finale",
         )
         .order_by("ordre_passage", "id")
     )
@@ -1461,6 +1667,23 @@ def get_classement_seance(seance_id: int, user: object) -> dict:
     )
     all_done = total_evaluations > 0 and completed == total_evaluations
 
+    montants_offres = []
+    for offre_item in offres:
+        montants_eval = []
+        for eval_obj in offre_item.evaluations.all():
+            fin = getattr(eval_obj, "evaluation_financiere", None)
+            if fin and fin.montant_evalue_final:
+                montants_eval.append(float(fin.montant_evalue_final))
+        if montants_eval:
+            montants_offres.append((offre_item.id, sum(montants_eval) / len(montants_eval)))
+        elif offre_item.montant_global:
+            montants_offres.append((offre_item.id, float(offre_item.montant_global)))
+
+    moins_disant_offre_id = None
+    if montants_offres:
+        moins_disant_offre_id = min(montants_offres, key=lambda x: x[1])[0]
+    moins_disant_montant = min(v for _, v in montants_offres) if montants_offres else None
+
     lignes = []
     for offre in offres:
         evaluations = list(offre.evaluations.all())
@@ -1476,6 +1699,21 @@ def get_classement_seance(seance_id: int, user: object) -> dict:
 
         score_tech = round(sum(scores_tech) / len(scores_tech), 2) if scores_tech else None
         score_fin = round(sum(scores_fin) / len(scores_fin), 2) if scores_fin else None
+
+        montants_eval = []
+        for eval_obj in evaluations:
+            fin = getattr(eval_obj, "evaluation_financiere", None)
+            if fin and fin.montant_evalue_final:
+                montants_eval.append(float(fin.montant_evalue_final))
+        montant_evalue_final = (
+            round(sum(montants_eval) / len(montants_eval), 2) if montants_eval else None
+        )
+        if montant_evalue_final is None and offre.montant_global:
+            montant_evalue_final = float(offre.montant_global)
+
+        if score_fin is None and montant_evalue_final and moins_disant_montant:
+            score_fin = round(moins_disant_montant / montant_evalue_final * 100, 2)
+
         score_total = None
         if score_tech is not None and score_fin is not None:
             score_total = round(score_tech * 0.60 + score_fin * 0.40, 2)
@@ -1494,9 +1732,16 @@ def get_classement_seance(seance_id: int, user: object) -> dict:
             "score_technique": score_tech,
             "score_financier": score_fin,
             "score_total": score_total,
+            "montant_evalue_final": montant_evalue_final,
+            "est_moins_disante": offre.id == moins_disant_offre_id,
             "est_conforme": all(examens_conformes) if examens_conformes else None,
             "qualifie_technique": qualifie,
             "consensus_alerte": _compute_consensus_info(offre)["alerte"],
+            "attribuee": bool(
+                hasattr(offre, "decision_finale")
+                and offre.decision_finale
+                and offre.decision_finale.recommandation == "ATTRIBUER"
+            ),
         })
 
     lignes_triees = sorted(
@@ -1519,4 +1764,48 @@ def get_classement_seance(seance_id: int, user: object) -> dict:
         "classement_disponible": all_done,
         "progression": f"{completed}/{total_evaluations}",
         "lignes": lignes_triees + sans_score,
+    }
+
+
+@transaction.atomic
+def attribuer_marche(seance_id: int, offre_id: int, user: object) -> dict:
+    """Attribue le marché à une offre depuis le classement final."""
+    from apps.contractualisation.services import creer_contrat_brouillon
+
+    offre = OffreOuverture.objects.filter(pk=offre_id, seance_id=seance_id).first()
+    if not offre:
+        raise ValidationError({"detail": "Offre introuvable pour cette séance."})
+
+    if _offre_eliminee_examen(offre):
+        raise ValidationError({"detail": "Cette offre est non conforme et ne peut pas être attribuée."})
+
+    classement = get_classement_seance(seance_id, user)
+    if not classement.get("classement_disponible"):
+        raise ValidationError({"detail": "Le classement n'est pas encore disponible."})
+
+    ligne = next((l for l in classement["lignes"] if l["offre_id"] == offre_id), None)
+    if not ligne:
+        raise ValidationError({"detail": "Offre absente du classement."})
+
+    decision, _created = DecisionFinale.objects.get_or_create(offre=offre)
+    decision.recommandation = "ATTRIBUER"
+    decision.justification = f"Attribution depuis le classement final (rang {ligne.get('rang') or '—'})."
+    if ligne.get("score_technique") is not None:
+        decision.score_technique_consolide = Decimal(str(ligne["score_technique"]))
+    if ligne.get("score_financier") is not None:
+        decision.score_financier_consolide = Decimal(str(ligne["score_financier"]))
+    decision.classement = ligne.get("rang")
+    decision.save()
+
+    contrat = creer_contrat_brouillon(
+        seance_id=seance_id,
+        offre_id=offre_id,
+        utilisateur=user,
+    )
+
+    return {
+        "detail": "Marché attribué — contractualisation initiée.",
+        "offre_id": offre_id,
+        "contrat_id": contrat.id,
+        "decision": decision.recommandation,
     }

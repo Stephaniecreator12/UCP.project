@@ -72,7 +72,11 @@ export default function DaoOffresPage() {
     try {
       setLoading(true);
       setError("");
-      setData(await fetchDaoOffres(seanceId));
+      const res = await fetchDaoOffres(seanceId);
+      setData(res);
+      if (typeof window !== "undefined" && res.evaluateur_nom) {
+        localStorage.setItem("evaluator_name", res.evaluateur_nom);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur inconnue");
     } finally {

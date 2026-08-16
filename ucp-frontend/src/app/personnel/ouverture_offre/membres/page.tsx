@@ -7,7 +7,7 @@ import {
   useState,
   type ElementType,
 } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Users,
   Plus,
@@ -29,7 +29,11 @@ import {
 
 import TopHeader from "@/app/components/TopHeader";
 import { fetchCurrentUser, getToken, isSecretaireUser } from "@/services/auth";
-import { getSeances } from "@/services/ouvertureOffre";
+import {
+  createSeance,
+  getSeances,
+  submitCommissionMembers,
+} from "@/services/ouvertureOffre";
 import { getMarkets } from "@/services/procurement";
 import type { SeanceOuverture } from "@/types/ouvertureOffre";
 import type { ProcurementMarket } from "@/types/procurement";
@@ -137,7 +141,8 @@ const mapSeanceMembersToManualMembers = (
     entite: member.intitule || "",
   }));
 
-const normalizeEmail = (email?: string | null) => (email || "").trim().toLowerCase();
+const normalizeEmail = (email?: string | null) =>
+  (email || "").trim().toLowerCase();
 
 const removeReservedParticipants = (
   members: ManualMember[],
@@ -153,13 +158,95 @@ const removeReservedParticipants = (
   );
 
   if (reservedEmails.size === 0) return members;
-  return members.filter((member) => !reservedEmails.has(normalizeEmail(member.email)));
+  return members.filter(
+    (member) => !reservedEmails.has(normalizeEmail(member.email)),
+  );
+};
+
+const getStoredCommissionDraft = (reference: string) => {
+  if (typeof window === "undefined") return false;
+
+  const stored = window.localStorage.getItem(`${STORAGE_PREFIX}${reference}`);
+  if (!stored) return false;
+
+  try {
+    const parsed: unknown = JSON.parse(stored);
+    return Array.isArray(parsed) && parsed.length > 0;
+  } catch {
+    return false;
+  }
+};
+
+const getMembersWorkflowLabel = (status: MembersWorkflowStatus) => {
+  switch (status) {
+    case "none":
+      return "Pas encore";
+    case "draft":
+      return "Brouillon";
+    case "pending_rpm":
+      return "En attente RPM";
+    case "pending_gp":
+      return "En attente GP";
+    case "pending_cn":
+      return "En attente CN";
+    case "validated":
+      return "Validé";
+    case "rejected":
+      return "À modifier";
+  }
+};
+
+const getMembersWorkflowPillClasses = (status: MembersWorkflowStatus) => {
+  switch (status) {
+    case "none":
+      return "border-slate-200 bg-slate-50 text-slate-600";
+    case "draft":
+      return "border-amber-200 bg-amber-50 text-amber-700";
+    case "pending_rpm":
+      return "border-sky-200 bg-sky-50 text-sky-700";
+    case "pending_gp":
+      return "border-indigo-200 bg-indigo-50 text-indigo-700";
+    case "pending_cn":
+      return "border-violet-200 bg-violet-50 text-violet-700";
+    case "validated":
+      return "border-emerald-200 bg-emerald-50 text-emerald-700";
+    case "rejected":
+      return "border-amber-200 bg-amber-50 text-amber-700";
+  }
+};
+
+const getMembersWorkflowDotClass = (status: MembersWorkflowStatus) => {
+  switch (status) {
+    case "none":
+      return "bg-slate-300";
+    case "draft":
+      return "bg-amber-400";
+    case "pending_rpm":
+      return "bg-sky-500";
+    case "pending_gp":
+      return "bg-indigo-500";
+    case "pending_cn":
+      return "bg-violet-500";
+    case "validated":
+      return "bg-emerald-500";
+    case "rejected":
+      return "bg-amber-500";
+  }
 };
 
 type ScreenState = "loading" | "ready" | "forbidden" | "error";
 
+type MembersWorkflowStatus =
+  | "none"
+  | "draft"
+  | "pending_rpm"
+  | "pending_gp"
+  | "pending_cn"
+  | "validated"
+  | "rejected";
+
 interface GroupedSection {
-  key: "none" | "draft" | "final";
+  key: MembersWorkflowStatus;
   title: string;
   subtitle: string;
   icon: ElementType;
@@ -171,45 +258,46 @@ interface GroupedSection {
     seance: SeanceOuverture | null;
     isLocked: boolean;
     statusText: string;
-    membersStatus: "draft" | "final" | "none";
+    membersStatus: MembersWorkflowStatus;
   }>;
 }
 
 export default function MembresCommissionsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const targetReference = searchParams.get("dossier");
   const [markets, setMarkets] = useState<ProcurementMarket[]>([]);
   const [seances, setSeances] = useState<SeanceOuverture[]>([]);
   const [screenState, setScreenState] = useState<ScreenState>("loading");
   const [error, setError] = useState("");
 
-  // Recherche + panneaux: on garde les dossiers rangés en trois familles faciles à lire.
+  // Recherche + panneaux: on garde les dossiers rangés par étape de validation.
   const [searchQuery, setSearchQuery] = useState("");
   const [activePanels, setActivePanels] = useState<Record<string, boolean>>({
     none: false,
     draft: false,
-    final: false,
+    pending_rpm: false,
+    pending_gp: false,
+    pending_cn: false,
+    validated: false,
+    rejected: false,
   });
 
   // Etat du popup de saisie des membres.
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedMarket, setSelectedMarket] =
     useState<ProcurementMarket | null>(null);
-  const [selectedSeance, setSelectedSeance] = useState<SeanceOuverture | null>(null);
+  const [selectedSeance, setSelectedSeance] = useState<SeanceOuverture | null>(
+    null,
+  );
   const [modalMembers, setModalMembers] = useState<ManualMember[]>([]);
   const [isReadOnly, setIsReadOnly] = useState(false);
   const [modalError, setModalError] = useState("");
   const [modalSuccess, setModalSuccess] = useState("");
   const [invalidCinIds, setInvalidCinIds] = useState<string[]>([]);
-  const [targetReference, setTargetReference] = useState<string | null>(null);
   const [autoOpenedReference, setAutoOpenedReference] = useState<string | null>(
     null,
   );
-
-  // Quand on arrive depuis le popup "Compléter", on ouvre directement le bon dossier.
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    setTargetReference(params.get("dossier"));
-  }, []);
 
   // Données nécessaires pour croiser les DAO avec leurs séances d'ouverture.
   const loadData = async () => {
@@ -260,46 +348,49 @@ export default function MembresCommissionsPage() {
       const seance =
         seances.find((s) => s.reference_dossier === market.reference_number) ??
         null;
+      const hasStoredDraft = getStoredCommissionDraft(market.reference_number);
+      const compositionStatus = seance?.composition_validation_statut ?? "";
 
-      const statusKey = `${STATUS_PREFIX}${market.reference_number}`;
-      const hasBackendCommission =
-        (seance?.membres.filter((member) => member.est_present).length ?? 0) >=
-        3;
+      let membersStatus: MembersWorkflowStatus = "none";
 
-      let membersStatus: "draft" | "final" | "none" = "none";
-
-      if (typeof window !== "undefined") {
-        const storedStatus = localStorage.getItem(statusKey);
-        const storedCompleteCount = getStoredCompleteMemberCount(
-          market.reference_number,
-        );
-
-        if (
-          hasBackendCommission ||
-          (storedStatus === "final" && storedCompleteCount >= 3)
-        ) {
-          membersStatus = "final";
-        } else if (storedStatus === "draft" || storedStatus === "final") {
-          membersStatus = "draft";
-        }
-      } else if (hasBackendCommission) {
-        membersStatus = "final";
+      if (!seance) {
+        membersStatus = hasStoredDraft ? "draft" : "none";
+      } else if (compositionStatus === "EN_ATTENTE_RPM") {
+        membersStatus = "pending_rpm";
+      } else if (compositionStatus === "EN_ATTENTE_GP") {
+        membersStatus = "pending_gp";
+      } else if (compositionStatus === "EN_ATTENTE_CN") {
+        membersStatus = "pending_cn";
+      } else if (
+        compositionStatus === "VALIDEE" ||
+        seance.membres_verrouilles ||
+        seance.statut === "MEMBRES_CONFIRMES"
+      ) {
+        membersStatus = "validated";
+      } else if (
+        compositionStatus === "REJETEE" ||
+        seance.statut === "REJETEE"
+      ) {
+        membersStatus = "rejected";
+      } else if (
+        seance.statut === "EN_VALIDATION_MEMBRES" ||
+        seance.statut === "EN_VALIDATION_PRESIDENT"
+      ) {
+        membersStatus = "pending_rpm";
+      } else {
+        membersStatus = "draft";
       }
 
-      // Une séance envoyée en validation ne doit plus laisser modifier sa commission.
-      const isLocked = seance
-        ? [
-            "EN_VALIDATION_MEMBRES",
-            "EN_VALIDATION_PRESIDENT",
-            "VALIDEE",
-          ].includes(seance.statut)
-        : false;
+      const isLocked = !["none", "draft", "rejected"].includes(membersStatus);
 
       return {
         market,
         seance,
         isLocked,
-        statusText: seance ? seance.statut : "NON_CREEE",
+        statusText:
+          seance?.composition_validation_statut ??
+          seance?.statut ??
+          "NON_CREEE",
         membersStatus,
       };
     });
@@ -316,46 +407,103 @@ export default function MembresCommissionsPage() {
     );
   }, [processedRows, searchQuery]);
 
-  // Les trois groupes correspondent exactement au workflow métier.
+  // Les groupes correspondent au workflow métier de validation des membres.
   const sections = useMemo<GroupedSection[]>(() => {
     const noneRows = searchedRows.filter((r) => r.membersStatus === "none");
     const draftRows = searchedRows.filter((r) => r.membersStatus === "draft");
-    const finalRows = searchedRows.filter((r) => r.membersStatus === "final");
+    const pendingRpmRows = searchedRows.filter(
+      (r) => r.membersStatus === "pending_rpm",
+    );
+    const pendingGpRows = searchedRows.filter(
+      (r) => r.membersStatus === "pending_gp",
+    );
+    const pendingCnRows = searchedRows.filter(
+      (r) => r.membersStatus === "pending_cn",
+    );
+    const validatedRows = searchedRows.filter(
+      (r) => r.membersStatus === "validated",
+    );
+    const rejectedRows = searchedRows.filter(
+      (r) => r.membersStatus === "rejected",
+    );
 
     return [
       {
         key: "none",
-        title: "À mettre membre de commission",
-        subtitle: "Dossiers d'appel d'offres en attente d'ajout de membres",
+        title: "Sans commission",
+        subtitle: "Dossiers sans membre de commission encore saisi",
         icon: UserX,
         iconClass: "border-slate-200 bg-slate-50 text-slate-700",
         badgeClass:
           "border-slate-200 bg-slate-500 text-white shadow-sm shadow-slate-500/10",
-        emptyText: "Aucun dossier en attente d'initialisation de comité.",
+        emptyText: "Aucun dossier sans commission pour le moment.",
         rows: noneRows,
       },
       {
         key: "draft",
-        title: "Commissions en brouillon",
-        subtitle:
-          "Compositions en cours ou incomplètes (sauvegardées temporairement)",
+        title: "Brouillons",
+        subtitle: "Commissions saisies mais pas encore soumises",
         icon: Briefcase,
         iconClass: "border-amber-200 bg-amber-50 text-amber-800",
         badgeClass:
           "border-amber-200 bg-amber-500 text-white shadow-sm shadow-amber-500/10",
-        emptyText: "Aucune commission enregistrée en brouillon.",
+        emptyText: "Aucun brouillon en attente.",
         rows: draftRows,
       },
       {
-        key: "final",
-        title: "Membres déjà mis complets",
-        subtitle: "Comités d'ouverture de plis validés avec au moins 3 membres",
+        key: "pending_rpm",
+        title: "En attente RPM",
+        subtitle: "Première validation de la composition",
+        icon: AlertCircle,
+        iconClass: "border-sky-200 bg-sky-50 text-sky-700",
+        badgeClass:
+          "border-sky-200 bg-sky-500 text-white shadow-sm shadow-sky-500/10",
+        emptyText: "Aucune commission en attente du RPM.",
+        rows: pendingRpmRows,
+      },
+      {
+        key: "pending_gp",
+        title: "En attente GP",
+        subtitle: "Validation intermédiaire après le RPM",
+        icon: AlertCircle,
+        iconClass: "border-indigo-200 bg-indigo-50 text-indigo-700",
+        badgeClass:
+          "border-indigo-200 bg-indigo-500 text-white shadow-sm shadow-indigo-500/10",
+        emptyText: "Aucune commission en attente du GP.",
+        rows: pendingGpRows,
+      },
+      {
+        key: "pending_cn",
+        title: "En attente CN",
+        subtitle: "Dernière validation avant verrouillage",
+        icon: AlertCircle,
+        iconClass: "border-violet-200 bg-violet-50 text-violet-700",
+        badgeClass:
+          "border-violet-200 bg-violet-500 text-white shadow-sm shadow-violet-500/10",
+        emptyText: "Aucune commission en attente du CN.",
+        rows: pendingCnRows,
+      },
+      {
+        key: "validated",
+        title: "Membres confirmés",
+        subtitle: "Commissions validées et attribuées au dossier",
         icon: UserCheck,
         iconClass: "border-emerald-200 bg-emerald-50 text-emerald-800",
         badgeClass:
           "border-emerald-200 bg-emerald-500 text-white shadow-sm shadow-emerald-500/10",
-        emptyText: "Aucun comité n'a été enregistré au complet pour le moment.",
-        rows: finalRows,
+        emptyText: "Aucune commission validée pour le moment.",
+        rows: validatedRows,
+      },
+      {
+        key: "rejected",
+        title: "À modifier",
+        subtitle: "Commissions en attente de correction par le secrétaire",
+        icon: Edit2,
+        iconClass: "border-amber-200 bg-amber-50 text-amber-700",
+        badgeClass:
+          "border-amber-200 bg-amber-500 text-white shadow-sm shadow-amber-500/10",
+        emptyText: "Aucune commission à modifier pour le moment.",
+        rows: rejectedRows,
       },
     ];
   }, [searchedRows]);
@@ -363,14 +511,20 @@ export default function MembresCommissionsPage() {
   // Petits compteurs du haut de page.
   const stats = useMemo(() => {
     const total = processedRows.length;
-    const completed = processedRows.filter(
-      (r) => r.membersStatus === "final",
-    ).length;
+    const none = processedRows.filter((r) => r.membersStatus === "none").length;
     const draft = processedRows.filter(
       (r) => r.membersStatus === "draft",
     ).length;
-    const none = processedRows.filter((r) => r.membersStatus === "none").length;
-    return { total, completed, draft, none };
+    const pending = processedRows.filter((r) =>
+      ["pending_rpm", "pending_gp", "pending_cn"].includes(r.membersStatus),
+    ).length;
+    const validated = processedRows.filter(
+      (r) => r.membersStatus === "validated",
+    ).length;
+    const rejected = processedRows.filter(
+      (r) => r.membersStatus === "rejected",
+    ).length;
+    return { total, none, draft, pending, validated, rejected };
   }, [processedRows]);
 
   // Ouvre/ferme une famille de dossiers.
@@ -393,19 +547,25 @@ export default function MembresCommissionsPage() {
       setInvalidCinIds([]);
 
       const localKey = `${STORAGE_PREFIX}${market.reference_number}`;
-      const stored = localStorage.getItem(localKey);
+      const stored = !isLocked ? localStorage.getItem(localKey) : null;
 
       if (stored) {
         try {
           setModalMembers(
-            removeReservedParticipants(JSON.parse(stored) as ManualMember[], seance),
+            removeReservedParticipants(
+              JSON.parse(stored) as ManualMember[],
+              seance,
+            ),
           );
         } catch {
           setModalMembers([]);
         }
       } else if (seance?.membres.length) {
         setModalMembers(
-          removeReservedParticipants(mapSeanceMembersToManualMembers(seance), seance),
+          removeReservedParticipants(
+            mapSeanceMembersToManualMembers(seance),
+            seance,
+          ),
         );
       } else {
         // Première saisie: uniquement des lignes vides, le secrétaire n'est pas un membre.
@@ -468,18 +628,28 @@ export default function MembresCommissionsPage() {
           "EN_VALIDATION_MEMBRES",
           "EN_VALIDATION_PRESIDENT",
           "VALIDEE",
+          "MEMBRES_CONFIRMES",
+          "REJETEE",
         ].includes(seance.statut)
       : false;
 
-    setSearchQuery(market.reference_number);
-    setActivePanels((current) => ({
-      ...current,
-      none: true,
-      draft: true,
-      final: true,
-    }));
-    setAutoOpenedReference(targetReference);
-    handleOpenMembersModal(market, seance, isLocked);
+    const timeout = window.setTimeout(() => {
+      setSearchQuery(market.reference_number);
+      setActivePanels((current) => ({
+        ...current,
+        none: true,
+        draft: true,
+        pending_rpm: true,
+        pending_gp: true,
+        pending_cn: true,
+        validated: true,
+        rejected: true,
+      }));
+      setAutoOpenedReference(targetReference);
+      handleOpenMembersModal(market, seance, isLocked);
+    }, 0);
+
+    return () => window.clearTimeout(timeout);
   }, [
     autoOpenedReference,
     handleOpenMembersModal,
@@ -563,11 +733,13 @@ export default function MembresCommissionsPage() {
     );
 
     if (mode === "draft") {
-      // En brouillon, on laisse sauvegarder même si la commission est incomplète.
+      // En brouillon, on laisse sauvegarder en local sans validation backend.
       setInvalidCinIds([]);
       localStorage.setItem(
         localKey,
-        JSON.stringify(removeReservedParticipants(activeMembers, selectedSeance)),
+        JSON.stringify(
+          removeReservedParticipants(activeMembers, selectedSeance),
+        ),
       );
       localStorage.setItem(statusKey, "draft");
 
@@ -594,8 +766,6 @@ export default function MembresCommissionsPage() {
       );
       return;
     }
-
-
 
     // Chaque membre final doit être exploitable pour le PV et les validations.
     if (invalidCinMembers.length > 0) {
@@ -638,21 +808,54 @@ export default function MembresCommissionsPage() {
       }
     }
 
-    // Le statut final est ce que le dashboard vérifie avant d'ouvrir la séance.
-    setInvalidCinIds([]);
-    localStorage.setItem(
-      localKey,
-      JSON.stringify(removeReservedParticipants(activeMembers, selectedSeance)),
-    );
-    localStorage.setItem(statusKey, "final");
+    try {
+      const formattedMembers = activeMembers.map((member) => ({
+        nomPrenom: member.nomPrenom.trim(),
+        email: member.email.trim(),
+        cin: member.cin.trim(),
+        poste: member.poste.trim(),
+        entite: member.entite.trim(),
+      }));
 
-    setModalSuccess(
-      "Membres enregistrés. Ouvrez ensuite la séance puis cliquez sur Mettre à valider pour envoyer les invitations.",
-    );
-    setTimeout(() => {
-      setIsModalOpen(false);
-      void loadData();
-    }, 1000);
+      let sentEmails = 0;
+
+      if (selectedSeance) {
+        const response = await submitCommissionMembers(selectedSeance.id, {
+          commission_members: formattedMembers,
+        });
+        sentEmails = response.emails_envoyes ?? 0;
+      } else {
+        const createdSeance = await createSeance({
+          reference_dossier: selectedMarket.reference_number,
+          objet_dossier: selectedMarket.title,
+          statut: "BROUILLON",
+          commission_members: formattedMembers,
+        });
+        const response = await submitCommissionMembers(createdSeance.id, {
+          commission_members: formattedMembers,
+        });
+        sentEmails = response.emails_envoyes ?? 0;
+      }
+
+      setInvalidCinIds([]);
+      localStorage.removeItem(localKey);
+      localStorage.removeItem(statusKey);
+      setModalSuccess(
+        sentEmails > 0
+          ? `Membres envoyés en validation avec succès (${sentEmails} notification(s) envoyée(s)).`
+          : "Membres envoyés en validation avec succès.",
+      );
+      setTimeout(() => {
+        setIsModalOpen(false);
+        void loadData();
+      }, 1000);
+    } catch (err) {
+      setModalError(
+        err instanceof Error
+          ? err.message
+          : "Impossible d'envoyer les membres en validation.",
+      );
+    }
   };
 
   const getSeanceStatusBadge = (status: string) => {
@@ -665,27 +868,41 @@ export default function MembresCommissionsPage() {
         );
       case "BROUILLON":
       case "EN_SAISIE":
+      case "A_VALIDER":
         return (
           <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
             Brouillon
           </span>
         );
-      case "EN_VALIDATION_MEMBRES":
+      case "EN_ATTENTE_RPM":
         return (
-          <span className="inline-flex rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
-            Validation membres
+          <span className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[10px] font-semibold text-sky-700">
+            En attente RPM
           </span>
         );
-      case "EN_VALIDATION_PRESIDENT":
+      case "EN_ATTENTE_GP":
         return (
           <span className="inline-flex rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">
-            Validation président
+            En attente GP
+          </span>
+        );
+      case "EN_ATTENTE_CN":
+        return (
+          <span className="inline-flex rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[10px] font-semibold text-violet-700">
+            En attente CN
           </span>
         );
       case "VALIDEE":
+      case "MEMBRES_CONFIRMES":
         return (
           <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
-            Validée
+            Membres confirmés
+          </span>
+        );
+      case "REJETEE":
+        return (
+          <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+            À modifier
           </span>
         );
       default:
@@ -719,7 +936,7 @@ export default function MembresCommissionsPage() {
             Accès Refusé
           </h2>
           <p className="mt-2 text-sm text-slate-600">
-            Seul le secrétaire de la commission d'ouverture des offres est
+            Seul le secrétaire de la commission d&apos;ouverture des offres est
             autorisé à accéder à cet espace de gestion des membres.
           </p>
           <button
@@ -753,7 +970,7 @@ export default function MembresCommissionsPage() {
                 <div className="mt-1 flex items-center gap-2">
                   <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
                   <p className="truncate text-[10px] font-black uppercase tracking-widest text-slate-500 sm:text-[11px]">
-                    Saisie manuelle des comités d'ouverture des plis
+                    Saisie manuelle des comités d&apos;ouverture des plis
                   </p>
                 </div>
               </div>
@@ -768,7 +985,7 @@ export default function MembresCommissionsPage() {
           </div>
 
           {/* Résumé rapide des dossiers */}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
             <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
@@ -783,7 +1000,7 @@ export default function MembresCommissionsPage() {
             <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                  À mettre membre
+                  Pas encore
                 </span>
                 <UserX className="h-4 w-4 text-slate-400" />
               </div>
@@ -794,7 +1011,7 @@ export default function MembresCommissionsPage() {
             <div className="rounded-xl border border-amber-100 bg-amber-50/20 p-4 shadow-sm">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-amber-600">
-                  En brouillon
+                  Brouillons
                 </span>
                 <Briefcase className="h-4 w-4 text-amber-500" />
               </div>
@@ -802,15 +1019,40 @@ export default function MembresCommissionsPage() {
                 {stats.draft}
               </p>
             </div>
+            <div className="rounded-xl border border-sky-100 bg-sky-50/30 p-4 shadow-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-sky-600">
+                  En attente
+                </span>
+                <AlertCircle className="h-4 w-4 text-sky-500" />
+              </div>
+              <p className="mt-1 text-2xl font-extrabold text-sky-700">
+                {stats.pending}
+              </p>
+              <p className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-sky-500">
+                RPM / GP / CN
+              </p>
+            </div>
             <div className="rounded-xl border border-emerald-100 bg-emerald-50/30 p-4 shadow-sm">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600">
-                  Déjà mis complets
+                  Validés
                 </span>
                 <UserCheck className="h-4 w-4 text-emerald-500" />
               </div>
               <p className="mt-1 text-2xl font-extrabold text-emerald-700">
-                {stats.completed}
+                {stats.validated}
+              </p>
+            </div>
+            <div className="rounded-xl border border-amber-100 bg-amber-50/30 p-4 shadow-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-amber-600">
+                  À modifier
+                </span>
+                <Edit2 className="h-4 w-4 text-amber-500" />
+              </div>
+              <p className="mt-1 text-2xl font-extrabold text-amber-700">
+                {stats.rejected}
               </p>
             </div>
           </div>
@@ -904,7 +1146,7 @@ export default function MembresCommissionsPage() {
                               <tr className="border-b border-slate-100 bg-slate-50/20 text-[10px] font-black uppercase tracking-wider text-slate-400">
                                 <th className="px-5 py-3">Dossier / DAO</th>
                                 <th className="px-5 py-3">
-                                  Séance d'ouverture
+                                  Séance d&apos;ouverture
                                 </th>
                                 <th className="px-5 py-3">Statut séance</th>
                                 <th className="px-5 py-3">État commission</th>
@@ -951,22 +1193,16 @@ export default function MembresCommissionsPage() {
 
                                   {/* Etat de la commission */}
                                   <td className="px-5 py-3.5">
-                                    {row.membersStatus === "final" ? (
-                                      <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-1 text-[11px] font-bold text-emerald-700 border border-emerald-100">
-                                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                                        Déjà mis complets
-                                      </span>
-                                    ) : row.membersStatus === "draft" ? (
-                                      <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-1 text-[11px] font-bold text-amber-700 border border-amber-100">
-                                        <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-                                        En Brouillon
-                                      </span>
-                                    ) : (
-                                      <span className="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-1 text-[11px] font-bold text-slate-600 border border-slate-200">
-                                        <span className="h-1.5 w-1.5 rounded-full bg-slate-300" />
-                                        À mettre membre
-                                      </span>
-                                    )}
+                                    <span
+                                      className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-bold ${getMembersWorkflowPillClasses(row.membersStatus)}`}
+                                    >
+                                      <span
+                                        className={`h-1.5 w-1.5 rounded-full ${getMembersWorkflowDotClass(row.membersStatus)}`}
+                                      />
+                                      {getMembersWorkflowLabel(
+                                        row.membersStatus,
+                                      )}
+                                    </span>
                                   </td>
 
                                   {/* Action possible sur ce dossier */}
@@ -983,7 +1219,7 @@ export default function MembresCommissionsPage() {
                                       className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-[11px] font-black uppercase tracking-wider shadow-sm transition-all ${
                                         row.isLocked
                                           ? "border border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100"
-                                          : row.membersStatus === "final"
+                                          : row.membersStatus === "validated"
                                             ? "border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
                                             : "border border-transparent bg-slate-900 text-white hover:bg-slate-800"
                                       }`}
@@ -1096,7 +1332,7 @@ export default function MembresCommissionsPage() {
                       <th className="px-4 py-3.5 w-1/4">Nom & Prénom</th>
                       <th className="px-4 py-3.5 w-1/4">Adresse e-mail</th>
                       <th className="px-4 py-3.5 w-1/5">
-                        N° Carte d'identité (CIN)
+                        N° Carte d&apos;identité (CIN)
                       </th>
                       <th className="px-4 py-3.5 w-1/6">Poste / Rôle</th>
                       <th className="px-4 py-3.5 w-1/6">Entité</th>
@@ -1112,8 +1348,8 @@ export default function MembresCommissionsPage() {
                           colSpan={isReadOnly ? 5 : 6}
                           className="px-4 py-12 text-center text-slate-500 font-semibold italic"
                         >
-                          Aucun membre n'a été ajouté. Cliquez sur "+ Ajouter
-                          une ligne".
+                          Aucun membre n&apos;a été ajouté. Cliquez sur &quot;+
+                          Ajouter une ligne&quot;.
                         </td>
                       </tr>
                     ) : (
@@ -1284,7 +1520,7 @@ export default function MembresCommissionsPage() {
                     onClick={() => void handleSaveMembers("final")}
                     className="rounded-xl bg-slate-900 px-5 py-2 text-xs font-bold text-white shadow-sm hover:bg-slate-800"
                   >
-                    Enregistrer membres
+                    Enregistrer & mettre en validation
                   </button>
                 </div>
               )}

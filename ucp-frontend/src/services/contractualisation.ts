@@ -280,3 +280,59 @@ export const viewDocument = async (contratId: number, documentId: number) => {
     window.URL.revokeObjectURL(url);
   });
 };
+
+// ============================================================
+// PUBLIC ENDPOINTS FOR PRESTATAIRES
+// ============================================================
+const PUBLIC_CONTRATS_API = `${API_BASE_URL || "http://localhost:8000"}/api/public/contrats`;
+
+export const getPublicContrat = async (contratId: number): Promise<Contrat> => {
+  const res = await fetch(`${PUBLIC_CONTRATS_API}/${contratId}/`);
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.detail || "Erreur lors du chargement public du contrat");
+  }
+  return res.json();
+};
+
+export const downloadPublicDocument = async (contratId: number, documentId: number) => {
+  const res = await fetch(
+    `${PUBLIC_CONTRATS_API}/${contratId}/documents/${documentId}/download/`
+  );
+
+  if (!res.ok) {
+    let errorDetail = "Erreur lors de l'ouverture du document";
+    try {
+      const errorJson = await res.json();
+      errorDetail = errorJson.detail || errorDetail;
+    } catch {
+      // ignore parse failure
+    }
+    throw new Error(errorDetail);
+  }
+
+  const contentType = res.headers.get("content-type") || "";
+  const blob = await res.blob();
+
+  if (!contentType.includes("pdf")) {
+    const text = await blob.text();
+    try {
+      const json = JSON.parse(text);
+      throw new Error(json.detail || "Le document n'a pas pu être ouvert.");
+    } catch {
+      throw new Error(
+        "Le document n'a pas pu être ouvert. Vérifiez que le fichier est bien un PDF.",
+      );
+    }
+  }
+
+  const url = window.URL.createObjectURL(blob);
+  const newTab = window.open(url, "_blank", "noopener,noreferrer");
+  if (!newTab) {
+    window.URL.revokeObjectURL(url);
+    throw new Error("Impossible d'ouvrir le document. Autorisez les popups.");
+  }
+  newTab.addEventListener("unload", () => {
+    window.URL.revokeObjectURL(url);
+  });
+};

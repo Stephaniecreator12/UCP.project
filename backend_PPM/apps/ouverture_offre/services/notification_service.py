@@ -5,7 +5,7 @@ from html import escape
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 
-from apps.ouverture_offre.models import SeanceOuverture
+from apps.ouverture_offre.models import SeanceOuverture, ValidationCompositionMembre
 from apps.ouverture_offre.services.validation_access_service import (
     issue_member_validation_password,
     issue_president_validation_password,
@@ -31,6 +31,10 @@ def _frontend_url(path):
 def _validation_url(seance, role_key, email):
     query = urlencode({"role": role_key, "email": email})
     return _frontend_url(f"/personnel/ouverture_offre/validation/{seance.id}?{query}")
+
+
+def _composition_validation_url(seance):
+    return _frontend_url(f"/personnel/ouverture_offre/validation-membres?seance={seance.id}")
 
 
 def _user_name(user):
@@ -151,7 +155,7 @@ def _send_validation_requests(seance: SeanceOuverture, recipient_credentials):
             f"Rôle : {role}\n"
             f"Référence : {seance.reference_dossier}\n"
             f"Objet : {seance.objet_dossier or '-'}\n\n"
-            f"Mot de passe : {password}\n"
+            f"Mot de passe de validation : {password}\n"
             f"Lien : {action_url}\n\n"
             "Ce mot de passe est valable uniquement pour cette séance.\n"
         )
@@ -168,6 +172,96 @@ def _send_validation_requests(seance: SeanceOuverture, recipient_credentials):
     return sent_count
 
 
+COMPOSITION_ROLE_SEQUENCE = (
+    ValidationCompositionMembre.RoleValidateur.RPM,
+    ValidationCompositionMembre.RoleValidateur.GP,
+    ValidationCompositionMembre.RoleValidateur.CN,
+)
+
+
+def _pick_roles_to_notify(seance: SeanceOuverture, role: str | None = None):
+    validations_by_role = {
+        validation.role: validation for validation in seance.validations_composition.all()
+    }
+    if role:
+        validation = validations_by_role.get(role)
+        return [
+            role
+        ] if validation and validation.decision == ValidationCompositionMembre.Decision.EN_ATTENTE else []
+
+    for candidate_role in COMPOSITION_ROLE_SEQUENCE:
+        validation = validations_by_role.get(candidate_role)
+        if not validation:
+            continue
+        if validation.decision != ValidationCompositionMembre.Decision.EN_ATTENTE:
+            continue
+        return [candidate_role]
+
+    return []
+
+
+def notify_composition_validators_requested(seance: SeanceOuverture, role: str | None = None):
+    """Envoie les emails au validateur actif de la composition."""
+    from apps.ouverture_offre.services.composition_validation_service import (
+        _users_for_role,
+    )
+
+    seance = (
+        SeanceOuverture.objects.select_related("secretaire")
+        .prefetch_related("membres__utilisateur", "validations_composition")
+        .get(pk=seance.pk)
+    )
+    sent_count = 0
+    role_labels = {
+        ValidationCompositionMembre.RoleValidateur.CN: "Coordonnateur National",
+        ValidationCompositionMembre.RoleValidateur.GP: "Gestionnaire de Programme",
+        ValidationCompositionMembre.RoleValidateur.RPM: "Responsable Passation de Marché",
+    }
+
+    for validation_role in _pick_roles_to_notify(seance, role=role):
+        users = _users_for_role(validation_role)
+        role_label = role_labels.get(validation_role, validation_role)
+        for user in users:
+            email = _recipient_email(user)
+            if not email:
+                continue
+            name = _user_name(user)
+            action_url = _composition_validation_url(seance)
+            subject = "Validation de la composition de commission requise"
+            body = (
+                f"Bonjour {name},\n\n"
+                f"Rôle : {role_label}\n"
+                f"Référence : {seance.reference_dossier}\n"
+                f"Objet : {seance.objet_dossier or '-'}\n\n"
+                f"Veuillez valider la composition des membres de la commission d'ouverture.\n"
+                f"Lien : {action_url}\n"
+            )
+            html_body = _html_template(
+                name,
+                role_label,
+                seance.reference_dossier,
+                seance.objet_dossier or "-",
+                "—",
+                action_url,
+            )
+            html_body = html_body.replace(
+                "Validation de séance d'ouverture",
+                "Validation composition membres",
+            ).replace(
+                "valider la séance d'ouverture ci-dessous",
+                "valider la composition des membres de commission ci-dessous",
+            )
+            try:
+                sent_count += _send_email(subject, body, email, html_body)
+            except Exception:
+                logger.exception(
+                    "Échec envoi email composition → %s (séance %s)",
+                    email,
+                    seance.id,
+                )
+    return sent_count
+
+
 def notify_members_validation_requested(seance: SeanceOuverture):
     seance = (
         SeanceOuverture.objects.select_related("secretaire", "president")
@@ -176,7 +270,9 @@ def notify_members_validation_requested(seance: SeanceOuverture):
     )
     credentials = []
     for membre in seance.membres.select_related("utilisateur").filter(est_present=True):
-        credentials.append((membre.utilisateur, issue_member_validation_password(membre), "membre"))
+        credentials.append(
+            (membre.utilisateur, issue_member_validation_password(membre), "membre")
+        )
     return _send_validation_requests(seance, credentials)
 
 

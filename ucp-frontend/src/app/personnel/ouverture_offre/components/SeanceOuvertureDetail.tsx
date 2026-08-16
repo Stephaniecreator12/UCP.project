@@ -82,6 +82,10 @@ type EditableOffre = {
   enveloppe_administrative: EnvelopeState;
   enveloppe_technique: EnvelopeState;
   enveloppe_financiere: EnvelopeState;
+  etat_scelle: SeanceOuverture["offres"][number]["etat_scelle"];
+  presence_rature: boolean;
+  description_rature: string;
+  document_substitution_present: boolean;
   montant_global: string;
   observations: string;
 };
@@ -122,8 +126,9 @@ type ValidationIssue = {
 const statusLabelMap: Record<SeanceOuverture["statut"], string> = {
   BROUILLON: "Brouillon",
   EN_SAISIE: "En saisie",
-  A_VALIDER: "Validation membres",
-  EN_VALIDATION_MEMBRES: "Validation membres",
+  A_VALIDER: "En attente de membre",
+  EN_VALIDATION_MEMBRES: "En attente de membre",
+  MEMBRES_CONFIRMES: "En attente d'ouverture",
   EN_VALIDATION_PRESIDENT: "Validation président",
   VALIDEE: "Validée",
   REJETEE: "Rejetée",
@@ -136,6 +141,7 @@ const statusClassMap: Record<SeanceOuverture["statut"], string> = {
   EN_SAISIE: "border-sky-200 bg-sky-50 text-sky-700",
   A_VALIDER: "border-indigo-200 bg-indigo-50 text-indigo-700",
   EN_VALIDATION_MEMBRES: "border-indigo-200 bg-indigo-50 text-indigo-700",
+  MEMBRES_CONFIRMES: "border-amber-200 bg-amber-50 text-amber-700",
   EN_VALIDATION_PRESIDENT: "border-violet-200 bg-violet-50 text-violet-700",
   VALIDEE: "border-emerald-200 bg-emerald-50 text-emerald-700",
   REJETEE: "border-rose-200 bg-rose-50 text-rose-700",
@@ -225,6 +231,9 @@ const removeReservedCommissionMembers = (
   members: CommissionMember[],
   seance: SeanceOuverture,
 ) => {
+  if (seance.membres_verrouilles || seance.statut === "MEMBRES_CONFIRMES") {
+    return members;
+  }
   const reservedEmails = new Set(
     [
       normalizeEmail(seance.secretaire_detail?.email),
@@ -314,6 +323,10 @@ const createEmptyOffre = (): EditableOffre => ({
   enveloppe_administrative: "",
   enveloppe_technique: "",
   enveloppe_financiere: "",
+  etat_scelle: "",
+  presence_rature: false,
+  description_rature: "",
+  document_substitution_present: false,
   montant_global: "",
   observations: "",
 });
@@ -328,6 +341,10 @@ const mapOffreToEditable = (offre: OffreOuverture): EditableOffre => ({
   enveloppe_administrative: offre.enveloppe_administrative,
   enveloppe_technique: offre.enveloppe_technique,
   enveloppe_financiere: offre.enveloppe_financiere,
+  etat_scelle: offre.etat_scelle,
+  presence_rature: offre.presence_rature,
+  description_rature: offre.description_rature,
+  document_substitution_present: offre.document_substitution_present,
   montant_global:
     offre.montant_global === null || offre.montant_global === undefined
       ? ""
@@ -492,17 +509,26 @@ export default function SeanceOuvertureDetail() {
         }
         setFormData(initialFormState);
 
-        // Check if commission members are complete (status "final" in localStorage)
+        // Check if commission members are complete
         const localStatus = localStorage.getItem(
           `ucp_commission_membres_status_${seanceData.reference_dossier}`,
         );
         const isSecretaire = isSecretaireUser(user);
+        const isCompositionValidated =
+          seanceData.membres_verrouilles ||
+          seanceData.statut === "MEMBRES_CONFIRMES" ||
+          seanceData.composition_validation_statut === "VALIDEE" ||
+          seanceData.membres.filter((m) => m.est_present).length >= 3;
+
         if (
           isSecretaire &&
+          !isCompositionValidated &&
           localStatus !== "final" &&
           seanceData.membres.length < 3
         ) {
           setMembersIncomplete(true);
+        } else {
+          setMembersIncomplete(false);
         }
 
         setScreenState("ready");
@@ -519,8 +545,31 @@ export default function SeanceOuvertureDetail() {
     void bootstrap();
   }, [params, router]);
 
+  // Persist commission members back to formData for API submission
+  useEffect(() => {
+    if (!formData) return;
+
+    // Update commissionMembers in localStorage whenever they change
+    if (seance && typeof window !== "undefined") {
+      const localKey = `ucp_commission_membres_${seance.reference_dossier}`;
+      const commissionPayload = commissionMembers.map((m) => ({
+        nomPrenom: m.nomPrenom || "",
+        email: m.email || "",
+        cin: m.cin || "",
+        poste: m.poste || "",
+        entite: m.entite || "",
+      }));
+      try {
+        localStorage.setItem(localKey, JSON.stringify(commissionPayload));
+      } catch (err) {
+        console.error("Failed to save commission members to localStorage", err);
+      }
+    }
+  }, [commissionMembers, seance]);
+
   const isLocked =
-    !!seance && seance.statut !== "BROUILLON" && seance.statut !== "EN_SAISIE";
+    !!seance &&
+    !["BROUILLON", "EN_SAISIE", "MEMBRES_CONFIRMES"].includes(seance.statut);
   const canEdit =
     !!seance &&
     !!currentUser &&
@@ -764,6 +813,12 @@ export default function SeanceOuvertureDetail() {
       enveloppe_administrative: pliExiste ? offre.enveloppe_administrative : "",
       enveloppe_technique: pliExiste ? offre.enveloppe_technique : "",
       enveloppe_financiere: pliExiste ? offre.enveloppe_financiere : "",
+      etat_scelle: pliExiste ? offre.etat_scelle : "",
+      presence_rature: pliExiste ? offre.presence_rature : false,
+      description_rature: pliExiste ? offre.description_rature : "",
+      document_substitution_present: pliExiste
+        ? offre.document_substitution_present
+        : false,
       montant_global: pliExiste ? offre.montant_global : "",
     });
   };
@@ -796,6 +851,7 @@ export default function SeanceOuvertureDetail() {
   const buildPayload = (
     currentForm: DetailFormState,
     nextStatus: SeanceOuverture["statut"],
+    commissionsToUse?: CommissionMember[],
   ): UpdateSeancePayload => {
     const presidentId = currentForm.president
       ? Number(currentForm.president)
@@ -824,6 +880,12 @@ export default function SeanceOuvertureDetail() {
           offre.montant_global.trim()
             ? offre.montant_global.trim()
             : null,
+        etat_scelle: offre.etat_scelle,
+        presence_rature: offre.presence_rature,
+        description_rature: offre.presence_rature
+          ? offre.description_rature.trim()
+          : "",
+        document_substitution_present: offre.document_substitution_present,
         observations: offre.observations.trim(),
       }))
       .filter((offre) =>
@@ -834,22 +896,25 @@ export default function SeanceOuvertureDetail() {
           offre.enveloppe_administrative ||
           offre.enveloppe_technique ||
           offre.enveloppe_financiere ||
+          offre.etat_scelle ||
+          offre.presence_rature ||
+          offre.document_substitution_present ||
           offre.montant_global ||
           offre.observations,
         ),
       );
 
-    const commissionPayload: CommissionMemberPayload[] = commissionMembers.map(
-      (m) => ({
-        nomPrenom: m.nomPrenom || "",
-        email: m.email || "",
-        cin: m.cin || "",
-        poste: m.poste || "",
-        entite: m.entite || "",
-      }),
-    );
+    const commissionPayload: CommissionMemberPayload[] = (
+      commissionsToUse || commissionMembers
+    ).map((m) => ({
+      nomPrenom: m.nomPrenom || "",
+      email: m.email || "",
+      cin: m.cin || "",
+      poste: m.poste || "",
+      entite: m.entite || "",
+    }));
 
-    return {
+    const payload: UpdateSeancePayload = {
       reference_dossier: currentForm.reference_dossier.trim(),
       objet_dossier: currentForm.objet_dossier.trim(),
       president: presidentId,
@@ -864,47 +929,60 @@ export default function SeanceOuvertureDetail() {
         ? currentForm.description_rature.trim()
         : "",
       document_substitution_present: currentForm.document_substitution_present,
-      membre_ids: membreIds,
-      commission_members: commissionPayload,
       offres,
       statut: nextStatus,
     };
+
+    if (!seance?.membres_verrouilles) {
+      payload.membre_ids = membreIds;
+      payload.commission_members = commissionPayload;
+    }
+
+    return payload;
   };
 
   const getFirstValidationIssue = (
     currentForm: DetailFormState,
     nextStatus: SeanceOuverture["statut"],
+    commissionsToValidate?: CommissionMember[],
   ): ValidationIssue | null => {
-    const membresValides = commissionMembers.filter(
-      (m) => m.nomPrenom?.trim() && m.email?.trim() && m.cin?.trim(),
-    );
-    const reservedMember = commissionMembers.find((member) => {
-      const email = normalizeEmail(member.email);
-      return (
-        email &&
-        seance &&
-        (email === normalizeEmail(seance.secretaire_detail?.email) ||
-          email === normalizeEmail(seance.president_detail?.email))
+    const isCompositionValidated =
+      seance?.membres_verrouilles ||
+      seance?.statut === "MEMBRES_CONFIRMES" ||
+      seance?.composition_validation_statut === "VALIDEE";
+
+    if (!isCompositionValidated) {
+      const membersToCheck = commissionsToValidate || commissionMembers;
+      const membresValides = membersToCheck.filter(
+        (m) => m.nomPrenom?.trim() && m.email?.trim() && m.cin?.trim(),
       );
-    });
-    const manquants = MIN_COMMISSION_MEMBERS - membresValides.length;
-
-    if (reservedMember) {
-      return {
-        field: "membre_ids",
-        message: `${reservedMember.email} correspond au secrétaire ou au président. La commission doit contenir uniquement les membres.`,
-      };
-    }
-
-    if (manquants > 0) {
-      reportValidationIssue({
-        field: "membre_ids",
-        message:
-          manquants === 1
-            ? "Il manque encore 1 membre à la commission pour pouvoir soumettre."
-            : `Il manque encore ${manquants} membres à la commission (${membresValides.length}/${MIN_COMMISSION_MEMBERS} complets).`,
+      const reservedMember = membersToCheck.find((member) => {
+        const email = normalizeEmail(member.email);
+        return (
+          email &&
+          seance &&
+          (email === normalizeEmail(seance.secretaire_detail?.email) ||
+            email === normalizeEmail(seance.president_detail?.email))
+        );
       });
-      return null;
+      const manquants = MIN_COMMISSION_MEMBERS - membresValides.length;
+
+      if (reservedMember) {
+        return {
+          field: "membre_ids",
+          message: `${reservedMember.email} correspond au secrétaire ou au président. La commission doit contenir uniquement les membres.`,
+        };
+      }
+
+      if (manquants > 0) {
+        return {
+          field: "membre_ids",
+          message:
+            manquants === 1
+              ? "Il manque encore 1 membre à la commission pour pouvoir soumettre."
+              : `Il manque encore ${manquants} membres à la commission (${membresValides.length}/${MIN_COMMISSION_MEMBERS} complets).`,
+        };
+      }
     }
 
     if (nextStatus === "EN_VALIDATION_MEMBRES" || nextStatus === "A_VALIDER") {
@@ -926,26 +1004,6 @@ export default function SeanceOuvertureDetail() {
       if (!currentForm.lieu.trim()) {
         return { field: "lieu", message: "Renseigne le lieu de séance." };
       }
-      if (!currentForm.etat_scelle) {
-        return { field: "etat_scelle", message: "Renseigne l'état du scellé." };
-      }
-      if (
-        currentForm.presence_rature &&
-        !currentForm.description_rature.trim()
-      ) {
-        return {
-          field: "description_rature",
-          message: "Décris la rature ou la manipulation constatée.",
-        };
-      }
-    }
-
-    const todayStr = new Date().toISOString().slice(0, 10);
-    if (currentForm.date_seance && currentForm.date_seance < todayStr) {
-      return {
-        field: "date_seance",
-        message: "La date de séance ne peut pas être antérieure à aujourd'hui.",
-      };
     }
 
     for (const offre of currentForm.offres) {
@@ -964,6 +1022,21 @@ export default function SeanceOuvertureDetail() {
         return {
           field: `offre-${offre.localId}-nom`,
           message: "Renseigne le nom du soumissionnaire.",
+        };
+      }
+
+      if (hasPartialData && !offre.etat_scelle) {
+        return {
+          field: `offre-${offre.localId}-scelle`,
+          message: "Renseigne l'état du scellé pour cette offre.",
+        };
+      }
+
+      if (offre.presence_rature && !offre.description_rature.trim()) {
+        return {
+          field: `offre-${offre.localId}-rature`,
+          message:
+            "Décris la rature ou la surcharge constatée pour cette offre.",
         };
       }
 
@@ -990,7 +1063,30 @@ export default function SeanceOuvertureDetail() {
   const handleSave = async (nextStatus: SeanceOuverture["statut"]) => {
     if (!formData || !seance || !canEdit) return;
 
-    const validationIssue = getFirstValidationIssue(formData, nextStatus);
+    // Reload commission members from localStorage in case they were updated in the /membres page
+    let currentCommissions = commissionMembers;
+    if (typeof window !== "undefined") {
+      const localKey = `ucp_commission_membres_${seance.reference_dossier}`;
+      const loadedMembers = removeReservedCommissionMembers(
+        parseCommissionMembers(localStorage.getItem(localKey)),
+        seance,
+      );
+      const currentBackendMembers = removeReservedCommissionMembers(
+        mapSeanceMembersToCommissionMembers(seance),
+        seance,
+      );
+      currentCommissions = mergeCommissionMembers(
+        currentBackendMembers,
+        loadedMembers,
+      );
+      setCommissionMembers(currentCommissions);
+    }
+
+    const validationIssue = getFirstValidationIssue(
+      formData,
+      nextStatus,
+      currentCommissions,
+    );
     if (validationIssue) {
       reportValidationIssue(validationIssue);
       return;
@@ -1004,7 +1100,7 @@ export default function SeanceOuvertureDetail() {
 
       const updatedSeance = await updateSeance(
         seance.id,
-        buildPayload(formData, nextStatus),
+        buildPayload(formData, nextStatus, currentCommissions),
       );
       const sentCount = updatedSeance.emails_envoyes;
       setOpeningFlashMessage(
@@ -1373,20 +1469,6 @@ export default function SeanceOuvertureDetail() {
               <Users className="h-4 w-4 text-emerald-500" />
               Voir les membres de la commission
             </button>
-            {canEdit && (
-              <button
-                type="button"
-                onClick={() =>
-                  router.push(
-                    `/personnel/ouverture_offre/membres?dossier=${encodeURIComponent(seance.reference_dossier)}`,
-                  )
-                }
-                className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
-              >
-                <Users className="h-4 w-4 text-sky-500" />
-                Gérer les membres
-              </button>
-            )}
             <Link
               href="/ouverture_offre"
               className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
@@ -1580,6 +1662,7 @@ export default function SeanceOuvertureDetail() {
                         </th>
                         <th className="w-28 px-2 py-3">Enveloppe technique</th>
                         <th className="w-28 px-2 py-3">Enveloppe financière</th>
+                        <th className="w-80 px-2 py-3">Scellé et incidents</th>
                         {showMontantColumn && (
                           <th className="w-28 px-2 py-3">Montant</th>
                         )}
@@ -1700,6 +1783,92 @@ export default function SeanceOuvertureDetail() {
                                 })
                               }
                             />
+                            <td className="px-3 py-3">
+                              <div
+                                data-validation-field={`offre-${offre.localId}-scelle`}
+                                className={`space-y-2 rounded-2xl border border-slate-200 bg-slate-50/70 p-3 ${getValidationFieldClass(`offre-${offre.localId}-scelle`)}`}
+                              >
+                                <label className="block">
+                                  <span className="mb-1 block text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
+                                    État du scellé
+                                  </span>
+                                  <select
+                                    value={offre.etat_scelle}
+                                    onChange={(event) =>
+                                      updateOffreRow(offre.localId, {
+                                        etat_scelle: event.target
+                                          .value as EditableOffre["etat_scelle"],
+                                      })
+                                    }
+                                    disabled={disableOfferFields}
+                                    className={`${compactSelectClass} w-full`}
+                                  >
+                                    <option value="">Choisir</option>
+                                    <option value="INTACT">Intact</option>
+                                    <option value="ALTERE">Altéré</option>
+                                    <option value="ABSENT">Absent</option>
+                                  </select>
+                                </label>
+
+                                <div
+                                  data-validation-field={`offre-${offre.localId}-rature`}
+                                  className={`space-y-2 ${getValidationFieldClass(`offre-${offre.localId}-rature`)}`}
+                                >
+                                  <span className="mb-1 block text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
+                                    Rature / surcharge
+                                  </span>
+                                  <BinaryChoice
+                                    trueLabel="Oui"
+                                    falseLabel="Non"
+                                    checked={offre.presence_rature}
+                                    disabled={disableOfferFields}
+                                    trueTone="danger"
+                                    onChange={(checked) =>
+                                      updateOffreRow(offre.localId, {
+                                        presence_rature: checked,
+                                        description_rature: checked
+                                          ? offre.description_rature
+                                          : "",
+                                      })
+                                    }
+                                  />
+                                  {offre.presence_rature && (
+                                    <textarea
+                                      rows={2}
+                                      value={offre.description_rature}
+                                      onChange={(event) =>
+                                        updateOffreRow(offre.localId, {
+                                          description_rature:
+                                            event.target.value,
+                                        })
+                                      }
+                                      disabled={disableOfferFields}
+                                      placeholder="Description de la rature ou surcharge"
+                                      className={`${compactTextareaClass} w-full text-[12px]`}
+                                    />
+                                  )}
+                                </div>
+
+                                <div className="space-y-2">
+                                  <span className="mb-1 block text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
+                                    Document de substitution
+                                  </span>
+                                  <BinaryChoice
+                                    trueLabel="Oui"
+                                    falseLabel="Non"
+                                    checked={
+                                      offre.document_substitution_present
+                                    }
+                                    disabled={disableOfferFields}
+                                    onChange={(checked) =>
+                                      updateOffreRow(offre.localId, {
+                                        document_substitution_present: checked,
+                                      })
+                                    }
+                                  />
+                                </div>
+                              </div>
+                            </td>
                             {showMontantColumn && (
                               <td className="px-3 py-3">
                                 <input
@@ -1764,98 +1933,17 @@ export default function SeanceOuvertureDetail() {
                 </div>
               </section>
 
-              <section className="group relative overflow-hidden rounded-2xl border border-white/40 bg-white/70 shadow-[0_6px_24px_rgba(0,0,0,0.04)] backdrop-blur-md transition-all duration-500 hover:shadow-[0_10px_36px_rgba(0,0,0,0.06)]">
-                <div className="absolute left-0 top-0 h-1 w-full bg-gradient-to-r from-emerald-500 via-amber-300 to-emerald-500 bg-[length:200%_100%] animate-gradient" />
-                <div className="p-3">
-                  <h2 className="mb-3 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-800">
-                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-100/80 text-emerald-600 shadow-sm backdrop-blur-sm transition-transform duration-300 group-hover:scale-110">
-                      <ShieldCheck className="h-4 w-4" />
-                    </div>
-                    3. Scellés et incidents
-                  </h2>
-
-                  <div className="grid gap-2 lg:grid-cols-12">
-                    <label
-                      data-validation-field="etat_scelle"
-                      className={`grid gap-1 lg:col-span-4 ${getValidationFieldClass("etat_scelle")}`}
-                    >
-                      <span className={labelClass}>État du scellé</span>
-                      <select
-                        value={formData.etat_scelle}
-                        onChange={(event) =>
-                          setField(
-                            "etat_scelle",
-                            event.target
-                              .value as DetailFormState["etat_scelle"],
-                          )
-                        }
-                        disabled={!canEdit}
-                        className={compactSelectClass}
-                      >
-                        <option value="" disabled>
-                          Choisir
-                        </option>
-                        <option value="INTACT">Intact</option>
-                        <option value="ALTERE">Altéré</option>
-                        <option value="ABSENT">Absent</option>
-                      </select>
-                    </label>
-
-                    <div className="grid gap-1 lg:col-span-4">
-                      <span className={labelClass}>Rature / surcharge</span>
-                      <BinaryChoice
-                        trueLabel="Oui"
-                        falseLabel="Non"
-                        checked={formData.presence_rature}
-                        disabled={!canEdit}
-                        trueTone="danger"
-                        onChange={(checked) =>
-                          setField("presence_rature", checked)
-                        }
-                      />
-                    </div>
-
-                    <div className="grid gap-1 lg:col-span-4">
-                      <span className={labelClass}>
-                        Document de substitution
-                      </span>
-                      <BinaryChoice
-                        trueLabel="Oui"
-                        falseLabel="Non"
-                        checked={formData.document_substitution_present}
-                        disabled={!canEdit}
-                        onChange={(checked) =>
-                          setField("document_substitution_present", checked)
-                        }
-                      />
-                    </div>
-
-                    {formData.presence_rature && (
-                      <label
-                        data-validation-field="description_rature"
-                        className={`grid gap-1 lg:col-span-12 ${getValidationFieldClass("description_rature")}`}
-                      >
-                        <span className={labelClass}>Description rature</span>
-                        <textarea
-                          rows={3}
-                          value={formData.description_rature}
-                          onChange={(event) =>
-                            setField("description_rature", event.target.value)
-                          }
-                          disabled={!canEdit}
-                          className={`${compactTextareaClass} w-full border-rose-200 bg-gradient-to-br from-rose-50/80 to-amber-50/50 text-rose-950 placeholder:text-rose-300 focus:border-rose-300 focus:ring-rose-50`}
-                        />
-                      </label>
-                    )}
-                  </div>
-                </div>
-              </section>
-
               {canEdit && (
                 <section className="flex flex-col gap-2 rounded-2xl border border-white/40 bg-white/80 p-2.5 shadow-[0_6px_24px_rgba(0,0,0,0.04)] backdrop-blur-md sm:flex-row sm:items-center sm:justify-end">
                   <button
                     type="button"
-                    onClick={() => void handleSave("BROUILLON")}
+                    onClick={() =>
+                      void handleSave(
+                        seance.statut === "MEMBRES_CONFIRMES"
+                          ? "MEMBRES_CONFIRMES"
+                          : "BROUILLON",
+                      )
+                    }
                     disabled={!!saveMode}
                     className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
                   >
@@ -2004,7 +2092,7 @@ export default function SeanceOuvertureDetail() {
                 </section>
               )}
 
-              <section className="rounded-3xl border border-white/40 bg-white/75 p-4 shadow-[0_8px_32px_rgba(0,0,0,0.05)] backdrop-blur-md">
+              <section className="rounded-3xl border border-white/40 bg-white/75 p-4 shadow-[0_8px_32px_rgba(0,0,0,0.05)] backdrop-blur-md md:hidden">
                 <SeanceOverviewDetails
                   seance={seance}
                   market={linkedMarket}

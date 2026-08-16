@@ -69,7 +69,12 @@ def seance_detail(request, pk):
         serializer = SeanceOuvertureSerializer(seance)
         return Response(serializer.data)
 
-    serializer = SeanceOuvertureSerializer(data=request.data, partial=True)
+    serializer = SeanceOuvertureSerializer(
+        seance,
+        data=request.data,
+        partial=True,
+        context={"request": request},
+    )
     serializer.is_valid(raise_exception=True)
 
     seance = update_seance(seance, serializer.validated_data, request.user)
@@ -152,7 +157,7 @@ def seance_validation_decision(request, pk):
     navigateur = request.META.get("HTTP_USER_AGENT", "")
     commentaire = data.get("commentaire", "")
 
-    if data[",role"] == "membre":
+    if data["role"] == "membre":
         if data["decision"] == "VALIDER":
             validate_member_with_password(
                 seance,

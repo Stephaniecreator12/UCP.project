@@ -2,16 +2,21 @@
 import { ResponsiveContainer, PieChart, Pie, Tooltip, Cell, Legend } from "recharts";
 import { DaoDownload } from "@/types/adminDashboard";
 
-const COLORS = ["#3B82F6", "#7C3AED", "#EC4899", "#10B981", "#F59E0B"];
+const COLORS = ["#10B981", "#3B82F6", "#7C3AED", "#EC4899", "#F59E0B"];
 
 export default function DaoDownloadChart({ data }: { data: DaoDownload[] }) {
   return (
-    <div className="bg-white border border-slate-200/80 rounded-xl p-6 shadow-xs flex flex-col">
-      <div className="mb-4">
-        <h3 className="text-base font-bold text-slate-900 tracking-tight">
+    <div className="group relative overflow-hidden rounded-3xl border border-white/40 bg-white/70 p-6 shadow-[0_8px_32px_rgba(0,0,0,0.04)] backdrop-blur-md flex flex-col">
+      <div className="absolute left-0 top-0 h-1.5 w-full bg-gradient-to-r from-emerald-500 to-teal-400" />
+
+      <div className="mb-4 pt-1">
+        <h3 className="text-[11px] font-black uppercase tracking-widest text-slate-800 flex items-center gap-2">
+          <div className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-[10px] font-black text-white">
+            2
+          </div>
           Répartition des téléchargements
         </h3>
-        <p className="text-xs text-slate-400 mt-0.5">Comparatif du volume de téléchargement des pièces maîtresses par dossier.</p>
+        <p className="text-xs text-slate-500 mt-1 ml-7">Comparatif du volume de téléchargement des pièces maîtresses par dossier.</p>
       </div>
 
       <div className="w-full flex justify-center items-center" style={{ minHeight: "300px" }}>
@@ -30,7 +35,7 @@ export default function DaoDownloadChart({ data }: { data: DaoDownload[] }) {
               ))}
             </Pie>
             <Tooltip 
-              contentStyle={{ backgroundColor: "#1E293B", borderRadius: "8px", border: "none", color: "#FFF", fontSize: "12px" }}
+              contentStyle={{ backgroundColor: "#1E293B", borderRadius: "12px", border: "none", color: "#FFF", fontSize: "12px" }}
             />
             <Legend 
               verticalAlign="bottom" 

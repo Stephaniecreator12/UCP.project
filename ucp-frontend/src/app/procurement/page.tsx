@@ -11,6 +11,7 @@ import { useRouter } from 'next/navigation';
 import { trackUserAction } from "@/services/trackAction";
 import { getme } from "@/services/profile";
 import { UserProfile } from "@/types/profile";
+import { Search, X, Plus, Download, ChevronDown, Filter, ClipboardList, Layers } from "lucide-react";
 import Cookies from "js-cookie";
 interface MarketData {
   count: number;
@@ -50,7 +51,6 @@ export default function ProcurementPage({
     const savedGroup = Cookies.get("groups");
     if (savedGroup) {
       try {
-        // Reconvertit la chaîne JSON en véritable tableau JS
         return JSON.parse(savedGroup);
       } catch (e) {
         console.error("Erreur de parsing du cookie group", e);
@@ -183,17 +183,24 @@ export default function ProcurementPage({
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center p-12 text-green-700 text-center min-h-[50vh]">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-green-700 mb-4"></div>
-        <span className="font-medium">Chargement des marchés de l UCP...</span>
+      <div className="min-h-screen bg-[radial-gradient(circle_at_10%_0%,#f6faf8_0%,transparent_25%),linear-gradient(180deg,#f8fafc_0%,#f1f5f9_100%)] text-slate-800 antialiased selection:bg-emerald-200">
+        <TopHeader />
+        <div className="flex h-[60vh] items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-4 border-emerald-500 border-t-transparent" />
+        </div>
       </div>
     );
   }
 
   if (!data) {
     return (
-      <div className="p-12 text-center max-w-md mx-auto mt-10 bg-red-50 border border-red-200 rounded-xl text-red-700 font-medium shadow-sm">
-        ⚠️ Une erreur est survenue lors de la récupération des données.
+      <div className="min-h-screen bg-[radial-gradient(circle_at_10%_0%,#f6faf8_0%,transparent_25%),linear-gradient(180deg,#f8fafc_0%,#f1f5f9_100%)] text-slate-800 antialiased selection:bg-emerald-200">
+        <TopHeader />
+        <div className="mx-auto max-w-md px-4 py-12">
+          <div className="rounded-2xl border border-rose-200 bg-white p-8 shadow-sm text-center">
+            <p className="text-sm font-semibold text-rose-700">Une erreur est survenue lors de la récupération des données.</p>
+          </div>
+        </div>
       </div>
     );
   }
@@ -236,118 +243,141 @@ export default function ProcurementPage({
 
 
   return (
-    <div className="mx-auto min-h-screen bg-[#eceeef] text-[#17212e]">
+    <main className="min-h-screen bg-[radial-gradient(circle_at_10%_0%,#f6faf8_0%,transparent_25%),linear-gradient(180deg,#f8fafc_0%,#f1f5f9_100%)] pb-24 text-slate-800 antialiased selection:bg-emerald-200">
       <TopHeader />
 
-      <div className=" mx-auto mt-8 p-6 px-10">
-        <div className="flex flex-col sm:flex-row w-full justify-between items-start sm:items-center gap-4 mb-8">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
-              Marchés de l UCP
-            </h1>
-            <p className="text-sm text-gray-500 mt-1">Gestion et suivi des dossiers d appel d offres (DAO)</p>
+      <div className="mx-auto flex max-w-[1680px] flex-col gap-5 px-4 pb-12 pt-6 md:px-6 lg:pt-8">
+        {/* Header Block */}
+        <div className="group relative flex w-full flex-col justify-between overflow-hidden rounded-2xl border border-slate-100 bg-white p-5 shadow-[0_8px_24px_rgb(0,0,0,0.035)] md:flex-row md:items-center">
+          <div className="absolute right-0 top-0 -z-10 h-64 w-64 rounded-full bg-gradient-to-br from-emerald-100 to-teal-50 opacity-50 blur-3xl transition-transform duration-700 group-hover:scale-110" />
+
+          <div className="relative z-10 flex min-w-0 items-center gap-3">
+            <div className="relative">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-400 text-white shadow-lg shadow-emerald-500/20">
+                <Layers className="h-4 w-4" />
+              </div>
+            </div>
+            <div>
+              <h1 className="truncate text-lg font-black tracking-tight text-slate-800">
+                Marchés de l&apos;UCP
+              </h1>
+              <p className="text-[12px] font-semibold text-slate-500">
+                Gestion et suivi des dossiers d&apos;appel d&apos;offres (DAO)
+              </p>
+            </div>
           </div>
+
           {
             group.length > 0 && !group.includes("PUBLIC") && (
               <button
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-700 hover:bg-green-800 text-white font-medium text-sm rounded-lg shadow-sm hover:shadow transition-all duration-200"
+                className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-emerald-500/20 transition-all hover:-translate-y-0.5 hover:bg-emerald-700"
                 onClick={handleCreateProcurementRedirection}
               >
-                <span>➕</span> Ajouter un DAO
+                <Plus className="h-4 w-4" />
+                Ajouter un DAO
               </button>
             )
           }
-
         </div>
 
+        {/* Search & Filters Card */}
         <form
           key={formKey}
           onSubmit={handleFilterSubmit}
-          className="w-full bg-white p-5 rounded-xl border border-gray-200 shadow-sm mb-8 space-y-4"
+          className="group relative overflow-hidden rounded-3xl border border-white/40 bg-white/70 p-5 shadow-[0_8px_32px_rgba(0,0,0,0.04)] backdrop-blur-md space-y-4"
         >
+          <div className="absolute left-0 top-0 h-1.5 w-full bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-500 bg-[length:200%_100%] animate-gradient" />
+
           {/* Ligne principale : Recherche + Boutons */}
-          <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex flex-col sm:flex-row gap-3 pt-1">
             <div className="relative flex-1">
-              <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400 pointer-events-none">
-                🔍
-              </span>
+              <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
                 placeholder="Rechercher par titre, référence, code..."
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-green-600 text-gray-800 transition"
+                className="w-full rounded-xl border border-slate-200 bg-white/70 px-4 py-2.5 pl-10 pr-10 text-[13px] font-semibold text-slate-800 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-slate-400 focus:ring-4 focus:ring-slate-100"
               />
+              {searchInput && (
+                <button
+                  type="button"
+                  onClick={() => setSearchInput("")}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
             </div>
 
             <div className="flex gap-2 w-full sm:w-auto">
-              {/* Bouton pour afficher/masquer les filtres avancés */}
               <button
                 type="button"
                 onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-                className={`px-4 py-2.5 text-sm font-medium rounded-lg border transition-all duration-200 flex items-center gap-2 justify-center flex-1 sm:flex-initial ${showAdvancedFilters
-                  ? "bg-slate-100 border-slate-300 text-slate-700"
-                  : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
-                  }`}
+                className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-xs font-semibold transition-all duration-200 flex-1 sm:flex-initial ${
+                  showAdvancedFilters
+                    ? "border-slate-300 bg-slate-100 text-slate-700"
+                    : "border-slate-200 bg-white/70 text-slate-700 hover:bg-slate-50"
+                }`}
               >
-                🎛️ {showAdvancedFilters ? "Masquer les filtres" : "Filtres avancés"}
+                <Filter className="h-3.5 w-3.5" />
+                {showAdvancedFilters ? "Masquer les filtres" : "Filtres avancés"}
               </button>
 
-              {/* Bouton de soumission */}
               <button
                 type="submit"
-                className="px-6 py-2.5 bg-green-700 hover:bg-green-800 text-white text-sm font-medium rounded-lg transition-colors duration-200 whitespace-nowrap shadow-sm flex-1 sm:flex-initial text-center justify-center"
+                className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-emerald-500/20 transition-all hover:-translate-y-0.5 hover:bg-emerald-700 whitespace-nowrap flex-1 sm:flex-initial text-center justify-center"
               >
                 Rechercher
               </button>
             </div>
           </div>
 
-          {/* Panneau des filtres avancés (avec transition d'affichage) */}
+          {/* Panneau des filtres avancés */}
           <div
-            className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs text-gray-600 pt-3 border-t border-gray-100 transition-all duration-300 origin-top ${showAdvancedFilters
-              ? "opacity-100 max-h-[500px] visible"
-              : "opacity-0 max-h-0 invisible overflow-hidden !pt-0 !border-t-0"
-              }`}
+            className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs text-slate-600 pt-3 border-t border-slate-100 transition-all duration-300 origin-top ${
+              showAdvancedFilters
+                ? "opacity-100 max-h-[500px] visible"
+                : "opacity-0 max-h-0 invisible overflow-hidden !pt-0 !border-t-0"
+            }`}
           >
             <div>
-              <label className="block font-semibold text-gray-700 mb-1.5">Publié après le :</label>
+              <label className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 block mb-1.5">Publié après le :</label>
               <input
                 type="date"
                 value={dateFilters.publishAfter}
                 onChange={(e) => setDateFilters({ ...dateFilters, publishAfter: e.target.value })}
-                className="w-full p-2 border border-gray-300 rounded-md text-gray-800 focus:ring-1 focus:ring-green-600 focus:border-green-600 outline-none"
+                className="w-full rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-slate-400 focus:ring-4 focus:ring-slate-100"
               />
             </div>
             <div>
-              <label className="block font-semibold text-gray-700 mb-1.5">Publié avant le :</label>
+              <label className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 block mb-1.5">Publié avant le :</label>
               <input
                 type="date"
                 value={dateFilters.publishBefore}
                 onChange={(e) => setDateFilters({ ...dateFilters, publishBefore: e.target.value })}
-                className="w-full p-2 border border-gray-300 rounded-md text-gray-800 focus:ring-1 focus:ring-green-600 focus:border-green-600 outline-none"
+                className="w-full rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-slate-400 focus:ring-4 focus:ring-slate-100"
               />
             </div>
             <div>
-              <label className="block font-semibold text-gray-700 mb-1.5">Limite après le :</label>
+              <label className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 block mb-1.5">Limite après le :</label>
               <input
                 type="date"
                 value={dateFilters.deadlineAfter}
                 onChange={(e) => setDateFilters({ ...dateFilters, deadlineAfter: e.target.value })}
-                className="w-full p-2 border border-gray-300 rounded-md text-gray-800 focus:ring-1 focus:ring-green-600 focus:border-green-600 outline-none"
+                className="w-full rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-slate-400 focus:ring-4 focus:ring-slate-100"
               />
             </div>
             <div>
-              <label className="block font-semibold text-gray-700 mb-1.5">Limite avant le :</label>
+              <label className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 block mb-1.5">Limite avant le :</label>
               <input
                 type="date"
                 value={dateFilters.deadlineBefore}
                 onChange={(e) => setDateFilters({ ...dateFilters, deadlineBefore: e.target.value })}
-                className="w-full p-2 border border-gray-300 rounded-md text-gray-800 focus:ring-1 focus:ring-green-600 focus:border-green-600 outline-none"
+                className="w-full rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-slate-400 focus:ring-4 focus:ring-slate-100"
               />
             </div>
 
-            {/* Bouton facultatif pour vider les filtres rapidement si le panneau est ouvert */}
             {(dateFilters.publishAfter || dateFilters.publishBefore || dateFilters.deadlineAfter || dateFilters.deadlineBefore) && (
               <div className="sm:col-span-2 md:col-span-4 flex justify-end">
                 <button
@@ -363,7 +393,7 @@ export default function ProcurementPage({
                     setLoading(true);
                     router.push('/procurement');
                   }}
-                  className="text-xs font-medium text-red-600 hover:text-red-700 transition underline cursor-pointer"
+                  className="text-xs font-semibold text-rose-600 hover:text-rose-700 transition"
                 >
                   Effacer tous les filtres
                 </button>
@@ -373,60 +403,66 @@ export default function ProcurementPage({
         </form>
 
         {/* Liste des marchés */}
-        <div className="space-y-6 mb-8">
+        <div className="space-y-4">
           {(data.results ?? []).length === 0 ? (
-            <div className="text-gray-500 bg-white p-12 rounded-xl border border-gray-200 text-center shadow-sm">
-              <span className="text-3xl block mb-2">📁</span>
-              <p className="font-medium">Aucun marché trouvé.</p>
+            <div className="rounded-3xl border border-dashed border-slate-300 bg-white/70 px-6 py-12 text-center backdrop-blur-md">
+              <ClipboardList className="mx-auto h-8 w-8 text-slate-300 mb-3" />
+              <p className="text-[13px] font-semibold text-slate-500">Aucun marché trouvé.</p>
             </div>
           ) : (
             data.results.map((market) => (
               <div
                 key={market.id}
-                className="border border-gray-200 border-l-4 border-l-green-600 p-6 rounded-xl shadow-md bg-white hover:border-green-600/40 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 ease-in-out"
+                className="group relative overflow-hidden rounded-3xl border border-white/40 bg-white/70 p-6 shadow-[0_8px_32px_rgba(0,0,0,0.04)] backdrop-blur-md transition-all duration-300 hover:shadow-[0_12px_40px_rgba(0,0,0,0.06)]"
               >
-                <div className="flex flex-col md:flex-row justify-between items-start gap-4 mb-4 border-b border-gray-100 pb-4">
-                  <div className="space-y-2 flex-1">
-                    <span
-                      onClick={() => handleToDetailRedirection((market.id).toString())}
-                      className="inline-block text-xs font-mono bg-green-50 text-green-800 px-2.5 py-1 rounded-md font-semibold border border-green-100 hover:bg-green-100 transition cursor-pointer"
-                    >
-                      Réf: {market.reference_number}
-                    </span>
+                <div className="absolute left-0 top-0 h-1.5 w-full bg-gradient-to-r from-emerald-500 to-teal-400" />
 
-                    <h2 className="text-xl font-bold text-gray-900 leading-tight">
+                <div className="flex flex-col md:flex-row justify-between items-start gap-4 mb-4 pt-1">
+                  <div className="space-y-2 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span
+                        onClick={() => handleToDetailRedirection((market.id).toString())}
+                        className="inline-block rounded bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 hover:bg-slate-200 transition cursor-pointer"
+                      >
+                        Réf: {market.reference_number}
+                      </span>
+
+                      {market.procedure_type === "DC" && (
+                        <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold bg-amber-50 border border-amber-200 text-amber-700 px-2.5 py-0.5 rounded-full">
+                          <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse"></span>
+                          DC – Réponse sous 5 jours
+                        </span>
+                      )}
+                    </div>
+
+                    <h2 className="text-[14px] font-black leading-tight text-slate-800">
                       {market.title}
                     </h2>
-
-                    {market.procedure_type === "DC" && (
-                      <span className="inline-flex items-center gap-1.5 text-xs bg-amber-50 border border-amber-200 text-amber-800 px-3 py-1 rounded-full font-semibold">
-                        <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-ping"></span>
-                        ⚡ DC – Réponse sous 5 jours
-                      </span>
-                    )}
                   </div>
 
-                  <div className="text-xs text-gray-600 bg-slate-50 border border-gray-200 rounded-xl p-3 space-y-1.5 w-full md:w-auto min-w-[220px] shadow-2xs">
+                  <div className="text-[11px] text-slate-500 bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-1.5 w-full md:w-auto min-w-[220px]">
                     <div>
-                      <span className="text-gray-400 font-medium">En ligne le :</span> <span className="font-semibold text-gray-800">{formatDate(market.publication_date)}</span>
+                      <span className="text-slate-400 font-semibold">En ligne le :</span>{" "}
+                      <span className="font-bold text-slate-700">{formatDate(market.publication_date)}</span>
                     </div>
-                    <div className="pt-1 border-t border-gray-200">
-                      <span className="text-red-600 font-semibold">Date limite :</span> <span className="font-bold text-gray-900">{getCountdown(market.deadline)}</span>
+                    <div className="pt-1 border-t border-slate-200">
+                      <span className="text-rose-600 font-bold">Date limite :</span>{" "}
+                      <span className="font-black text-slate-800">{getCountdown(market.deadline)}</span>
                     </div>
 
                     {market.category === "SERVICES" && (
-                      <div className="mt-2 pt-2 border-t border-dashed border-gray-200 text-[11px]">
-                        <span className="font-semibold text-green-800 block mb-1">Dates prévisionnelles de l’atelier :</span>
+                      <div className="mt-2 pt-2 border-t border-dashed border-slate-200">
+                        <span className="font-semibold text-emerald-700 block mb-1">Dates prévisionnelles de l&apos;atelier :</span>
                         {market.dates_atelier_details && market.dates_atelier_details.length > 0 ? (
                           <div className="space-y-0.5 max-h-16 overflow-y-auto">
                             {market.dates_atelier_details.map((item, index) => (
-                              <div key={item.id || index} className="text-gray-600 flex items-center gap-1">
-                                <span className="text-green-600">•</span> <span>{formatDate(item.dates_atelier)}</span>
+                              <div key={item.id || index} className="text-slate-600 flex items-center gap-1">
+                                <span className="text-emerald-500">•</span> <span>{formatDate(item.dates_atelier)}</span>
                               </div>
                             ))}
                           </div>
                         ) : (
-                          <span className="text-gray-400 italic">Aucune date renseignée</span>
+                          <span className="text-slate-400 italic">Aucune date renseignée</span>
                         )}
                       </div>
                     )}
@@ -434,32 +470,33 @@ export default function ProcurementPage({
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mb-5">
-                  <div className="bg-slate-50 p-4 rounded-xl border border-gray-100 shadow-2xs">
-                    <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-2.5">Financement & Origine</span>
+                  <div className="bg-slate-50/50 p-4 rounded-xl border border-slate-100">
+                    <span className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 block mb-2.5">Financement & Origine</span>
                     <div className="space-y-2">
                       <div className="flex items-start gap-1.5 flex-wrap">
-                        <span className="text-gray-500 font-medium text-xs mt-0.5">Bailleurs :</span>
+                        <span className="text-slate-500 font-semibold text-xs mt-0.5">Bailleurs :</span>
                         {market.financing_sources && market.financing_sources.length > 0 ? (
                           market.financing_sources.map((source, idx) => (
-                            <span key={`${source}-${idx}`} className="bg-white border border-gray-200 px-2 py-0.5 rounded text-xs font-medium text-gray-700 shadow-2xs">
+                            <span key={`${source}-${idx}`} className="bg-white border border-slate-200 px-2 py-0.5 rounded text-xs font-semibold text-slate-700">
                               {source}
                             </span>
                           ))
                         ) : (
-                          <span className="text-gray-400 italic text-xs">Non spécifié</span>
+                          <span className="text-slate-400 italic text-xs">Non spécifié</span>
                         )}
                       </div>
                       {market.reference_bailleur && (
-                        <p className="text-gray-700 text-xs pt-1 border-t border-dashed border-gray-200">
-                          <span className="font-medium text-gray-500">Réf. Bailleur :</span> <span className="font-mono font-medium">{market.reference_bailleur}</span>
+                        <p className="text-slate-700 text-xs pt-1 border-t border-dashed border-slate-200">
+                          <span className="font-semibold text-slate-500">Réf. Bailleur :</span>{" "}
+                          <span className="font-mono font-semibold">{market.reference_bailleur}</span>
                         </p>
                       )}
                     </div>
                   </div>
 
-                  <div className="bg-slate-50 p-4 rounded-xl border border-gray-100 flex flex-col justify-between shadow-2xs">
+                  <div className="bg-slate-50/50 p-4 rounded-xl border border-slate-100 flex flex-col justify-between">
                     <div>
-                      <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-2.5">Annexes</span>
+                      <span className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 block mb-2.5">Annexes</span>
                       {user && market.annexes && market.annexes.length > 0 ? (
                         <div className="flex flex-col gap-2 max-h-24 overflow-y-auto">
                           {market.annexes.map((annexe) => (
@@ -468,29 +505,30 @@ export default function ProcurementPage({
                               href={annexe.file}
                               onClick={() => handleTrackDownload(market.id.toString(), user.id.toString(), "DOWNLOAD_ANNEXE", annexe.file.toString())}
                               download
-                              className="text-green-700 hover:text-green-900 font-medium text-xs inline-flex items-center gap-1.5 transition"
+                              className="text-emerald-700 hover:text-emerald-900 font-semibold text-xs inline-flex items-center gap-1.5 transition"
                             >
-                              <span className="text-base">📎</span>
-                              <span className="truncate max-w-[280px] underline decoration-green-600/40 hover:decoration-green-900">
+                              <Download className="h-3.5 w-3.5" />
+                              <span className="truncate max-w-[280px]">
                                 {annexe.file.split("/").pop() || "Fichier annexe"}
                               </span>
                             </a>
                           ))}
                         </div>
                       ) : (
-                        <span className="text-xs text-gray-400 italic block mt-1">Aucune annexe disponible</span>
+                        <span className="text-xs text-slate-400 italic block mt-1">Aucune annexe disponible</span>
                       )}
                     </div>
                   </div>
                 </div>
 
-                <div className="flex justify-end pt-3 border-t border-gray-100">
+                <div className="flex justify-end pt-3 border-t border-slate-100">
                   <button
                     type="button"
                     onClick={() => handleDownloadDAO(market.id.toString())}
-                    className="px-4 py-2 bg-green-700 hover:bg-green-800 text-white text-sm font-semibold rounded-lg transition-all duration-150 flex items-center gap-2 shadow-sm hover:shadow-md"
+                    className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-emerald-700 transition-all hover:-translate-y-0.5 hover:bg-emerald-100"
                   >
-                    📥 Télécharger le DAO complet
+                    <Download className="h-4 w-4" />
+                    Télécharger le DAO complet
                   </button>
                 </div>
 
@@ -499,28 +537,29 @@ export default function ProcurementPage({
           )}
         </div>
 
-        <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+        {/* Pagination */}
+        <div className="flex justify-between items-center rounded-3xl border border-white/40 bg-white/70 p-4 shadow-[0_8px_32px_rgba(0,0,0,0.04)] backdrop-blur-md">
           <Link
             href={getPaginationUrl(Number(currentPage) - 1)}
             onClick={handlePageChange}
-            className={`px-4 py-2 text-sm font-medium border border-gray-200 rounded-lg text-gray-700 bg-white hover:bg-gray-50 transition shadow-2xs ${!data.previous ? 'pointer-events-none opacity-40' : ''}`}
+            className={`inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-sm transition-all hover:bg-slate-50 ${!data.previous ? 'pointer-events-none opacity-40' : ''}`}
           >
             ← Précédent
           </Link>
 
-          <span className="text-sm text-gray-600 font-semibold bg-gray-50 px-3 py-1.5 rounded-md border border-gray-100">
+          <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-600">
             Page {currentPage} sur {totalPages}
           </span>
 
           <Link
             href={getPaginationUrl(Number(currentPage) + 1)}
             onClick={handlePageChange}
-            className={`px-4 py-2 text-sm font-medium border border-gray-200 rounded-lg text-gray-700 bg-white hover:bg-gray-50 transition shadow-2xs ${!data.next ? 'pointer-events-none opacity-40' : ''}`}
+            className={`inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-sm transition-all hover:bg-slate-50 ${!data.next ? 'pointer-events-none opacity-40' : ''}`}
           >
             Suivant →
           </Link>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

@@ -92,7 +92,6 @@ INSTALLED_APPS = [
     'apps.evaluation_offre',
     'apps.contractualisation',
     'apps.log',
-    'apps.contrats',
     'apps.authorization',
 ]
 

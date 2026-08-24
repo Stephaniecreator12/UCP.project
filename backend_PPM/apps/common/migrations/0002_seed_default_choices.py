@@ -1,6 +1,5 @@
 from django.db import migrations
 
-from apps.contrats.models.enums import ContratStatut, TypeDocumentContrat
 from apps.contractualisation.models.contrat import StatutContrat, DocumentContrat
 from apps.procurement.models.procurement_market import (
     CategoryType,
@@ -26,9 +25,9 @@ SEED_DATA = {
     "CATEGORY_TYPE": _merge_choices(CategoryType.choices),
     "PUBLICATION_STATUS": _merge_choices(PublicationStatus.choices),
     "FINANCING_SOURCE": _merge_choices(FinancingSource.choices),
-    "CONTRAT_STATUT": _merge_choices(StatutContrat.choices, ContratStatut.choices),
+    "CONTRAT_STATUT": _merge_choices(StatutContrat.choices),
     "DOCUMENT_TYPE_CONTRAT": _merge_choices(
-        TypeDocumentContrat.choices, DocumentContrat.TypeDocument.choices
+        DocumentContrat.TypeDocument.choices
     ),
 }
 

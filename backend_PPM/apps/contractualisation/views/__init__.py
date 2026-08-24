@@ -306,3 +306,20 @@ def document_download(request, contrat_id: int, document_id: int):
         filename=f"{contrat.numero_marche}_signe.pdf",
         content_type="application/pdf",
     )
+
+
+# ============================================================
+# SUPPRIMER UN DOCUMENT
+# ============================================================
+@api_view(["DELETE"])
+@permission_classes([IsAuthenticated, IsSecretaireContractualisation])
+def document_delete(request, contrat_id: int, document_id: int):
+    """
+    DELETE /api/contrats/<id>/documents/<doc_id>/
+    """
+    from ..models import DocumentContrat
+
+    contrat = get_object_or_404(Contrat, id=contrat_id)
+    document = get_object_or_404(DocumentContrat, id=document_id, contrat=contrat)
+    document.delete()
+    return Response(status=status.HTTP_204_NO_CONTENT)

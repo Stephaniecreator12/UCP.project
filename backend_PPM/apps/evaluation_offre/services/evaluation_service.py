@@ -389,13 +389,13 @@ def _get_evaluation_or_403(offre_id: int, user: object) -> "EvaluationOffre":
 def _technique_est_complete(tech: EvaluationTechnique | None) -> bool:
     if not tech:
         return False
-    notes = [
-        tech.note_conformite_technique,
-        tech.note_delai_livraison,
-        tech.note_experience,
-        tech.note_sav_garantie,
-    ]
-    return all(note is not None for note in notes)
+    from apps.evaluation_offre.models import CritereTechnique, NoteTechniqueCritere
+    seance = tech.evaluation.offre.seance
+    nb_criteres_actifs = CritereTechnique.objects.filter(seance=seance, actif=True).count()
+    if nb_criteres_actifs == 0:
+        return False
+    nb_notes = NoteTechniqueCritere.objects.filter(evaluation_technique=tech).count()
+    return nb_notes >= nb_criteres_actifs
 
 
 def _examen_est_complete(evaluation: "EvaluationOffre") -> bool:
@@ -1068,14 +1068,40 @@ def soumettre_evaluation_technique(offre_id: int, data: dict, user: object):
     tech, created = EvaluationTechnique.objects.get_or_create(evaluation=evaluation)
     old_score = tech.score_technique_total
 
-    for field in (
-        "note_conformite_technique",
-        "note_delai_livraison",
-        "note_experience",
-        "note_sav_garantie",
-    ):
-        if field in data and data[field] is not None:
-            setattr(tech, field, data[field])
+    # New format: list of {critere_id, note, commentaire}
+    notes_data = data.get("notes")
+    if notes_data and isinstance(notes_data, list):
+        for note_data in notes_data:
+            critere_id = note_data.get("critere_id")
+            note_val = note_data.get("note")
+            commentaire = note_data.get("commentaire", "")
+            if critere_id is not None and note_val is not None:
+                NoteTechniqueCritere.objects.update_or_create(
+                    evaluation_technique=tech,
+                    critere_id=critere_id,
+                    defaults={"note": note_val, "commentaire": commentaire},
+                )
+
+    # Legacy format: hardcoded fields (backward compatibility)
+    else:
+        seance = evaluation.offre.seance
+        criteres = {
+            c.nom: c for c in CritereTechnique.objects.filter(seance=seance)
+        }
+        legacy_map = {
+            "note_conformite_technique": "Conformité technique",
+            "note_delai_livraison": "Délai de livraison",
+            "note_experience": "Expérience marchés similaires",
+            "note_sav_garantie": "SAV, garantie, formation",
+        }
+        for field, critere_nom in legacy_map.items():
+            if field in data and data[field] is not None and critere_nom in criteres:
+                NoteTechniqueCritere.objects.update_or_create(
+                    evaluation_technique=tech,
+                    critere=criteres[critere_nom],
+                    defaults={"note": data[field]},
+                )
+
     tech.save()
 
     action = "CREATE" if created else "UPDATE"

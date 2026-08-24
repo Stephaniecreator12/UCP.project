@@ -79,7 +79,10 @@ export default function ContratDetailPage() {
   const contratId = Number(params?.id);
 
   useEffect(() => {
-    if (!contratId) return;
+    if (Number.isNaN(contratId) || !contratId) {
+      router.replace("/personnel/contractualisation");
+      return;
+    }
     loadContrat(contratId);
   }, [contratId]);
 

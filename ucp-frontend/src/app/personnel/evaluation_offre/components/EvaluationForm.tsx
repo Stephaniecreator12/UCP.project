@@ -14,10 +14,12 @@ import {
   submitEvaluationFinanciere,
   submitEvaluationTechnique,
   submitExamenPreliminaire,
+  fetchCriteres,
   type DecisionFinalePayload,
   type EvaluationFinancierePayload,
   type EvaluationTechniquePayload,
   type ExamenPreliminairePayload,
+  type CritereTechniqueApi,
 } from "@/services/evaluationService";
 import { getToken } from "@/services/auth";
 
@@ -36,10 +38,7 @@ interface ExamenPreliminaireData {
 }
 
 interface EvaluationTechniqueData {
-  note_conformite_technique?: number;
-  note_delai_livraison?: number;
-  note_experience?: number;
-  note_sav_garantie?: number;
+  notes?: Record<number, number>;
 }
 
 interface EvaluationFinanciereData {
@@ -86,10 +85,7 @@ type ExamenStep = {
 };
 
 type TechniqueStep = {
-  note_conformite_technique: number | null;
-  note_delai_livraison: number | null;
-  note_experience: number | null;
-  note_sav_garantie: number | null;
+  notes: Record<number, number | null>;
   score?: number | null;
   completed?: boolean;
 };
@@ -104,11 +100,7 @@ type FinanciereStep = {
   completed?: boolean;
 };
 
-type TechniqueNoteKey =
-  | "note_conformite_technique"
-  | "note_delai_livraison"
-  | "note_experience"
-  | "note_sav_garantie";
+type TechniqueNoteKey = string;
 
 type ExamenCommentKey =
   | "comment_offre_signee"
@@ -142,10 +134,7 @@ const initialExamen: ExamenStep = {
 };
 
 const initialTechnique: TechniqueStep = {
-  note_conformite_technique: null,
-  note_delai_livraison: null,
-  note_experience: null,
-  note_sav_garantie: null,
+  notes: {},
 };
 
 const initialFinanciere: FinanciereStep = {
@@ -162,22 +151,19 @@ const initialDecision: DecisionStep = {
   password: "",
 };
 
-const computeTechniqueScore = (data: TechniqueStep): number | null => {
-  const values = [
-    data.note_conformite_technique,
-    data.note_delai_livraison,
-    data.note_experience,
-    data.note_sav_garantie,
-  ];
+const computeTechniqueScore = (
+  data: TechniqueStep,
+  criteres: CritereTechniqueApi[],
+): number | null => {
+  if (criteres.length === 0) return null;
+  const values = criteres.map((c) => data.notes[c.id]);
   if (values.some((value) => value === null || value === undefined)) {
     return null;
   }
-  const score =
-    (Number(data.note_conformite_technique) * 40 +
-      Number(data.note_delai_livraison) * 25 +
-      Number(data.note_experience) * 20 +
-      Number(data.note_sav_garantie) * 15) /
-    5;
+  const score = criteres.reduce((sum, critere) => {
+    const note = Number(data.notes[critere.id] || 0);
+    return sum + (note / 5) * 100 * (critere.ponderation / 100);
+  }, 0);
   return Math.round(score * 10) / 10;
 };
 
@@ -209,6 +195,7 @@ export default function EvaluationForm({
     useState<FinanciereStep>(initialFinanciere);
   const [decision, setDecision] = useState<DecisionStep>(initialDecision);
   const [loading, setLoading] = useState(false);
+  const [criteres, setCriteres] = useState<CritereTechniqueApi[]>([]);
   const [popup, setPopup] = useState<{
     isOpen: boolean;
     type: "success" | "error" | "warning";
@@ -218,6 +205,14 @@ export default function EvaluationForm({
   }>({ isOpen: false, type: "success", title: "", message: "" });
 
   const token = getToken();
+
+  useEffect(() => {
+    if (offre?.id) {
+      fetchCriteres(offre.id)
+        .then(setCriteres)
+        .catch(() => setCriteres([]));
+    }
+  }, [offre?.id]);
 
   useEffect(() => {
     if (!offre) return;
@@ -246,16 +241,18 @@ export default function EvaluationForm({
       setCurrentStep(2);
     }
     if (offre.evaluation_technique) {
+      const notesMap: Record<number, number | null> = {};
+      const techNotes = (offre.evaluation_technique as Record<string, unknown>).notes;
+      if (Array.isArray(techNotes)) {
+        for (const n of techNotes as Array<{ critere_id: number; note: number }>) {
+          notesMap[n.critere_id] = n.note;
+        }
+      }
       const techniqueData: TechniqueStep = {
-        note_conformite_technique:
-          offre.evaluation_technique.note_conformite_technique ?? null,
-        note_delai_livraison:
-          offre.evaluation_technique.note_delai_livraison ?? null,
-        note_experience: offre.evaluation_technique.note_experience ?? null,
-        note_sav_garantie: offre.evaluation_technique.note_sav_garantie ?? null,
+        notes: notesMap,
         completed: true,
       };
-      techniqueData.score = computeTechniqueScore(techniqueData);
+      techniqueData.score = computeTechniqueScore(techniqueData, criteres);
       setTechnique(techniqueData);
       setCurrentStep(3);
     }
@@ -294,11 +291,11 @@ export default function EvaluationForm({
   }, [offre]);
 
   useEffect(() => {
-    const score = computeTechniqueScore(technique);
+    const score = computeTechniqueScore(technique, criteres);
     if (score !== technique.score) {
       setTechnique((current) => ({ ...current, score }));
     }
-  }, [technique]);
+  }, [technique, criteres]);
 
   useEffect(() => {
     const montantFinal =
@@ -406,18 +403,12 @@ export default function EvaluationForm({
         setCurrentStep(2);
       }
       if (step === 2) {
-        const invalid = [
-          {
-            value: technique.note_conformite_technique,
-            label: "Conformité technique",
-          },
-          {
-            value: technique.note_delai_livraison,
-            label: "Délai de livraison",
-          },
-          { value: technique.note_experience, label: "Expérience" },
-          { value: technique.note_sav_garantie, label: "SAV et garantie" },
-        ].filter((item) => item.value === null || item.value === undefined);
+        const invalid = criteres
+          .map((c) => ({
+            value: technique.notes[c.id],
+            label: c.nom,
+          }))
+          .filter((item) => item.value === null || item.value === undefined);
         if (invalid.length > 0) {
           showPopup(
             "warning",
@@ -427,22 +418,24 @@ export default function EvaluationForm({
           );
           return;
         }
+        const notes = criteres.map((c) => ({
+          critere_id: c.id,
+          note: Number(technique.notes[c.id] ?? 0),
+          commentaire: "",
+        }));
         const payload: EvaluationTechniquePayload = {
           ...(authEmail && authCode
             ? { email: authEmail, code: authCode }
             : {}),
-          note_conformite_technique: technique.note_conformite_technique || 0,
-          note_delai_livraison: technique.note_delai_livraison || 0,
-          note_experience: technique.note_experience || 0,
-          note_sav_garantie: technique.note_sav_garantie || 0,
-        };
+          notes,
+        } as unknown as EvaluationTechniquePayload;
         await submitEvaluationTechnique(offre.id, payload);
-        const score = computeTechniqueScore(payload);
+        const score = computeTechniqueScore(
+          { notes: Object.fromEntries(criteres.map((c) => [c.id, technique.notes[c.id]])) },
+          criteres,
+        );
         setTechnique({
-          note_conformite_technique: payload.note_conformite_technique,
-          note_delai_livraison: payload.note_delai_livraison,
-          note_experience: payload.note_experience,
-          note_sav_garantie: payload.note_sav_garantie,
+          notes: { ...technique.notes },
           score,
           completed: true,
         });
@@ -748,27 +741,25 @@ export default function EvaluationForm({
             Chaque note est sur 5 points. Le score final technique est calculé
             sur 100.
           </p>
-          {[
-            { key: "note_conformite_technique", label: "Conformité technique" },
-            { key: "note_delai_livraison", label: "Délai de livraison" },
-            { key: "note_experience", label: "Expérience" },
-            { key: "note_sav_garantie", label: "SAV et garantie" },
-          ].map(({ key, label }) => (
-            <div key={key} className="space-y-2">
+          {criteres.map((critere) => (
+            <div key={critere.id} className="space-y-2">
               <label className="block text-sm font-semibold text-slate-900">
-                {label}
+                {critere.nom} ({critere.ponderation}%)
               </label>
               <input
                 type="number"
                 min={0}
                 max={5}
                 step={0.5}
-                value={technique[key as TechniqueNoteKey] ?? ""}
+                value={technique.notes[critere.id] ?? ""}
                 onChange={(e) =>
                   setTechnique((current) => ({
                     ...current,
-                    [key as TechniqueNoteKey]:
-                      e.target.value === "" ? null : Number(e.target.value),
+                    notes: {
+                      ...current.notes,
+                      [critere.id]:
+                        e.target.value === "" ? null : Number(e.target.value),
+                    },
                   }))
                 }
                 className="w-full rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900"

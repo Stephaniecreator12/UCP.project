@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/services/config";
-import { Eye, Download, BarChart3, CheckCircle2 } from "lucide-react";
+import { Eye, Download, BarChart3, CheckCircle2, Layers, Sparkles } from "lucide-react";
 import StatCard from "@/app/personnel/log-dashboard/components/StatCard";
 import ViewsChart from "@/app/personnel/log-dashboard/components/ViewsChart";
 import DaoDownloadChart from "@/app/personnel/log-dashboard/components/DaoDownloadChart";
@@ -11,7 +11,6 @@ import MonitoringPanel from "@/app/personnel/log-dashboard/components/Monitoring
 import UsersTraceability from "@/app/personnel/log-dashboard/components/UsersTraceability";
 import { getToken } from "@/services/auth";
 import TopHeader from "@/app/components/TopHeader";
-import { useRouter } from "next/navigation";
 import {
     ViewCount,
     DaoDownload,
@@ -19,9 +18,7 @@ import {
     MonitoringData,
     UserTraceability
 } from "@/types/adminDashboard";
-import { ArrowLeft } from "lucide-react"
 export default function AdminDashboardPage() {
-  const router = useRouter();
     const [views, setViews] = useState<ViewCount[]>([]);
     const [downloads, setDownloads] = useState<DaoDownload[]>([]);
     const [annexes, setAnnexes] = useState<AnnexeRatio[]>([]);
@@ -74,36 +71,36 @@ export default function AdminDashboardPage() {
         totalViews > 0
             ? ((totalDownloads / totalViews) * 100).toFixed(2)
             : 0;
-    
-    const handleAdminPageRedirection = () => {
-       router.replace("/procurement");
-    }
 
     return (
-    <div className="min-h-screen bg-[#eceeef] text-[#17212e]">
-      <div className="w-full bg-white border-b border-slate-200/80">
+    <main className="min-h-screen bg-[radial-gradient(circle_at_10%_0%,#f6faf8_0%,transparent_25%),linear-gradient(180deg,#f8fafc_0%,#f1f5f9_100%)] pb-24 text-slate-800 antialiased selection:bg-emerald-200">
         <TopHeader />
-      </div>
 
-      <div className="w-full flex-1 py-10 px-6 md:px-12 lg:px-16 flex flex-col gap-8">
-        <button
-            type="button"
-            onClick={() => handleAdminPageRedirection()}
-            className="inline-flex w-[9%] items-center gap-2 px-4 py-2.5 text-sm font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg shadow-2xs hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 transition-all duration-150 cursor-pointer"
-          ><ArrowLeft size={16} className="text-slate-400 group-hover:text-slate-600" />
-            Retour
-          </button>
-        
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-            Tableau de bord d administration
-          </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Suivi des performances, traçabilité des entreprises et monitoring des Dossiers d Appel d Offres (DAO).
-          </p>
+      <div className="mx-auto flex max-w-[1680px] flex-col gap-5 px-4 pb-12 pt-6 md:px-6 lg:pt-8">
+        {/* Header Block */}
+        <div className="group relative flex w-full flex-col justify-between overflow-hidden rounded-2xl border border-slate-100 bg-white p-5 shadow-[0_8px_24px_rgb(0,0,0,0.035)] md:flex-row md:items-center">
+          <div className="absolute right-0 top-0 -z-10 h-64 w-64 rounded-full bg-gradient-to-br from-emerald-100 to-teal-50 opacity-50 blur-3xl transition-transform duration-700 group-hover:scale-110" />
+
+          <div className="relative z-10 flex min-w-0 items-center gap-3">
+            <div className="relative">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-400 text-white shadow-lg shadow-emerald-500/20">
+                <BarChart3 className="h-4 w-4" />
+              </div>
+              <Sparkles className="absolute -right-1.5 -top-1.5 h-3.5 w-3.5 text-amber-400" />
+            </div>
+            <div>
+              <h1 className="truncate text-lg font-black tracking-tight text-slate-800">
+                Tableau de bord d&apos;administration
+              </h1>
+              <p className="text-[12px] font-semibold text-slate-500">
+                Suivi des performances, traçabilité et monitoring des DAO
+              </p>
+            </div>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard 
             title="Consultations" 
             value={totalViews} 
@@ -130,18 +127,21 @@ export default function AdminDashboardPage() {
           />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Charts Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
           <ViewsChart data={views} />
           <DaoDownloadChart data={downloads} />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Panels Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
           <AnnexesTable data={annexes} />
           <MonitoringPanel data={monitoring} />
         </div>
 
+        {/* Users Traceability */}
         <UsersTraceability users={users} />
       </div>
-    </div>
+    </main>
   );
 }

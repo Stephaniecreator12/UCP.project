@@ -53,6 +53,33 @@ def dao_offres_list(request, seance_id: int):
 
 
 # ============================================================
+# CRITÈRES TECHNIQUES D'UNE SÉANCE
+# GET /evaluations/dao/<seance_id>/criteres/
+# ============================================================
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def criteres_techniques_view(request, seance_id: int):
+    from apps.evaluation_offre.models import CritereTechnique
+    from apps.ouverture_offre.models import SeanceOuverture
+
+    try:
+        seance = SeanceOuverture.objects.get(pk=seance_id)
+    except SeanceOuverture.DoesNotExist:
+        return Response(
+            {"detail": "Séance introuvable."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    criteres = (
+        CritereTechnique.objects
+        .filter(seance=seance, actif=True)
+        .order_by("ordre", "nom")
+        .values("id", "nom", "description", "ponderation", "ordre", "actif")
+    )
+    return Response(list(criteres))
+
+
+# ============================================================
 # CLASSEMENT FINAL D'UN DAO
 # GET /evaluations/dao/<seance_id>/classement/
 # ============================================================

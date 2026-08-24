@@ -1,8 +1,20 @@
 from django.contrib import admin
 from django.utils.html import format_html
 from django.utils import timezone
-from .models.evaluation_offre import EvaluationSeanceAssignation, EvaluationOffre
+from .models import (
+    EvaluationSeanceAssignation,
+    EvaluationOffre,
+    ExamenPreliminaire,
+    EvaluationTechnique,
+    NoteTechniqueCritere,
+    EvaluationFinanciere,
+    EvaluationConclusion,
+    DecisionFinale,
+    AuditTrail,
+    CritereTechnique,
+)
 from .services.validation_access_service import issue_seance_password
+
 
 def reactivate_passwords(modeladmin, request, queryset):
     """Réactive les mots de passe expirés"""
@@ -10,7 +22,9 @@ def reactivate_passwords(modeladmin, request, queryset):
         issue_seance_password(obj)
     modeladmin.message_user(request, f"✅ {queryset.count()} mot(s) de passe réactivé(s)")
 
+
 reactivate_passwords.short_description = "🔄 Réactiver les mots de passe"
+
 
 def revoke_passwords(modeladmin, request, queryset):
     """Révoque les mots de passe sélectionnés"""
@@ -22,7 +36,9 @@ def revoke_passwords(modeladmin, request, queryset):
         count += 1
     modeladmin.message_user(request, f"🚫 {count} mot(s) de passe révoqué(s)")
 
+
 revoke_passwords.short_description = "🚫 Révoquer les mots de passe"
+
 
 @admin.register(EvaluationSeanceAssignation)
 class EvaluationSeanceAssignationAdmin(admin.ModelAdmin):
@@ -31,9 +47,8 @@ class EvaluationSeanceAssignationAdmin(admin.ModelAdmin):
     search_fields = ('evaluateur_email',)
     readonly_fields = ('evaluation_password_generated_at', 'evaluation_password_hash')
     actions = [reactivate_passwords, revoke_passwords]
-    
+
     def password_status(self, obj):
-        """Affiche le statut du mot de passe avec couleur"""
         if obj.evaluation_password_revoked_at:
             return format_html(
                 '<span style="color: red; font-weight: bold;">❌ Expiré ({}) </span>',
@@ -47,8 +62,9 @@ class EvaluationSeanceAssignationAdmin(admin.ModelAdmin):
             return format_html(
                 '<span style="color: orange; font-weight: bold;">⚠️ Pas de mot de passe</span>'
             )
-    
+
     password_status.short_description = "Statut du mot de passe"
+
 
 @admin.register(EvaluationOffre)
 class EvaluationOffreAdmin(admin.ModelAdmin):
@@ -56,9 +72,8 @@ class EvaluationOffreAdmin(admin.ModelAdmin):
     list_filter = ('statut', 'evaluation_password_consumed_at')
     search_fields = ('offre__id', 'evaluateur_email')
     readonly_fields = ('evaluation_password_hash',)
-    
+
     def password_status(self, obj):
-        """Affiche le statut du mot de passe avec couleur"""
         if obj.evaluation_password_consumed_at:
             return format_html(
                 '<span style="color: blue; font-weight: bold;">✅ Utilisé ({}) </span>',
@@ -72,5 +87,146 @@ class EvaluationOffreAdmin(admin.ModelAdmin):
             return format_html(
                 '<span style="color: orange; font-weight: bold;">⚠️ Pas de mot de passe</span>'
             )
-    
+
     password_status.short_description = "Statut du mot de passe"
+
+
+@admin.register(ExamenPreliminaire)
+class ExamenPreliminaireAdmin(admin.ModelAdmin):
+    list_display = ('evaluation', 'offre_signee', 'garantie_conforme', 'dossier_admin_complet', 'validite_conforme', 'conditions_acceptees', 'est_conforme')
+    list_filter = ('est_conforme',)
+    search_fields = ('evaluation__offre__id', 'evaluation__evaluateur_email')
+    readonly_fields = ('est_conforme',)
+
+
+class NoteTechniqueCritereInline(admin.TabularInline):
+    model = NoteTechniqueCritere
+    extra = 0
+    fields = ('critere', 'note', 'commentaire')
+    readonly_fields = ('critere',)
+    ordering = ('critere__ordre', 'critere__nom')
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(EvaluationTechnique)
+class EvaluationTechniqueAdmin(admin.ModelAdmin):
+    list_display = ('evaluation', 'score_technique_total', 'qualifie_technique', 'afficher_notes')
+    list_filter = ('qualifie_technique',)
+    search_fields = ('evaluation__offre__id', 'evaluation__evaluateur_email')
+    readonly_fields = ('score_technique_total', 'qualifie_technique', 'created_at', 'updated_at')
+    inlines = [NoteTechniqueCritereInline]
+
+    def afficher_notes(self, obj):
+        notes = obj.notes_criteres.select_related('critere').all()
+        if not notes:
+            return "—"
+        return format_html("<br>".join([
+            f"{n.critere.nom}: <b>{n.note}/5</b> (pondération: {n.critere.ponderation})"
+            for n in notes
+        ]))
+    afficher_notes.short_description = "Notes par critère"
+
+
+@admin.register(NoteTechniqueCritere)
+class NoteTechniqueCritereAdmin(admin.ModelAdmin):
+    list_display = ('evaluation_technique', 'critere', 'note', 'commentaire')
+    list_filter = ('critere__seance', 'critere')
+    search_fields = ('evaluation_technique__evaluation__offre__id', 'critere__nom')
+    list_editable = ('note',)
+    ordering = ('evaluation_technique', 'critere__ordre')
+
+
+@admin.register(EvaluationFinanciere)
+class EvaluationFinanciereAdmin(admin.ModelAdmin):
+    list_display = ('evaluation', 'montant_lu', 'corrections_arithmetiques', 'rabais_accordes', 'montant_evalue_final', 'offre_moins_disante', 'score_financier')
+    search_fields = ('evaluation__offre__id', 'evaluation__evaluateur_email')
+    readonly_fields = ('montant_evalue_final', 'score_financier')
+    fieldsets = (
+        ('Montants', {
+            'fields': ('montant_lu', 'corrections_arithmetiques', 'rabais_accordes', 'montant_evalue_final')
+        }),
+        ('Comparaison', {
+            'fields': ('offre_moins_disante', 'score_financier'),
+            'classes': ('collapse',),
+        }),
+    )
+
+
+@admin.register(EvaluationConclusion)
+class EvaluationConclusionAdmin(admin.ModelAdmin):
+    list_display = ('evaluation', 'recommandation', 'declaration_conflit', 'signe_le')
+    list_filter = ('recommandation', 'declaration_conflit')
+    search_fields = ('evaluation__offre__id', 'evaluation__evaluateur_email')
+    readonly_fields = ('signe_le',)
+
+
+@admin.register(DecisionFinale)
+class DecisionFinaleAdmin(admin.ModelAdmin):
+    list_display = ('offre', 'score_technique_consolide', 'score_financier_consolide', 'score_final', 'classement', 'recommandation')
+    list_filter = ('recommandation',)
+    search_fields = ('offre__id',)
+    readonly_fields = ('score_final', 'created_at')
+    fieldsets = (
+        ('Scores consolidés', {
+            'fields': ('score_technique_consolide', 'score_financier_consolide', 'score_final')
+        }),
+        ('Décision', {
+            'fields': ('classement', 'recommandation', 'justification', 'declaration_conflit')
+        }),
+        ('Métadonnées', {
+            'fields': ('created_at',),
+            'classes': ('collapse',),
+        }),
+    )
+
+
+@admin.register(AuditTrail)
+class AuditTrailAdmin(admin.ModelAdmin):
+    list_display = ('utilisateur', 'table_modifiee', 'id_enregistrement', 'action', 'champ_modifie', 'timestamp')
+    list_filter = ('action', 'table_modifiee', 'timestamp')
+    search_fields = ('utilisateur__email', 'table_modifiee', 'champ_modifie')
+    readonly_fields = ('utilisateur', 'table_modifiee', 'id_enregistrement', 'action', 'champ_modifie', 'ancienne_valeur', 'nouvelle_valeur', 'timestamp')
+    ordering = ('-timestamp',)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(CritereTechnique)
+class CritereTechniqueAdmin(admin.ModelAdmin):
+    list_display = ('seance', 'nom', 'ponderation', 'ordre', 'actif', 'description_courte')
+    list_filter = ('seance', 'actif')
+    search_fields = ('nom', 'seance__reference_dossier', 'description')
+    list_editable = ('nom', 'ponderation', 'ordre', 'actif')
+    ordering = ('seance', 'ordre', 'nom')
+    fieldsets = (
+        ('Séance', {'fields': ('seance',)}),
+        ('Critère', {'fields': ('nom', 'description', 'ponderation', 'ordre', 'actif')}),
+    )
+
+    def description_courte(self, obj):
+        if obj.description:
+            return obj.description[:50] + ("..." if len(obj.description) > 50 else "")
+        return "—"
+    description_courte.short_description = "Description"
+
+    actions = ['creer_criteres_defauts']
+
+    def creer_criteres_defauts(self, request, queryset):
+        count = 0
+        for seance in queryset.values_list('seance', flat=True).distinct():
+            from apps.ouverture_offre.models import SeanceOuverture
+            s = SeanceOuverture.objects.get(pk=seance)
+            CritereTechnique.creer_defauts_pour_seance(s)
+            count += 1
+        self.message_user(request, f"✅ Critères par défaut créés pour {count} séance(s)")
+
+    creer_criteres_defauts.short_description = "🔧 Créer critères par défaut (40/25/20/15)"

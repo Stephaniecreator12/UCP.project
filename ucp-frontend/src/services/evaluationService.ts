@@ -72,6 +72,15 @@ export type ProgressionStatut = "PAS_COMMENCE" | "EN_COURS" | "TERMINEE";
 export type DeclarationConflit = "OUI" | "NON" | "";
 export type RecommandationType = "ATTRIBUER" | "REJETER" | "RELANCER";
 
+export interface CritereTechniqueApi {
+  id: number;
+  nom: string;
+  description: string;
+  ponderation: number;
+  ordre: number;
+  actif: boolean;
+}
+
 export interface DaoOffreItem {
   offre_id: number;
   ordre_passage: number;
@@ -121,12 +130,16 @@ export interface EvaluationDetail {
     est_conforme: boolean;
   };
   evaluation_technique?: {
-    note_conformite_technique?: number;
-    note_delai_livraison?: number;
-    note_experience?: number;
-    note_sav_garantie?: number;
     score_technique_total?: number;
     qualifie_technique: boolean;
+    notes: Array<{
+      id: number;
+      critere_id: number;
+      critere_nom: string;
+      critere_ponderation: number;
+      note: number;
+      commentaire: string;
+    }>;
   };
   evaluation_financiere?: {
     montant_lu?: number;
@@ -169,6 +182,12 @@ export interface SaveEvaluationPayload {
     commentaire?: string;
   };
   technique?: {
+    notes?: Array<{
+      critere_id: number;
+      note: number;
+      commentaire?: string;
+    }>;
+    // Legacy fields for backward compatibility
     note_conformite_technique?: number | null;
     note_delai_livraison?: number | null;
     note_experience?: number | null;
@@ -713,6 +732,22 @@ export async function assignEvaluators(
   if (!res.ok) {
     const error = await res.json().catch(() => ({}));
     throw new Error(error.detail || "Erreur lors de l'assignation");
+  }
+  return res.json();
+}
+
+export async function fetchCriteres(
+  seanceId: number,
+): Promise<CritereTechniqueApi[]> {
+  const res = await fetchWithAuthRetry(
+    `${EVALUATION_API_BASE}/dao/${seanceId}/criteres/`,
+    { method: "GET" },
+  );
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(
+      error.detail || "Erreur lors de la récupération des critères",
+    );
   }
   return res.json();
 }

@@ -17,6 +17,7 @@ from .evaluation_view import (
     renvoyer_invitations_evaluateurs_seance_view,
     verify_evaluateur_password_view,
     assigner_evaluateurs_seance_view,
+    criteres_techniques_view,
 )
 
 __all__ = [
@@ -38,4 +39,5 @@ __all__ = [
     login_evaluateur_dao_view,
     renvoyer_invitations_evaluateurs_seance_view,
     verify_evaluateur_password_view,
+    criteres_techniques_view,
 ]

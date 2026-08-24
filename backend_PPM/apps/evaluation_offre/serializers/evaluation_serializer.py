@@ -11,6 +11,8 @@ from apps.evaluation_offre.models import (
     DecisionFinale,
     DeclarationConflitType,
     RecommandationType,
+    NoteTechniqueCritere,
+    CritereTechnique,
 )
 from apps.evaluation_offre.services.evaluation_service import (
     _compute_consensus_info,
@@ -143,42 +145,38 @@ class ExamenPreliminaireSerializer(serializers.ModelSerializer):
 # ============================================================
 # SECTION 3 — ÉVALUATION TECHNIQUE
 # ============================================================
+class NoteTechniqueCritereSerializer(serializers.ModelSerializer):
+    critere_id = serializers.PrimaryKeyRelatedField(
+        queryset=CritereTechnique.objects.all(), source="critere", write_only=True,
+    )
+    critere_nom = serializers.CharField(source="critere.nom", read_only=True)
+    critere_ponderation = serializers.DecimalField(
+        source="critere.ponderation", max_digits=5, decimal_places=2, read_only=True,
+    )
+
+    class Meta:
+        model = NoteTechniqueCritere
+        fields = [
+            "id", "critere_id", "critere_nom", "critere_ponderation",
+            "note", "commentaire", "created_at", "updated_at",
+        ]
+        read_only_fields = ["created_at", "updated_at"]
+
+
 class EvaluationTechniqueSerializer(serializers.ModelSerializer):
+    notes = NoteTechniqueCritereSerializer(many=True, read_only=True)
+
     class Meta:
         model = EvaluationTechnique
         fields = [
             "id",
-            "note_conformite_technique",   # /5
-            "note_delai_livraison",         # /5
-            "note_experience",              # /5
-            "note_sav_garantie",            # /5
-            "score_technique_total",        # calculé auto /100
-            "qualifie_technique",           # calculé auto (≥70)
+            "score_technique_total",
+            "qualifie_technique",
+            "notes",
+            "created_at",
+            "updated_at",
         ]
         read_only_fields = ["score_technique_total", "qualifie_technique"]
-
-    def validate_note_conformite_technique(self, value):
-        if value is not None and not (0 <= value <= 5):
-            raise serializers.ValidationError("La note doit être entre 0 et 5.")
-        return value
-
-    def validate_note_delai_livraison(self, value):
-        if value is not None and not (0 <= value <= 5):
-            raise serializers.ValidationError("La note doit être entre 0 et 5.")
-        return value
-
-    def validate_note_experience(self, value):
-        if value is not None and not (0 <= value <= 5):
-            raise serializers.ValidationError("La note doit être entre 0 et 5.")
-        return value
-
-    def validate_note_sav_garantie(self, value):
-        if value is not None and not (0 <= value <= 5):
-            raise serializers.ValidationError("La note doit être entre 0 et 5.")
-        return value
-
-    def validate(self, attrs):
-        return attrs
 
 
 # ============================================================
@@ -237,7 +235,15 @@ class SaveExamenSerializer(serializers.Serializer):
     commentaire = serializers.CharField(required=False, allow_blank=True)
 
 
+class SaveNoteCritereSerializer(serializers.Serializer):
+    critere_id = serializers.IntegerField()
+    note = serializers.DecimalField(max_digits=3, decimal_places=1)
+    commentaire = serializers.CharField(required=False, allow_blank=True, default="")
+
+
 class SaveTechniqueSerializer(serializers.Serializer):
+    notes = SaveNoteCritereSerializer(many=True, required=False)
+    # Legacy fields kept for backward compatibility
     note_conformite_technique = serializers.DecimalField(
         max_digits=3, decimal_places=1, required=False, allow_null=True,
     )

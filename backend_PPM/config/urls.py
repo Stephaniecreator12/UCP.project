@@ -37,7 +37,7 @@ urlpatterns = [
     path("api/TdrSt/", include("apps.TdrSt.urls")),
     path("api/logs/", include("apps.log.urls")),
     path('api/procurement/', include('apps.procurement.urls')),
-    path('api/contrats/', include('apps.contrats.urls')),
+    path('api/contrats/', include('apps.contractualisation.urls')),
     path('market/<path:reference_number>/download-dao/', DownloadDAOView.as_view(), name='download-dao'),    
     path('api/auth/verify-email/', verifier_email_view, name='api_verify_email'),
     path('api/auth/resend-email/', renvoyer_email_view, name='api_resend_email'),

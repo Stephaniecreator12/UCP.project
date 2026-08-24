@@ -102,13 +102,11 @@ class EvaluationOffre(models.Model):
     date_evaluation = models.DateField(null=True, blank=True)
     created_at      = models.DateTimeField(auto_now_add=True)
     updated_at      = models.DateTimeField(auto_now=True)
-    # Code d'accès temporaire pour évaluer sans compte (optionnel)
     evaluation_password_hash = models.CharField(max_length=128, blank=True)
     evaluation_password_generated_at = models.DateTimeField(null=True, blank=True)
     evaluation_password_consumed_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
-        # Un évaluateur ne peut pas évaluer 2 fois la même offre
         unique_together = ("offre", "evaluateur")
         ordering = ["offre", "evaluateur"]
 
@@ -135,7 +133,6 @@ class ExamenPreliminaire(models.Model):
     est_conforme          = models.BooleanField(default=False)  # calculé auto
 
     def save(self, *args, **kwargs):
-        # Tous les critères doivent être True pour être conforme
         self.est_conforme = all([
             self.offre_signee,
             self.garantie_conforme,
@@ -150,39 +147,61 @@ class ExamenPreliminaire(models.Model):
 
 
 # ============================================================
+# CRITÈRES TECHNIQUES CONFIGURABLES (par séance)
+# Source unique de vérité pour les critères et pondérations
+# Défauts basés sur l'existant: Conformité 40%, Délai 25%, Expérience 20%, SAV 15%
+# ============================================================
+class CritereTechnique(models.Model):
+    seance = models.ForeignKey(
+        SeanceOuverture,
+        on_delete=models.CASCADE,
+        related_name="criteres_techniques",
+    )
+    nom = models.CharField(max_length=255)
+    description = models.TextField(blank=True, help_text="Description du critère pour les évaluateurs")
+    ponderation = models.DecimalField(
+        max_digits=5, decimal_places=2,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        help_text="Pondération en pourcentage (ex: 40.00 pour 40 points)"
+    )
+    ordre = models.PositiveIntegerField(default=0)
+    actif = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["seance", "ordre", "nom"]
+        unique_together = ("seance", "nom")
+
+    def __str__(self):
+        return f"{self.seance.reference_dossier} — {self.nom} ({self.ponderation})"
+
+    @classmethod
+    def creer_defauts_pour_seance(cls, seance):
+        """Crée les 4 critères par défaut pour une séance s'ils n'existent pas"""
+        defauts = [
+            {"nom": "Conformité technique", "ponderation": Decimal("40.00"), "ordre": 1,
+             "description": "Conformité de l'offre aux spécifications techniques du dossier d'appel d'offres"},
+            {"nom": "Délai de livraison", "ponderation": Decimal("25.00"), "ordre": 2,
+             "description": "Respect des délais de livraison/exécution proposés"},
+            {"nom": "Expérience marchés similaires", "ponderation": Decimal("20.00"), "ordre": 3,
+             "description": "Expérience du soumissionnaire dans des marchés de nature et complexité comparables"},
+            {"nom": "SAV, garantie, formation", "ponderation": Decimal("15.00"), "ordre": 4,
+             "description": "Qualité du service après-vente, garanties offertes et formations prévues"},
+        ]
+        for d in defauts:
+            cls.objects.get_or_create(seance=seance, nom=d["nom"], defaults=d)
+
+
+# ============================================================
 # SECTION 3 : ÉVALUATION TECHNIQUE
-# Note /5 sur 4 critères → score pondéré /100
-# Seuil éliminatoire : 70/100
+# Notes dynamiques basées sur CritereTechnique de la séance
 # ============================================================
 class EvaluationTechnique(models.Model):
     evaluation = models.OneToOneField(
         EvaluationOffre,
         on_delete=models.CASCADE,
         related_name="evaluation_technique",
-    )
-    # Critère 1 — Conformité technique (pondération 40%)
-    note_conformite_technique = models.DecimalField(
-        max_digits=3, decimal_places=1,
-        validators=[MinValueValidator(0), MaxValueValidator(5)],
-        null=True, blank=True,
-    )
-    # Critère 2 — Délai de livraison (pondération 25%)
-    note_delai_livraison = models.DecimalField(
-        max_digits=3, decimal_places=1,
-        validators=[MinValueValidator(0), MaxValueValidator(5)],
-        null=True, blank=True,
-    )
-    # Critère 3 — Expérience marchés similaires (pondération 20%)
-    note_experience = models.DecimalField(
-        max_digits=3, decimal_places=1,
-        validators=[MinValueValidator(0), MaxValueValidator(5)],
-        null=True, blank=True,
-    )
-    # Critère 4 — SAV, garantie, formation (pondération 15%)
-    note_sav_garantie = models.DecimalField(
-        max_digits=3, decimal_places=1,
-        validators=[MinValueValidator(0), MaxValueValidator(5)],
-        null=True, blank=True,
     )
     # Calculé automatiquement — jamais saisi à la main
     score_technique_total = models.DecimalField(
@@ -191,27 +210,51 @@ class EvaluationTechnique(models.Model):
         editable=False,
     )
     qualifie_technique = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def get_criteres(self):
+        """Retourne les critères actifs de la séance liée à cette évaluation"""
+        seance = self.evaluation.offre.seance
+        return seance.criteres_techniques.filter(actif=True).order_by("ordre", "nom")
+
+    def get_notes(self):
+        """Retourne toutes les notes pour cette évaluation technique"""
+        return self.notes_criteres.select_related("critere").all()
+
+    def get_note_pour_critere(self, critere):
+        """Retourne la note pour un critère donné, ou None"""
+        try:
+            return self.notes_criteres.get(critere=critere).note
+        except NoteTechniqueCritere.DoesNotExist:
+            return None
 
     def calculer_score(self):
-        notes = [
-            self.note_conformite_technique,
-            self.note_delai_livraison,
-             self.note_experience,
-             self.note_sav_garantie,
-      ]
-        # Si une note manque → on retourne None
-        if any(n is None for n in notes):
-             return None
+        """Calcule le score pondéré basé sur les critères actifs de la séance"""
+        criteres = self.get_criteres()
+        if not criteres.exists():
+            return None
 
-         # Maintenant Python sait qu'aucune n'est None
-        return round(
-            (float(self.note_conformite_technique or 0) / 5 * 100 * 0.40) +
-            (float(self.note_delai_livraison or 0)       / 5 * 100 * 0.25) +
-            (float(self.note_experience or 0)            / 5 * 100 * 0.20) +
-            (float(self.note_sav_garantie or 0)          / 5 * 100 * 0.15),
-            2
-        )
-    
+        total_ponderation = sum(c.ponderation for c in criteres)
+        if total_ponderation == 0:
+            return None
+
+        score = Decimal("0")
+        notes_manquantes = False
+
+        for critere in criteres:
+            note = self.get_note_pour_critere(critere)
+            if note is None:
+                notes_manquantes = True
+                break
+            # note sur 5 → sur 100 → pondéré
+            score += (Decimal(str(note)) / Decimal("5") * Decimal("100") * critere.ponderation / Decimal("100"))
+
+        if notes_manquantes:
+            return None
+
+        return round(score, 2)
+
     def save(self, *args, **kwargs):
         score = self.calculer_score()
         self.score_technique_total = score
@@ -221,6 +264,35 @@ class EvaluationTechnique(models.Model):
 
     def __str__(self):
         return f"Technique — {self.evaluation} — {self.score_technique_total}/100"
+
+
+class NoteTechniqueCritere(models.Model):
+    """Note d'un critère technique pour une évaluation donnée"""
+    evaluation_technique = models.ForeignKey(
+        EvaluationTechnique,
+        on_delete=models.CASCADE,
+        related_name="notes_criteres",
+    )
+    critere = models.ForeignKey(
+        CritereTechnique,
+        on_delete=models.PROTECT,
+        related_name="notes",
+    )
+    note = models.DecimalField(
+        max_digits=3, decimal_places=1,
+        validators=[MinValueValidator(0), MaxValueValidator(5)],
+        help_text="Note sur 5"
+    )
+    commentaire = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ("evaluation_technique", "critere")
+        ordering = ["critere__ordre", "critere__nom"]
+
+    def __str__(self):
+        return f"{self.evaluation_technique} — {self.critere.nom}: {self.note}/5"
 
 
 # ============================================================
@@ -247,18 +319,15 @@ class EvaluationFinanciere(models.Model):
         max_digits=18, decimal_places=2,
         default=Decimal("0"),
     )
-    # Calculé : montant_lu - corrections - rabais
     montant_evalue_final = models.DecimalField(
         max_digits=18, decimal_places=2,
         null=True, blank=True,
         editable=False,
     )
-    # Le meilleur prix parmi toutes les offres (rempli par le système)
     offre_moins_disante = models.DecimalField(
         max_digits=18, decimal_places=2,
         null=True, blank=True,
     )
-    # Score financier = (moins_disant / montant_évalué) * 100
     score_financier = models.DecimalField(
         max_digits=5, decimal_places=2,
         null=True, blank=True,
@@ -320,14 +389,12 @@ class DecisionFinale(models.Model):
         on_delete=models.CASCADE,
         related_name="decision_finale",
     )
-    # Moyennes des 3 évaluateurs
     score_technique_consolide = models.DecimalField(
         max_digits=5, decimal_places=2, null=True, blank=True
     )
     score_financier_consolide = models.DecimalField(
         max_digits=5, decimal_places=2, null=True, blank=True
     )
-    # Score final = technique*60% + financier*40%
     score_final = models.DecimalField(
         max_digits=5, decimal_places=2, null=True, blank=True,
         editable=False,

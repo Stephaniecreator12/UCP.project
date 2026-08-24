@@ -22,8 +22,10 @@ import {
 import {
   saveEvaluation,
   verifyEvaluateurPassword,
+  fetchCriteres,
   type EvaluationDetail,
   type SaveEvaluationPayload,
+  type CritereTechniqueApi,
 } from "@/services/evaluationService";
 
 const STEPS = [
@@ -79,29 +81,6 @@ const STEP_THEMES: Record<
 
 const SEUIL_TECHNIQUE = 70;
 
-const TECH_CRITERES = [
-  {
-    key: "note_conformite_technique",
-    label: "Conformité spécifications techniques / OMS préqualifié",
-    poids: 40,
-  },
-  {
-    key: "note_delai_livraison",
-    label: "Délai de livraison — Antananarivo + régions",
-    poids: 25,
-  },
-  {
-    key: "note_experience",
-    label: "Expérience marchés similaires Fonds Mondial / UN",
-    poids: 20,
-  },
-  {
-    key: "note_sav_garantie",
-    label: "SAV, garantie, formation, pharmacovigilance",
-    poids: 15,
-  },
-] as const;
-
 const EXAMEN_CRITERES = [
   { key: "offre_signee", label: "Offre signée par personne habilitée" },
   { key: "garantie_conforme", label: "Garantie de soumission conforme au DAO" },
@@ -123,17 +102,18 @@ type ExamenState = Record<
   commentaire: string;
 };
 
-type TechniqueState = Record<
-  (typeof TECH_CRITERES)[number]["key"],
-  number | null
->;
+type TechniqueState = Record<string, number | null>;
 
-function computeTechScore(technique: TechniqueState): number | null {
-  const values = TECH_CRITERES.map((c) => technique[c.key]);
+function computeTechScore(
+  technique: TechniqueState,
+  criteres: CritereTechniqueApi[],
+): number | null {
+  if (criteres.length === 0) return null;
+  const values = criteres.map((c) => technique[`note_critere_${c.id}`]);
   if (values.some((v) => v === null || v === undefined)) return null;
-  const score = TECH_CRITERES.reduce((sum, critere) => {
-    const note = Number(technique[critere.key] || 0);
-    return sum + (note / 5) * 100 * (critere.poids / 100);
+  const score = criteres.reduce((sum, critere) => {
+    const note = Number(technique[`note_critere_${critere.id}`] || 0);
+    return sum + (note / 5) * 100 * (critere.ponderation / 100);
   }, 0);
   return Math.round(score * 10) / 10;
 }
@@ -154,28 +134,42 @@ function isExamenCompleteOnServer(detail: EvaluationDetail): boolean {
   );
 }
 
-function isTechniqueCompleteOnServer(detail: EvaluationDetail): boolean {
+function isTechniqueCompleteOnServer(
+  detail: EvaluationDetail,
+  criteres: CritereTechniqueApi[],
+): boolean {
   const tech = detail.evaluation_technique;
   if (!tech) return false;
-  return TECH_CRITERES.every((c) => tech[c.key] != null);
+  if (criteres.length === 0) return false;
+  return criteres.every((c) => {
+    const val = tech[`note_critere_${c.id}` as keyof typeof tech];
+    return val != null;
+  });
 }
 
 function isFinanciereCompleteOnServer(detail: EvaluationDetail): boolean {
   return detail.evaluation_financiere?.montant_lu != null;
 }
 
-function isStepComplete(stepId: number, detail: EvaluationDetail): boolean {
+function isStepComplete(
+  stepId: number,
+  detail: EvaluationDetail,
+  criteres: CritereTechniqueApi[],
+): boolean {
   switch (stepId) {
     case 1:
       return true;
     case 2:
       return isExamenCompleteOnServer(detail);
     case 3:
-      return isTechniqueCompleteOnServer(detail);
+      return isTechniqueCompleteOnServer(detail, criteres);
     case 4:
       return isFinanciereCompleteOnServer(detail);
     case 5:
-      return isTechniqueCompleteOnServer(detail) && isFinanciereCompleteOnServer(detail);
+      return (
+        isTechniqueCompleteOnServer(detail, criteres) &&
+        isFinanciereCompleteOnServer(detail)
+      );
     case 6:
       return Boolean(detail.conclusion?.signe_le);
     default:
@@ -183,10 +177,13 @@ function isStepComplete(stepId: number, detail: EvaluationDetail): boolean {
   }
 }
 
-function computeInitialStep(detail: EvaluationDetail): number {
+function computeInitialStep(
+  detail: EvaluationDetail,
+  criteres: CritereTechniqueApi[],
+): number {
   if (detail.conclusion?.signe_le) return 6;
   if (isFinanciereCompleteOnServer(detail)) return 5;
-  if (isTechniqueCompleteOnServer(detail)) return 4;
+  if (isTechniqueCompleteOnServer(detail, criteres)) return 4;
   if (isExamenCompleteOnServer(detail)) return 3;
   return 1;
 }
@@ -362,19 +359,26 @@ export default function EvaluationWizardForm({
   onSaved: () => void;
 }) {
   const [detail, setDetail] = useState(initialDetail);
-
-  useEffect(() => {
-    setDetail(initialDetail);
-    const initial = computeInitialStep(initialDetail);
-    setStep(initial);
-    setMaxStepReached(initial);
-  }, [initialDetail]);
+  const [criteres, setCriteres] = useState<CritereTechniqueApi[]>([]);
 
   const seanceId = detail.offre_detail.seance_id;
 
-  const [step, setStep] = useState(() => computeInitialStep(initialDetail));
+  useEffect(() => {
+    fetchCriteres(seanceId)
+      .then(setCriteres)
+      .catch(() => setCriteres([]));
+  }, [seanceId]);
+
+  useEffect(() => {
+    setDetail(initialDetail);
+    const initial = computeInitialStep(initialDetail, criteres);
+    setStep(initial);
+    setMaxStepReached(initial);
+  }, [initialDetail, criteres]);
+
+  const [step, setStep] = useState(() => computeInitialStep(initialDetail, []));
   const [maxStepReached, setMaxStepReached] = useState(() =>
-    computeInitialStep(initialDetail),
+    computeInitialStep(initialDetail, []),
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -394,12 +398,7 @@ export default function EvaluationWizardForm({
     commentaire: "",
   });
 
-  const [technique, setTechnique] = useState<TechniqueState>({
-    note_conformite_technique: null,
-    note_delai_livraison: null,
-    note_experience: null,
-    note_sav_garantie: null,
-  });
+  const [technique, setTechnique] = useState<TechniqueState>({});
 
   const [financiere, setFinanciere] = useState({
     montant_lu: "",
@@ -427,13 +426,12 @@ export default function EvaluationWizardForm({
       });
     }
     const tech = detail.evaluation_technique;
-    if (tech) {
-      setTechnique({
-        note_conformite_technique: tech.note_conformite_technique ?? null,
-        note_delai_livraison: tech.note_delai_livraison ?? null,
-        note_experience: tech.note_experience ?? null,
-        note_sav_garantie: tech.note_sav_garantie ?? null,
-      });
+    if (tech && tech.notes) {
+      const notesMap: TechniqueState = {};
+      for (const n of tech.notes) {
+        notesMap[`note_critere_${n.critere_id}`] = n.note;
+      }
+      setTechnique(notesMap);
     }
     const fin = detail.evaluation_financiere;
     if (fin) {
@@ -466,7 +464,7 @@ export default function EvaluationWizardForm({
   const examenConforme = examenAllAnswered && !examenAnyNon;
   const examenBlocked = examenAllAnswered && examenAnyNon;
 
-  const techScore = computeTechScore(technique);
+  const techScore = computeTechScore(technique, criteres);
   const techQualifie = techScore != null && techScore >= SEUIL_TECHNIQUE;
 
   const montantFinal = useMemo(() => {
@@ -496,9 +494,9 @@ export default function EvaluationWizardForm({
     scoreTechPart != null && scoreFinPart != null
       ? Math.round((scoreTechPart + scoreFinPart) * 10) / 10
       : null;
-  const isReadOnly = step > 1 && isStepComplete(step, detail);
+  const isReadOnly = step > 1 && isStepComplete(step, detail, criteres);
   const examenSaved = isExamenCompleteOnServer(detail);
-  const techniqueSaved = isTechniqueCompleteOnServer(detail);
+  const techniqueSaved = isTechniqueCompleteOnServer(detail, criteres);
 
   const getSaveSuccessMessage = (updated: EvaluationDetail) => {
     if (step === 2) {
@@ -578,7 +576,12 @@ export default function EvaluationWizardForm({
       payload.examen = { ...examen };
     }
     if (step >= 3 || includeConclusion) {
-      payload.technique = { ...technique };
+      const notes = criteres.map((c) => ({
+        critere_id: c.id,
+        note: Number(technique[`note_critere_${c.id}`] ?? 0),
+        commentaire: "",
+      }));
+      payload.technique = { notes };
     }
     if (
       (step >= 4 || includeConclusion) &&
@@ -614,7 +617,7 @@ export default function EvaluationWizardForm({
       );
       setDetail(updatedDetail);
       setSuccess(getSaveSuccessMessage(updatedDetail));
-      const reached = computeInitialStep(updatedDetail);
+      const reached = computeInitialStep(updatedDetail, criteres);
       setMaxStepReached((prev) => Math.max(prev, reached));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur inconnue");
@@ -669,7 +672,7 @@ export default function EvaluationWizardForm({
       return;
     }
 
-    if (isStepComplete(step, detail)) {
+    if (isStepComplete(step, detail, criteres)) {
       advanceToStep(target);
       return;
     }
@@ -736,7 +739,7 @@ export default function EvaluationWizardForm({
 
   const canJumpToStep = (stepId: number) => {
     if (stepBlocked(stepId)) return false;
-    if (isStepComplete(stepId, detail)) return true;
+    if (isStepComplete(stepId, detail, criteres)) return true;
     if (stepId <= maxStepReached) return true;
     return stepId === step;
   };
@@ -757,7 +760,7 @@ export default function EvaluationWizardForm({
         <div className="grid grid-cols-3 gap-1.5 p-2 sm:grid-cols-6 sm:gap-2 sm:p-2.5">
           {STEPS.map((item) => {
             const blocked = stepBlocked(item.id);
-            const done = isStepComplete(item.id, detail);
+            const done = isStepComplete(item.id, detail, criteres);
             const active = step === item.id;
             const Icon = item.icon;
             const theme = STEP_THEMES[item.id];
@@ -977,7 +980,7 @@ export default function EvaluationWizardForm({
                 <SectionHeader
                   stepId={3}
                   title="Évaluation technique"
-                  subtitle="Notation sur 4 critères — seuil éliminatoire 70/100."
+                  subtitle={`Notation sur ${criteres.length} critères — seuil éliminatoire 70/100.`}
                 />
                 {!detail.peut_saisir_technique ? (
                   <WaitBanner
@@ -1005,8 +1008,9 @@ export default function EvaluationWizardForm({
                           </tr>
                         </thead>
                         <tbody>
-                          {TECH_CRITERES.map((critere, idx) => {
-                            const note = technique[critere.key];
+                          {criteres.map((critere, idx) => {
+                            const key = `note_critere_${critere.id}`;
+                            const note = technique[key];
                             const sur100 =
                               note != null
                                 ? Math.round((Number(note) / 5) * 100)
@@ -1014,19 +1018,19 @@ export default function EvaluationWizardForm({
                             const ponderee =
                               sur100 != null
                                 ? Math.round(
-                                    sur100 * (critere.poids / 100) * 10,
+                                    sur100 * (critere.ponderation / 100) * 10,
                                   ) / 10
                                 : null;
                             return (
                               <tr
-                                key={critere.key}
+                                key={critere.id}
                                 className={`border-t border-slate-100 transition-colors duration-200 hover:bg-violet-50/40 ${idx % 2 === 0 ? "bg-white" : "bg-slate-50/40"}`}
                               >
                                 <td className="p-2.5 text-xs font-medium leading-tight text-slate-800 break-words sm:p-3">
-                                  {critere.label}
+                                  {critere.nom}
                                 </td>
                                 <td className="p-2.5 text-center text-xs text-slate-500 sm:p-3">
-                                  {critere.poids}%
+                                  {critere.ponderation}%
                                 </td>
                                 <td className="p-2.5 text-center sm:p-3">
                                   <input
@@ -1039,7 +1043,7 @@ export default function EvaluationWizardForm({
                                     onChange={(e) =>
                                       setTechnique((p) => ({
                                         ...p,
-                                        [critere.key]: e.target.value
+                                        [key]: e.target.value
                                           ? parseFloat(e.target.value)
                                           : null,
                                       }))

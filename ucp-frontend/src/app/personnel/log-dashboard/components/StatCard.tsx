@@ -9,23 +9,21 @@ type Props = {
 
 export default function StatCard({ title, value, description, icon }: Props) {
   return (
-    <div className="bg-white border border-slate-200/80 border-l-[3px] border-l-emerald-500  rounded-xl p-6 shadow-xs flex justify-between items-start transition-all duration-200 hover:shadow-sm">
-      <div className="space-y-2">
-        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-          {title}
-        </p>
-        <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">
-          {value}
-        </h2>
-        {description && (
-          <p className="text-xs text-slate-400 font-medium">
-            {description}
-          </p>
-        )}
+    <div className="group relative overflow-hidden rounded-3xl border border-white/40 bg-white/70 p-6 shadow-[0_8px_32px_rgba(0,0,0,0.04)] backdrop-blur-md transition-all duration-300 hover:shadow-[0_12px_40px_rgba(0,0,0,0.06)]">
+      <div className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-500">
+        {title}
       </div>
+      <div className="mt-4 text-4xl font-black text-slate-900 tracking-tight">
+        {value}
+      </div>
+      {description && (
+        <div className="mt-2 text-xs font-medium text-slate-500">
+          {description}
+        </div>
+      )}
       
       {icon && (
-        <div className="p-2.5 bg-slate-50 border border-slate-100 rounded-lg shadow-3xs">
+        <div className="absolute right-5 top-5 p-2.5 bg-slate-50/80 border border-slate-100 rounded-xl">
           {icon}
         </div>
       )}

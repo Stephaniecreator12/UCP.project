@@ -18,6 +18,7 @@ from apps.evaluation_offre.views import (
     login_evaluateur_dao_view,
     renvoyer_invitations_evaluateurs_seance_view,
     verify_evaluateur_password_view,
+    criteres_techniques_view,
 )
 
 urlpatterns = [
@@ -28,6 +29,7 @@ urlpatterns = [
     path("dao/dashboard/", dao_dashboard_view, name="evaluation-dao-dashboard"),
     path("dao/<int:seance_id>/offres/", dao_offres_list, name="evaluation-dao-offres"),
     path("dao/<int:seance_id>/detail/", dao_detail_view, name="evaluation-dao-detail"),
+    path("dao/<int:seance_id>/criteres/", criteres_techniques_view, name="evaluation-dao-criteres"),
     path("dao/<int:seance_id>/classement/", classement_view, name="evaluation-classement"),
     path("dao/<int:seance_id>/assigner/", assigner_evaluateurs_seance_view, name="evaluation-dao-assigner"),
     path("dao/<int:seance_id>/renvoyer-invitations/", renvoyer_invitations_evaluateurs_seance_view, name="evaluation-dao-renvoyer-invitations"),

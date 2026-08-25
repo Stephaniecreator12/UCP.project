@@ -49,7 +49,7 @@ const SESSION_EXPIRED_MESSAGE = "Session expirée. Reconnecte-toi.";
 
 const redirectToLogin = () => {
   if (typeof window === "undefined") return;
-  window.location.href = "/login";
+  window.location.href = "/auth/login";
 };
 
 const extractHtmlTitle = (value: string) => {

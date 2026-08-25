@@ -17,7 +17,10 @@ export default function LoginPage() {
 function LoginPageContent() {
   const searchParams = useSearchParams();
   const isVerifiedParam = searchParams.get("verified");
-  const [email, setEmail] = useState("");
+  const validationParam = searchParams.get("validation");
+  const offreParam = searchParams.get("offre");
+  const emailParam = searchParams.get("email");
+  const [email, setEmail] = useState(emailParam ?? "");
   const [password, setPassword] = useState("");
   const [isSuccess, setIsSuccess] = useState(isVerifiedParam === "true");
   const [message, setMessage] = useState(
@@ -27,7 +30,6 @@ function LoginPageContent() {
   );
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,6 +56,14 @@ function LoginPageContent() {
     }
     else{
       setIsSuccess(true);
+      if (validationParam === "evaluation") {
+        if (offreParam) {
+          router.push(`/personnel/evaluation/offres/${offreParam}`);
+        } else {
+          router.push("/personnel/evaluation_offre/list");
+        }
+        return;
+      }
       const target = getLandingRouteForUser({ id: "", email, groups: result.groups ?? [] });
       router.push(target);
     }

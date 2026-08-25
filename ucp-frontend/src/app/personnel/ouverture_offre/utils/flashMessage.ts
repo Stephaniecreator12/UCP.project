@@ -13,7 +13,7 @@ const normalizePath = (path: string) => path.replace(/\/+$/, "") || "/";
 
 export const setOpeningFlashMessage = (
   message: string,
-  targetPath = "/ouverture_offre",
+  targetPath = "/personnel/ouverture_offre",
 ) => {
   if (typeof window === "undefined") return;
 

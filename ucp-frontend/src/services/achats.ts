@@ -255,7 +255,7 @@ export type DashboardScope = "mine" | "all";
 const handleUnauthorized = (): never => {
   logout();
   if (typeof window !== "undefined") {
-    window.location.href = "/login";
+    window.location.href = "/auth/login";
   }
   throw new Error("Session expirée. Reconnecte-toi.");
 };

@@ -370,7 +370,7 @@ export default function SeanceOuvertureDetail() {
     : rawParamId;
   const currentDetailPath = normalizedParamId
     ? `/personnel/ouverture_offre/${normalizedParamId}`
-    : "/ouverture_offre";
+    : "/personnel/ouverture_offre";
   const [screenState, setScreenState] = useState<ScreenState>("loading");
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [seance, setSeance] = useState<SeanceOuverture | null>(null);
@@ -412,7 +412,7 @@ export default function SeanceOuvertureDetail() {
       if (!getToken()) {
         const nextPath = normalizedId
           ? `/personnel/ouverture_offre/${normalizedId}`
-          : "/ouverture_offre";
+          : "/personnel/ouverture_offre";
         router.replace(`/auth/login?next=${encodeURIComponent(nextPath)}`);
         return;
       }
@@ -1014,7 +1014,7 @@ export default function SeanceOuvertureDetail() {
             ? `La séance a été mise à valider avec succès. ${sentCount} invitation(s) envoyée(s).`
             : "La séance a été mise à valider avec succès."
           : "Le brouillon a été enregistré avec succès.",
-        "/ouverture_offre",
+        "/personnel/ouverture_offre",
       );
       router.replace("/personnel/ouverture_offre");
     } catch (err) {
@@ -1063,7 +1063,7 @@ export default function SeanceOuvertureDetail() {
       setPendingValidateMode(null);
       setOpeningFlashMessage(
         "Validation membre enregistrée avec succès.",
-        "/ouverture_offre",
+        "/personnel/ouverture_offre",
       );
       router.replace("/personnel/ouverture_offre");
     } catch (err) {
@@ -1088,7 +1088,7 @@ export default function SeanceOuvertureDetail() {
       setPendingValidateMode(null);
       setOpeningFlashMessage(
         "Validation président enregistrée avec succès.",
-        "/ouverture_offre",
+        "/personnel/ouverture_offre",
       );
       router.replace("/personnel/ouverture_offre");
     } catch (err) {
@@ -1131,7 +1131,7 @@ export default function SeanceOuvertureDetail() {
       });
       setOpeningFlashMessage(
         "Rejet membre enregistré avec succès.",
-        "/ouverture_offre",
+        "/personnel/ouverture_offre",
       );
       router.replace("/personnel/ouverture_offre");
     } catch (err) {
@@ -1158,7 +1158,7 @@ export default function SeanceOuvertureDetail() {
       });
       setOpeningFlashMessage(
         "Rejet président enregistré avec succès.",
-        "/ouverture_offre",
+        "/personnel/ouverture_offre",
       );
       router.replace("/personnel/ouverture_offre");
     } catch (err) {

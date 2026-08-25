@@ -36,3 +36,5 @@ class Biens(models.Model):
 
     class Meta:
         db_table = "biens"
+        verbose_name = "Bien"
+        verbose_name_plural = "Biens"

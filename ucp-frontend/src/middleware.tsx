@@ -15,14 +15,18 @@ export function middleware(request: NextRequest) {
   if (pathname.startsWith('/auth/login')) {
     return NextResponse.next()
   }
-  if (
-    path.startsWith("/personnel") &&
-    groups.includes("PUBLIC")
-  ) {
-    return NextResponse.redirect(
-      new URL("/procurement", request.url)
-    );
+
+  if (path.startsWith("/personnel") && groups.includes("PUBLIC")) {
+    const isEvaluationRoute =
+      path.startsWith("/personnel/evaluation_offre") ||
+      path.startsWith("/personnel/evaluation");
+    if (!isEvaluationRoute) {
+      return NextResponse.redirect(
+        new URL("/procurement", request.url)
+      );
+    }
   }
+
   return NextResponse.next();
 }
 export const config = {

@@ -174,7 +174,7 @@ export default function ProcurementPage({
   const handleToDetailRedirection = (id: string) => {
     if (id) {
       handleViewTrack(id);
-      router.push(`procurement/${id}`)
+      router.push(`/procurement/${id}`)
     }
   }
   const handlePageChange = () => {

@@ -34,3 +34,5 @@ class Travaux(models.Model):
 
     class Meta:
         db_table = "travaux"
+        verbose_name = "Travaux"
+        verbose_name_plural = "Travaux"

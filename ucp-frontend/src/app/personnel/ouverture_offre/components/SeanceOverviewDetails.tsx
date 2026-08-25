@@ -36,7 +36,7 @@ const procedureLabels: Record<string, string> = {
 const categoryLabels: Record<string, string> = {
   BIENS: "Biens",
   SERVICES: "Services",
-  INFRA: "Travaux",
+  TRAVAUX: "Travaux",
 };
 
 const openingStepLabels: Record<SeanceOuverture["etape_ouverture"], string> = {

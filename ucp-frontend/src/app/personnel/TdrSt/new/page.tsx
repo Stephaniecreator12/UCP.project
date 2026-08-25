@@ -39,7 +39,7 @@ const CATEGORY_OPTIONS = [
   ["BUREAU_ETUDES", "Bureau d'études"],
   ["ENTREPRISE", "Entreprise"],
   ["BIENS", "Biens"],
-  ["INFRASTRUCTURE", "Infrastructure"],
+  ["TRAVAUX", "Travaux"],
 ] as const;
 
 const PROCEDURE_OPTIONS_FALLBACK = [

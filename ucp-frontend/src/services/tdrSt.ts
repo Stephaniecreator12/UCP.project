@@ -18,7 +18,7 @@ export type TdrStCategorieActivite =
   | "BUREAU_ETUDES"
   | "ENTREPRISE"
   | "BIENS"
-  | "INFRASTRUCTURE";
+  | "TRAVAUX";
 
 export interface CreateTdrStDraftPayload {
   demande_achat_id?: number;

@@ -7,7 +7,7 @@ export type ProcedureType =
 export type CategoryType =
   | "BIENS"
   | "SERVICES"
-  | "INFRA";
+  | "TRAVAUX";
 
 export type FinancingSource =
   | "GLOBAL_FUND"

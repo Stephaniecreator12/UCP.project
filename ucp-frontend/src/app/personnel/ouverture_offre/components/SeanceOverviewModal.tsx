@@ -63,7 +63,7 @@ const procedureLabels: Record<string, string> = {
 const categoryLabels: Record<string, string> = {
   BIENS: "Biens",
   SERVICES: "Services",
-  INFRA: "Travaux",
+  TRAVAUX: "Travaux",
 };
 
 const marketStatusLabels: Record<ProcurementMarket["status"], string> = {

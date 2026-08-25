@@ -41,7 +41,7 @@ type CategorieActivite =
   | "BUREAU_ETUDES"
   | "ENTREPRISE"
   | "BIENS"
-  | "INFRASTRUCTURE";
+  | "TRAVAUX";
 
 export type ValidationAction = {
   id: number;

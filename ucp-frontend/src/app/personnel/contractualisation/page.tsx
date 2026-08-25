@@ -22,6 +22,8 @@ import { Contrat } from "@/types/contractualisation";
 import TopHeader from "@/app/components/TopHeader";
 import { fetchCurrentUser, getToken } from "@/services/auth";
 import { UserProfile } from "@/types/profile";
+import { useReferenceChoices } from "@/hooks/useReferenceChoices";
+import { getChoiceLabel } from "@/services/choices";
 
 type ScreenState = "loading" | "ready" | "error";
 
@@ -36,14 +38,14 @@ type ContratSection = {
   rows: Contrat[];
 };
 
-const stateLabels: Record<string, string> = {
-  BROUILLON: "Brouillon",
-  ATTENTE_SIGNATURE: "Attente signature",
-  EXECUTION: "En exécution",
-  TERMINE: "Terminé",
-  SUSPENDU: "Suspendu",
-  ANNULE: "Annulé",
-};
+const STATUT_FALLBACK: { code: string; label: string }[] = [
+  { code: "BROUILLON", label: "Brouillon" },
+  { code: "ATTENTE_SIGNATURE", label: "Attente signature" },
+  { code: "EXECUTION", label: "En exécution" },
+  { code: "TERMINE", label: "Terminé" },
+  { code: "SUSPENDU", label: "Suspendu" },
+  { code: "ANNULE", label: "Annulé" },
+];
 
 const stateClasses: Record<string, string> = {
   BROUILLON: "border-slate-200 bg-slate-50 text-slate-700",
@@ -107,6 +109,7 @@ export default function ContractualisationListPage() {
   const [query, setQuery] = useState("");
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const contratStatuts = useReferenceChoices("CONTRAT_STATUT", STATUT_FALLBACK);
 
   useEffect(() => {
     const bootstrap = async () => {
@@ -154,7 +157,7 @@ export default function ContractualisationListPage() {
         c.nom_prestataire,
         c.seance_reference,
         c.seance_objet,
-        stateLabels[c.statut],
+        getChoiceLabel(contratStatuts, c.statut),
       ]
         .filter(Boolean)
         .join(" ")

@@ -1,6 +1,7 @@
 "use client";
 
 import { TdrStDocument, TdrStFormState } from "../hooks/useTdrStData";
+import { useReferenceChoices } from "@/hooks/useReferenceChoices";
 
 type DocumentFormModalProps = {
   isOpen: boolean;
@@ -14,6 +15,11 @@ type DocumentFormModalProps = {
   title?: string;
 };
 
+const TYPE_DOCUMENT_TDR_ST_FALLBACK = [
+  { code: "TDR", label: "TDR" },
+  { code: "ST", label: "ST" },
+];
+
 export function DocumentFormModal({
   isOpen,
   onClose,
@@ -25,6 +31,8 @@ export function DocumentFormModal({
   loading,
   title,
 }: DocumentFormModalProps) {
+  const typeDocumentChoices = useReferenceChoices("TYPE_DOCUMENT_TDR_ST", TYPE_DOCUMENT_TDR_ST_FALLBACK);
+
   if (!isOpen) return null;
 
   const handleSave = async () => {
@@ -71,8 +79,11 @@ export function DocumentFormModal({
                   value={form.type_document}
                   onChange={(e) => setForm({ ...form, type_document: e.target.value as "TDR" | "ST" })}
                 >
-                  <option value="TDR">TDR</option>
-                  <option value="ST">ST</option>
+                  {typeDocumentChoices.map((option) => (
+                    <option key={option.code} value={option.code}>
+                      {option.label}
+                    </option>
+                  ))}
                 </select>
               </label>
             </div>

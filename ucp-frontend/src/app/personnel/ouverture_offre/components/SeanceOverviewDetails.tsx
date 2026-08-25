@@ -12,6 +12,8 @@ import {
   Users,
 } from "lucide-react";
 
+import { useReferenceChoices } from "@/hooks/useReferenceChoices";
+import { getChoiceLabel } from "@/services/choices";
 import type { ProcurementMarket } from "@/types/procurement";
 import type { SeanceOuverture } from "@/types/ouvertureOffre";
 
@@ -25,38 +27,6 @@ type SeanceOverviewDetailsProps = {
 
 type OfferItem = SeanceOuverture["offres"][number];
 type MemberItem = SeanceOuverture["membres"][number];
-
-const procedureLabels: Record<string, string> = {
-  AOI: "AOI",
-  AON: "AON",
-  DC: "DC",
-  GRE_A_GRE: "Gré à gré",
-};
-
-const categoryLabels: Record<string, string> = {
-  BIENS: "Biens",
-  SERVICES: "Services",
-  TRAVAUX: "Travaux",
-};
-
-const openingStepLabels: Record<SeanceOuverture["etape_ouverture"], string> = {
-  COMPLETE: "Ouverture complète",
-  ADMIN_TECH: "Administrative et technique",
-};
-
-const sealedStateLabels: Record<string, string> = {
-  INTACT: "Scellé intact",
-  ALTERE: "Scellé altéré",
-  ABSENT: "Scellé absent",
-};
-
-const envelopeLabels: Record<string, string> = {
-  DEPOSEE: "Déposée",
-  MANQUANTE: "Manquante",
-  RECU: "Reçu",
-  INTEGRE: "Intègre",
-  MANQUANT: "Manquant",
-};
 
 const formatDate = (value?: string | null) => {
   if (!value) return "Non renseignée";
@@ -120,19 +90,15 @@ const getMemberName = (member: MemberItem) =>
   member.utilisateur_detail.username ||
   "Nom non renseigné";
 
-const getMemberDecisionLabel = (member: MemberItem) => {
-  if (member.decision === "VALIDEE") return "Validé";
-  if (member.decision === "REJETEE") return "Rejeté";
-  return "En attente";
+const getMemberDecisionLabel = (member: MemberItem, decisions: { code: string; label: string }[]) => {
+  return getChoiceLabel(decisions, member.decision) || "En attente";
 };
 
 const getPresidentDecisionLabel = (
   decision: SeanceOuverture["president_decision"],
+  decisions: { code: string; label: string }[],
 ) => {
-  if (decision === "VALIDEE") return "Validation enregistrée";
-  if (decision === "REJETEE") return "Rejet enregistré";
-  if (decision === "REPORTEE") return "Report enregistré";
-  return "En attente";
+  return getChoiceLabel(decisions, decision) || "En attente";
 };
 
 const getPresidentDecisionClasses = (
@@ -206,7 +172,7 @@ const formatOfferReception = (offre: OfferItem) => {
   return "Réception non renseignée";
 };
 
-const getEnvelopeBadge = (value: string, notApplicable = false) => {
+const getEnvelopeBadge = (value: string, notApplicable = false, envelopeChoices: { code: string; label: string }[] = []) => {
   if (notApplicable && !value) {
     return {
       label: "Non concernée",
@@ -215,13 +181,13 @@ const getEnvelopeBadge = (value: string, notApplicable = false) => {
   }
   if (value === "DEPOSEE" || value === "RECU" || value === "INTEGRE") {
     return {
-      label: envelopeLabels[value] || value,
+      label: getChoiceLabel(envelopeChoices, value) || value,
       className: "border-emerald-200 bg-emerald-50 text-emerald-700",
     };
   }
   if (value === "MANQUANTE" || value === "MANQUANT") {
     return {
-      label: envelopeLabels[value] || value,
+      label: getChoiceLabel(envelopeChoices, value) || value,
       className: "border-rose-200 bg-rose-50 text-rose-700",
     };
   }
@@ -239,11 +205,13 @@ const getOfferObservation = (offre: OfferItem) => {
 function EnvelopeBadge({
   value,
   notApplicable = false,
+  envelopeChoices,
 }: {
   value: string;
   notApplicable?: boolean;
+  envelopeChoices: { code: string; label: string }[];
 }) {
-  const badge = getEnvelopeBadge(value, notApplicable);
+  const badge = getEnvelopeBadge(value, notApplicable, envelopeChoices);
 
   return (
     <span
@@ -265,6 +233,13 @@ export default function SeanceOverviewDetails({
   const displayMembers = members ?? seance.membres;
   const progress = getProgressSummary(displayMembers);
   const sessionObservation = seance.observations?.trim();
+  const categoryTypes = useReferenceChoices("CATEGORY_TYPE", []);
+  const procedureChoices = useReferenceChoices("PROCEDURE_TYPE", []);
+  const openingStepChoices = useReferenceChoices("ETAPE_OUVERTURE", []);
+  const sealedStateChoices = useReferenceChoices("ETAT_SCELLE", []);
+  const envelopeChoices = useReferenceChoices("ETAT_ENVELOPPE", []);
+  const memberDecisionChoices = useReferenceChoices("DECISION_MEMBRE_SEANCE", []);
+  const presidentDecisionChoices = useReferenceChoices("DECISION_SEANCE", []);
   const presidentComment = seance.president_commentaire?.trim();
   const ratureComment =
     seance.presence_rature && seance.description_rature?.trim()
@@ -288,6 +263,7 @@ export default function SeanceOverviewDetails({
   const presidentStatusValueClass = presidentDecisionClasses.value;
   const presidentStatusLabel = getPresidentDecisionLabel(
     seance.president_decision,
+    presidentDecisionChoices,
   );
   const wrapperSpaceClass = compact ? "space-y-3" : "space-y-5";
   const infoGridClass = compact
@@ -329,7 +305,7 @@ export default function SeanceOverviewDetails({
     presenceClass: member.est_present
       ? "border-emerald-200 bg-emerald-50 text-emerald-700"
       : "border-slate-200 bg-slate-100 text-slate-500",
-    decisionLabel: getMemberDecisionLabel(member),
+    decisionLabel: getMemberDecisionLabel(member, memberDecisionChoices),
     decisionClasses: {
       box:
         member.decision === "VALIDEE"
@@ -400,7 +376,7 @@ export default function SeanceOverviewDetails({
         <InfoCard
           icon={FileText}
           label="Étape d'ouverture"
-          value={openingStepLabels[seance.etape_ouverture]}
+          value={getChoiceLabel(openingStepChoices, seance.etape_ouverture)}
           compact={compact}
         />
       </section>
@@ -444,7 +420,7 @@ export default function SeanceOverviewDetails({
                 Scellé
               </p>
               <p className="mt-2 text-sm font-bold text-slate-900">
-                {sealedStateLabels[seance.etat_scelle] || "Non renseigné"}
+                {getChoiceLabel(sealedStateChoices, seance.etat_scelle) || "Non renseigné"}
               </p>
             </div>
             <div
@@ -474,14 +450,14 @@ export default function SeanceOverviewDetails({
                 {market?.procedure_type && (
                   <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
                     Procédure :{" "}
-                    {procedureLabels[market.procedure_type] ||
+                    {getChoiceLabel(procedureChoices, market.procedure_type) ||
                       market.procedure_type}
                   </span>
                 )}
                 {market?.category && (
                   <span className="rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
                     Catégorie :{" "}
-                    {categoryLabels[market.category] || market.category}
+                    {getChoiceLabel(categoryTypes, market.category) || market.category}
                   </span>
                 )}
                 {market?.deadline && (
@@ -817,10 +793,10 @@ export default function SeanceOverviewDetails({
                         </p>
                       </td>
                       <td className={`${tablePaddingClass} text-center`}>
-                        <EnvelopeBadge value={offre.enveloppe_administrative} />
+                        <EnvelopeBadge value={offre.enveloppe_administrative} envelopeChoices={envelopeChoices} />
                       </td>
                       <td className={`${tablePaddingClass} text-center`}>
-                        <EnvelopeBadge value={offre.enveloppe_technique} />
+                        <EnvelopeBadge value={offre.enveloppe_technique} envelopeChoices={envelopeChoices} />
                       </td>
                       <td className={`${tablePaddingClass} text-center`}>
                         <EnvelopeBadge
@@ -828,6 +804,7 @@ export default function SeanceOverviewDetails({
                           notApplicable={
                             seance.etape_ouverture === "ADMIN_TECH"
                           }
+                          envelopeChoices={envelopeChoices}
                         />
                       </td>
                       {showMontantColumn && (

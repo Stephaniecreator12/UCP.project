@@ -46,6 +46,8 @@ import {
   type ClassementLigne,
 } from "@/services/evaluationService";
 import { fetchCurrentUser, getToken, type UserProfile } from "@/services/auth";
+import { useReferenceChoices } from "@/hooks/useReferenceChoices";
+import { getChoiceLabel, type ReferenceChoiceOption } from "@/services/choices";
 
 type ScreenState = "loading" | "ready" | "error";
 type PanelMode = "assign" | "detail";
@@ -216,6 +218,10 @@ function EvaluationSecretaireContent() {
   const [offreMeta, setOffreMeta] = useState<
     Record<number, { lot: string; nif: string }>
   >({});
+
+  const daoStatusChoices = useReferenceChoices("STATUT_DAO_EVALUATION", []);
+  const evalStatusChoices = useReferenceChoices("STATUT_EVALUATION", []);
+  const categoryTypeChoices = useReferenceChoices("CATEGORY_TYPE", []);
 
   const loadDaos = useCallback(async () => {
     try {
@@ -478,9 +484,10 @@ function EvaluationSecretaireContent() {
     return sectionOrder.map((key) => ({
       key,
       ...sectionConfigs[key],
+      title: getChoiceLabel(daoStatusChoices, key) || sectionConfigs[key].title,
       rows: filteredDaos.filter((dao) => dao.statut_dao === key),
     }));
-  }, [filteredDaos]);
+  }, [filteredDaos, daoStatusChoices]);
 
   const showAssignForm = panelMode === "assign" && canAssign;
 
@@ -556,7 +563,7 @@ function EvaluationSecretaireContent() {
               <div className="grid gap-4 sm:grid-cols-3">
                 <div className="group relative overflow-hidden rounded-3xl border border-white/40 bg-white/70 p-6 shadow-[0_8px_32px_rgba(0,0,0,0.04)] backdrop-blur-md transition-all duration-300 hover:shadow-[0_12px_40px_rgba(0,0,0,0.06)]">
                   <div className="text-xs uppercase tracking-[0.24em] font-bold text-slate-500">
-                    À assigner
+                    {getChoiceLabel(daoStatusChoices, "A_ASSIGNER") || "À assigner"}
                   </div>
                   <div className="mt-4 text-4xl font-black text-amber-600">
                     {countStatut("A_ASSIGNER")}
@@ -568,7 +575,7 @@ function EvaluationSecretaireContent() {
 
                 <div className="group relative overflow-hidden rounded-3xl border border-white/40 bg-white/70 p-6 shadow-[0_8px_32px_rgba(0,0,0,0.04)] backdrop-blur-md transition-all duration-300 hover:shadow-[0_12px_40px_rgba(0,0,0,0.06)]">
                   <div className="text-xs uppercase tracking-[0.24em] font-bold text-slate-500">
-                    En évaluation
+                    {getChoiceLabel(daoStatusChoices, "EN_EVALUATION") || "En évaluation"}
                   </div>
                   <div className="mt-4 text-4xl font-black text-sky-600">
                     {countStatut("EN_EVALUATION")}
@@ -580,7 +587,7 @@ function EvaluationSecretaireContent() {
 
                 <div className="group relative overflow-hidden rounded-3xl border border-white/40 bg-white/70 p-6 shadow-[0_8px_32px_rgba(0,0,0,0.04)] backdrop-blur-md transition-all duration-300 hover:shadow-[0_12px_40px_rgba(0,0,0,0.06)]">
                   <div className="text-xs uppercase tracking-[0.24em] font-bold text-slate-500">
-                    Terminés
+                    {getChoiceLabel(daoStatusChoices, "TERMINE") || "Terminés"}
                   </div>
                   <div className="mt-4 text-4xl font-black text-emerald-600">
                     {countStatut("TERMINE")}
@@ -649,6 +656,7 @@ function EvaluationSecretaireContent() {
                           }
                           router={router}
                           openPanel={openPanel}
+                          daoStatusChoices={daoStatusChoices}
                         />
                       ))}
                     </div>
@@ -740,7 +748,7 @@ function EvaluationSecretaireContent() {
                           <input
                             disabled
                             className={disabledClass}
-                            value={detail.category_type}
+                            value={getChoiceLabel(categoryTypeChoices, detail.category_type) || detail.category_type}
                           />
                         </label>
                       )}
@@ -988,6 +996,12 @@ function EvaluationSecretaireContent() {
                         const statutCfg = statutKey
                           ? offreStatutConfig[statutKey]
                           : null;
+                        const statutLabel = statutKey
+                          ? getChoiceLabel(daoStatusChoices, statutKey) ||
+                            getChoiceLabel(evalStatusChoices, statutKey) ||
+                            statutCfg?.label ||
+                            statutKey
+                          : "";
                         return (
                           <div
                             key={offre.offre_id}
@@ -1009,7 +1023,7 @@ function EvaluationSecretaireContent() {
                               <span
                                 className={`rounded border px-2.5 py-0.5 text-[10px] font-bold ${statutCfg.className}`}
                               >
-                                {statutCfg.label}
+                                {statutLabel}
                               </span>
                             ) : (
                               <span className="inline-flex rounded-full border border-slate-250 bg-slate-50 px-2.5 py-0.5 text-[10px] font-bold text-slate-500">
@@ -1135,12 +1149,14 @@ function EvaluationStatusSection({
   onToggle,
   router,
   openPanel,
+  daoStatusChoices,
 }: {
   section: DashboardSection & { rows: DaoDashboardItem[] };
   isActive: boolean;
   onToggle: () => void;
   router: ReturnType<typeof useRouter>;
   openPanel: (dao: DaoDashboardItem, mode: PanelMode) => void;
+  daoStatusChoices: ReferenceChoiceOption[];
 }) {
   const Icon = section.icon;
   const hasRows = section.rows.length > 0;
@@ -1209,6 +1225,7 @@ function EvaluationStatusSection({
                 index={index}
                 router={router}
                 openPanel={openPanel}
+                daoStatusChoices={daoStatusChoices}
               />
             ))
           ) : (
@@ -1227,11 +1244,13 @@ function EvaluationDashboardRow({
   index,
   router,
   openPanel,
+  daoStatusChoices,
 }: {
   dao: DaoDashboardItem;
   index: number;
   router: ReturnType<typeof useRouter>;
   openPanel: (dao: DaoDashboardItem, mode: PanelMode) => void;
+  daoStatusChoices: ReferenceChoiceOption[];
 }) {
   const progression = `${dao.offres_terminees}/${dao.nb_offres} offres terminées`;
 
@@ -1250,11 +1269,12 @@ function EvaluationDashboardRow({
             <span
               className={`rounded border px-2 py-0.5 text-[10px] font-bold ${statusClassMap[dao.statut_dao] || "border-slate-200 bg-slate-50 text-slate-700"}`}
             >
-              {dao.statut_dao === "A_ASSIGNER"
-                ? "À assigner"
-                : dao.statut_dao === "EN_EVALUATION"
-                  ? "En évaluation"
-                  : "Terminé"}
+              {getChoiceLabel(daoStatusChoices, dao.statut_dao) ||
+                (dao.statut_dao === "A_ASSIGNER"
+                  ? "À assigner"
+                  : dao.statut_dao === "EN_EVALUATION"
+                    ? "En évaluation"
+                    : "Terminé")}
             </span>
           </div>
 

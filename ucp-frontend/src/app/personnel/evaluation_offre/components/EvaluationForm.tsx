@@ -15,6 +15,7 @@ import {
   type CritereTechniqueApi,
 } from "@/services/evaluationService";
 import { getToken } from "@/services/auth";
+import { useReferenceChoices } from "@/hooks/useReferenceChoices";
 
 interface ExamenPreliminaireData {
   offre_signee?: boolean;
@@ -182,6 +183,11 @@ export default function EvaluationForm({
   authEmail,
   authCode,
 }: EvaluationFormProps) {
+  const recommandationChoices = useReferenceChoices("RECOMMANDATION_EVALUATION", [
+    { code: "ATTRIBUER", label: "Attribuer" },
+    { code: "REJETER", label: "Rejeter" },
+    { code: "RELANCER", label: "Relancer" },
+  ]);
   const [currentStep, setCurrentStep] = useState(1);
   const [examen, setExamen] = useState<ExamenStep>(initialExamen);
   const [technique, setTechnique] = useState<TechniqueStep>(initialTechnique);
@@ -960,9 +966,9 @@ export default function EvaluationForm({
               }
               className="w-full rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900"
             >
-              <option value="ATTRIBUER">Attribuer</option>
-              <option value="REJETER">Rejeter</option>
-              <option value="RELANCER">Relancer</option>
+              {recommandationChoices.map((opt) => (
+                <option key={opt.code} value={opt.code}>{opt.label}</option>
+              ))}
             </select>
           </div>
           <div className="space-y-2">

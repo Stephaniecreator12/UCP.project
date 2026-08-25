@@ -8,11 +8,12 @@ import {
   type RecommandationFinale,
   type StatutEvaluation,
 } from "../../../services/evaluations/Index";
+import { useReferenceChoices } from "@/hooks/useReferenceChoices";
 
-const RECOMMANDATIONS: { value: RecommandationFinale; label: string }[] = [
-  { value: "ATTRIBUER", label: "Attribuer le marché" },
-  { value: "REJETER", label: "Rejeter l'offre" },
-  { value: "RELANCER", label: "Relancer l'appel d'offres" },
+const RECOMMANDATION_FALLBACK: { code: string; label: string }[] = [
+  { code: "ATTRIBUER", label: "Attribuer le marché" },
+  { code: "REJETER", label: "Rejeter l'offre" },
+  { code: "RELANCER", label: "Relancer l'appel d'offres" },
 ];
 
 export default function DecisionForm({
@@ -26,6 +27,7 @@ export default function DecisionForm({
   decision: EvaluationDecision | null;
   onSaved: (decision: EvaluationDecision) => void;
 }) {
+  const recommandationChoices = useReferenceChoices("RECOMMANDATION_EVALUATION", RECOMMANDATION_FALLBACK);
   const [recommandation, setRecommandation] = useState<RecommandationFinale>("ATTRIBUER");
   const [justification, setJustification] = useState("");
   const [declarationConflit, setDeclarationConflit] = useState(false);
@@ -37,7 +39,7 @@ export default function DecisionForm({
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-3">
         <h3 className="text-lg font-bold text-gray-900">Décision</h3>
         <span className="inline-block text-xs font-bold bg-gray-100 text-gray-700 border border-gray-300 px-3 py-1 rounded-full">
-          {RECOMMANDATIONS.find((r) => r.value === decision.recommandation)?.label}
+          {recommandationChoices.find((r) => r.code === decision.recommandation)?.label}
         </span>
         <p className="text-sm text-gray-700">{decision.justification}</p>
         <p className="text-xs text-gray-400">
@@ -88,13 +90,13 @@ export default function DecisionForm({
       <div>
         <label className="block text-xs font-semibold text-gray-700 mb-1.5">Recommandation :</label>
         <div className="flex gap-2 flex-wrap">
-          {RECOMMANDATIONS.map((rec) => (
+          {recommandationChoices.map((rec) => (
             <button
-              key={rec.value}
+              key={rec.code}
               type="button"
-              onClick={() => setRecommandation(rec.value)}
+              onClick={() => setRecommandation(rec.code as RecommandationFinale)}
               className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition ${
-                recommandation === rec.value
+                recommandation === rec.code
                   ? "bg-green-700 text-white border-green-700"
                   : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
               }`}

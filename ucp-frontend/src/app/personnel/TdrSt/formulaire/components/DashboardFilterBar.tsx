@@ -1,8 +1,16 @@
 "use client";
 
 import { Search, X } from "lucide-react";
+import { useReferenceChoices } from "@/hooks/useReferenceChoices";
+import { getChoiceLabel } from "@/services/choices";
 
 type FundingSource = "Fonds mondial" | "Banque mondiale" | "Alliance GAVI";
+
+const STATUT_TDR_ST_FALLBACK = [
+  { code: "VALIDE", label: "Validé" },
+  { code: "REJETE", label: "Rejeté" },
+  { code: "SUSPENDU", label: "Suspendu" },
+];
 
 type DashboardFilterBarProps = {
   searchQuery: string;
@@ -29,6 +37,8 @@ export function DashboardFilterBar({
   onReset,
   isAuditeur,
 }: DashboardFilterBarProps) {
+  const statutChoices = useReferenceChoices("STATUT_TDR_ST", STATUT_TDR_ST_FALLBACK);
+
   if (!isAuditeur) return null;
 
   return (
@@ -90,7 +100,7 @@ export function DashboardFilterBar({
               <option value="TOUS">Tous</option>
               {statusOptions.map((s) => (
                 <option key={s} value={s}>
-                  {s === "VALIDE" ? "Validé" : s === "REJETE" ? "Rejeté" : "Suspendu"}
+                  {getChoiceLabel(statutChoices, s)}
                 </option>
               ))}
             </select>

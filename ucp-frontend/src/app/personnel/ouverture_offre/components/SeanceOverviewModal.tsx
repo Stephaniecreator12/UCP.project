@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 
 import SeanceOverviewDetails from "./SeanceOverviewDetails";
+import { useReferenceChoices } from "@/hooks/useReferenceChoices";
+import { getChoiceLabel } from "@/services/choices";
 import type { ProcurementMarket } from "@/types/procurement";
 import type { SeanceOuverture } from "@/types/ouvertureOffre";
 type SeanceOverviewModalProps = {
@@ -33,15 +35,7 @@ type StoredCommissionMember = {
   entite?: string;
 };
 
-const statusLabels: Record<SeanceOuverture["statut"], string> = {
-  BROUILLON: "Brouillon",
-  EN_SAISIE: "En saisie",
-  A_VALIDER: "Validation membres",
-  EN_VALIDATION_MEMBRES: "Validation membres",
-  EN_VALIDATION_PRESIDENT: "Validation président",
-  VALIDEE: "Validée",
-  REJETEE: "Rejetée",
-};
+
 
 const statusClasses: Record<SeanceOuverture["statut"], string> = {
   BROUILLON: "border-amber-200 bg-amber-50 text-amber-800",
@@ -53,24 +47,7 @@ const statusClasses: Record<SeanceOuverture["statut"], string> = {
   REJETEE: "border-rose-200 bg-rose-50 text-rose-800",
 };
 
-const procedureLabels: Record<string, string> = {
-  AOI: "AOI",
-  AON: "AON",
-  DC: "DC",
-  GRE_A_GRE: "Gré à gré",
-};
 
-const categoryLabels: Record<string, string> = {
-  BIENS: "Biens",
-  SERVICES: "Services",
-  TRAVAUX: "Travaux",
-};
-
-const marketStatusLabels: Record<ProcurementMarket["status"], string> = {
-  PUBLISHED: "Publié",
-  CLOSED: "Clôturé",
-  CANCELLED: "Annulé",
-};
 
 const marketStatusClasses: Record<ProcurementMarket["status"], string> = {
   PUBLISHED: "border-sky-200 bg-sky-50 text-sky-700",
@@ -204,6 +181,9 @@ const mergeCommissionMembers = (
 };
 
 function MarketOverviewDetails({ market }: { market: ProcurementMarket }) {
+  const categoryTypes = useReferenceChoices("CATEGORY_TYPE", []);
+  const procedureChoices = useReferenceChoices("PROCEDURE_TYPE", []);
+  const marketStatusChoices = useReferenceChoices("PUBLICATION_STATUS", []);
   return (
     <div className="space-y-5">
       <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -227,7 +207,7 @@ function MarketOverviewDetails({ market }: { market: ProcurementMarket }) {
             <span className="text-[10px] font-black uppercase tracking-widest">Procédure</span>
           </div>
           <p className="text-sm font-bold text-slate-900">
-            {procedureLabels[market.procedure_type] || market.procedure_type || "Non renseignée"}
+            {getChoiceLabel(procedureChoices, market.procedure_type) || market.procedure_type || "Non renseignée"}
           </p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
@@ -236,7 +216,7 @@ function MarketOverviewDetails({ market }: { market: ProcurementMarket }) {
             <span className="text-[10px] font-black uppercase tracking-widest">Catégorie</span>
           </div>
           <p className="text-sm font-bold text-slate-900">
-            {categoryLabels[market.category] || market.category || "Non renseignée"}
+            {getChoiceLabel(categoryTypes, market.category) || market.category || "Non renseignée"}
           </p>
         </div>
       </section>
@@ -254,7 +234,7 @@ function MarketOverviewDetails({ market }: { market: ProcurementMarket }) {
             </p>
             <div className="mt-2">
               <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${marketStatusClasses[market.status]}`}>
-                {marketStatusLabels[market.status]}
+                {getChoiceLabel(marketStatusChoices, market.status)}
               </span>
             </div>
           </div>
@@ -320,6 +300,10 @@ export default function SeanceOverviewModal({
     };
   }, [onClose, open]);
 
+  const statusChoices = useReferenceChoices("STATUT_SEANCE", []);
+  const procedureChoices = useReferenceChoices("PROCEDURE_TYPE", []);
+  const marketStatusChoices = useReferenceChoices("PUBLICATION_STATUS", []);
+
   const overviewMembers = useMemo(() => {
     if (!seance) return null;
     if (typeof window === "undefined") return seance.membres;
@@ -361,7 +345,7 @@ export default function SeanceOverviewModal({
                     statusClasses[seance.statut]
                   }`}
                 >
-                  {statusLabels[seance.statut]}
+                  {getChoiceLabel(statusChoices, seance.statut)}
                 </span>
               ) : market ? (
                 <span
@@ -369,7 +353,7 @@ export default function SeanceOverviewModal({
                     marketStatusClasses[market.status]
                   }`}
                 >
-                  {marketStatusLabels[market.status]}
+                  {getChoiceLabel(marketStatusChoices, market.status)}
                 </span>
               ) : null}
               <span className="rounded border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-bold text-slate-600">

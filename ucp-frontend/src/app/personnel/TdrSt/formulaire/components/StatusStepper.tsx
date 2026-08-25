@@ -1,6 +1,6 @@
 "use client";
 
-import { Statut, STATUT_LABEL } from "../hooks/useTdrStData";
+import { Statut, STATUT_LABEL, useStatutLabelMap } from "../hooks/useTdrStData";
 
 const getProgress = (statut?: Statut): { pct: number; tone: "slate" | "amber" | "emerald" | "rose" | "orange" } => {
   if (!statut || statut === "BROUILLON") return { pct: 18, tone: "slate" };
@@ -24,7 +24,13 @@ const getStepIndex = (statut?: Statut): number => {
 export function StatusStepper({ statut }: { statut?: Statut }) {
   const { pct, tone } = getProgress(statut);
   const idx = getStepIndex(statut);
-  const steps = ["Brouillon", "Soumis", "En validation", "Décision finale"];
+  const statutLabelMap = useStatutLabelMap();
+  const steps = [
+    statutLabelMap.BROUILLON,
+    statutLabelMap.SOUMIS,
+    statutLabelMap.EN_VALIDATION,
+    "Décision finale",
+  ];
 
   const toneClasses: Record<typeof tone, { bar: string; badge: string; dot: string }> = {
     slate: { bar: "bg-slate-500", badge: "border-slate-200 bg-slate-50 text-slate-700", dot: "bg-slate-600" },
@@ -34,7 +40,7 @@ export function StatusStepper({ statut }: { statut?: Statut }) {
     orange: { bar: "bg-orange-500", badge: "border-orange-200 bg-orange-50 text-orange-800", dot: "bg-orange-600" },
   };
 
-  const badgeText = statut ? STATUT_LABEL[statut] : "—";
+  const badgeText = statut ? statutLabelMap[statut] : "—";
   const c = toneClasses[tone];
 
   return (

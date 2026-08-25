@@ -76,7 +76,10 @@ def criteres_techniques_view(request, seance_id: int):
         .order_by("ordre", "nom")
         .values("id", "nom", "description", "ponderation", "ordre", "actif")
     )
-    return Response(list(criteres))
+    return Response({
+        "category_type": seance.category_type or "",
+        "criteres": list(criteres),
+    })
 
 
 # ============================================================

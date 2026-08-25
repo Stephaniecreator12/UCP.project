@@ -352,6 +352,12 @@ export default function AssignEvaluatorsPage() {
                     <span className={labelClass}>Intitulé du marché</span>
                     <div className={disabledClass}>{detail.objet_dossier}</div>
                   </div>
+                  {detail.category_type && (
+                    <div>
+                      <span className={labelClass}>Catégorie d'achat</span>
+                      <div className={disabledClass}>{detail.category_type}</div>
+                    </div>
+                  )}
                   <div>
                     <span className={labelClass}>
                       Date limite de dépôt des offres

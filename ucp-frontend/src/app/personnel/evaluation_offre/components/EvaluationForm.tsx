@@ -56,6 +56,7 @@ interface DecisionFinaleData {
 
 interface OffreDetail {
   id: number;
+  seance_id: number;
   reference_dossier: string;
   objet_dossier: string;
   nom_soumissionnaire: string;
@@ -207,12 +208,12 @@ export default function EvaluationForm({
   const token = getToken();
 
   useEffect(() => {
-    if (offre?.id) {
-      fetchCriteres(offre.id)
-        .then(setCriteres)
+    if (offre?.seance_id) {
+      fetchCriteres(offre.seance_id)
+        .then((data) => setCriteres(data.criteres))
         .catch(() => setCriteres([]));
     }
-  }, [offre?.id]);
+  }, [offre?.seance_id]);
 
   useEffect(() => {
     if (!offre) return;

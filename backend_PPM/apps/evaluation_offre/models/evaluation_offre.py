@@ -4,6 +4,10 @@ from django.contrib.auth import get_user_model
 from decimal import Decimal
 
 from apps.ouverture_offre.models import OffreOuverture, SeanceOuverture
+from apps.procurement.models.procurement_market import (
+    CategoryType,
+    _category_type_choices,
+)
 
 User = get_user_model()
 
@@ -147,9 +151,56 @@ class ExamenPreliminaire(models.Model):
 
 
 # ============================================================
+# TEMPLATES DE CRITÈRES PAR CATÉGORIE D'ACHAT
+# Bibliothèque configurable par l'admin : quels critères
+# s'appliquent à quelle catégorie (BIENS / SERVICES / INFRA ...)
+# ============================================================
+class CritereTemplate(models.Model):
+    """Modèle de critère technique rattaché à une catégorie d'achat.
+
+    L'admin configure une fois ; les séances héritent automatiquement
+    lors de la création des critères par défaut.
+    Un même nom peut exister dans plusieurs catégories avec des
+    pondérations différentes.
+    """
+    category_type = models.CharField(
+        max_length=20,
+        choices=_category_type_choices,
+        db_index=True,
+        help_text="Catégorie d'achat à laquelle ce modèle de critère s'applique",
+    )
+    nom = models.CharField(
+        max_length=255,
+        help_text="Libellé du critère (ex: Conformité technique)",
+    )
+    description = models.TextField(
+        blank=True,
+        help_text="Description du critère pour les évaluateurs",
+    )
+    ponderation = models.DecimalField(
+        max_digits=5, decimal_places=2,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        help_text="Pondération en pourcentage (ex: 40.00 pour 40 points)",
+    )
+    ordre = models.PositiveIntegerField(default=0)
+    actif = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["category_type", "ordre", "nom"]
+        unique_together = ("category_type", "nom")
+        verbose_name = "Modèle de critère technique"
+        verbose_name_plural = "Modèles de critères techniques"
+
+    def __str__(self):
+        return f"[{self.category_type}] {self.nom} ({self.ponderation})"
+
+
+# ============================================================
 # CRITÈRES TECHNIQUES CONFIGURABLES (par séance)
 # Source unique de vérité pour les critères et pondérations
-# Défauts basés sur l'existant: Conformité 40%, Délai 25%, Expérience 20%, SAV 15%
+# Créés automatiquement à partir des CritereTemplate de la catégorie
 # ============================================================
 class CritereTechnique(models.Model):
     seance = models.ForeignKey(
@@ -177,20 +228,51 @@ class CritereTechnique(models.Model):
         return f"{self.seance.reference_dossier} — {self.nom} ({self.ponderation})"
 
     @classmethod
-    def creer_defauts_pour_seance(cls, seance):
-        """Crée les 4 critères par défaut pour une séance s'ils n'existent pas"""
-        defauts = [
-            {"nom": "Conformité technique", "ponderation": Decimal("40.00"), "ordre": 1,
-             "description": "Conformité de l'offre aux spécifications techniques du dossier d'appel d'offres"},
-            {"nom": "Délai de livraison", "ponderation": Decimal("25.00"), "ordre": 2,
-             "description": "Respect des délais de livraison/exécution proposés"},
-            {"nom": "Expérience marchés similaires", "ponderation": Decimal("20.00"), "ordre": 3,
-             "description": "Expérience du soumissionnaire dans des marchés de nature et complexité comparables"},
-            {"nom": "SAV, garantie, formation", "ponderation": Decimal("15.00"), "ordre": 4,
-             "description": "Qualité du service après-vente, garanties offertes et formations prévues"},
-        ]
-        for d in defauts:
-            cls.objects.get_or_create(seance=seance, nom=d["nom"], defaults=d)
+    def creer_defauts_pour_seance(cls, seance, category_type=None):
+        """Crée les critères techniques pour une séance à partir des templates.
+
+        Args:
+            seance: instance SeanceOuverture
+            category_type: code catégorie (BIENS, SERVICES, INFRA…).
+                Si None, la catégorie est résolue depuis le ProcurementMarket
+                lié à la séance via reference_dossier.
+        """
+        if category_type is None:
+            category_type = cls._resoudre_category(seance)
+        if category_type is None:
+            return
+
+        templates = CritereTemplate.objects.filter(
+            category_type=category_type,
+            actif=True,
+        ).order_by("ordre", "nom")
+
+        for tpl in templates:
+            cls.objects.get_or_create(
+                seance=seance,
+                nom=tpl.nom,
+                defaults={
+                    "description": tpl.description,
+                    "ponderation": tpl.ponderation,
+                    "ordre": tpl.ordre,
+                    "actif": tpl.actif,
+                },
+            )
+
+    @staticmethod
+    def _resoudre_category(seance):
+        """Résout la catégorie d'achat d'une séance.
+
+        Utilise d'abord le champ denormalisé category_type de la séance,
+        puis fallback sur le ProcurementMarket si la séance n'a pas de catégorie.
+        """
+        if getattr(seance, "category_type", ""):
+            return seance.category_type
+        from apps.procurement.models.procurement_market import ProcurementMarket
+        market = ProcurementMarket.objects.filter(
+            reference_number=seance.reference_dossier,
+        ).first()
+        return market.category if market else None
 
 
 # ============================================================

@@ -734,6 +734,16 @@ function EvaluationSecretaireContent() {
                           value={detail.objet_dossier}
                         />
                       </label>
+                      {detail.category_type && (
+                        <label>
+                          <span className={labelClass}>Catégorie d'achat</span>
+                          <input
+                            disabled
+                            className={disabledClass}
+                            value={detail.category_type}
+                          />
+                        </label>
+                      )}
                       <label>
                         <span className={labelClass}>Date limite de dépôt</span>
                         <input

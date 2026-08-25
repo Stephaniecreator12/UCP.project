@@ -14,6 +14,7 @@ from apps.evaluation_offre.admin import (
 )
 from apps.evaluation_offre.models import (
     CritereTechnique,
+    CritereTemplate,
     EvaluationOffre,
     EvaluationSeanceAssignation,
     EvaluationTechnique,
@@ -150,6 +151,26 @@ class _CritereTechniqueFixture:
         self.eval_technique = EvaluationTechnique.objects.create(
             evaluation=self.evaluation,
         )
+        self._creer_templates_defauts()
+
+    def _creer_templates_defauts(self):
+        """Crée les CritereTemplate par défaut pour les tests."""
+        templates = [
+            {"nom": "Conformité technique", "ponderation": Decimal("40.00"), "ordre": 1,
+             "description": "Conformité de l'offre aux spécifications techniques"},
+            {"nom": "Délai de livraison", "ponderation": Decimal("25.00"), "ordre": 2,
+             "description": "Respect des délais de livraison proposés"},
+            {"nom": "Expérience marchés similaires", "ponderation": Decimal("20.00"), "ordre": 3,
+             "description": "Expérience du soumissionnaire dans des marchés comparables"},
+            {"nom": "SAV, garantie, formation", "ponderation": Decimal("15.00"), "ordre": 4,
+             "description": "Qualité du SAV, garanties et formations prévues"},
+        ]
+        for t in templates:
+            CritereTemplate.objects.get_or_create(
+                category_type="BIENS",
+                nom=t["nom"],
+                defaults=t,
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -157,7 +178,7 @@ class _CritereTechniqueFixture:
 # ---------------------------------------------------------------------------
 class CritereTechniqueModelTests(_CritereTechniqueFixture, TestCase):
     def test_creer_defauts_pour_seance(self):
-        CritereTechnique.creer_defauts_pour_seance(self.seance)
+        CritereTechnique.creer_defauts_pour_seance(self.seance, category_type="BIENS")
 
         criteres = CritereTechnique.objects.filter(seance=self.seance)
         self.assertEqual(criteres.count(), 4)
@@ -169,15 +190,15 @@ class CritereTechniqueModelTests(_CritereTechniqueFixture, TestCase):
         self.assertIn("SAV, garantie, formation", noms)
 
     def test_creer_defauts_idempotent(self):
-        CritereTechnique.creer_defauts_pour_seance(self.seance)
-        CritereTechnique.creer_defauts_pour_seance(self.seance)
+        CritereTechnique.creer_defauts_pour_seance(self.seance, category_type="BIENS")
+        CritereTechnique.creer_defauts_pour_seance(self.seance, category_type="BIENS")
 
         self.assertEqual(
             CritereTechnique.objects.filter(seance=self.seance).count(), 4
         )
 
     def test_ponderation_sum(self):
-        CritereTechnique.creer_defauts_pour_seance(self.seance)
+        CritereTechnique.creer_defauts_pour_seance(self.seance, category_type="BIENS")
         total = sum(
             CritereTechnique.objects.filter(seance=self.seance).values_list(
                 "ponderation", flat=True
@@ -216,7 +237,7 @@ class EvaluationTechniqueModelTests(_CritereTechniqueFixture, TestCase):
         self.assertIsNone(score)
 
     def test_calculer_score_with_notes(self):
-        CritereTechnique.creer_defauts_pour_seance(self.seance)
+        CritereTechnique.creer_defauts_pour_seance(self.seance, category_type="BIENS")
         criteres = list(CritereTechnique.objects.filter(seance=self.seance))
 
         NoteTechniqueCritere.objects.create(
@@ -245,7 +266,7 @@ class EvaluationTechniqueModelTests(_CritereTechniqueFixture, TestCase):
         self.assertGreater(score, Decimal("0"))
 
     def test_save_auto_qualifies(self):
-        CritereTechnique.creer_defauts_pour_seance(self.seance)
+        CritereTechnique.creer_defauts_pour_seance(self.seance, category_type="BIENS")
         criteres = list(CritereTechnique.objects.filter(seance=self.seance))
 
         for c in criteres:
@@ -263,7 +284,7 @@ class EvaluationTechniqueModelTests(_CritereTechniqueFixture, TestCase):
         self.assertTrue(self.eval_technique.qualifie_technique)
 
     def test_save_auto_disqualifies_low_score(self):
-        CritereTechnique.creer_defauts_pour_seance(self.seance)
+        CritereTechnique.creer_defauts_pour_seance(self.seance, category_type="BIENS")
         criteres = list(CritereTechnique.objects.filter(seance=self.seance))
 
         for c in criteres:
@@ -290,7 +311,7 @@ class EvaluationTechniqueModelTests(_CritereTechniqueFixture, TestCase):
 # ---------------------------------------------------------------------------
 class NoteTechniqueCritereModelTests(_CritereTechniqueFixture, TestCase):
     def test_create_and_str(self):
-        CritereTechnique.creer_defauts_pour_seance(self.seance)
+        CritereTechnique.creer_defauts_pour_seance(self.seance, category_type="BIENS")
         critere = CritereTechnique.objects.filter(seance=self.seance).first()
 
         note = NoteTechniqueCritere.objects.create(
@@ -304,7 +325,7 @@ class NoteTechniqueCritereModelTests(_CritereTechniqueFixture, TestCase):
         self.assertIn(critere.nom, result)
 
     def test_unique_together(self):
-        CritereTechnique.creer_defauts_pour_seance(self.seance)
+        CritereTechnique.creer_defauts_pour_seance(self.seance, category_type="BIENS")
         critere = CritereTechnique.objects.filter(seance=self.seance).first()
 
         NoteTechniqueCritere.objects.create(
@@ -335,7 +356,7 @@ class AdminChangelistRegressionTests(_CritereTechniqueFixture, TestCase):
             full_name="Admin",
         )
         self.client.force_login(self.admin_user)
-        CritereTechnique.creer_defauts_pour_seance(self.seance)
+        CritereTechnique.creer_defauts_pour_seance(self.seance, category_type="BIENS")
 
     def _get_changelist(self, model_admin_class, model):
         """Récupère la vue changelist via le client HTTP."""
@@ -392,7 +413,7 @@ class AdminEditableFieldsTests(_CritereTechniqueFixture, TestCase):
             full_name="Admin Edit",
         )
         self.client.force_login(self.admin_user)
-        CritereTechnique.creer_defauts_pour_seance(self.seance)
+        CritereTechnique.creer_defauts_pour_seance(self.seance, category_type="BIENS")
 
     def test_criteretechnique_list_editable(self):
         model_admin = CritereTechniqueAdmin(CritereTechnique, admin.site)

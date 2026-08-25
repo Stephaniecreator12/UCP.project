@@ -1,6 +1,9 @@
 from django.conf import settings
 from django.db import models
 
+from apps.common.models import ChoiceGroup, reference_choices
+from apps.procurement.models.procurement_market import CategoryType
+
 
 class SeanceOuverture(models.Model):
     class Statut(models.TextChoices):
@@ -19,6 +22,16 @@ class SeanceOuverture(models.Model):
 
     reference_dossier = models.CharField(max_length=100)
     objet_dossier = models.CharField(max_length=255, blank=True)
+
+    category_type = models.CharField(
+        max_length=20,
+        choices=CategoryType.choices,
+        blank=True,
+        default="",
+        db_index=True,
+        help_text="Catégorie d'achat du dossier (BIENS / SERVICES / INFRA). "
+                  "Résolu automatiquement ou saisi manuellement.",
+    )
     date_seance = models.DateField(null=True, blank=True)
     heure_seance = models.TimeField(null=True, blank=True)
     lieu = models.CharField(max_length=255, blank=True)
@@ -67,6 +80,19 @@ class SeanceOuverture(models.Model):
 
     def __str__(self):
         return f"{self.reference_dossier} - {self.statut}"
+
+    def save(self, *args, **kwargs):
+        if not self.category_type:
+            self.category_type = self._resoudre_category()
+        super().save(*args, **kwargs)
+
+    def _resoudre_category(self):
+        """Résout la catégorie d'achat depuis le ProcurementMarket lié."""
+        from apps.procurement.models.procurement_market import ProcurementMarket
+        market = ProcurementMarket.objects.filter(
+            reference_number=self.reference_dossier,
+        ).first()
+        return market.category if market else ""
 
     class EtapeOuverture(models.TextChoices):
         COMPLETE = "COMPLETE", "Ouverture complete"

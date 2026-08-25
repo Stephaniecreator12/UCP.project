@@ -13,6 +13,7 @@ from .models import (
     AuditTrail,
     CritereTechnique,
     CritereTemplate,
+    EvaluationReport,
 )
 from .services.validation_access_service import issue_seance_password
 
@@ -311,3 +312,19 @@ class CritereTechniqueAdmin(admin.ModelAdmin):
         self.message_user(request, f"✅ Critères créés pour {count} séance(s) (basés sur les modèles de catégorie)")
 
     creer_criteres_defauts.short_description = "🔧 Créer critères à partir des modèles de catégorie"
+
+
+# ============================================================
+# RAPPORT D'ÉVALUATION (PDF généré)
+# ============================================================
+@admin.register(EvaluationReport)
+class EvaluationReportAdmin(admin.ModelAdmin):
+    list_display = ("decision", "version", "hash_document", "fichier", "created_at")
+    list_filter = ("created_at",)
+    search_fields = (
+        "decision__offre__nom_soumissionnaire",
+        "decision__offre__seance__reference_dossier",
+        "hash_document",
+    )
+    readonly_fields = ("hash_document", "created_at")
+    autocomplete_fields = ("decision",)

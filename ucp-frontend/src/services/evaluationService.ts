@@ -81,6 +81,11 @@ export interface CritereTechniqueApi {
   actif: boolean;
 }
 
+export interface CriteresResponse {
+  category_type: string;
+  criteres: CritereTechniqueApi[];
+}
+
 export interface DaoOffreItem {
   offre_id: number;
   ordre_passage: number;
@@ -285,6 +290,7 @@ export interface DaoDetail {
   seance_id: number;
   reference_dossier: string;
   objet_dossier: string;
+  category_type: string;
   date_seance?: string;
   lieu?: string;
   heure_seance?: string;
@@ -738,7 +744,7 @@ export async function assignEvaluators(
 
 export async function fetchCriteres(
   seanceId: number,
-): Promise<CritereTechniqueApi[]> {
+): Promise<CriteresResponse> {
   const res = await fetchWithAuthRetry(
     `${EVALUATION_API_BASE}/dao/${seanceId}/criteres/`,
     { method: "GET" },

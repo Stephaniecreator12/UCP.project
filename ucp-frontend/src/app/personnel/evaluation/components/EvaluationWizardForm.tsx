@@ -26,6 +26,7 @@ import {
   type EvaluationDetail,
   type SaveEvaluationPayload,
   type CritereTechniqueApi,
+  type CriteresResponse,
 } from "@/services/evaluationService";
 
 const STEPS = [
@@ -360,13 +361,20 @@ export default function EvaluationWizardForm({
 }) {
   const [detail, setDetail] = useState(initialDetail);
   const [criteres, setCriteres] = useState<CritereTechniqueApi[]>([]);
+  const [categoryType, setCategoryType] = useState<string>("");
 
   const seanceId = detail.offre_detail.seance_id;
 
   useEffect(() => {
     fetchCriteres(seanceId)
-      .then(setCriteres)
-      .catch(() => setCriteres([]));
+      .then((data: CriteresResponse) => {
+        setCriteres(data.criteres);
+        setCategoryType(data.category_type);
+      })
+      .catch(() => {
+        setCriteres([]);
+        setCategoryType("");
+      });
   }, [seanceId]);
 
   useEffect(() => {
@@ -980,7 +988,7 @@ export default function EvaluationWizardForm({
                 <SectionHeader
                   stepId={3}
                   title="Évaluation technique"
-                  subtitle={`Notation sur ${criteres.length} critères — seuil éliminatoire 70/100.`}
+                  subtitle={`Notation sur ${criteres.length} critères${categoryType ? ` — catégorie ${categoryType}` : ""} — seuil éliminatoire 70/100.`}
                 />
                 {!detail.peut_saisir_technique ? (
                   <WaitBanner

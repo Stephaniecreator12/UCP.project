@@ -860,6 +860,7 @@ def get_dao_detail(seance_id: int, user: object) -> dict:
         "seance_id": seance.id,
         "reference_dossier": seance.reference_dossier,
         "objet_dossier": seance.objet_dossier,
+        "category_type": seance.category_type or "",
         "date_seance": seance.date_seance,
         "lieu": seance.lieu,
         "heure_seance": seance.heure_seance.isoformat() if seance.heure_seance else None,

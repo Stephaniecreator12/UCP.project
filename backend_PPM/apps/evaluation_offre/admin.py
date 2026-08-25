@@ -12,6 +12,7 @@ from .models import (
     DecisionFinale,
     AuditTrail,
     CritereTechnique,
+    CritereTemplate,
 )
 from .services.validation_access_service import issue_seance_password
 
@@ -200,6 +201,86 @@ class AuditTrailAdmin(admin.ModelAdmin):
         return False
 
 
+@admin.register(CritereTemplate)
+class CritereTemplateAdmin(admin.ModelAdmin):
+    list_display = ('category_type', 'nom', 'ponderation', 'ordre', 'actif', 'description_courte')
+    list_filter = ('category_type', 'actif')
+    search_fields = ('nom', 'description')
+    list_editable = ('nom', 'ponderation', 'ordre', 'actif')
+    ordering = ('category_type', 'ordre', 'nom')
+    fieldsets = (
+        ('Catégorie', {'fields': ('category_type',)}),
+        ('Critère', {'fields': ('nom', 'description', 'ponderation', 'ordre', 'actif')}),
+    )
+
+    def description_courte(self, obj):
+        if obj.description:
+            return obj.description[:50] + ("..." if len(obj.description) > 50 else "")
+        return "—"
+    description_courte.short_description = "Description"
+
+    actions = ['creer_criteres_pour_toutes_categories']
+
+    def creer_criteres_pour_toutes_categories(self, request, queryset):
+        """Crée des templates par défaut pour toutes les catégories vides."""
+        from apps.procurement.models.procurement_market import CategoryType
+        created = 0
+        for cat_code, cat_label in CategoryType.choices:
+            existing = queryset.filter(category_type=cat_code).count()
+            if existing == 0:
+                templates_defauts = _templates_par_categorie(cat_code)
+                for t in templates_defauts:
+                    CritereTemplate.objects.get_or_create(
+                        category_type=cat_code,
+                        nom=t["nom"],
+                        defaults=t,
+                    )
+                    created += 1
+        self.message_user(request, f"✅ {created} modèle(s) de critère(s) créé(s)")
+
+    creer_criteres_pour_toutes_categories.short_description = "🔧 Initialiser les modèles par catégorie"
+
+
+def _templates_par_categorie(category_type):
+    """Retourne les templates par défaut pour une catégorie donnée."""
+    from decimal import Decimal
+    defaults = {
+        "BIENS": [
+            {"nom": "Conformité technique", "ponderation": Decimal("40.00"), "ordre": 1,
+             "description": "Conformité de l'offre aux spécifications techniques du dossier"},
+            {"nom": "Délai de livraison", "ponderation": Decimal("25.00"), "ordre": 2,
+             "description": "Respect des délais de livraison proposés"},
+            {"nom": "Expérience marchés similaires", "ponderation": Decimal("20.00"), "ordre": 3,
+             "description": "Expérience du soumissionnaire dans des marchés comparables"},
+            {"nom": "SAV, garantie, formation", "ponderation": Decimal("15.00"), "ordre": 4,
+             "description": "Qualité du SAV, garanties et formations prévues"},
+        ],
+        "SERVICES": [
+            {"nom": "Conformité technique", "ponderation": Decimal("35.00"), "ordre": 1,
+             "description": "Conformité de l'offre aux termes de référence"},
+            {"nom": "Délai d'exécution", "ponderation": Decimal("20.00"), "ordre": 2,
+             "description": "Respect des délais d'exécution proposés"},
+            {"nom": "Expérience et références", "ponderation": Decimal("30.00"), "ordre": 3,
+             "description": "Expérience et références dans des missions similaires"},
+            {"nom": "Qualité de l'équipe", "ponderation": Decimal("15.00"), "ordre": 4,
+             "description": "Qualification et disponibilité de l'équipe proposée"},
+        ],
+        "INFRA": [
+            {"nom": "Conformité technique", "ponderation": Decimal("25.00"), "ordre": 1,
+             "description": "Conformité du dossier technique aux specifications"},
+            {"nom": "Sécurité et sécurité au travail", "ponderation": Decimal("20.00"), "ordre": 2,
+             "description": "Plan de sécurité et mesures de protection"},
+            {"nom": "Délai d'exécution", "ponderation": Decimal("25.00"), "ordre": 3,
+             "description": "Respect du calendrier de travaux"},
+            {"nom": "Expérience travaux similaires", "ponderation": Decimal("20.00"), "ordre": 4,
+             "description": "Références dans des travaux de même nature et complexité"},
+            {"nom": "Moyens matériels et humains", "ponderation": Decimal("10.00"), "ordre": 5,
+             "description": "Adéquation des moyens engagés"},
+        ],
+    }
+    return defaults.get(category_type, defaults["BIENS"])
+
+
 @admin.register(CritereTechnique)
 class CritereTechniqueAdmin(admin.ModelAdmin):
     list_display = ('seance', 'nom', 'ponderation', 'ordre', 'actif', 'description_courte')
@@ -227,6 +308,6 @@ class CritereTechniqueAdmin(admin.ModelAdmin):
             s = SeanceOuverture.objects.get(pk=seance)
             CritereTechnique.creer_defauts_pour_seance(s)
             count += 1
-        self.message_user(request, f"✅ Critères par défaut créés pour {count} séance(s)")
+        self.message_user(request, f"✅ Critères créés pour {count} séance(s) (basés sur les modèles de catégorie)")
 
-    creer_criteres_defauts.short_description = "🔧 Créer critères par défaut (40/25/20/15)"
+    creer_criteres_defauts.short_description = "🔧 Créer critères à partir des modèles de catégorie"

@@ -1,6 +1,6 @@
 import type { StatutEvaluation } from "@/types/evaluations";
 
-const STYLES: Record<StatutEvaluation, { label: string; classes: string }> = {
+const STYLES: Partial<Record<StatutEvaluation, { label: string; classes: string }>> = {
   EN_COURS: {
     label: "Évaluation en cours",
     classes: "bg-blue-50 text-blue-800 border-blue-200",
@@ -27,8 +27,10 @@ const STYLES: Record<StatutEvaluation, { label: string; classes: string }> = {
   },
 };
 
+const FALLBACK_STYLE = { label: "Inconnu", classes: "bg-slate-50 text-slate-600 border-slate-200" };
+
 export default function StatutBadge({ statut }: { statut: StatutEvaluation }) {
-  const style = STYLES[statut];
+  const style = STYLES[statut] ?? FALLBACK_STYLE;
   return (
     <span
       className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border ${style.classes}`}

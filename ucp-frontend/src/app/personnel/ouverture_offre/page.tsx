@@ -106,7 +106,7 @@ const PROCEDURE_LABELS: Record<string, string> = {
 const CATEGORY_LABELS: Record<string, string> = {
   BIENS: "Biens",
   SERVICES: "Services",
-  INFRA: "Travaux",
+  TRAVAUX: "Travaux",
 };
 
 const COMMISSION_STORAGE_PREFIX = "ucp_commission_membres_";

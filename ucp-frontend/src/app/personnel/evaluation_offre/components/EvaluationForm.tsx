@@ -10,15 +10,8 @@ import {
   Loader,
 } from "lucide-react";
 import {
-  submitDecisionFinale,
-  submitEvaluationFinanciere,
-  submitEvaluationTechnique,
-  submitExamenPreliminaire,
+  saveEvaluation,
   fetchCriteres,
-  type DecisionFinalePayload,
-  type EvaluationFinancierePayload,
-  type EvaluationTechniquePayload,
-  type ExamenPreliminairePayload,
   type CritereTechniqueApi,
 } from "@/services/evaluationService";
 import { getToken } from "@/services/auth";
@@ -51,7 +44,7 @@ interface EvaluationFinanciereData {
 interface DecisionFinaleData {
   recommandation?: "ATTRIBUER" | "REJETER" | "RELANCER";
   justification?: string;
-  declaration_conflit?: boolean;
+  declaration_conflit?: "OUI" | "NON";
 }
 
 interface OffreDetail {
@@ -113,7 +106,7 @@ type ExamenCommentKey =
 type DecisionStep = {
   recommandation: "ATTRIBUER" | "REJETER" | "RELANCER" | null;
   justification: string;
-  declaration_conflit: boolean;
+  declaration_conflit: "OUI" | "NON" | null;
   password: string;
   completed?: boolean;
 };
@@ -148,7 +141,7 @@ const initialFinanciere: FinanciereStep = {
 const initialDecision: DecisionStep = {
   recommandation: null,
   justification: "",
-  declaration_conflit: false,
+  declaration_conflit: null,
   password: "",
 };
 
@@ -284,7 +277,7 @@ export default function EvaluationForm({
           offre.decision_finale.recommandation ||
           initialDecision.recommandation,
         justification: offre.decision_finale.justification || "",
-        declaration_conflit: offre.decision_finale.declaration_conflit ?? false,
+        declaration_conflit: offre.decision_finale.declaration_conflit ?? null,
         password: "",
         completed: true,
       });
@@ -337,7 +330,7 @@ export default function EvaluationForm({
   const canSubmitDecision =
     !!decision.recommandation &&
     decision.justification.trim().length >= 10 &&
-    decision.declaration_conflit &&
+    decision.declaration_conflit === "OUI" &&
     (!!token || decision.password.trim().length >= 6);
 
   const techniqueScore = technique.score;
@@ -367,25 +360,26 @@ export default function EvaluationForm({
           );
           return;
         }
-        const payload: ExamenPreliminairePayload = {
+        await saveEvaluation(offre.id, {
           ...(authEmail && authCode
             ? { email: authEmail, code: authCode }
             : {}),
-          offre_signee: examen.offre_signee || false,
-          garantie_conforme: examen.garantie_conforme || false,
-          dossier_admin_complet: examen.dossier_admin_complet || false,
-          validite_conforme: examen.validite_conforme || false,
-          conditions_acceptees: examen.conditions_acceptees || false,
-          commentaire: examen.commentaire,
-        };
-        await submitExamenPreliminaire(offre.id, payload);
+          examen: {
+            offre_signee: examen.offre_signee || false,
+            garantie_conforme: examen.garantie_conforme || false,
+            dossier_admin_complet: examen.dossier_admin_complet || false,
+            validite_conforme: examen.validite_conforme || false,
+            conditions_acceptees: examen.conditions_acceptees || false,
+            commentaire: examen.commentaire,
+          },
+        });
         setExamen({
-          offre_signee: payload.offre_signee,
-          garantie_conforme: payload.garantie_conforme,
-          dossier_admin_complet: payload.dossier_admin_complet,
-          validite_conforme: payload.validite_conforme,
-          conditions_acceptees: payload.conditions_acceptees,
-          commentaire: payload.commentaire || "",
+          offre_signee: examen.offre_signee,
+          garantie_conforme: examen.garantie_conforme,
+          dossier_admin_complet: examen.dossier_admin_complet,
+          validite_conforme: examen.validite_conforme,
+          conditions_acceptees: examen.conditions_acceptees,
+          commentaire: examen.commentaire || "",
           completed: true,
         });
         if (!isExamenConforme) {
@@ -424,13 +418,12 @@ export default function EvaluationForm({
           note: Number(technique.notes[c.id] ?? 0),
           commentaire: "",
         }));
-        const payload: EvaluationTechniquePayload = {
+        await saveEvaluation(offre.id, {
           ...(authEmail && authCode
             ? { email: authEmail, code: authCode }
             : {}),
-          notes,
-        } as unknown as EvaluationTechniquePayload;
-        await submitEvaluationTechnique(offre.id, payload);
+          technique: { notes },
+        });
         const score = computeTechniqueScore(
           { notes: Object.fromEntries(criteres.map((c) => [c.id, technique.notes[c.id]])) },
           criteres,
@@ -476,17 +469,17 @@ export default function EvaluationForm({
           );
           return;
         }
-        const payload: EvaluationFinancierePayload = {
+        await saveEvaluation(offre.id, {
           ...(authEmail && authCode
             ? { email: authEmail, code: authCode }
             : {}),
-          montant_lu: financiere.montant_lu || 0,
-          corrections_arithmetiques:
-            financiere.corrections_arithmetiques ?? undefined,
-          rabais_accordes: financiere.rabais_accordes ?? undefined,
-          offre_moins_disante: financiere.offre_moins_disante ?? undefined,
-        };
-        await submitEvaluationFinanciere(offre.id, payload);
+          financiere: {
+            montant_lu: financiere.montant_lu || 0,
+            corrections_arithmetiques:
+              financiere.corrections_arithmetiques ?? undefined,
+            rabais_accordes: financiere.rabais_accordes ?? undefined,
+          },
+        });
         const score = computeFinancialScore(
           montantFinal,
           financiere.offre_moins_disante,
@@ -513,16 +506,17 @@ export default function EvaluationForm({
           );
           return;
         }
-        const payload: DecisionFinalePayload = {
+        await saveEvaluation(offre.id, {
           ...(authEmail && authCode
             ? { email: authEmail, code: authCode }
             : {}),
-          recommandation: decision.recommandation || "REJETER",
-          justification: decision.justification,
-          declaration_conflit: decision.declaration_conflit,
-          password: decision.password,
-        };
-        await submitDecisionFinale(offre.id, payload);
+          conclusion: {
+            recommandation: decision.recommandation || "REJETER",
+            justification: decision.justification,
+            declaration_conflit: decision.declaration_conflit || "NON",
+            password: decision.password,
+          },
+        });
         setDecision({ ...decision, completed: true });
         showPopup(
           "success",
@@ -994,11 +988,11 @@ export default function EvaluationForm({
           <label className="flex cursor-pointer items-start gap-3 rounded-3xl border border-slate-200 bg-white p-4">
             <input
               type="checkbox"
-              checked={decision.declaration_conflit}
+              checked={decision.declaration_conflit === "OUI"}
               onChange={(e) =>
                 setDecision((current) => ({
                   ...current,
-                  declaration_conflit: e.target.checked,
+                  declaration_conflit: e.target.checked ? "OUI" : "NON",
                 }))
               }
               className="mt-1 h-4 w-4 rounded border-slate-300 text-emerald-700"

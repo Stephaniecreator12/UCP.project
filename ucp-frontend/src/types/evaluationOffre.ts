@@ -34,12 +34,16 @@ export type ExamenPreliminaire = {
 
 export type EvaluationTechnique = {
   id?: number;
-  note_conformite_technique: string | number | null;
-  note_delai_livraison: string | number | null;
-  note_experience: string | number | null;
-  note_sav_garantie: string | number | null;
   score_technique_total?: string | number | null;
   qualifie_technique?: boolean;
+  notes: Array<{
+    id: number;
+    critere_id: number;
+    critere_nom: string;
+    critere_ponderation: number;
+    note: number;
+    commentaire: string;
+  }>;
 };
 
 export type EvaluationFinanciere = {
@@ -61,7 +65,7 @@ export type DecisionFinale = {
   classement: number | null;
   recommandation: RecommandationEvaluation | null;
   justification: string;
-  declaration_conflit: boolean;
+  declaration_conflit: "OUI" | "NON";
   created_at: string;
 };
 
@@ -152,6 +156,6 @@ export type AssignEvaluateursPayload = {
 export type ConclusionPayload = {
   recommandation: RecommandationEvaluation;
   justification: string;
-  declaration_conflit: boolean;
+  declaration_conflit: "OUI" | "NON";
   password: string;
 };

@@ -18,7 +18,7 @@ const PROCEDURE_TYPE_FALLBACK = [
 const CATEGORY_TYPE_FALLBACK = [
   { code: "BIENS", label: "Biens" },
   { code: "SERVICES", label: "Services" },
-  { code: "INFRA", label: "Infrastructures" },
+  { code: "TRAVAUX", label: "Travaux" },
 ];
 
 interface Props {

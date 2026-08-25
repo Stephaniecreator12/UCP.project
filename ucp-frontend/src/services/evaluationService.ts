@@ -354,10 +354,11 @@ export interface ExamenPreliminairePayload {
 export interface EvaluationTechniquePayload {
   email?: string;
   code?: string;
-  note_conformite_technique: number;
-  note_delai_livraison: number;
-  note_experience: number;
-  note_sav_garantie: number;
+  notes?: Array<{
+    critere_id: number;
+    note: number;
+    commentaire?: string;
+  }>;
 }
 
 export interface EvaluationFinancierePayload {
@@ -374,7 +375,7 @@ export interface DecisionFinalePayload {
   code?: string;
   recommandation: RecommandationType;
   justification: string;
-  declaration_conflit: boolean;
+  declaration_conflit: DeclarationConflit;
   password?: string;
   classement?: number;
 }

@@ -42,3 +42,5 @@ class Consultance(models.Model):
 
     class Meta:
         db_table = "consultance"
+        verbose_name = "Consultance"
+        verbose_name_plural = "Consultances"

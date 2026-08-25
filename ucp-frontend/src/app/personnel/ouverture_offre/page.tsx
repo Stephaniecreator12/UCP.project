@@ -429,7 +429,7 @@ export default function OuvertureOffrePage() {
     useState<CommissionBlock | null>(null);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState(() =>
-    consumeOpeningFlashMessage("/ouverture_offre"),
+    consumeOpeningFlashMessage("/personnel/ouverture_offre"),
   );
   const isSecretaire = isSecretaireUser(currentUser);
 
@@ -962,7 +962,7 @@ export default function OuvertureOffrePage() {
                                     currentUser.email,
                                 });
                                 router.push(
-                                  `/ouverture_offre/validation/${row.seance.id}?${params.toString()}`,
+                                  `/personnel/ouverture_offre/validation/${row.seance.id}?${params.toString()}`,
                                 );
                               }}
                               onDownloadPV={handleDownloadPV}

@@ -21,3 +21,7 @@ demandes/documents/
 
 tdr_st/
 !**/tdr_st/.gitkeep
+
+# Celery Beat
+celerybeat-schedule*
+**/celerybeat-schedule*

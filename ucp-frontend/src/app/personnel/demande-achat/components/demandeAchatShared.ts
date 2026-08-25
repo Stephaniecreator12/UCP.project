@@ -11,9 +11,12 @@ import {
   isLogistiqueUser,
 } from "@/services/auth";
 import { formatFrenchDate, formatFrenchDateTime } from "@/lib/date";
+import { type ReferenceChoiceOption } from "@/services/choices";
 
 // Ces dictionnaires centralisent les libellés métier du module
 // "état de besoins" pour garder la même terminologie partout.
+// Les constantes servent de fallback statique ; les fonctions getXXXLabels
+// fusionnent les choix dynamiques du backend avec ces defaults.
 export const statusLabels: Record<string, string> = {
   BROUILLON: "Brouillon",
   SOUMISE: "Soumise",
@@ -26,6 +29,14 @@ export const statusLabels: Record<string, string> = {
   CLOTUREE: "Clôturée",
   REJETEE: "Rejetée",
 };
+
+export function getStatusLabels(
+  choices: ReferenceChoiceOption[] = [],
+): Record<string, string> {
+  const labels = { ...statusLabels };
+  for (const c of choices) labels[c.code] = c.label;
+  return labels;
+}
 
 export const statusClasses: Record<string, string> = {
   BROUILLON: "bg-slate-100 text-slate-700",
@@ -49,11 +60,27 @@ export const stepLabels: Record<string, string> = {
   TERMINEE: "Terminée",
 };
 
+export function getStepLabels(
+  choices: ReferenceChoiceOption[] = [],
+): Record<string, string> {
+  const labels = { ...stepLabels };
+  for (const c of choices) labels[c.code] = c.label;
+  return labels;
+}
+
 export const typeLabels: Record<string, string> = {
   MATERIELS: "Matériels",
   PETITS_SERVICES: "Petits services",
   SERVICES_RECURRENTS: "Services récurrents",
 };
+
+export function getTypeLabels(
+  choices: ReferenceChoiceOption[] = [],
+): Record<string, string> {
+  const labels = { ...typeLabels };
+  for (const c of choices) labels[c.code] = c.label;
+  return labels;
+}
 
 export const financementLabels: Record<string, string> = {
   NON_DEFINI: "Non défini",
@@ -67,6 +94,14 @@ export const financementLabels: Record<string, string> = {
   FONDS_PROPRES: "Budget interne",
   AUTRES: "Autres partenaires",
 };
+
+export function getFinancementLabels(
+  choices: ReferenceChoiceOption[] = [],
+): Record<string, string> {
+  const labels = { ...financementLabels };
+  for (const c of choices) labels[c.code] = c.label;
+  return labels;
+}
 
 export const financementColors: Record<string, string> = {
   NON_DEFINI: "bg-amber-400",
@@ -87,12 +122,28 @@ export const procedureLabels: Record<string, string> = {
   SELECTION_APRES_COTATION: "Sélection après cotation",
 };
 
+export function getProcedureLabels(
+  choices: ReferenceChoiceOption[] = [],
+): Record<string, string> {
+  const labels = { ...procedureLabels };
+  for (const c of choices) labels[c.code] = c.label;
+  return labels;
+}
+
 export const expeditionLabels: Record<string, string> = {
   EN_TRANSIT: "En transit",
   ARRIVE: "Arrivé",
   PARTIEL: "Partiel",
   RETARD: "Retard",
 };
+
+export function getExpeditionLabels(
+  choices: ReferenceChoiceOption[] = [],
+): Record<string, string> {
+  const labels = { ...expeditionLabels };
+  for (const c of choices) labels[c.code] = c.label;
+  return labels;
+}
 
 export const receptionStatusLabels: Record<string, string> = {
   EN_ATTENTE: "En attente",
@@ -102,11 +153,27 @@ export const receptionStatusLabels: Record<string, string> = {
   ECART_RESOLU: "Écart résolu",
 };
 
+export function getReceptionStatusLabels(
+  choices: ReferenceChoiceOption[] = [],
+): Record<string, string> {
+  const labels = { ...receptionStatusLabels };
+  for (const c of choices) labels[c.code] = c.label;
+  return labels;
+}
+
 export const finalStatusLabels: Record<string, string> = {
   CLOTURE: "Clôturé",
   PARTIELLEMENT_EXECUTE: "Partiellement exécuté",
   ANNULE: "Annulé",
 };
+
+export function getFinalStatusLabels(
+  choices: ReferenceChoiceOption[] = [],
+): Record<string, string> {
+  const labels = { ...finalStatusLabels };
+  for (const c of choices) labels[c.code] = c.label;
+  return labels;
+}
 
 export const timelineValidationSteps: Array<{
   key: EtapeValidation;
@@ -118,6 +185,16 @@ export const timelineValidationSteps: Array<{
   { key: "PROGRAMMATIQUE", label: "Validation programmatique" },
   { key: "APPROBATION_FINALE", label: "Approbation finale" },
 ];
+
+export function getTimelineValidationSteps(
+  choices: ReferenceChoiceOption[] = [],
+): Array<{ key: EtapeValidation; label: string }> {
+  const choiceMap = new Map(choices.map((c) => [c.code, c.label]));
+  return timelineValidationSteps.map((step) => ({
+    ...step,
+    label: choiceMap.get(step.key) ?? step.label,
+  }));
+}
 
 export type DashboardFilterKey =
   | "toutes"
@@ -257,8 +334,12 @@ export const getCompactNeedLabel = (demande: DashboardDisplayDemande) => {
   return first;
 };
 
-export const getCurrentValidationLabel = (demande: DemandeAchat) => {
-  const current = timelineValidationSteps.find(
+export const getCurrentValidationLabel = (
+  demande: DemandeAchat,
+  steps?: Array<{ key: EtapeValidation; label: string }>,
+) => {
+  const validationSteps = steps ?? timelineValidationSteps;
+  const current = validationSteps.find(
     (step) => step.key === demande.etape_validation_actuelle,
   );
   return current?.label.toLowerCase() ?? "validation";
@@ -275,11 +356,16 @@ const currentOwnerLabels: Record<string, string> = {
 
 // Ce helper regroupe les statuts techniques dans une étape lisible
 // pour l'utilisateur final: validation, passation, livraison, etc.
-export const getDemandeTrackingStageLabel = (demande: DemandeAchat) => {
+export const getDemandeTrackingStageLabel = (
+  demande: DemandeAchat,
+  labels?: { step?: Record<string, string>; status?: Record<string, string> },
+) => {
+  const step = labels?.step ?? stepLabels;
+  const status = labels?.status ?? statusLabels;
   if (demande.statut === "BROUILLON") return "En préparation";
   if (demande.statut === "A_COMPLETER") return "À corriger";
   if (["SOUMISE", "VALIDEE"].includes(demande.statut)) {
-    return stepLabels[demande.etape_validation_actuelle] ?? "Validation";
+    return step[demande.etape_validation_actuelle] ?? "Validation";
   }
   if (demande.statut === "VALIDEE_BUDGETAIRE") return "Passation";
   if (
@@ -295,7 +381,7 @@ export const getDemandeTrackingStageLabel = (demande: DemandeAchat) => {
   if (demande.statut === "CLOTUREE") return "Archivé - clôturé";
   if (demande.statut === "REJETEE") return "Archivé - rejeté";
 
-  return statusLabels[demande.statut] ?? demande.statut;
+  return status[demande.statut] ?? demande.statut;
 };
 
 // Le "responsable courant" affiché dans le dashboard dépend à la fois
@@ -404,8 +490,19 @@ const getValidationForStep = (
 // la vue timeline affichée dans le détail.
 export const buildLifecycleTimeline = (
   demande: DemandeAchat,
+  labels?: {
+    steps?: Array<{ key: EtapeValidation; label: string }>;
+    expedition?: Record<string, string>;
+    reception?: Record<string, string>;
+    final?: Record<string, string>;
+  },
 ): TimelineItem[] => {
-  const currentValidationIndex = timelineValidationSteps.findIndex(
+  const steps = labels?.steps ?? timelineValidationSteps;
+  const expedition = labels?.expedition ?? expeditionLabels;
+  const reception = labels?.reception ?? receptionStatusLabels;
+  const final_ = labels?.final ?? finalStatusLabels;
+
+  const currentValidationIndex = steps.findIndex(
     (step) => step.key === demande.etape_validation_actuelle,
   );
   const validationComplete = [
@@ -417,7 +514,7 @@ export const buildLifecycleTimeline = (
     "CLOTUREE",
   ].includes(demande.statut);
 
-  const validationItems = timelineValidationSteps.map((step, index) => {
+  const validationItems = steps.map((step, index) => {
     const validation = getValidationForStep(
       demande.validations ?? [],
       step.key,
@@ -508,7 +605,7 @@ export const buildLifecycleTimeline = (
       date: demande.date_arrivee_effective ?? demande.date_arrivee_prevue,
       state: hasDelivery ? "done" : isDeliveryCurrent ? "current" : "pending",
       description:
-        expeditionLabels[demande.etat_expedition ?? ""] ||
+        expedition[demande.etat_expedition ?? ""] ||
         (isDeliveryCurrent ? "En préparation" : undefined),
     },
     {
@@ -517,7 +614,7 @@ export const buildLifecycleTimeline = (
       date: demande.date_reception,
       state: hasReception ? "done" : isReceptionCurrent ? "current" : "pending",
       description:
-        receptionStatusLabels[demande.statut_reception ?? ""] || undefined,
+        reception[demande.statut_reception ?? ""] || undefined,
     },
     {
       id: "issue-resolution",
@@ -539,7 +636,7 @@ export const buildLifecycleTimeline = (
       label: "Clôture finale",
       date: demande.date_cloture,
       state: hasClosure ? "done" : isClosureCurrent ? "current" : "pending",
-      description: finalStatusLabels[demande.statut_final ?? ""] || undefined,
+      description: final_[demande.statut_final ?? ""] || undefined,
     },
   ];
 };

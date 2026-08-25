@@ -27,20 +27,20 @@ type MeResponse = {
   };
 };
 
-const CATEGORY_OPTIONS = [
-  ["FORMATION", "Formation"],
-  ["ATELIER", "Atelier"],
-  ["REUNION", "Réunion"],
-  ["REVUE", "Revue"],
-  ["SUPERVISION", "Supervision"],
-  ["ETUDE", "Étude"],
-  ["CONSULTANT", "Consultant"],
-  ["CABINET", "Cabinet"],
-  ["BUREAU_ETUDES", "Bureau d'études"],
-  ["ENTREPRISE", "Entreprise"],
-  ["BIENS", "Biens"],
-  ["TRAVAUX", "Travaux"],
-] as const;
+const CATEGORY_OPTIONS_FALLBACK = [
+  { code: "FORMATION", label: "Formation" },
+  { code: "ATELIER", label: "Atelier" },
+  { code: "REUNION", label: "Réunion" },
+  { code: "REVUE", label: "Revue" },
+  { code: "SUPERVISION", label: "Supervision" },
+  { code: "ETUDE", label: "Étude" },
+  { code: "CONSULTANT", label: "Consultant" },
+  { code: "CABINET", label: "Cabinet" },
+  { code: "BUREAU_ETUDES", label: "Bureau d'études" },
+  { code: "ENTREPRISE", label: "Entreprise" },
+  { code: "BIENS", label: "Biens" },
+  { code: "TRAVAUX", label: "Travaux" },
+];
 
 const PROCEDURE_OPTIONS_FALLBACK = [
   { code: "DC", label: "DC" },
@@ -53,6 +53,16 @@ const FINANCING_SOURCE_FALLBACK = [
   { code: "FM", label: "Fonds mondial" },
   { code: "GAVI", label: "Alliance GAVI" },
   { code: "BM", label: "Banque mondiale" },
+];
+
+const TYPE_DOCUMENT_TDR_ST_FALLBACK = [
+  { code: "TDR", label: "TDR" },
+  { code: "ST", label: "ST" },
+];
+
+const DUREE_UNITE_FALLBACK = [
+  { code: "JOURS", label: "Jours" },
+  { code: "MOIS", label: "Mois" },
 ];
 
 const EDITABLE_STATUSES = new Set(["BROUILLON", "A_REVOIR"]);
@@ -136,8 +146,11 @@ function TdrStNewPageContent() {
   const [role, setRole] = useState<string | null>(null);
   const [selectedSourceFamily, setSelectedSourceFamily] = useState("");
   const saving = savingAction !== null;
+  const categoryOptions = useReferenceChoices("CATEGORIE_ACTIVITE", CATEGORY_OPTIONS_FALLBACK);
   const procedureTypes = useReferenceChoices("PROCEDURE_TYPE", PROCEDURE_OPTIONS_FALLBACK);
   const financingSources = useReferenceChoices("FINANCING_SOURCE", FINANCING_SOURCE_FALLBACK);
+  const typeDocumentChoices = useReferenceChoices("TYPE_DOCUMENT_TDR_ST", TYPE_DOCUMENT_TDR_ST_FALLBACK);
+  const dureeUniteChoices = useReferenceChoices("DUREE_UNITE", DUREE_UNITE_FALLBACK);
 
   const isEditable = !activeDoc || EDITABLE_STATUSES.has(activeDoc.statut);
   const isLinkedToDemande = Boolean(activeDoc?.demande_achat_id || linkedDemande?.id || demandeId);
@@ -422,8 +435,11 @@ function TdrStNewPageContent() {
                     disabled={saving || !isEditable}
                     className={inputClassName}
                   >
-                    <option value="TDR">TDR</option>
-                    <option value="ST">ST</option>
+                    {typeDocumentChoices.map((option) => (
+                      <option key={option.code} value={option.code}>
+                        {option.label}
+                      </option>
+                    ))}
                   </select>
                 </Field>
 
@@ -439,9 +455,9 @@ function TdrStNewPageContent() {
                     <option value="" disabled>
                       Sélectionner une catégorie
                     </option>
-                    {CATEGORY_OPTIONS.map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
+                    {categoryOptions.map((option) => (
+                      <option key={option.code} value={option.code}>
+                        {option.label}
                       </option>
                     ))}
                   </select>
@@ -538,8 +554,11 @@ function TdrStNewPageContent() {
                     disabled={saving || !isEditable}
                     className={inputClassName}
                   >
-                    <option value="JOURS">Jours</option>
-                    <option value="MOIS">Mois</option>
+                    {dureeUniteChoices.map((option) => (
+                      <option key={option.code} value={option.code}>
+                        {option.label}
+                      </option>
+                    ))}
                   </select>
                 </Field>
               </div>

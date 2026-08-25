@@ -47,6 +47,8 @@ import {
 } from "@/services/ouvertureOffre";
 import { getMarkets } from "@/services/procurement";
 import { listFournisseurs, type Fournisseur } from "@/services/achats";
+import { useReferenceChoices } from "@/hooks/useReferenceChoices";
+import { getChoiceLabel } from "@/services/choices";
 import type {
   OffreOuverture,
   OuvertureUser,
@@ -54,7 +56,7 @@ import type {
   UpdateSeancePayload,
   CommissionMemberPayload,
 } from "@/types/ouvertureOffre";
-import type { ProcurementMarket, ProcedureType } from "@/types/procurement";
+import type { ProcurementMarket } from "@/types/procurement";
 
 type ScreenState = "loading" | "ready" | "error";
 type SaveMode =
@@ -118,16 +120,6 @@ type DetailFormState = {
 type ValidationIssue = {
   field: string;
   message: string;
-};
-
-const statusLabelMap: Record<SeanceOuverture["statut"], string> = {
-  BROUILLON: "Brouillon",
-  EN_SAISIE: "En saisie",
-  A_VALIDER: "Validation membres",
-  EN_VALIDATION_MEMBRES: "Validation membres",
-  EN_VALIDATION_PRESIDENT: "Validation président",
-  VALIDEE: "Validée",
-  REJETEE: "Rejetée",
 };
 
 const MIN_COMMISSION_MEMBERS = 3;
@@ -247,13 +239,6 @@ const compactTextareaClass =
   "rounded-lg border border-slate-200 bg-white/75 px-2.5 py-1.5 text-[12px] font-semibold text-slate-800 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500";
 const labelClass =
   "text-[10px] font-black uppercase tracking-[0.16em] text-slate-500";
-
-const procedureLabels: Record<ProcedureType, string> = {
-  AOI: "AOI - Appel d'offres international",
-  AON: "AON - Appel d'offres national",
-  DC: "DC - Demande de cotation",
-  GRE_A_GRE: "Gré à gré",
-};
 
 const toInputDate = (value?: string | null) => {
   if (!value) return "";
@@ -403,6 +388,11 @@ export default function SeanceOuvertureDetail() {
     CommissionMember[]
   >([]);
   const [isCommissionModalOpen, setIsCommissionModalOpen] = useState(false);
+  const seanceStatusChoices = useReferenceChoices("STATUT_SEANCE", []);
+  const procedureChoices = useReferenceChoices("PROCEDURE_TYPE", []);
+  const openingStepChoices = useReferenceChoices("ETAPE_OUVERTURE", []);
+  const sealedStateChoices = useReferenceChoices("ETAT_SCELLE", []);
+  const envelopeChoices = useReferenceChoices("ETAT_ENVELOPPE", []);
 
   useEffect(() => {
     const bootstrap = async () => {
@@ -1333,7 +1323,7 @@ export default function SeanceOuvertureDetail() {
                 <span
                   className={`rounded border px-2 py-0.5 text-[10px] font-semibold ${statusClassMap[seance.statut]}`}
                 >
-                  {statusLabelMap[seance.statut]}
+                  {getChoiceLabel(seanceStatusChoices, seance.statut)}
                 </span>
                 {!canEdit && (
                   <span className="inline-flex items-center gap-1 rounded border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-500">
@@ -1435,7 +1425,7 @@ export default function SeanceOuvertureDetail() {
                       <input
                         value={
                           linkedMarket?.procedure_type
-                            ? procedureLabels[linkedMarket.procedure_type]
+                            ? getChoiceLabel(procedureChoices, linkedMarket.procedure_type)
                             : "Non renseigné dans le DAO"
                         }
                         disabled
@@ -1466,10 +1456,11 @@ export default function SeanceOuvertureDetail() {
                         disabled={!canEdit}
                         className={compactSelectClass}
                       >
-                        <option value="COMPLETE">Ouverture complète</option>
-                        <option value="ADMIN_TECH">
-                          Administrative et technique
-                        </option>
+                        {openingStepChoices.map((opt) => (
+                          <option key={opt.code} value={opt.code}>
+                            {opt.label}
+                          </option>
+                        ))}
                       </select>
                     </label>
 
@@ -1796,9 +1787,11 @@ export default function SeanceOuvertureDetail() {
                         <option value="" disabled>
                           Choisir
                         </option>
-                        <option value="INTACT">Intact</option>
-                        <option value="ALTERE">Altéré</option>
-                        <option value="ABSENT">Absent</option>
+                        {sealedStateChoices.map((opt) => (
+                          <option key={opt.code} value={opt.code}>
+                            {opt.label}
+                          </option>
+                        ))}
                       </select>
                     </label>
 

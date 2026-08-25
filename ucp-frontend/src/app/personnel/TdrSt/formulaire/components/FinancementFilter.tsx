@@ -3,6 +3,8 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { ChevronDown } from "lucide-react";
 import { FINANCE_CATALOG, findFinanceCatalogEntry } from "@/lib/financeCatalog";
+import { useReferenceChoices } from "@/hooks/useReferenceChoices";
+import { getChoiceLabel } from "@/services/choices";
 
 type FinancementTone = "UNKNOWN" | "FM" | "GAVI" | "BM" | "INTERNE" | "AUTRE";
 
@@ -288,6 +290,17 @@ function FilterDropdown({
   );
 }
 
+const STATUT_TDR_ST_FALLBACK = [
+  { code: "VALIDE", label: "Validé" },
+  { code: "REJETE", label: "Rejeté" },
+  { code: "SUSPENDU", label: "Suspendu" },
+];
+
+const TYPE_DOCUMENT_TDR_ST_FALLBACK = [
+  { code: "TDR", label: "TDR" },
+  { code: "ST", label: "ST" },
+];
+
 type UseTdrStFiltersProps<TDocument> = {
   documents: TDocument[];
   getSourceFinancement: (doc: TDocument) => unknown;
@@ -306,6 +319,9 @@ export function useTdrStFilters<TDocument extends { statut?: string }>({
   const [selectedFinancements, setSelectedFinancements] = useState<string[]>([]);
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
   const [selectedDocumentTypes, setSelectedDocumentTypes] = useState<string[]>([]);
+
+  const statutChoices = useReferenceChoices("STATUT_TDR_ST", STATUT_TDR_ST_FALLBACK);
+  const typeDocumentChoices = useReferenceChoices("TYPE_DOCUMENT_TDR_ST", TYPE_DOCUMENT_TDR_ST_FALLBACK);
 
   const allFinancements = useMemo(() => {
     const processed = documents.map((doc) =>
@@ -338,22 +354,9 @@ export function useTdrStFilters<TDocument extends { statut?: string }>({
     });
   }, [documents, getDocumentType]);
 
-  const getStatusLabel = (status: string) => {
-    const labels: Record<string, string> = {
-      VALIDE: "Validé",
-      REJETE: "Rejeté",
-      SUSPENDU: "Suspendu",
-    };
-    return labels[status] ?? status;
-  };
+  const getStatusLabel = (status: string) => getChoiceLabel(statutChoices, status);
 
-  const getDocumentTypeLabel = (type: string) => {
-    const labels: Record<string, string> = {
-      TDR: "TDR",
-      ST: "ST",
-    };
-    return labels[type] ?? type;
-  };
+  const getDocumentTypeLabel = (type: string) => getChoiceLabel(typeDocumentChoices, type);
 
   const filteredDocuments = useMemo(() => {
     let result = [...documents];

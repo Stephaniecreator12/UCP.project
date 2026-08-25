@@ -36,6 +36,8 @@ import {
   downloadPV,
   resendOpeningInvitations,
 } from "@/services/ouvertureOffre";
+import { useReferenceChoices } from "@/hooks/useReferenceChoices";
+import { getChoiceLabel } from "@/services/choices";
 import { getMarkets } from "@/services/procurement";
 import type {
   CommissionMemberPayload,
@@ -96,19 +98,6 @@ type ReviewSection = {
   rows: ReviewRow[];
 };
 
-const PROCEDURE_LABELS: Record<string, string> = {
-  AOI: "AOI",
-  AON: "AON",
-  DC: "DC",
-  GRE_A_GRE: "Gré à gré",
-};
-
-const CATEGORY_LABELS: Record<string, string> = {
-  BIENS: "Biens",
-  SERVICES: "Services",
-  TRAVAUX: "Travaux",
-};
-
 const COMMISSION_STORAGE_PREFIX = "ucp_commission_membres_";
 const COMMISSION_STATUS_PREFIX = "ucp_commission_membres_status_";
 const MIN_COMMISSION_MEMBERS = 3;
@@ -137,17 +126,6 @@ type CommissionBlock = {
   reference: string;
   title: string;
   memberCount: number;
-};
-
-const stateLabels: Record<OpeningState, string> = {
-  DRAFT: "Brouillon",
-  ONGOING: "Dépôt en cours",
-  READY: "En attente d'ouverture",
-  VALIDATION_MEMBERS: "Validation membres",
-  VALIDATION_PRESIDENT: "Validation président",
-  VALIDATED: "Validée",
-  REJECTED: "Rejetée",
-  CANCELLED: "Annulé",
 };
 
 const stateClasses: Record<OpeningState, string> = {
@@ -312,13 +290,13 @@ const getOpeningState = (
   return "ONGOING";
 };
 
-const getSearchText = (row: OpeningRow) =>
+const getSearchText = (row: OpeningRow, categoryTypes: { code: string; label: string }[], procedureChoices: { code: string; label: string }[], stateLabels: Record<OpeningState, string>) =>
   [
     row.market.reference_number,
     row.market.title,
     row.market.project_code,
-    PROCEDURE_LABELS[row.market.procedure_type],
-    CATEGORY_LABELS[row.market.category],
+    getChoiceLabel(procedureChoices, row.market.procedure_type),
+    getChoiceLabel(categoryTypes, row.market.category),
     stateLabels[row.state],
   ]
     .join(" ")
@@ -432,6 +410,20 @@ export default function OuvertureOffrePage() {
     consumeOpeningFlashMessage("/personnel/ouverture_offre"),
   );
   const isSecretaire = isSecretaireUser(currentUser);
+  const categoryTypes = useReferenceChoices("CATEGORY_TYPE", []);
+  const procedureChoices = useReferenceChoices("PROCEDURE_TYPE", []);
+  const seanceStatusChoices = useReferenceChoices("STATUT_SEANCE", []);
+
+  const stateLabels = useMemo(() => ({
+    DRAFT: "Brouillon",
+    ONGOING: "Dépôt en cours",
+    READY: "En attente d'ouverture",
+    VALIDATION_MEMBERS: getChoiceLabel(seanceStatusChoices, "EN_VALIDATION_MEMBRES") || "Validation membres",
+    VALIDATION_PRESIDENT: getChoiceLabel(seanceStatusChoices, "EN_VALIDATION_PRESIDENT") || "Validation président",
+    VALIDATED: getChoiceLabel(seanceStatusChoices, "VALIDEE") || "Validée",
+    REJECTED: getChoiceLabel(seanceStatusChoices, "REJETEE") || "Rejetée",
+    CANCELLED: "Annulé",
+  }), [seanceStatusChoices]);
 
   useEffect(() => {
     const bootstrap = async () => {
@@ -618,9 +610,9 @@ export default function OuvertureOffrePage() {
     const normalizedQuery = query.trim().toLowerCase();
 
     return openingRows.filter((row) => {
-      return !normalizedQuery || getSearchText(row).includes(normalizedQuery);
+      return !normalizedQuery || getSearchText(row, categoryTypes, procedureChoices, stateLabels).includes(normalizedQuery);
     });
-  }, [query, openingRows]);
+  }, [query, openingRows, categoryTypes]);
 
   const sections = useMemo<StatusSection[]>(() => {
     return sectionOrder.map((key) => ({
@@ -636,7 +628,7 @@ export default function OuvertureOffrePage() {
 
     return reviewRows.filter((row) =>
       [
-        getSearchText(row),
+        getSearchText(row, categoryTypes, procedureChoices, stateLabels),
         row.seance?.objet_dossier,
         row.roleLabel,
         row.helperText,
@@ -646,7 +638,7 @@ export default function OuvertureOffrePage() {
         .toLowerCase()
         .includes(normalizedQuery),
     );
-  }, [query, reviewRows]);
+  }, [query, reviewRows, categoryTypes]);
 
   const visibleSections = sections;
 
@@ -932,6 +924,7 @@ export default function OuvertureOffrePage() {
                                 )
                               }
                               openingMarketId={openingMarketId}
+                              stateLabels={stateLabels}
                               onOpenDetail={(row) => setDetailRow(row)}
                               onOpenSeance={handleOpenSeance}
                               onDownloadPV={handleDownloadPV}
@@ -949,6 +942,7 @@ export default function OuvertureOffrePage() {
                                     : section.key,
                                 )
                               }
+                              stateLabels={stateLabels}
                               onOpenDetail={(row) => setDetailRow(row)}
                               onOpenValidation={(row) => {
                                 if (!row.seance || !currentUser) return;
@@ -1193,6 +1187,7 @@ function OpeningStatusSection({
   isActive,
   onToggle,
   openingMarketId,
+  stateLabels,
   onOpenDetail,
   onOpenSeance,
   onDownloadPV,
@@ -1201,6 +1196,7 @@ function OpeningStatusSection({
   isActive: boolean;
   onToggle: () => void;
   openingMarketId: number | null;
+  stateLabels: Record<OpeningState, string>;
   onOpenDetail: (row: OpeningRow) => void;
   onOpenSeance: (row: OpeningRow) => void;
   onDownloadPV: (seanceId: number, referenceDossier: string) => void;
@@ -1273,6 +1269,7 @@ function OpeningStatusSection({
                 row={row}
                 index={index}
                 opening={openingMarketId === row.market.id}
+                stateLabels={stateLabels}
                 onOpenDetail={() => onOpenDetail(row)}
                 onOpen={() => onOpenSeance(row)}
                 onDownloadPV={onDownloadPV}
@@ -1293,6 +1290,7 @@ function OpeningDaoRow({
   row,
   index,
   opening,
+  stateLabels,
   onOpenDetail,
   onOpen,
   onDownloadPV,
@@ -1300,11 +1298,14 @@ function OpeningDaoRow({
   row: OpeningRow;
   index: number;
   opening: boolean;
+  stateLabels: Record<OpeningState, string>;
   onOpenDetail: () => void;
   onOpen: () => void;
   onDownloadPV: (seanceId: number, referenceDossier: string) => void;
 }) {
   const { market, seance, state } = row;
+  const categoryTypes = useReferenceChoices("CATEGORY_TYPE", []);
+  const procedureChoices = useReferenceChoices("PROCEDURE_TYPE", []);
   const isDraft = state === "DRAFT";
   const isReady = state === "READY";
   const hasSeance = !!seance;
@@ -1334,7 +1335,7 @@ function OpeningDaoRow({
               {stateLabels[state]}
             </span>
             <span className="rounded border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-bold text-slate-500">
-              {PROCEDURE_LABELS[market.procedure_type] || market.procedure_type}
+              {getChoiceLabel(procedureChoices, market.procedure_type) || market.procedure_type}
             </span>
           </div>
 
@@ -1347,7 +1348,7 @@ function OpeningDaoRow({
               Limite : {formatDateTime(market.deadline)}
             </span>
             <span className="rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-1 font-semibold text-emerald-700">
-              {CATEGORY_LABELS[market.category] ||
+              {getChoiceLabel(categoryTypes, market.category) ||
                 market.category ||
                 "Catégorie non définie"}
             </span>
@@ -1433,6 +1434,7 @@ function ReviewStatusSection({
   section,
   isActive,
   onToggle,
+  stateLabels,
   onOpenDetail,
   onOpenValidation,
   onDownloadPV,
@@ -1440,6 +1442,7 @@ function ReviewStatusSection({
   section: ReviewSection;
   isActive: boolean;
   onToggle: () => void;
+  stateLabels: Record<OpeningState, string>;
   onOpenDetail: (row: ReviewRow) => void;
   onOpenValidation: (row: ReviewRow) => void;
   onDownloadPV: (seanceId: number, referenceDossier: string) => void;
@@ -1511,6 +1514,7 @@ function ReviewStatusSection({
                 key={`${row.market.id}-${row.seance?.id ?? "market"}`}
                 row={row}
                 index={index}
+                stateLabels={stateLabels}
                 onOpenDetail={() => onOpenDetail(row)}
                 onOpenValidation={() => onOpenValidation(row)}
                 onDownloadPV={onDownloadPV}
@@ -1530,18 +1534,21 @@ function ReviewStatusSection({
 function ReviewSeanceRow({
   row,
   index,
+  stateLabels,
   onOpenDetail,
   onOpenValidation,
   onDownloadPV,
 }: {
   row: ReviewRow;
   index: number;
+  stateLabels: Record<OpeningState, string>;
   onOpenDetail: () => void;
   onOpenValidation: () => void;
   onDownloadPV: (seanceId: number, referenceDossier: string) => void;
 }) {
   const displayDate = row.seance?.date_seance || row.market.deadline || null;
   const title = row.seance?.objet_dossier || row.market.title;
+  const procedureChoices = useReferenceChoices("PROCEDURE_TYPE", []);
 
   return (
     <div className="flex flex-col justify-between gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-colors hover:border-emerald-300 sm:flex-row sm:items-center">
@@ -1588,7 +1595,7 @@ function ReviewSeanceRow({
             </span>
             {row.market.procedure_type && (
               <span className="rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-1 font-semibold text-emerald-700">
-                {PROCEDURE_LABELS[row.market.procedure_type] ||
+                {getChoiceLabel(procedureChoices, row.market.procedure_type) ||
                   row.market.procedure_type}
               </span>
             )}

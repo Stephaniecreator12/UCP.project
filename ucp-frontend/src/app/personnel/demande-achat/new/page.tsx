@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, X, ArrowLeft, AlertCircle, FileText, Clock, ShoppingBag, Wrench, ShieldCheck, Sparkles, ChevronRight, Briefcase, Target, Layers } from "lucide-react";
 import TopHeader from "@/app/components/TopHeader";
@@ -24,6 +24,7 @@ import {
   listExternalPersonnel,
   type PersonnelDirectoryOption,
 } from "@/services/personnel";
+import { useReferenceChoices } from "@/hooks/useReferenceChoices";
 
 type LigneForm = {
   designation: string;
@@ -78,23 +79,23 @@ const uniteTechniqueOptions = [
 ] as const;
 
 const typeServiceOptions = [
-  { value: "FORMATION", label: "Formation" },
-  { value: "MAINTENANCE", label: "Maintenance" },
-  { value: "REPARATION", label: "Réparation" },
-  { value: "NETTOYAGE", label: "Nettoyage" },
-  { value: "PRESTATION_PONCTUELLE", label: "Prestation ponctuelle" },
+  { code: "FORMATION", label: "Formation" },
+  { code: "MAINTENANCE", label: "Maintenance" },
+  { code: "REPARATION", label: "Réparation" },
+  { code: "NETTOYAGE", label: "Nettoyage" },
+  { code: "PRESTATION_PONCTUELLE", label: "Prestation ponctuelle" },
 ] as const;
 
 const typeDemandeOptions = [
-  { value: "MATERIELS", label: "Matériels" },
-  { value: "PETITS_SERVICES", label: "Petits services" },
+  { code: "MATERIELS", label: "Matériels" },
+  { code: "PETITS_SERVICES", label: "Petits services" },
 ] as const;
 
 const categorieBesoinOptions = [
-  { value: "NOUVEAU_BESOIN", label: "Nouveau besoin" },
-  { value: "REAPPROVISIONNEMENT", label: "Réapprovisionnement stock" },
-  { value: "REMPLACEMENT", label: "Remplacement équipement défectueux" },
-  { value: "URGENCE", label: "Urgence opérationnelle" },
+  { code: "NOUVEAU_BESOIN", label: "Nouveau besoin" },
+  { code: "REAPPROVISIONNEMENT", label: "Réapprovisionnement stock" },
+  { code: "REMPLACEMENT", label: "Remplacement équipement défectueux" },
+  { code: "URGENCE", label: "Urgence opérationnelle" },
 ] as const;
 
 const prioriteOptions = [
@@ -310,6 +311,14 @@ function LigneBesoinModal({
   onChange,
   onSave,
 }: LigneModalProps) {
+  const typeServiceChoices = useReferenceChoices(
+    "TYPE_SERVICE_ACHAT",
+    [...typeServiceOptions],
+  );
+  const typeServiceOpts = useMemo(
+    () => typeServiceChoices.map((c) => ({ value: c.code, label: c.label })),
+    [typeServiceChoices],
+  );
   useEffect(() => {
     if (!open) return;
     const h = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -365,7 +374,7 @@ function LigneBesoinModal({
                      id="modal_type_service"
                      value={ligne.type_service}
                      onChange={(value) => onChange("type_service", value)}
-                     options={[...typeServiceOptions]}
+                      options={typeServiceOpts}
                      placeholder="Sélectionner..."
                      className={modalFieldClass}
                    />
@@ -471,6 +480,23 @@ function LigneBesoinModal({
 
 export default function NouvelleDemandePage() {
   const router = useRouter();
+  const typeDemandeChoices = useReferenceChoices(
+    "TYPE_DEMANDE_ACHAT",
+    [...typeDemandeOptions],
+  );
+  const typeDemandeOpts = useMemo(
+    () => typeDemandeChoices.map((c) => ({ value: c.code, label: c.label })),
+    [typeDemandeChoices],
+  );
+  const categorieBesoinChoices = useReferenceChoices(
+    "CATEGORIE_BESOIN",
+    [...categorieBesoinOptions],
+  );
+  const categorieBesoinOpts = useMemo(
+    () =>
+      categorieBesoinChoices.map((c) => ({ value: c.code, label: c.label })),
+    [categorieBesoinChoices],
+  );
   
   // États du formulaire principal.
   const [uniteTechnique, setUniteTechnique] = useState("");
@@ -870,7 +896,7 @@ export default function NouvelleDemandePage() {
                        id="typeDemande"
                        value={typeDemande}
                        onChange={(value) => { setTypeDemande(value); setLignes([]); }}
-                       options={[...typeDemandeOptions]}
+                        options={typeDemandeOpts}
                        placeholder="Sélectionner..."
                        className={fieldClass}
                      />
@@ -881,7 +907,7 @@ export default function NouvelleDemandePage() {
                        id="categorieBesoin"
                        value={categorieBesoin}
                        onChange={setCategorieBesoin}
-                       options={[...categorieBesoinOptions]}
+                        options={categorieBesoinOpts}
                        placeholder="Sélectionner..."
                        className={fieldClass}
                      />

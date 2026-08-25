@@ -5,7 +5,15 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { publicRegister } from "../../../../services/auth";
 import ResendEmailButton from "@/app/components/ResendEmailButton";
+import { useReferenceChoices } from "@/hooks/useReferenceChoices";
 export default function RegisterPage() {
+  const typeEntiteChoices = useReferenceChoices("TYPE_ENTITE", [
+    { code: "ENTREPRISE", label: "Entreprise" },
+    { code: "BUREAU_ETUDES", label: "Bureau d'études" },
+    { code: "ONG", label: "ONG" },
+    { code: "PARTICULIER", label: "Particulier" },
+    { code: "CONSULTANT", label: "Consultant" },
+  ]);
   const [full_name, setFull_name] = useState("");
   const [email, setEmail] = useState("");
   const [isMessage, setIsMessage] = useState(false);
@@ -188,11 +196,9 @@ export default function RegisterPage() {
                       <option value="" disabled className="text-slate-400">
                         Sélectionner...
                       </option>
-                      <option value="ENTREPRISE">Entreprise</option>
-                      <option value="BUREAU_ETUDES">Bureau d’études</option>
-                      <option value="ONG">ONG</option>
-                      <option value="PARTICULIER">Particulier</option>
-                      <option value="CONSULTANT">Consultant</option>
+                      {typeEntiteChoices.map((opt) => (
+                        <option key={opt.code} value={opt.code}>{opt.label}</option>
+                      ))}
                     </select>
                     <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">
                       <svg fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor" className="h-4 w-4">

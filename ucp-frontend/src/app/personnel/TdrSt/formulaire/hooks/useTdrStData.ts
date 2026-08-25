@@ -8,6 +8,8 @@ export {
   getFinanceCatalogByValue,
 } from "@/lib/financeCatalog";
 import { getToken } from "@/services/auth";
+import { useReferenceChoices } from "@/hooks/useReferenceChoices";
+import { getChoiceLabel, type ReferenceChoiceOption } from "@/services/choices";
 
 export type DocumentType = "TDR" | "ST";
 export type Statut =
@@ -141,15 +143,26 @@ export type TdrStFormState = {
 
 const API_PREFIX = "/api/TdrSt";
 
-export const STATUT_LABEL: Record<Statut, string> = {
-  BROUILLON: "Brouillon",
-  SOUMIS: "Soumis",
-  EN_VALIDATION: "En validation",
-  A_REVOIR: "À revoir",
-  VALIDE: "Validé",
-  REJETE: "Rejeté",
-  SUSPENDU: "Suspendu",
-};
+export const STATUT_LABEL_FALLBACK: ReferenceChoiceOption[] = [
+  { code: "BROUILLON", label: "Brouillon" },
+  { code: "SOUMIS", label: "Soumis" },
+  { code: "EN_VALIDATION", label: "En validation" },
+  { code: "A_REVOIR", label: "À revoir" },
+  { code: "VALIDE", label: "Validé" },
+  { code: "REJETE", label: "Rejeté" },
+  { code: "SUSPENDU", label: "Suspendu" },
+];
+
+export const STATUT_LABEL: Record<Statut, string> = Object.fromEntries(
+  STATUT_LABEL_FALLBACK.map((o) => [o.code, o.label]),
+) as Record<Statut, string>;
+
+export function useStatutLabelMap(): Record<Statut, string> {
+  const choices = useReferenceChoices("STATUT_TDR_ST", STATUT_LABEL_FALLBACK);
+  return Object.fromEntries(
+    Object.keys(STATUT_LABEL).map((key) => [key, getChoiceLabel(choices, key)]),
+  ) as Record<Statut, string>;
+}
 
 export const STATUS_BADGE_CLASSES: Record<Statut, string> = {
   BROUILLON: "bg-slate-50 text-slate-700 border border-slate-200",

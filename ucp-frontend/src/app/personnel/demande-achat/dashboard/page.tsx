@@ -51,6 +51,7 @@ import {
   stepLabels,
   typeLabels,
 } from "@/app/personnel/demande-achat/components/demandeAchatShared";
+import { useReferenceChoices } from "@/hooks/useReferenceChoices";
 import {  getToken, type UserProfile } from "@/services/auth";
 import { getme } from "@/services/profile";
 import {
@@ -437,6 +438,59 @@ function DashboardPageContent() {
   const dashboardScope: DashboardScope = rawScope === "all" ? "all" : "mine";
   const searchParamsString = searchParams.toString();
 
+  const etapeValidationChoices = useReferenceChoices(
+    "ETAPE_VALIDATION_ACHAT",
+    [
+      { code: "HIERARCHIQUE", label: "Validation hiérarchique" },
+      { code: "TECHNIQUE", label: "Validation technique" },
+      { code: "BUDGETAIRE", label: "Validation budgétaire" },
+      { code: "PROGRAMMATIQUE", label: "Validation programmatique" },
+      { code: "APPROBATION_FINALE", label: "Approbation finale" },
+    ],
+  );
+  const etapeLabelMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const c of etapeValidationChoices) map[c.code] = c.label;
+    return map;
+  }, [etapeValidationChoices]);
+
+  // On dérive les titres des sections de validation depuis les choix backend.
+  const dynamicValidationSectionConfigs = useMemo(
+    () => ({
+      validation_hierarchique: {
+        ...validationSectionConfigs.validation_hierarchique,
+        title: `En ${(
+          etapeLabelMap["HIERARCHIQUE"] ?? "validation hiérarchique"
+        ).toLowerCase()}`,
+      },
+      validation_technique: {
+        ...validationSectionConfigs.validation_technique,
+        title: `En ${(
+          etapeLabelMap["TECHNIQUE"] ?? "validation technique"
+        ).toLowerCase()}`,
+      },
+      validation_budgetaire: {
+        ...validationSectionConfigs.validation_budgetaire,
+        title: `En ${(
+          etapeLabelMap["BUDGETAIRE"] ?? "validation budgétaire"
+        ).toLowerCase()}`,
+      },
+      validation_programmatique: {
+        ...validationSectionConfigs.validation_programmatique,
+        title: `En ${(
+          etapeLabelMap["PROGRAMMATIQUE"] ?? "validation programmatique"
+        ).toLowerCase()}`,
+      },
+      approbation_finale: {
+        ...validationSectionConfigs.approbation_finale,
+        title: `En ${(
+          etapeLabelMap["APPROBATION_FINALE"] ?? "approbation finale"
+        ).toLowerCase()}`,
+      },
+    }),
+    [etapeLabelMap],
+  );
+
   // On recalcule les URLs de navigation en conservant les autres paramètres
   // (filtres, recherche...) quand on change juste le scope.
   const mineScopeHref = useMemo(() => {
@@ -600,31 +654,31 @@ function DashboardPageContent() {
       },
       validation_hierarchique: {
         key: "validation_hierarchique",
-        ...validationSectionConfigs.validation_hierarchique,
+        ...dynamicValidationSectionConfigs.validation_hierarchique,
         items: validationDemandesBySection.validation_hierarchique,
         total: validationDemandesBySection.validation_hierarchique.length,
       },
       validation_technique: {
         key: "validation_technique",
-        ...validationSectionConfigs.validation_technique,
+        ...dynamicValidationSectionConfigs.validation_technique,
         items: validationDemandesBySection.validation_technique,
         total: validationDemandesBySection.validation_technique.length,
       },
       validation_budgetaire: {
         key: "validation_budgetaire",
-        ...validationSectionConfigs.validation_budgetaire,
+        ...dynamicValidationSectionConfigs.validation_budgetaire,
         items: validationDemandesBySection.validation_budgetaire,
         total: validationDemandesBySection.validation_budgetaire.length,
       },
       validation_programmatique: {
         key: "validation_programmatique",
-        ...validationSectionConfigs.validation_programmatique,
+        ...dynamicValidationSectionConfigs.validation_programmatique,
         items: validationDemandesBySection.validation_programmatique,
         total: validationDemandesBySection.validation_programmatique.length,
       },
       approbation_finale: {
         key: "approbation_finale",
-        ...validationSectionConfigs.approbation_finale,
+        ...dynamicValidationSectionConfigs.approbation_finale,
         items: validationDemandesBySection.approbation_finale,
         total: validationDemandesBySection.approbation_finale.length,
       },
@@ -694,6 +748,7 @@ function DashboardPageContent() {
       closureDemandes,
       correctionDemandes,
       deliveryDemandes,
+      dynamicValidationSectionConfigs,
       preparationDemandes,
       procurementDemandes,
       receptionDemandes,

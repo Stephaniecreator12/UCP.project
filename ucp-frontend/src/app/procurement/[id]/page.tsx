@@ -7,11 +7,18 @@ import TopHeader from "@/app/components/TopHeader";
 import { UpdateMarketButton } from "../components/updateButton";
 import { getServerFileName } from "@/lib/utils";
 import { FileText, Calendar, Download, ArrowLeft, Layers } from "lucide-react";
+import { useReferenceChoices } from "@/hooks/useReferenceChoices";
+import { getChoiceLabel } from "@/services/choices";
 
 export default function ProcurementDetailPage() {
     const { id } = useParams();
     const [error, setError] = useState("");
     const [market, setMarket] = useState<ProcurementMarket>();
+    const marcheStatuts = useReferenceChoices("MARCHÉ_STATUT", [
+        { code: "PUBLISHED", label: "Publié" },
+        { code: "CLOSED", label: "Clôturé" },
+        { code: "CANCELLED", label: "Annulé" },
+    ]);
     useEffect(() => {
         const fetchMarketDetail = async () => {
             if (!id) return;
@@ -65,7 +72,7 @@ export default function ProcurementDetailPage() {
                                                 statusClasses[market.status] || "border-slate-200 bg-slate-100 text-slate-600"
                                             }`}
                                         >
-                                            {market.status === "CLOSED" ? "Clôturé" : market.status === "CANCELLED" ? "Annulé" : "Publié"}
+                                            {getChoiceLabel(marcheStatuts, market.status)}
                                         </span>
                                         <span className="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
                                             Réf: {market.reference_number}

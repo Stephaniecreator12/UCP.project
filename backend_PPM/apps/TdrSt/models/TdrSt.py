@@ -15,6 +15,78 @@ def _procedure_envisagee_choices():
     return reference_choices(ChoiceGroup.PROCEDURE_TYPE, ProcedureType.choices)
 
 
+def _type_document_tdr_st_choices():
+    defaults = [
+        ("TDR", "Termes de Référence (TDR)"),
+        ("ST", "Spécifications Techniques (ST)"),
+    ]
+    return reference_choices(ChoiceGroup.TYPE_DOCUMENT_TDR_ST, defaults)
+
+
+def _statut_tdr_st_choices():
+    defaults = [
+        ("BROUILLON", "Brouillon"),
+        ("SOUMIS", "Soumis"),
+        ("EN_VALIDATION", "En validation"),
+        ("A_REVOIR", "à revoir"),
+        ("EN_ATTENTE_ANO", "En attente ANO"),
+        ("VALIDE", "Validé"),
+        ("REJETE", "Rejeté"),
+        ("SUSPENDU", "Suspendu"),
+    ]
+    return reference_choices(ChoiceGroup.STATUT_TDR_ST, defaults)
+
+
+def _categorie_activite_choices():
+    defaults = [
+        ("FORMATION", "Formation"),
+        ("ATELIER", "Atelier"),
+        ("REUNION", "Réunion"),
+        ("REVUE", "Revue"),
+        ("SUPERVISION", "Supervision"),
+        ("ETUDE", "Etude"),
+        ("CONSULTANT", "Consultant"),
+        ("CABINET", "Cabinet"),
+        ("BUREAU_ETUDES", "Bureau d'études"),
+        ("ENTREPRISE", "Entreprise"),
+        ("BIENS", "Biens"),
+        ("INFRASTRUCTURE", "Infrastructure"),
+    ]
+    return reference_choices(ChoiceGroup.CATEGORIE_ACTIVITE, defaults)
+
+
+def _duree_unite_choices():
+    defaults = [
+        ("JOURS", "Jours"),
+        ("MOIS", "Mois"),
+    ]
+    return reference_choices(ChoiceGroup.DUREE_UNITE, defaults)
+
+
+def _etape_validation_tdr_st_choices():
+    defaults = [
+        ("DEPOT", "Dépôt"),
+        ("VALIDATION_TECHNIQUE", "Validation technique"),
+        ("APPROBATION_FINALE", "Approbation finale"),
+        ("ANO", "Avis de Non-Objection (ANO)"),
+        ("SUSPENSION", "Suspension"),
+    ]
+    return reference_choices(ChoiceGroup.ETAPE_VALIDATION_TDR_ST, defaults)
+
+
+def _decision_validation_tdr_st_choices():
+    defaults = [
+        ("FAVORABLE", "Favorable"),
+        ("A_REVOIR", "À revoir"),
+        ("APPROUVE", "Approuvé"),
+        ("REJETE", "Rejeté"),
+        ("SUSPENDU", "Suspendu"),
+        ("ANO_ACCORDE", "ANO accordé"),
+        ("ANO_REFUSE", "ANO refusé"),
+    ]
+    return reference_choices(ChoiceGroup.DECISION_VALIDATION_TDR_ST, defaults)
+
+
 def valid_financing_sources():
     """Codes de financement acceptés pour un TDR/ST.
 
@@ -90,20 +162,20 @@ class TdrStDocument(models.Model):
 
     statut = models.CharField(
         max_length=20,
-        choices=Statut.choices,
+        choices=_statut_tdr_st_choices,
         default=Statut.BROUILLON,
         db_index=True,
     )
 
-    type_document = models.CharField(max_length=3, choices=TypeDocument.choices)
-    categorie_activite = models.CharField(max_length=32, choices=CategorieActivite.choices)
+    type_document = models.CharField(max_length=3, choices=_type_document_tdr_st_choices)
+    categorie_activite = models.CharField(max_length=32, choices=_categorie_activite_choices)
     intitule = models.CharField(max_length=255)
     reference_ptba = models.CharField(max_length=100)
 
     periode_debut = models.DateField()
     periode_fin = models.DateField()
     duree_estimee_valeur = models.PositiveIntegerField()
-    duree_estimee_unite = models.CharField(max_length=8, choices=DureeUnite.choices)
+    duree_estimee_unite = models.CharField(max_length=8, choices=_duree_unite_choices)
 
     sources_financement = models.JSONField(default=list)
     numero_subvention = models.CharField(max_length=100, blank=True)
@@ -201,8 +273,8 @@ class TdrStValidationAction(models.Model):
         on_delete=models.CASCADE,
         related_name="actions_validation",
     )
-    etape = models.CharField(max_length=32, choices=Etape.choices)
-    decision = models.CharField(max_length=16, choices=Decision.choices, blank=True)
+    etape = models.CharField(max_length=32, choices=_etape_validation_tdr_st_choices)
+    decision = models.CharField(max_length=16, choices=_decision_validation_tdr_st_choices, blank=True)
     observations = models.TextField(blank=True)
 
     acteur = models.ForeignKey(

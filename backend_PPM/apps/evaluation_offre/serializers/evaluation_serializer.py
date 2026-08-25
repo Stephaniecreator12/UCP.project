@@ -14,6 +14,10 @@ from apps.evaluation_offre.models import (
     NoteTechniqueCritere,
     CritereTechnique,
 )
+from apps.evaluation_offre.models.evaluation_offre import (
+    _recommandation_evaluation_choices,
+    _declaration_conflit_choices,
+)
 from apps.evaluation_offre.services.evaluation_service import (
     _compute_consensus_info,
     _compute_evaluateurs_avancement,
@@ -272,11 +276,11 @@ class SaveFinanciereSerializer(serializers.Serializer):
 
 class SaveConclusionSerializer(serializers.Serializer):
     recommandation = serializers.ChoiceField(
-        choices=RecommandationType.choices, required=False, allow_null=True,
+        choices=_recommandation_evaluation_choices(), required=False, allow_null=True,
     )
     justification = serializers.CharField(required=False, allow_blank=True)
     declaration_conflit = serializers.ChoiceField(
-        choices=DeclarationConflitType.choices, required=False, allow_blank=True,
+        choices=_declaration_conflit_choices(), required=False, allow_blank=True,
     )
     password = serializers.CharField(required=False, allow_blank=True, write_only=True)
 

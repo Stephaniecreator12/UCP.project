@@ -1,6 +1,18 @@
 from django.db import models
 
 from apps.achats.models.demande_achat import DemandeAchat
+from apps.common.models import ChoiceGroup, reference_choices
+
+
+def _type_service_achat_choices():
+    defaults = [
+        ("FORMATION", "Formation"),
+        ("MAINTENANCE", "Maintenance"),
+        ("REPARATION", "Reparation"),
+        ("NETTOYAGE", "Nettoyage"),
+        ("PRESTATION_PONCTUELLE", "Prestation ponctuelle"),
+    ]
+    return reference_choices(ChoiceGroup.TYPE_SERVICE_ACHAT, defaults)
 
 
 class LigneBesoin(models.Model):
@@ -47,7 +59,7 @@ class LigneBesoin(models.Model):
 
     type_service = models.CharField(
         max_length=30,
-        choices=TYPE_SERVICE_CHOICES,
+        choices=_type_service_achat_choices,
         blank=True,
     )
     description_service = models.TextField(blank=True)

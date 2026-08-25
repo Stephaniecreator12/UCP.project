@@ -1,6 +1,19 @@
 from django.db import models
 
 from apps.achats.models.demande_achat import DemandeAchat
+from apps.common.models import ChoiceGroup, reference_choices
+
+
+def _type_document_achat_choices():
+    defaults = [
+        ("SPECIFICATIONS_TECHNIQUES", "Specifications techniques detaillees"),
+        ("TDR_SIMPLIFIE", "Termes de Reference simplifies"),
+        ("DEVIS_ESTIMATIF", "Devis estimatif"),
+        ("BON_SORTIE_STOCK", "Bon de sortie stock"),
+        ("BON_LIVRAISON", "Bon de livraison"),
+        ("PV_RECEPTION", "Proces-verbal de reception"),
+    ]
+    return reference_choices(ChoiceGroup.TYPE_DOCUMENT_ACHAT, defaults)
 
 
 class DocumentDemande(models.Model):
@@ -27,7 +40,7 @@ class DocumentDemande(models.Model):
     )
     type_document = models.CharField(
         max_length=40,
-        choices=TYPE_DOCUMENT_CHOICES,
+        choices=_type_document_achat_choices,
     )
     fichier = models.FileField(
         upload_to="demandes/documents/",

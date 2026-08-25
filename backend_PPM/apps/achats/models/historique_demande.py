@@ -2,8 +2,25 @@ from django.contrib.auth import get_user_model
 from django.db import models
 
 from apps.achats.models.demande_achat import DemandeAchat
+from apps.common.models import ChoiceGroup, reference_choices
 
 User = get_user_model()
+
+
+def _action_historique_achat_choices():
+    defaults = [
+        ("DEMANDE_CREEE", "Demande créée"),
+        ("DEMANDE_SOUMISE", "Demande soumise"),
+        ("VALIDATION", "Validation enregistrée"),
+        ("BUDGET_VALIDE", "Budget validé"),
+        ("COMMANDE_EMISE", "Commande émise"),
+        ("LIVRAISON_MISE_A_JOUR", "Livraison mise à jour"),
+        ("RECEPTION_ENREGISTREE", "Réception enregistrée"),
+        ("ECART_RESOLU", "Écart résolu"),
+        ("DEMANDE_CLOTUREE", "Demande clôturée"),
+        ("RAPPEL_VALIDATION_24H", "Rappel validation 24h"),
+    ]
+    return reference_choices(ChoiceGroup.ACTION_HISTORIQUE_ACHAT, defaults)
 
 
 class HistoriqueDemande(models.Model):
@@ -36,7 +53,7 @@ class HistoriqueDemande(models.Model):
         on_delete=models.CASCADE,
         related_name="historiques",
     )
-    action = models.CharField(max_length=40, choices=ACTION_CHOICES)
+    action = models.CharField(max_length=40, choices=_action_historique_achat_choices)
     user = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,

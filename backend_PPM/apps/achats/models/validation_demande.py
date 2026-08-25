@@ -1,9 +1,22 @@
 from django.contrib.auth import get_user_model
 from django.db import models
 
-from apps.achats.models.demande_achat import DemandeAchat
+from apps.achats.models.demande_achat import DemandeAchat, _etape_validation_achat_choices
+from apps.common.models import ChoiceGroup, reference_choices
 
 User = get_user_model()
+
+
+def _decision_validation_choices():
+    defaults = [
+        ("FAVORABLE", "Favorable"),
+        ("DEFAVORABLE", "Defavorable"),
+        ("A_COMPLETER", "A completer"),
+        ("APPROUVEE", "Approuvee"),
+        ("REJETEE", "Rejetee"),
+        ("A_REVOIR", "A revoir"),
+    ]
+    return reference_choices(ChoiceGroup.DECISION_VALIDATION, defaults)
 
 
 class ValidationDemande(models.Model):
@@ -37,9 +50,9 @@ class ValidationDemande(models.Model):
     )
     etape = models.CharField(
         max_length=30,
-        choices=DemandeAchat.ETAPE_VALIDATION_CHOICES,
+        choices=_etape_validation_achat_choices,
     )
-    decision = models.CharField(max_length=20, choices=DECISION_CHOICES)
+    decision = models.CharField(max_length=20, choices=_decision_validation_choices)
     commentaire = models.TextField(blank=True)
     donnees_etape = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

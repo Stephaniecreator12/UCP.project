@@ -8,6 +8,16 @@ from apps.achats.models import (
     LigneBesoin,
     ValidationDemande,
 )
+from apps.achats.models.demande_achat import (
+    _source_financement_detail_choices,
+    _type_procedure_achat_choices,
+    _etat_expedition_choices,
+    _conformite_quantite_choices,
+    _conformite_qualite_choices,
+    _type_ecart_choices,
+    _action_corrective_choices,
+    _statut_final_achat_choices,
+)
 from apps.achats.services.tdr_link_compat import has_tdr_demande_link_column
 
 
@@ -371,12 +381,12 @@ class DemandeAchatListSerializer(serializers.ModelSerializer):
 class BudgetEstimationSerializer(serializers.Serializer):
     ligne_budgetaire = serializers.CharField()
     source_financement = serializers.ChoiceField(
-        choices=DemandeAchat.SOURCE_FINANCEMENT_CHOICES
+        choices=_source_financement_detail_choices()
     )
 
 
 class IssueOrderSerializer(serializers.Serializer):
-    type_procedure = serializers.ChoiceField(choices=DemandeAchat.TYPE_PROCEDURE_CHOICES)
+    type_procedure = serializers.ChoiceField(choices=_type_procedure_achat_choices())
     fournisseur = serializers.PrimaryKeyRelatedField(queryset=Fournisseur.objects.all())
     email_fournisseur = serializers.EmailField(required=False)
     montant_commande = serializers.DecimalField(max_digits=14, decimal_places=2)
@@ -389,7 +399,7 @@ class IssueOrderSerializer(serializers.Serializer):
 class UpdateDeliverySerializer(serializers.Serializer):
     date_arrivee_prevue = serializers.DateField(required=False)
     date_arrivee_effective = serializers.DateField(required=False)
-    etat_expedition = serializers.ChoiceField(choices=DemandeAchat.ETAT_EXPEDITION_CHOICES)
+    etat_expedition = serializers.ChoiceField(choices=_etat_expedition_choices())
 
 
 class LigneReceptionSerializer(serializers.Serializer):
@@ -402,20 +412,20 @@ class ReceiveDemandeSerializer(serializers.Serializer):
     date_reception = serializers.DateField(required=False)
     receptionnaire = serializers.CharField()
     conformite_quantite = serializers.ChoiceField(
-        choices=DemandeAchat.CONFORMITE_QUANTITE_CHOICES
+        choices=_conformite_quantite_choices()
     )
     conformite_qualite = serializers.ChoiceField(
-        choices=DemandeAchat.CONFORMITE_QUALITE_CHOICES
+        choices=_conformite_qualite_choices()
     )
     observations_reception = serializers.CharField(required=False, allow_blank=True)
     type_ecart = serializers.ChoiceField(
-        choices=DemandeAchat.TYPE_ECART_CHOICES,
+        choices=_type_ecart_choices(),
         required=False,
         allow_blank=True,
     )
     description_ecart = serializers.CharField(required=False, allow_blank=True)
     action_corrective = serializers.ChoiceField(
-        choices=DemandeAchat.ACTION_CORRECTIVE_CHOICES,
+        choices=_action_corrective_choices(),
         required=False,
         allow_blank=True,
     )
@@ -451,7 +461,7 @@ class ResolveReceptionIssueSerializer(serializers.Serializer):
 
 
 class CloseDemandeSerializer(serializers.Serializer):
-    statut_final = serializers.ChoiceField(choices=DemandeAchat.STATUT_FINAL_CHOICES)
+    statut_final = serializers.ChoiceField(choices=_statut_final_achat_choices())
     niveau_satisfaction = serializers.IntegerField(min_value=1, max_value=5)
     commentaires_finaux = serializers.CharField(required=False, allow_blank=True)
     date_cloture = serializers.DateField(required=False)

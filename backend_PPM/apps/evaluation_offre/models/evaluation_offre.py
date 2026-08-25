@@ -8,6 +8,7 @@ from apps.procurement.models.procurement_market import (
     CategoryType,
     _category_type_choices,
 )
+from apps.common.models import ChoiceGroup, reference_choices
 
 User = get_user_model()
 
@@ -34,6 +35,42 @@ class StatutDaoEvaluation(models.TextChoices):
     A_ASSIGNER = "A_ASSIGNER", "À assigner"
     EN_EVALUATION = "EN_EVALUATION", "En évaluation"
     TERMINE = "TERMINE", "Terminé"
+
+
+def _statut_evaluation_choices():
+    defaults = [
+        ("EN_COURS", "En cours"),
+        ("CONSENSUS_REQUIS", "Consensus requis"),
+        ("COMPLETE", "Complète"),
+        ("ELIMINEE", "Éliminée"),
+    ]
+    return reference_choices(ChoiceGroup.STATUT_EVALUATION, defaults)
+
+
+def _recommandation_evaluation_choices():
+    defaults = [
+        ("ATTRIBUER", "Attribuer le marché"),
+        ("REJETER", "Rejeter l'offre"),
+        ("RELANCER", "Relancer l'appel d'offres"),
+    ]
+    return reference_choices(ChoiceGroup.RECOMMANDATION_EVALUATION, defaults)
+
+
+def _declaration_conflit_choices():
+    defaults = [
+        ("OUI", "Oui — aucun lien avec le soumissionnaire"),
+        ("NON", "Non — conflit d'intérêt déclaré"),
+    ]
+    return reference_choices(ChoiceGroup.DECLARATION_CONFLIT, defaults)
+
+
+def _statut_dao_evaluation_choices():
+    defaults = [
+        ("A_ASSIGNER", "À assigner"),
+        ("EN_EVALUATION", "En évaluation"),
+        ("TERMINE", "Terminé"),
+    ]
+    return reference_choices(ChoiceGroup.STATUT_DAO_EVALUATION, defaults)
 
 
 # ============================================================
@@ -100,7 +137,7 @@ class EvaluationOffre(models.Model):
     evaluateur_numero_carte = models.CharField(max_length=50, blank=True)
     statut = models.CharField(
         max_length=20,
-        choices=StatutEvaluation.choices,
+        choices=_statut_evaluation_choices,
         default=StatutEvaluation.EN_COURS,
     )
     date_evaluation = models.DateField(null=True, blank=True)
@@ -446,14 +483,14 @@ class EvaluationConclusion(models.Model):
     )
     recommandation = models.CharField(
         max_length=20,
-        choices=RecommandationType.choices,
+        choices=_recommandation_evaluation_choices,
         null=True,
         blank=True,
     )
     justification = models.TextField(blank=True)
     declaration_conflit = models.CharField(
         max_length=3,
-        choices=DeclarationConflitType.choices,
+        choices=_declaration_conflit_choices,
         blank=True,
     )
     signe_le = models.DateTimeField(null=True, blank=True)
@@ -484,7 +521,7 @@ class DecisionFinale(models.Model):
     classement        = models.PositiveIntegerField(null=True, blank=True)
     recommandation    = models.CharField(
         max_length=20,
-        choices=RecommandationType.choices,
+        choices=_recommandation_evaluation_choices,
         null=True, blank=True,
     )
     justification         = models.TextField(blank=True)

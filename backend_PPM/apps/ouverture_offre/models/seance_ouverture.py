@@ -5,6 +5,26 @@ from apps.common.models import ChoiceGroup, reference_choices
 from apps.procurement.models.procurement_market import CategoryType
 
 
+def _category_type_choices():
+    return reference_choices(ChoiceGroup.CATEGORY_TYPE, CategoryType.choices)
+
+
+def _statut_seance_choices():
+    return reference_choices(ChoiceGroup.STATUT_SEANCE, SeanceOuverture.Statut.choices)
+
+
+def _decision_seance_choices():
+    return reference_choices(ChoiceGroup.DECISION_SEANCE, SeanceOuverture.Decision.choices)
+
+
+def _etape_ouverture_choices():
+    return reference_choices(ChoiceGroup.ETAPE_OUVERTURE, SeanceOuverture.EtapeOuverture.choices)
+
+
+def _etat_scelle_choices():
+    return reference_choices(ChoiceGroup.ETAT_SCELLE, SeanceOuverture.EtatScelle.choices)
+
+
 class SeanceOuverture(models.Model):
     class Statut(models.TextChoices):
         BROUILLON = "BROUILLON", "Brouillon"
@@ -25,7 +45,7 @@ class SeanceOuverture(models.Model):
 
     category_type = models.CharField(
         max_length=20,
-        choices=CategoryType.choices,
+        choices=_category_type_choices,
         blank=True,
         default="",
         db_index=True,
@@ -52,7 +72,7 @@ class SeanceOuverture(models.Model):
 
     statut = models.CharField(
         max_length=32,
-        choices=Statut.choices,
+        choices=_statut_seance_choices,
         default=Statut.BROUILLON,
         db_index=True,
     )
@@ -63,7 +83,7 @@ class SeanceOuverture(models.Model):
     president_a_valide = models.BooleanField(default=False)
     president_decision = models.CharField(
         max_length=20,
-        choices=Decision.choices,
+        choices=_decision_seance_choices,
         default=Decision.EN_ATTENTE,
     )
     president_commentaire = models.TextField(blank=True)
@@ -105,12 +125,12 @@ class SeanceOuverture(models.Model):
 
     etape_ouverture = models.CharField(
         max_length=20,
-        choices=EtapeOuverture.choices,
+        choices=_etape_ouverture_choices,
         default=EtapeOuverture.COMPLETE,
     )
     etat_scelle = models.CharField(
         max_length=20,
-        choices=EtatScelle.choices,
+        choices=_etat_scelle_choices,
         blank=True,
         default="",
     )

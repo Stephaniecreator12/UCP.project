@@ -4,6 +4,13 @@ from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, Group,
 from django.core.validators import RegexValidator
 from django.utils.translation import gettext_lazy as _
 
+from apps.common.models import ChoiceGroup, reference_choices
+
+
+def _type_entite_choices():
+    return reference_choices(ChoiceGroup.TYPE_ENTITE, UserProfile.ENTITE_CHOICES)
+
+
 class UserProfileManager(BaseUserManager):
     def create_user(self, email, password=None, **extra_fields):
         if not email:
@@ -37,7 +44,7 @@ class UserProfile(AbstractBaseUser, PermissionsMixin):
         ('PARTICULIER', 'Particulier'),
         ('CONSULTANT', 'Consultant'),
     ]
-    type_entite = models.CharField(max_length=20, choices=ENTITE_CHOICES,blank=True,
+    type_entite = models.CharField(max_length=20, choices=_type_entite_choices,blank=True,
         null=True)
     nif = models.CharField("NIF", max_length=20, blank=True, null=True)
 

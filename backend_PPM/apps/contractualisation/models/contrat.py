@@ -31,6 +31,16 @@ def _type_document_contrat_choices():
     )
 
 
+def _statut_paiement_choices():
+    # Données partagées avec le module contrats (statut de paiement).
+    return reference_choices(ChoiceGroup.STATUT_PAIEMENT, EcheancierPaiement.StatutPaiement.choices)
+
+
+def _action_audit_contrat_choices():
+    # Données partagées avec le module contrats (action audit contrat).
+    return reference_choices(ChoiceGroup.ACTION_AUDIT_CONTRAT, AuditTrailContrat.Action.choices)
+
+
 # ============================================================
 # CONTRAT PRINCIPAL
 # ============================================================
@@ -141,7 +151,7 @@ class EcheancierPaiement(models.Model):
     date_prevue = models.DateField()
     statut = models.CharField(
         max_length=20,
-        choices=StatutPaiement.choices,
+        choices=_statut_paiement_choices,
         default=StatutPaiement.EN_ATTENTE,
     )
 
@@ -231,7 +241,7 @@ class AuditTrailContrat(models.Model):
 
     action = models.CharField(
         max_length=20,
-        choices=Action.choices,
+        choices=_action_audit_contrat_choices,
     )
 
     utilisateur = models.ForeignKey(

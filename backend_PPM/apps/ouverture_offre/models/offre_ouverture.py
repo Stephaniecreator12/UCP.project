@@ -1,6 +1,12 @@
 from django.db import models
 
+from apps.common.models import ChoiceGroup, reference_choices
+
 from .seance_ouverture import SeanceOuverture
+
+
+def _etat_enveloppe_choices():
+    return reference_choices(ChoiceGroup.ETAT_ENVELOPPE, OffreOuverture.EtatEnveloppe.choices)
 
 
 class OffreOuverture(models.Model):
@@ -24,19 +30,19 @@ class OffreOuverture(models.Model):
     heure_reception_pli = models.TimeField(null=True, blank=True)
     enveloppe_administrative = models.CharField(
         max_length=20,
-        choices=EtatEnveloppe.choices,
+        choices=_etat_enveloppe_choices,
         blank=True,
         default="",
     )
     enveloppe_technique = models.CharField(
         max_length=20,
-        choices=EtatEnveloppe.choices,
+        choices=_etat_enveloppe_choices,
         blank=True,
         default="",
     )
     enveloppe_financiere = models.CharField(
         max_length=20,
-        choices=EtatEnveloppe.choices,
+        choices=_etat_enveloppe_choices,
         blank=True,
         default="",
     )

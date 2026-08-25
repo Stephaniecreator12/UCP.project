@@ -1,7 +1,65 @@
 from django.contrib.auth import get_user_model
 from django.db import models
 
+from apps.common.models import ChoiceGroup, reference_choices
+
 User = get_user_model()
+
+
+def _categorie_besoin_choices():
+    return reference_choices(ChoiceGroup.CATEGORIE_BESOIN, DemandeAchat.CATEGORIE_CHOICES)
+
+
+def _type_demande_choices():
+    return reference_choices(ChoiceGroup.TYPE_DEMANDE_ACHAT, DemandeAchat.TYPE_DEMANDE_CHOICES)
+
+
+def _priorite_choices():
+    return reference_choices(ChoiceGroup.PRIORITE_ACHAT, DemandeAchat.PRIORITE_CHOICES)
+
+
+def _source_financement_detail_choices():
+    return reference_choices(ChoiceGroup.SOURCE_FINANCEMENT_DETAIL, DemandeAchat.SOURCE_FINANCEMENT_CHOICES)
+
+
+def _statut_demande_achat_choices():
+    return reference_choices(ChoiceGroup.STATUT_DEMANDE_ACHAT, DemandeAchat.STATUT_CHOICES)
+
+
+def _etape_validation_achat_choices():
+    return reference_choices(ChoiceGroup.ETAPE_VALIDATION_ACHAT, DemandeAchat.ETAPE_VALIDATION_CHOICES)
+
+
+def _type_procedure_achat_choices():
+    return reference_choices(ChoiceGroup.TYPE_PROCEDURE_ACHAT, DemandeAchat.TYPE_PROCEDURE_CHOICES)
+
+
+def _etat_expedition_choices():
+    return reference_choices(ChoiceGroup.ETAT_EXPEDITION, DemandeAchat.ETAT_EXPEDITION_CHOICES)
+
+
+def _conformite_quantite_choices():
+    return reference_choices(ChoiceGroup.CONFORMITE_QUANTITE, DemandeAchat.CONFORMITE_QUANTITE_CHOICES)
+
+
+def _conformite_qualite_choices():
+    return reference_choices(ChoiceGroup.CONFORMITE_QUALITE, DemandeAchat.CONFORMITE_QUALITE_CHOICES)
+
+
+def _statut_reception_choices():
+    return reference_choices(ChoiceGroup.STATUT_RECEPTION, DemandeAchat.STATUT_RECEPTION_CHOICES)
+
+
+def _type_ecart_choices():
+    return reference_choices(ChoiceGroup.TYPE_ECART, DemandeAchat.TYPE_ECART_CHOICES)
+
+
+def _action_corrective_choices():
+    return reference_choices(ChoiceGroup.ACTION_CORRECTIVE, DemandeAchat.ACTION_CORRECTIVE_CHOICES)
+
+
+def _statut_final_achat_choices():
+    return reference_choices(ChoiceGroup.STATUT_FINAL_ACHAT, DemandeAchat.STATUT_FINAL_CHOICES)
 
 
 class DemandeAchat(models.Model):
@@ -197,27 +255,27 @@ class DemandeAchat(models.Model):
     unite_technique = models.CharField(max_length=255)
     statut = models.CharField(
         max_length=20,
-        choices=STATUT_CHOICES,
+        choices=_statut_demande_achat_choices,
         default=STATUT_BROUILLON,
     )
     # Tracks which validation role currently owns the dossier.
     etape_validation_actuelle = models.CharField(
         max_length=30,
-        choices=ETAPE_VALIDATION_CHOICES,
+        choices=_etape_validation_achat_choices,
         default=ETAPE_HIERARCHIQUE,
     )
 
     categorie_besoin = models.CharField(
         max_length=30,
-        choices=CATEGORIE_CHOICES,
+        choices=_categorie_besoin_choices,
     )
     type_demande = models.CharField(
         max_length=30,
-        choices=TYPE_DEMANDE_CHOICES,
+        choices=_type_demande_choices,
     )
     priorite = models.CharField(
         max_length=10,
-        choices=PRIORITE_CHOICES,
+        choices=_priorite_choices,
         default=PRIORITE_NORMAL,
     )
 
@@ -230,7 +288,7 @@ class DemandeAchat(models.Model):
     ligne_budgetaire = models.CharField(max_length=100, blank=True)
     source_financement = models.CharField(
         max_length=30,
-        choices=SOURCE_FINANCEMENT_CHOICES,
+        choices=_source_financement_detail_choices,
         blank=True,
     )
     numero_subvention = models.CharField(max_length=100, blank=True)
@@ -255,7 +313,7 @@ class DemandeAchat(models.Model):
 
     type_procedure = models.CharField(
         max_length=30,
-        choices=TYPE_PROCEDURE_CHOICES,
+        choices=_type_procedure_achat_choices,
         blank=True,
     )
     fournisseur = models.ForeignKey(
@@ -284,7 +342,7 @@ class DemandeAchat(models.Model):
     date_arrivee_effective = models.DateField(null=True, blank=True)
     etat_expedition = models.CharField(
         max_length=20,
-        choices=ETAT_EXPEDITION_CHOICES,
+        choices=_etat_expedition_choices,
         blank=True,
     )
 
@@ -292,30 +350,30 @@ class DemandeAchat(models.Model):
     receptionnaire = models.CharField(max_length=255, blank=True)
     conformite_quantite = models.CharField(
         max_length=20,
-        choices=CONFORMITE_QUANTITE_CHOICES,
+        choices=_conformite_quantite_choices,
         blank=True,
     )
     conformite_qualite = models.CharField(
         max_length=20,
-        choices=CONFORMITE_QUALITE_CHOICES,
+        choices=_conformite_qualite_choices,
         blank=True,
     )
     observations_reception = models.TextField(blank=True)
     statut_reception = models.CharField(
         max_length=30,
-        choices=STATUT_RECEPTION_CHOICES,
+        choices=_statut_reception_choices,
         default=STATUT_RECEPTION_EN_ATTENTE,
     )
 
     type_ecart = models.CharField(
         max_length=30,
-        choices=TYPE_ECART_CHOICES,
+        choices=_type_ecart_choices,
         blank=True,
     )
     description_ecart = models.TextField(blank=True)
     action_corrective = models.CharField(
         max_length=30,
-        choices=ACTION_CORRECTIVE_CHOICES,
+        choices=_action_corrective_choices,
         blank=True,
     )
     date_resolution = models.DateField(null=True, blank=True)
@@ -323,7 +381,7 @@ class DemandeAchat(models.Model):
 
     statut_final = models.CharField(
         max_length=30,
-        choices=STATUT_FINAL_CHOICES,
+        choices=_statut_final_achat_choices,
         blank=True,
     )
     date_cloture = models.DateField(null=True, blank=True)

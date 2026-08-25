@@ -2,6 +2,14 @@ from django.db import models
 from django.contrib.auth.models import User, Group
 from django.conf import settings
 
+from apps.common.models import ChoiceGroup, reference_choices
+
+DEFAULT_SEXE_CHOICES = [(1, 'Masculin'), (2, 'Féminin')]
+
+
+def _sexe_choices():
+    return reference_choices(ChoiceGroup.SEXE, DEFAULT_SEXE_CHOICES)
+
 class Programme(models.Model):
     nom = models.CharField(max_length=100, unique=True, verbose_name="Nom du Programme/Financement")
     code = models.CharField(max_length=50, unique=True, verbose_name="Code Programme (ex: GAVI, FM)")
@@ -45,7 +53,7 @@ class AgentProfile(models.Model):
     )
     poste = models.ForeignKey(Poste, on_delete=models.SET_NULL, null=True, blank=True, related_name="agents")
     matricule = models.CharField(max_length=50, unique=True, null=True, blank=True)
-    sexe = models.IntegerField(choices=((1, 'Masculin'), (2, 'Féminin')), null=True, blank=True)
+    sexe = models.IntegerField(choices=_sexe_choices, null=True, blank=True)
     telephone = models.CharField(max_length=20, blank=True, default='')
     service = models.CharField(max_length=100, blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)

@@ -1,7 +1,13 @@
 from django.conf import settings
 from django.db import models
 
+from apps.common.models import ChoiceGroup, reference_choices
+
 from .seance_ouverture import SeanceOuverture
+
+
+def _decision_membre_seance_choices():
+    return reference_choices(ChoiceGroup.DECISION_MEMBRE_SEANCE, MembreSeance.Decision.choices)
 
 
 class MembreSeance(models.Model):
@@ -28,7 +34,7 @@ class MembreSeance(models.Model):
     a_valide = models.BooleanField(default=False)
     decision = models.CharField(
         max_length=20,
-        choices=Decision.choices,
+        choices=_decision_membre_seance_choices,
         default=Decision.EN_ATTENTE,
     )
     commentaire = models.TextField(blank=True)

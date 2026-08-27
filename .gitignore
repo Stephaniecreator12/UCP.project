@@ -17,4 +17,6 @@ node_modules/
 
 # Fichiers runtime / logs / etat celery
 *.log
-celerybeat-schedule.*
+# Celery Beat
+celerybeat-schedule*
+**/celerybeat-schedule*

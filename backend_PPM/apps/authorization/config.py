@@ -58,12 +58,6 @@ GROUP_DEFINITIONS = [
                 "documentcontrat": ["view", "add", "change", "delete"],
                 "audittrailcontrat": ["view", "add", "change", "delete"],
             },
-            "contrats": {
-                "contrat": ["view", "add", "change", "delete"],
-                "documentcontrat": ["view", "add", "change", "delete"],
-                "echeancepaiement": ["view", "add", "change", "delete"],
-                "contratauditlog": ["view", "add", "change", "delete"],
-            },
             "log": {
                 "logconsultation": ["view", "add", "change", "delete"],
                 "logdownload": ["view", "add", "change", "delete"],

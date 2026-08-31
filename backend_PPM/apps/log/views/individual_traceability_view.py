@@ -5,6 +5,10 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 from apps.log.models.download import LogDownload
 from apps.log.models.consultation import LogConsultation
+
+PUBLIC_GROUP = "PUBLIC"
+
+
 class IndividualTraceabilityAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -12,7 +16,7 @@ class IndividualTraceabilityAPIView(APIView):
         try:
             User = get_user_model()
 
-            users = User.objects.all()
+            users = User.objects.filter(groups__name=PUBLIC_GROUP).distinct()
 
             result = []
 

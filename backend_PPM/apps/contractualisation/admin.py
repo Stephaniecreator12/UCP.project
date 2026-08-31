@@ -1,9 +1,10 @@
 from django.contrib import admin
+from unfold.admin import ModelAdmin
 from .models import Contrat, EcheancierPaiement, DocumentContrat, AuditTrailContrat
 
 
 @admin.register(Contrat)
-class ContratAdmin(admin.ModelAdmin):
+class ContratAdmin(ModelAdmin):
     list_display = [
         "numero_marche",
         "statut",
@@ -36,25 +37,30 @@ class ContratAdmin(admin.ModelAdmin):
             "classes": ("collapse",),
         }),
     )
+    list_per_page = 25
 
 
 @admin.register(EcheancierPaiement)
-class EcheancierPaiementAdmin(admin.ModelAdmin):
+class EcheancierPaiementAdmin(ModelAdmin):
     list_display = ["contrat", "pourcentage", "montant", "etape", "date_prevue", "statut"]
     list_filter = ["statut", "date_prevue"]
     search_fields = ["contrat__numero_marche", "etape"]
+    list_per_page = 25
+    readonly_fields = ("created_at", "updated_at")
 
 
 @admin.register(DocumentContrat)
-class DocumentContratAdmin(admin.ModelAdmin):
+class DocumentContratAdmin(ModelAdmin):
     list_display = ["contrat", "type_document", "date_upload", "uploaded_by"]
     list_filter = ["type_document", "date_upload"]
     search_fields = ["contrat__numero_marche"]
     readonly_fields = ["hash_sha256", "date_upload"]
+    list_per_page = 25
+    date_hierarchy = "date_upload"
 
 
 @admin.register(AuditTrailContrat)
-class AuditTrailContratAdmin(admin.ModelAdmin):
+class AuditTrailContratAdmin(ModelAdmin):
     list_display = ["contrat", "action", "utilisateur", "timestamp"]
     list_filter = ["action", "timestamp"]
     search_fields = ["contrat__numero_marche", "utilisateur__username"]
@@ -70,9 +76,12 @@ class AuditTrailContratAdmin(admin.ModelAdmin):
         "ip_adresse",
         "navigateur",
     ]
+    date_hierarchy = "timestamp"
 
     def has_add_permission(self, request):
         return False
 
     def has_delete_permission(self, request, obj=None):
         return False
+
+    list_per_page = 25

@@ -34,6 +34,9 @@ class Biens(models.Model):
     date_signature_reel = models.DateField(null=True, blank=True)
     date_livraison_reel = models.DateField(null=True, blank=True)
 
+    def __str__(self):
+        return f"{self.code_suivi or ''} — {self.intitule}" if self.code_suivi else self.intitule
+
     class Meta:
         db_table = "biens"
         verbose_name = "Bien"

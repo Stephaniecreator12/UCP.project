@@ -1,0 +1,154 @@
+/* ================================================================
+   UCP UNFOLD OVERRIDES — Branding & polish for django-unfold
+   ================================================================ */
+
+/* ── Google Font ── */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+/* ── Font override ── */
+:root {
+  --default-font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, -apple-system, sans-serif;
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, -apple-system, sans-serif !important;
+}
+
+/* ── UCP brand tokens ── */
+:root {
+  --ucp-green: #0ea85b;
+  --ucp-green-strong: #078848;
+  --ucp-green-soft: #e8f8ef;
+  --ucp-bg: #eceeef;
+  --ucp-surface: #ffffff;
+  --ucp-text: #17212e;
+  --ucp-muted: #627080;
+  --ucp-line: #d9dee3;
+  --ucp-danger: #bf3c3c;
+}
+
+/* ── Sidebar branding ── */
+[data-negative-margin] .sticky {
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+}
+
+/* ── Badge styles for custom columns ── */
+.ucp-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+
+.ucp-badge--green {
+  background: #e8f8ef;
+  color: #078848;
+}
+
+.ucp-badge--danger {
+  background: #fff1f2;
+  color: #bf3c3c;
+}
+
+.ucp-badge--amber {
+  background: #fffbeb;
+  color: #b45309;
+}
+
+.ucp-badge--blue {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.ucp-badge--muted {
+  background: #f6f7f8;
+  color: #627080;
+}
+
+/* ── Category badges for authorization ── */
+.category-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+
+.category-badge--admin { background: #fee2e2; color: #dc2626; }
+.category-badge--public { background: #f3f4f6; color: #6b7280; }
+.category-badge--demandeur { background: #dbeafe; color: #3b82f6; }
+.category-badge--validateur { background: #ede9fe; color: #8b5cf6; }
+.category-badge--finance { background: #ecfdf5; color: #10b981; }
+.category-badge--achat { background: #fffbeb; color: #d97706; }
+.category-badge--marche { background: #fee2e2; color: #ef4444; }
+.category-badge--ouverture_offre { background: #fce7f3; color: #ec4899; }
+.category-badge--contractualisation { background: #f0fdfa; color: #14b8a6; }
+.category-badge--evaluation { background: #fff7ed; color: #f97316; }
+.category-badge--audit { background: #eef2ff; color: #6366f1; }
+
+/* ── Config status indicators ── */
+.config-ok { color: #0ea85b; font-weight: 700; }
+.config-warn { color: #f59e0b; font-weight: 600; cursor: help; border-bottom: 1px dashed #f59e0b; }
+.config-unconfigured { color: #6b7280; font-weight: 500; }
+
+.user-count-link {
+  color: #0ea85b;
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 0.15s ease;
+}
+
+.user-count-link:hover {
+  color: #078848;
+  text-decoration: underline;
+}
+
+/* ── Top accent bar ── */
+.ucp-top-bar,
+header::before {
+  background: linear-gradient(90deg, #22c55e, #1fcf78, #22c55e) !important;
+}
+
+/* ── Smooth transitions ── */
+a, button, input, select, textarea {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ── Table row hover ── */
+tbody tr:hover {
+  background-color: rgba(14, 168, 91, 0.03) !important;
+}
+
+/* ── Focus ring color ── */
+input:focus, select:focus, textarea:focus {
+  border-color: rgba(14, 168, 91, 0.5) !important;
+  box-shadow: 0 0 0 3px rgba(14, 168, 91, 0.1) !important;
+}
+
+/* ── Primary button hover lift ── */
+button[type="submit"]:hover,
+a.primaryAction:hover {
+  transform: translateY(-1px);
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: #f6f7f8; }
+::-webkit-scrollbar-thumb { background: #bfc8d0; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #627080; }
+
+/* ── Login page accent ── */
+.login-logo img {
+  border-radius: 12px;
+  border: 1px solid var(--ucp-line);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}

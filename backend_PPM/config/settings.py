@@ -20,6 +20,278 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Load environment variables from backend_PPM/.env
 load_dotenv(os.path.join(BASE_DIR, '.env'), override=True)
 
+from django.urls import reverse_lazy
+from django.utils.translation import gettext_lazy as _
+from django.templatetags.static import static
+
+UNFOLD = {
+    "SITE_TITLE": "UCP Admin",
+    "SITE_HEADER": "Unité de Coordination des Projets",
+    "SITE_SUBHEADER": "e-Procurement · Administration",
+    "SITE_URL": "/",
+    "SHOW_HISTORY": True,
+    "SHOW_VIEW_ON_SITE": False,
+    "SHOW_LANGUAGES": False,
+    "SHOW_UI_WARNINGS": False,
+
+    "SITE_LOGO": lambda request: static("admin/ucp-sante-logo-color.png"),
+    "SITE_ICON": lambda request: static("admin/ucp-sante-logo-color.png"),
+    "SITE_FAVICONS": [
+        {
+            "rel": "icon",
+            "sizes": "32x32",
+            "type": "image/x-icon",
+            "href": lambda request: static("admin/favicon.ico"),
+        },
+    ],
+
+    "COLORS": {
+        "primary": {
+            "50":  "oklch(97% 0.015 155)",
+            "100": "oklch(94% 0.03 155)",
+            "200": "oklch(89% 0.06 155)",
+            "300": "oklch(82% 0.11 155)",
+            "400": "oklch(72% 0.17 155)",
+            "500": "oklch(65% 0.19 155)",
+            "600": "oklch(55% 0.20 155)",
+            "700": "oklch(47% 0.18 155)",
+            "800": "oklch(40% 0.14 155)",
+            "900": "oklch(33% 0.11 155)",
+            "950": "oklch(25% 0.08 155)",
+        },
+        "base": {
+            "50":  "oklch(98.5% 0.002 247)",
+            "100": "oklch(96.5% 0.004 247)",
+            "200": "oklch(92.5% 0.007 247)",
+            "300": "oklch(87% 0.012 247)",
+            "400": "oklch(70% 0.022 247)",
+            "500": "oklch(55% 0.027 247)",
+            "600": "oklch(44% 0.03 247)",
+            "700": "oklch(37% 0.032 247)",
+            "800": "oklch(27% 0.03 247)",
+            "900": "oklch(20% 0.03 247)",
+            "950": "oklch(13% 0.025 247)",
+        },
+        "font": {
+            "subtle-light":    "var(--color-base-500)",
+            "subtle-dark":     "var(--color-base-400)",
+            "default-light":   "var(--color-base-600)",
+            "default-dark":    "var(--color-base-300)",
+            "important-light": "var(--color-base-900)",
+            "important-dark":  "var(--color-base-100)",
+        },
+    },
+
+    "SIDEBAR": {
+        "show_search": True,
+        "command_search": True,
+        "show_all_applications": True,
+        "navigation": [
+            {
+                "title": _("Navigation"),
+                "separator": True,
+                "collapsible": True,
+                "items": [
+                    {
+                        "title": _("Tableau de bord"),
+                        "icon": "dashboard",
+                        "link": reverse_lazy("admin:index"),
+                    },
+                ],
+            },
+            {
+                "title": _("Utilisateurs & Accès"),
+                "separator": True,
+                "collapsible": True,
+                "items": [
+                    {
+                        "title": _("Utilisateurs"),
+                        "icon": "people",
+                        "link": reverse_lazy("admin:users_userprofile_changelist"),
+                    },
+                    {
+                        "title": _("Groupes & Rôles"),
+                        "icon": "admin_panel_settings",
+                        "link": reverse_lazy("admin:auth_group_changelist"),
+                    },
+                    {
+                        "title": _("Programmes"),
+                        "icon": "account_tree",
+                        "link": reverse_lazy("admin:users_programme_changelist"),
+                    },
+                    {
+                        "title": _("Postes"),
+                        "icon": "work",
+                        "link": reverse_lazy("admin:users_poste_changelist"),
+                    },
+                    {
+                        "title": _("Profils agents"),
+                        "icon": "badge",
+                        "link": reverse_lazy("admin:users_agentprofile_changelist"),
+                    },
+                ],
+            },
+            {
+                "title": _("Planification (PPM)"),
+                "separator": True,
+                "collapsible": True,
+                "items": [
+                    {
+                        "title": _("Travaux"),
+                        "icon": "construction",
+                        "link": reverse_lazy("admin:ppm_travaux_changelist"),
+                    },
+                    {
+                        "title": _("Biens"),
+                        "icon": "inventory_2",
+                        "link": reverse_lazy("admin:ppm_biens_changelist"),
+                    },
+                    {
+                        "title": _("Consultance"),
+                        "icon": "groups",
+                        "link": reverse_lazy("admin:ppm_consultance_changelist"),
+                    },
+                ],
+            },
+            {
+                "title": _("Achats"),
+                "separator": True,
+                "collapsible": True,
+                "items": [
+                    {
+                        "title": _("Demandes d'achat"),
+                        "icon": "shopping_cart",
+                        "link": reverse_lazy("admin:achats_demandeachat_changelist"),
+                    },
+                    {
+                        "title": _("Fournisseurs"),
+                        "icon": "local_shipping",
+                        "link": reverse_lazy("admin:achats_fournisseur_changelist"),
+                    },
+                    {
+                        "title": _("Lignes de besoin"),
+                        "icon": "list_alt",
+                        "link": reverse_lazy("admin:achats_lignebesoin_changelist"),
+                    },
+                ],
+            },
+            {
+                "title": _("TDR / ST"),
+                "separator": True,
+                "collapsible": True,
+                "items": [
+                    {
+                        "title": _("Documents TDR/ST"),
+                        "icon": "description",
+                        "link": reverse_lazy("admin:TdrSt_tdrstdocument_changelist"),
+                    },
+                ],
+            },
+            {
+                "title": _("Passation des marchés"),
+                "separator": True,
+                "collapsible": True,
+                "items": [
+                    {
+                        "title": _("Marchés (DAO)"),
+                        "icon": "gavel",
+                        "link": reverse_lazy("admin:procurement_procurementmarket_changelist"),
+                    },
+                    {
+                        "title": _("Séances d'ouverture"),
+                        "icon": "event",
+                        "link": reverse_lazy("admin:ouverture_offre_seanceouverture_changelist"),
+                    },
+                    {
+                        "title": _("Offres"),
+                        "icon": "folder_open",
+                        "link": reverse_lazy("admin:ouverture_offre_offreouverture_changelist"),
+                    },
+                ],
+            },
+            {
+                "title": _("Évaluation"),
+                "separator": True,
+                "collapsible": True,
+                "items": [
+                    {
+                        "title": _("Évaluations"),
+                        "icon": "assessment",
+                        "link": reverse_lazy("admin:evaluation_offre_evaluationoffre_changelist"),
+                    },
+                    {
+                        "title": _("Décisions finales"),
+                        "icon": "check_circle",
+                        "link": reverse_lazy("admin:evaluation_offre_decisionfinale_changelist"),
+                    },
+                    {
+                        "title": _("Critères techniques"),
+                        "icon": "rule",
+                        "link": reverse_lazy("admin:evaluation_offre_criteretemplate_changelist"),
+                    },
+                    {
+                        "title": _("Rapports d'évaluation"),
+                        "icon": "summarize",
+                        "link": reverse_lazy("admin:evaluation_offre_evaluationreport_changelist"),
+                    },
+                ],
+            },
+            {
+                "title": _("Contractualisation"),
+                "separator": True,
+                "collapsible": True,
+                "items": [
+                    {
+                        "title": _("Contrats"),
+                        "icon": "handshake",
+                        "link": reverse_lazy("admin:contractualisation_contrat_changelist"),
+                    },
+                    {
+                        "title": _("Échéanciers"),
+                        "icon": "payments",
+                        "link": reverse_lazy("admin:contractualisation_echeancierpaiement_changelist"),
+                    },
+                ],
+            },
+            {
+                "title": _("Référentiels"),
+                "separator": True,
+                "collapsible": True,
+                "items": [
+                    {
+                        "title": _("Choix de référence"),
+                        "icon": "tune",
+                        "link": reverse_lazy("admin:common_referencechoice_changelist"),
+                    },
+                ],
+            },
+            {
+                "title": _("Journalisation"),
+                "separator": True,
+                "collapsible": True,
+                "items": [
+                    {
+                        "title": _("Consultations"),
+                        "icon": "visibility",
+                        "link": reverse_lazy("admin:log_logconsultation_changelist"),
+                    },
+                    {
+                        "title": _("Téléchargements"),
+                        "icon": "download",
+                        "link": reverse_lazy("admin:log_logdownload_changelist"),
+                    },
+                ],
+            },
+        ],
+    },
+
+    "STYLES": [
+        lambda request: static("admin/css/ucp-unfold.css"),
+    ],
+
+    "BORDER_RADIUS": "12px",
+}
+
 def env_bool(name, default=False):
     value = os.getenv(name)
     if value is None:
@@ -69,6 +341,9 @@ if DEBUG and "*" not in ALLOWED_HOSTS:
 # Application definition
 
 INSTALLED_APPS = [
+    "unfold",
+    "unfold.contrib.filters",
+    "unfold.contrib.forms",   
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -112,7 +387,10 @@ ROOT_URLCONF = 'config.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [os.path.join(BASE_DIR, 'marches', 'template', 'marches')],
+        'DIRS': [
+            os.path.join(BASE_DIR, 'templates'),
+            os.path.join(BASE_DIR, 'marches', 'template', 'marches'),
+        ],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -168,9 +446,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/6.0/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'fr'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Africa/Kinshasa'
 
 USE_I18N = True
 
@@ -181,6 +459,9 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+STATICFILES_DIRS = [
+    BASE_DIR / "static",
+]
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 

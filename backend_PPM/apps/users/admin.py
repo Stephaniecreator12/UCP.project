@@ -1,5 +1,6 @@
 from django.contrib import admin
-from django.contrib.auth.admin import UserAdmin
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from unfold.admin import ModelAdmin
 
 from apps.users.forms import (
     UserProfileCreationForm,
@@ -10,7 +11,7 @@ from apps.users.models.agent import Programme, Poste, AgentProfile
 
 
 @admin.register(UserProfile)
-class UserProfileAdmin(UserAdmin):
+class UserProfileAdmin(BaseUserAdmin):
     add_form = UserProfileCreationForm
     form = UserProfileChangeForm
     model = UserProfile
@@ -117,24 +118,27 @@ class UserProfileAdmin(UserAdmin):
         "groups",
         "user_permissions",
     )
+    list_per_page = 25
 
 
 @admin.register(Programme)
-class ProgrammeAdmin(admin.ModelAdmin):
+class ProgrammeAdmin(ModelAdmin):
     list_display = ("id", "nom", "code")
     search_fields = ("nom", "code")
+    list_per_page = 25
 
 
 @admin.register(Poste)
-class PosteAdmin(admin.ModelAdmin):
+class PosteAdmin(ModelAdmin):
     list_display = ("id", "nom", "programme")
     list_filter = ("programme",)
     search_fields = ("nom",)
     filter_horizontal = ("groups", "superieurs")
+    list_per_page = 25
 
 
 @admin.register(AgentProfile)
-class AgentProfileAdmin(admin.ModelAdmin):
+class AgentProfileAdmin(ModelAdmin):
     list_display = (
         "id",
         "user",
@@ -149,3 +153,5 @@ class AgentProfileAdmin(admin.ModelAdmin):
         "user__full_name",
         "matricule",
     )
+    list_per_page = 25
+    readonly_fields = ("created_at", "updated_at")

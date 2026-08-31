@@ -40,6 +40,9 @@ class Consultance(models.Model):
     date_signature_reel = models.DateField(null=True, blank=True)
     date_fin_reel = models.DateField(null=True, blank=True)
 
+    def __str__(self):
+        return f"{self.ref_code_suivi or ''} — {self.intitule}" if self.ref_code_suivi else self.intitule
+
     class Meta:
         db_table = "consultance"
         verbose_name = "Consultance"

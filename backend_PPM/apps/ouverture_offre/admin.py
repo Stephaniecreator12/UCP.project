@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
+from unfold.admin import ModelAdmin, TabularInline, StackedInline
 
 from .models import SeanceOuverture, MembreSeance, OffreOuverture, PVDocument
 
@@ -7,7 +8,7 @@ from .models import SeanceOuverture, MembreSeance, OffreOuverture, PVDocument
 # ============================================================
 # INLINES
 # ============================================================
-class MembreSeanceInline(admin.TabularInline):
+class MembreSeanceInline(TabularInline):
     model = MembreSeance
     extra = 0
     fields = (
@@ -18,7 +19,7 @@ class MembreSeanceInline(admin.TabularInline):
     autocomplete_fields = ("utilisateur",)
 
 
-class OffreOuvertureInline(admin.TabularInline):
+class OffreOuvertureInline(TabularInline):
     model = OffreOuverture
     extra = 0
     fields = (
@@ -28,7 +29,7 @@ class OffreOuvertureInline(admin.TabularInline):
     )
 
 
-class PVDocumentInline(admin.StackedInline):
+class PVDocumentInline(StackedInline):
     model = PVDocument
     extra = 0
     max_num = 1
@@ -40,7 +41,7 @@ class PVDocumentInline(admin.StackedInline):
 # SEANCE D'OUVERTURE
 # ============================================================
 @admin.register(SeanceOuverture)
-class SeanceOuvertureAdmin(admin.ModelAdmin):
+class SeanceOuvertureAdmin(ModelAdmin):
     list_display = (
         "reference_dossier", "objet_dossier", "category_type",
         "date_seance", "heure_seance", "lieu",
@@ -94,6 +95,7 @@ class SeanceOuvertureAdmin(admin.ModelAdmin):
         }),
     )
     autocomplete_fields = ("secretaire", "president")
+    list_per_page = 25
 
     def nb_offres(self, obj):
         return obj.offres.count()
@@ -104,7 +106,7 @@ class SeanceOuvertureAdmin(admin.ModelAdmin):
 # MEMBRE DE SÉANCE
 # ============================================================
 @admin.register(MembreSeance)
-class MembreSeanceAdmin(admin.ModelAdmin):
+class MembreSeanceAdmin(ModelAdmin):
     list_display = (
         "seance", "nom_prenom", "poste", "est_present",
         "a_valide", "decision", "date_validation",
@@ -116,6 +118,7 @@ class MembreSeanceAdmin(admin.ModelAdmin):
     )
     readonly_fields = ("date_validation",)
     autocomplete_fields = ("seance", "utilisateur")
+    list_per_page = 25
     fieldsets = (
         ("Séance", {"fields": ("seance", "utilisateur")}),
         ("Informations", {
@@ -143,7 +146,7 @@ class MembreSeanceAdmin(admin.ModelAdmin):
 # OFFRE D'OUVERTURE
 # ============================================================
 @admin.register(OffreOuverture)
-class OffreOuvertureAdmin(admin.ModelAdmin):
+class OffreOuvertureAdmin(ModelAdmin):
     list_display = (
         "seance", "ordre_passage", "nom_soumissionnaire",
         "pli_existe", "enveloppe_administrative",
@@ -160,6 +163,7 @@ class OffreOuvertureAdmin(admin.ModelAdmin):
         "lot_numero", "nif_stat",
     )
     autocomplete_fields = ("seance",)
+    list_per_page = 25
     fieldsets = (
         ("Séance", {"fields": ("seance", "ordre_passage")}),
         ("Soumissionnaire", {
@@ -191,9 +195,10 @@ class OffreOuvertureAdmin(admin.ModelAdmin):
 # PV DOCUMENT
 # ============================================================
 @admin.register(PVDocument)
-class PVDocumentAdmin(admin.ModelAdmin):
+class PVDocumentAdmin(ModelAdmin):
     list_display = ("seance", "version", "hash_document", "fichier", "created_at")
     list_filter = ("created_at",)
     search_fields = ("seance__reference_dossier", "hash_document")
     readonly_fields = ("hash_document", "created_at")
     autocomplete_fields = ("seance",)
+    list_per_page = 25

@@ -5,5 +5,9 @@ class LogConsultation(models.Model):
     user_id = models.BigIntegerField(db_index=True)
     timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
 
+    def __str__(self):
+        return f"Consultation {self.dossier} — user {self.user_id} — {self.timestamp:%d/%m/%Y %H:%M}"
+
     class Meta:
         verbose_name = "Log de Consultation"
+        verbose_name_plural = "Logs de Consultation"

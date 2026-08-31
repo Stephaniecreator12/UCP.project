@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.utils.html import format_html
 from django.utils import timezone
+from unfold.admin import ModelAdmin, TabularInline
 from .models import (
     EvaluationSeanceAssignation,
     EvaluationOffre,
@@ -43,65 +44,73 @@ revoke_passwords.short_description = "🚫 Révoquer les mots de passe"
 
 
 @admin.register(EvaluationSeanceAssignation)
-class EvaluationSeanceAssignationAdmin(admin.ModelAdmin):
+class EvaluationSeanceAssignationAdmin(ModelAdmin):
     list_display = ('evaluateur_email', 'seance', 'password_status', 'evaluation_password_generated_at')
     list_filter = ('evaluation_password_revoked_at', 'evaluation_password_generated_at')
     search_fields = ('evaluateur_email',)
     readonly_fields = ('evaluation_password_generated_at', 'evaluation_password_hash')
     actions = [reactivate_passwords, revoke_passwords]
+    list_per_page = 25
 
     def password_status(self, obj):
         if obj.evaluation_password_revoked_at:
             return format_html(
-                '<span style="color: red; font-weight: bold;">❌ Expiré ({}) </span>',
+                '<span class="ucp-badge ucp-badge--danger">Expiré ({})</span>',
                 obj.evaluation_password_revoked_at.strftime('%d/%m/%Y')
             )
         elif obj.evaluation_password_hash:
             return format_html(
-                '<span style="color: green; font-weight: bold;">✅ Actif</span>'
+                '<span class="ucp-badge ucp-badge--green">Actif</span>'
             )
         else:
             return format_html(
-                '<span style="color: orange; font-weight: bold;">⚠️ Pas de mot de passe</span>'
+                '<span class="ucp-badge ucp-badge--amber">Pas de mot de passe</span>'
             )
 
     password_status.short_description = "Statut du mot de passe"
 
 
 @admin.register(EvaluationOffre)
-class EvaluationOffreAdmin(admin.ModelAdmin):
+class EvaluationOffreAdmin(ModelAdmin):
     list_display = ('offre', 'evaluateur_email', 'password_status', 'statut')
     list_filter = ('statut', 'evaluation_password_consumed_at')
     search_fields = ('offre__id', 'evaluateur_email')
     readonly_fields = ('evaluation_password_hash',)
+    list_per_page = 25
 
     def password_status(self, obj):
         if obj.evaluation_password_consumed_at:
             return format_html(
-                '<span style="color: blue; font-weight: bold;">✅ Utilisé ({}) </span>',
+                '<span class="ucp-badge ucp-badge--blue">Utilisé ({})</span>',
                 obj.evaluation_password_consumed_at.strftime('%d/%m/%Y')
             )
         elif obj.evaluation_password_hash:
             return format_html(
-                '<span style="color: green; font-weight: bold;">🔑 En attente</span>'
+                '<span class="ucp-badge ucp-badge--green">En attente</span>'
             )
         else:
             return format_html(
-                '<span style="color: orange; font-weight: bold;">⚠️ Pas de mot de passe</span>'
+                '<span class="ucp-badge ucp-badge--amber">Pas de mot de passe</span>'
             )
 
     password_status.short_description = "Statut du mot de passe"
 
 
 @admin.register(ExamenPreliminaire)
-class ExamenPreliminaireAdmin(admin.ModelAdmin):
+class ExamenPreliminaireAdmin(ModelAdmin):
     list_display = ('evaluation', 'offre_signee', 'garantie_conforme', 'dossier_admin_complet', 'validite_conforme', 'conditions_acceptees', 'est_conforme')
     list_filter = ('est_conforme',)
     search_fields = ('evaluation__offre__id', 'evaluation__evaluateur_email')
     readonly_fields = ('est_conforme',)
+    list_per_page = 25
+    fieldsets = (
+        ('Examen préliminaire', {
+            'fields': ('evaluation', 'offre_signee', 'garantie_conforme', 'dossier_admin_complet', 'validite_conforme', 'conditions_acceptees', 'est_conforme')
+        }),
+    )
 
 
-class NoteTechniqueCritereInline(admin.TabularInline):
+class NoteTechniqueCritereInline(TabularInline):
     model = NoteTechniqueCritere
     extra = 0
     fields = ('critere', 'note', 'commentaire')
@@ -116,41 +125,49 @@ class NoteTechniqueCritereInline(admin.TabularInline):
 
 
 @admin.register(EvaluationTechnique)
-class EvaluationTechniqueAdmin(admin.ModelAdmin):
+class EvaluationTechniqueAdmin(ModelAdmin):
     list_display = ('evaluation', 'score_technique_total', 'qualifie_technique', 'afficher_notes')
     list_filter = ('qualifie_technique',)
     search_fields = ('evaluation__offre__id', 'evaluation__evaluateur_email')
     readonly_fields = ('score_technique_total', 'qualifie_technique', 'created_at', 'updated_at')
     inlines = [NoteTechniqueCritereInline]
+    list_per_page = 25
 
     def afficher_notes(self, obj):
         notes = obj.notes_criteres.select_related('critere').all()
         if not notes:
             return "—"
-        return format_html("<br>".join([
-            f"{n.critere.nom}: <b>{n.note}/5</b> (pondération: {n.critere.ponderation})"
-            for n in notes
-        ]))
+        items = []
+        for n in notes:
+            items.append(
+                f'<span style="display:block;line-height:1.4;">'
+                f'{n.critere.nom}: <b>{n.note}/5</b> '
+                f'<span style="color:#627080;font-size:11px;">(poids: {n.critere.ponderation}%)</span>'
+                f'</span>'
+            )
+        return format_html("".join(items))
     afficher_notes.short_description = "Notes par critère"
 
 
 @admin.register(NoteTechniqueCritere)
-class NoteTechniqueCritereAdmin(admin.ModelAdmin):
+class NoteTechniqueCritereAdmin(ModelAdmin):
     list_display = ('evaluation_technique', 'critere', 'note', 'commentaire')
     list_filter = ('critere__seance', 'critere')
     search_fields = ('evaluation_technique__evaluation__offre__id', 'critere__nom')
     list_editable = ('note',)
     ordering = ('evaluation_technique', 'critere__ordre')
+    list_per_page = 25
 
 
 @admin.register(EvaluationFinanciere)
-class EvaluationFinanciereAdmin(admin.ModelAdmin):
+class EvaluationFinanciereAdmin(ModelAdmin):
     list_display = ('evaluation', 'montant_lu', 'corrections_arithmetiques', 'rabais_accordes', 'montant_evalue_final', 'offre_moins_disante', 'score_financier')
     search_fields = ('evaluation__offre__id', 'evaluation__evaluateur_email')
     readonly_fields = ('montant_evalue_final', 'score_financier')
+    list_per_page = 25
     fieldsets = (
         ('Montants', {
-            'fields': ('montant_lu', 'corrections_arithmetiques', 'rabais_accordes', 'montant_evalue_final')
+            'fields': ('evaluation', 'montant_lu', 'corrections_arithmetiques', 'rabais_accordes', 'montant_evalue_final')
         }),
         ('Comparaison', {
             'fields': ('offre_moins_disante', 'score_financier'),
@@ -160,19 +177,26 @@ class EvaluationFinanciereAdmin(admin.ModelAdmin):
 
 
 @admin.register(EvaluationConclusion)
-class EvaluationConclusionAdmin(admin.ModelAdmin):
+class EvaluationConclusionAdmin(ModelAdmin):
     list_display = ('evaluation', 'recommandation', 'declaration_conflit', 'signe_le')
     list_filter = ('recommandation', 'declaration_conflit')
     search_fields = ('evaluation__offre__id', 'evaluation__evaluateur_email')
     readonly_fields = ('signe_le',)
+    list_per_page = 25
+    fieldsets = (
+        ('Conclusion', {
+            'fields': ('evaluation', 'recommandation', 'declaration_conflit', 'signe_le')
+        }),
+    )
 
 
 @admin.register(DecisionFinale)
-class DecisionFinaleAdmin(admin.ModelAdmin):
+class DecisionFinaleAdmin(ModelAdmin):
     list_display = ('offre', 'score_technique_consolide', 'score_financier_consolide', 'score_final', 'classement', 'recommandation')
     list_filter = ('recommandation',)
     search_fields = ('offre__id',)
     readonly_fields = ('score_final', 'created_at')
+    list_per_page = 25
     fieldsets = (
         ('Scores consolidés', {
             'fields': ('score_technique_consolide', 'score_financier_consolide', 'score_final')
@@ -188,12 +212,22 @@ class DecisionFinaleAdmin(admin.ModelAdmin):
 
 
 @admin.register(AuditTrail)
-class AuditTrailAdmin(admin.ModelAdmin):
+class AuditTrailAdmin(ModelAdmin):
     list_display = ('utilisateur', 'table_modifiee', 'id_enregistrement', 'action', 'champ_modifie', 'timestamp')
     list_filter = ('action', 'table_modifiee', 'timestamp')
     search_fields = ('utilisateur__email', 'table_modifiee', 'champ_modifie')
     readonly_fields = ('utilisateur', 'table_modifiee', 'id_enregistrement', 'action', 'champ_modifie', 'ancienne_valeur', 'nouvelle_valeur', 'timestamp')
     ordering = ('-timestamp',)
+    date_hierarchy = 'timestamp'
+    fieldsets = (
+        ('Action', {
+            'fields': ('utilisateur', 'action', 'table_modifiee', 'id_enregistrement', 'timestamp')
+        }),
+        ('Détails', {
+            'fields': ('champ_modifie', 'ancienne_valeur', 'nouvelle_valeur'),
+            'classes': ('collapse',),
+        }),
+    )
 
     def has_add_permission(self, request):
         return False
@@ -201,14 +235,17 @@ class AuditTrailAdmin(admin.ModelAdmin):
     def has_change_permission(self, request, obj=None):
         return False
 
+    list_per_page = 25
+
 
 @admin.register(CritereTemplate)
-class CritereTemplateAdmin(admin.ModelAdmin):
+class CritereTemplateAdmin(ModelAdmin):
     list_display = ('category_type', 'nom', 'ponderation', 'ordre', 'actif', 'description_courte')
     list_filter = ('category_type', 'actif')
     search_fields = ('nom', 'description')
     list_editable = ('nom', 'ponderation', 'ordre', 'actif')
     ordering = ('category_type', 'ordre', 'nom')
+    list_per_page = 25
     fieldsets = (
         ('Catégorie', {'fields': ('category_type',)}),
         ('Critère', {'fields': ('nom', 'description', 'ponderation', 'ordre', 'actif')}),
@@ -283,12 +320,13 @@ def _templates_par_categorie(category_type):
 
 
 @admin.register(CritereTechnique)
-class CritereTechniqueAdmin(admin.ModelAdmin):
+class CritereTechniqueAdmin(ModelAdmin):
     list_display = ('seance', 'nom', 'ponderation', 'ordre', 'actif', 'description_courte')
     list_filter = ('seance', 'actif')
     search_fields = ('nom', 'seance__reference_dossier', 'description')
     list_editable = ('nom', 'ponderation', 'ordre', 'actif')
     ordering = ('seance', 'ordre', 'nom')
+    list_per_page = 25
     fieldsets = (
         ('Séance', {'fields': ('seance',)}),
         ('Critère', {'fields': ('nom', 'description', 'ponderation', 'ordre', 'actif')}),
@@ -318,7 +356,7 @@ class CritereTechniqueAdmin(admin.ModelAdmin):
 # RAPPORT D'ÉVALUATION (PDF généré)
 # ============================================================
 @admin.register(EvaluationReport)
-class EvaluationReportAdmin(admin.ModelAdmin):
+class EvaluationReportAdmin(ModelAdmin):
     list_display = ("decision", "version", "hash_document", "fichier", "created_at")
     list_filter = ("created_at",)
     search_fields = (
@@ -328,3 +366,14 @@ class EvaluationReportAdmin(admin.ModelAdmin):
     )
     readonly_fields = ("hash_document", "created_at")
     autocomplete_fields = ("decision",)
+    list_per_page = 25
+    date_hierarchy = "created_at"
+    fieldsets = (
+        ('Rapport', {
+            'fields': ('decision', 'version', 'fichier', 'hash_document')
+        }),
+        ('Métadonnées', {
+            'fields': ('created_at',),
+            'classes': ('collapse',),
+        }),
+    )

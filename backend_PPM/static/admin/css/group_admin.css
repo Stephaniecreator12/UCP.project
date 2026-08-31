@@ -1,0 +1,47 @@
+/* ================================================================
+   UCP GROUP ADMIN CSS — Authorization app styles
+   ================================================================ */
+
+/* Config status tooltip */
+.config-warn {
+  position: relative;
+  cursor: help;
+  border-bottom: 1px dashed #f59e0b;
+}
+
+/* User count link in inline */
+.user-count-link {
+  color: var(--ucp-green, #0ea85b);
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 0.15s ease;
+}
+
+.user-count-link:hover {
+  color: var(--ucp-green-strong, #078848);
+  text-decoration: underline;
+}
+
+/* Group permission filter horizontal */
+.filter-horizontal-widget .selector {
+  min-height: 200px;
+}
+
+.filter-horizontal-widget .selector-available,
+.filter-horizontal-widget .selector-chosen {
+  border: 1px solid var(--ucp-line, #d9dee3);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.filter-horizontal-widget .selector-available h2,
+.filter-horizontal-widget .selector-chosen h2 {
+  background: linear-gradient(135deg, #f0fdf4, #ecfdf5);
+  padding: 10px 14px;
+  margin: 0;
+}
+
+/* Inline group styling for group users */
+.inline-group .tabular .related-widget-wrapper {
+  display: block;
+}

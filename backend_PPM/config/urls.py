@@ -4,6 +4,10 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+
+admin.site.site_header = "UCP Admin"
+admin.site.site_title = "UCP"
+admin.site.index_title = "Administration"
 from apps.procurement.views.procurement_market_view import(
     DownloadDAOView
 )
@@ -49,3 +53,5 @@ urlpatterns = [
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    from django.contrib.staticfiles.urls import staticfiles_urlpatterns
+    urlpatterns += staticfiles_urlpatterns()

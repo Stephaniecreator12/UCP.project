@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
+from unfold.admin import ModelAdmin, TabularInline
 
 from .models.procurement_market import ProcurementMarket
 from .models.annex_document import AnnexDocument
@@ -10,21 +11,21 @@ from .models.atelier import DateAtelier
 # ============================================================
 # INLINES
 # ============================================================
-class AnnexDocumentInline(admin.TabularInline):
+class AnnexDocumentInline(TabularInline):
     model = AnnexDocument
     extra = 0
     fields = ("file", "uploaded_at")
     readonly_fields = ("uploaded_at",)
 
 
-class TechnicalDocumentInline(admin.TabularInline):
+class TechnicalDocumentInline(TabularInline):
     model = TechnicalDocument
     extra = 0
     fields = ("file", "version", "uploaded_at")
     readonly_fields = ("version", "uploaded_at")
 
 
-class DateAtelierInline(admin.TabularInline):
+class DateAtelierInline(TabularInline):
     model = DateAtelier
     extra = 0
     fields = ("dates_atelier",)
@@ -34,7 +35,7 @@ class DateAtelierInline(admin.TabularInline):
 # PROCUREMENT MARKET (DAO)
 # ============================================================
 @admin.register(ProcurementMarket)
-class ProcurementMarketAdmin(admin.ModelAdmin):
+class ProcurementMarketAdmin(ModelAdmin):
     list_display = (
         "reference_number", "title", "category",
         "procedure_type", "status",
@@ -83,32 +84,35 @@ class ProcurementMarketAdmin(admin.ModelAdmin):
 # ANNEXE
 # ============================================================
 @admin.register(AnnexDocument)
-class AnnexDocumentAdmin(admin.ModelAdmin):
+class AnnexDocumentAdmin(ModelAdmin):
     list_display = ("market", "file", "uploaded_at")
     list_filter = ("uploaded_at",)
     search_fields = ("market__reference_number", "market__title")
     readonly_fields = ("uploaded_at",)
     autocomplete_fields = ("market",)
+    list_per_page = 25
 
 
 # ============================================================
 # DOCUMENT TECHNIQUE
 # ============================================================
 @admin.register(TechnicalDocument)
-class TechnicalDocumentAdmin(admin.ModelAdmin):
+class TechnicalDocumentAdmin(ModelAdmin):
     list_display = ("market", "file", "version", "uploaded_at")
     list_filter = ("uploaded_at",)
     search_fields = ("market__reference_number", "market__title")
     readonly_fields = ("version", "uploaded_at")
     autocomplete_fields = ("market",)
+    list_per_page = 25
 
 
 # ============================================================
 # DATE ATELIER
 # ============================================================
 @admin.register(DateAtelier)
-class DateAtelierAdmin(admin.ModelAdmin):
+class DateAtelierAdmin(ModelAdmin):
     list_display = ("market", "dates_atelier")
     list_filter = ("dates_atelier",)
     search_fields = ("market__reference_number", "market__title")
     autocomplete_fields = ("market",)
+    list_per_page = 25

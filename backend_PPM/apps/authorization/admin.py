@@ -4,6 +4,7 @@ from django.contrib.auth.admin import GroupAdmin as BaseGroupAdmin
 from django.utils.html import format_html
 from django.urls import reverse
 from django.db.models import Count
+from unfold.admin import ModelAdmin, TabularInline
 
 from .config import GROUP_DEFINITIONS, CATEGORIES
 from django.contrib.auth import get_user_model
@@ -18,7 +19,7 @@ def _get_group_config(name):
     return None
 
 
-class GroupUserInline(admin.TabularInline):
+class GroupUserInline(TabularInline):
     model = User.groups.through
     extra = 0
     verbose_name = "Utilisateur"
@@ -36,7 +37,7 @@ class GroupUserInline(admin.TabularInline):
 
 
 @admin.register(Group)
-class CustomGroupAdmin(BaseGroupAdmin):
+class CustomGroupAdmin(BaseGroupAdmin, ModelAdmin):
     list_display = [
         "name",
         "category_tag",
@@ -49,6 +50,7 @@ class CustomGroupAdmin(BaseGroupAdmin):
     ordering = ["name"]
     filter_horizontal = ["permissions"]
     inlines = [GroupUserInline]
+    list_per_page = 25
 
     def get_queryset(self, request):
         return super().get_queryset(request).annotate(
@@ -58,10 +60,11 @@ class CustomGroupAdmin(BaseGroupAdmin):
 
     def user_count(self, obj):
         url = reverse("admin:auth_group_change", args=[obj.pk])
+        count = getattr(obj, "_user_count", obj.user_set.count())
         return format_html(
-            '<a href="{}#/tab/inline/0">{}</a>',
+            '<a href="{}#/tab/inline/0" class="user-count-link">{}</a>',
             url,
-            getattr(obj, "_user_count", obj.user_set.count()),
+            count,
         )
     user_count.short_description = "Utilisateurs"
     user_count.admin_order_field = "_user_count"
@@ -76,28 +79,13 @@ class CustomGroupAdmin(BaseGroupAdmin):
         if config:
             category = config["category"]
             label = CATEGORIES.get(category, category)
-            colors = {
-                "admin": "#dc2626",
-                "public": "#6b7280",
-                "demandeur": "#3b82f6",
-                "validateur": "#8b5cf6",
-                "finance": "#10b981",
-                "achat": "#f59e0b",
-                "marche": "#ef4444",
-                "ouverture_offre": "#ec4899",
-                "contractualisation": "#14b8a6",
-                "evaluation": "#f97316",
-                "audit": "#6366f1",
-            }
-            color = colors.get(category, "#6b7280")
             return format_html(
-                '<span style="background-color: {}; color: white; '
-                'padding: 2px 8px; border-radius: 10px; font-size: 11px;">{}</span>',
-                color,
+                '<span class="category-badge category-badge--{}">{}</span>',
+                category,
                 label,
             )
         return format_html(
-            '<span style="color: #999;">—</span>'
+            '<span class="category-badge category-badge--public">—</span>'
         )
     category_tag.short_description = "Catégorie"
 
@@ -112,7 +100,7 @@ class CustomGroupAdmin(BaseGroupAdmin):
             actual_perms = set(obj.permissions.values_list("codename", flat=True))
             if configured_perms == actual_perms:
                 return format_html(
-                    '<span style="color: #10b981;">✓</span>'
+                    '<span class="config-ok">✓</span>'
                 )
             missing = configured_perms - actual_perms
             extra = actual_perms - configured_perms
@@ -122,11 +110,11 @@ class CustomGroupAdmin(BaseGroupAdmin):
             if extra:
                 parts.append(f"supplémentaires: {', '.join(sorted(extra))}")
             return format_html(
-                '<span style="color: #f59e0b;">⚠ {}</span>',
+                '<span class="config-warn" title="{}">⚠</span>',
                 "; ".join(parts),
             )
         return format_html(
-            '<span style="color: #6b7280;">Non configuré</span>'
+            '<span class="config-unconfigured">Non configuré</span>'
         )
     config_status.short_description = "Permissions"
 

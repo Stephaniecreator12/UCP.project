@@ -1,4 +1,5 @@
 from django.contrib import admin
+from unfold.admin import ModelAdmin, TabularInline
 
 from apps.TdrSt.models.TdrSt import (
     TdrStDocument,
@@ -7,7 +8,7 @@ from apps.TdrSt.models.TdrSt import (
 )
 
 
-class TdrStDocumentFileVersionInline(admin.TabularInline):
+class TdrStDocumentFileVersionInline(TabularInline):
     model = TdrStDocumentFileVersion
     extra = 0
     fields = (
@@ -20,7 +21,7 @@ class TdrStDocumentFileVersionInline(admin.TabularInline):
     )
 
 
-class TdrStValidationActionInline(admin.TabularInline):
+class TdrStValidationActionInline(TabularInline):
     model = TdrStValidationAction
     extra = 0
     fields = ("etape", "decision", "acteur", "observations", "horodatage")
@@ -28,7 +29,7 @@ class TdrStValidationActionInline(admin.TabularInline):
 
 
 @admin.register(TdrStDocument)
-class TdrStDocumentAdmin(admin.ModelAdmin):
+class TdrStDocumentAdmin(ModelAdmin):
     list_display = (
         "numero_document", "type_document", "statut",
         "intitule", "categorie_activite",
@@ -40,6 +41,7 @@ class TdrStDocumentAdmin(admin.ModelAdmin):
     date_hierarchy = "created_at"
     inlines = [TdrStDocumentFileVersionInline, TdrStValidationActionInline]
     autocomplete_fields = ("demandeur", "demande_achat")
+    list_per_page = 25
     fieldsets = (
         ("Identification", {
             "fields": (
@@ -75,7 +77,7 @@ class TdrStDocumentAdmin(admin.ModelAdmin):
 
 
 @admin.register(TdrStDocumentFileVersion)
-class TdrStDocumentFileVersionAdmin(admin.ModelAdmin):
+class TdrStDocumentFileVersionAdmin(ModelAdmin):
     list_display = (
         "document", "version", "fichier_nom_original",
         "fichier_taille_octets", "uploaded_by", "uploaded_at",
@@ -89,10 +91,11 @@ class TdrStDocumentFileVersionAdmin(admin.ModelAdmin):
         "empreinte_sha256", "fichier_taille_octets", "uploaded_at",
     )
     autocomplete_fields = ("document", "uploaded_by")
+    list_per_page = 25
 
 
 @admin.register(TdrStValidationAction)
-class TdrStValidationActionAdmin(admin.ModelAdmin):
+class TdrStValidationActionAdmin(ModelAdmin):
     list_display = (
         "document", "etape", "decision", "acteur", "horodatage",
     )
@@ -102,3 +105,4 @@ class TdrStValidationActionAdmin(admin.ModelAdmin):
     )
     readonly_fields = ("horodatage",)
     autocomplete_fields = ("document", "acteur")
+    list_per_page = 25

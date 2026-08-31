@@ -21,5 +21,9 @@ class LogDownload(models.Model):
     annexe_name = models.CharField(max_length=150, blank=True, null=True) 
     timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
 
+    def __str__(self):
+        return f"Téléchargement {self.annexe_name or self.doc_type} — {self.dossier} — user {self.user_id}"
+
     class Meta:
         verbose_name = "Log de Téléchargement"
+        verbose_name_plural = "Logs de Téléchargement"

@@ -383,9 +383,7 @@ export default function AssignEvaluatorsPage() {
                   </div>
                   <div>
                     <span className={labelClass}>Représentant Budget</span>
-                    <div className={disabledClass}>
-                      Paul Budget (hashlah940@gmail.com)
-                    </div>
+                    <div className={disabledClass}>À définir</div>
                   </div>
                 </div>
               </article>

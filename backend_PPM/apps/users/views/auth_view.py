@@ -4,11 +4,36 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.contrib.auth import get_user_model
 from django.core.signing import TimestampSigner, SignatureExpired, BadSignature
-from django.core.mail import send_mail
-from django.conf import settings
 from rest_framework_simplejwt.tokens import RefreshToken
+from apps.users.authentifications.authentification import resolve_mock_rh_login
 from apps.users.tasks.envoyer_confirmation_email_task import envoyer_confirmation_email
 User = get_user_model()
+
+
+def _personnel_payload(user):
+    return {
+        "id": user.id,
+        "username": getattr(user, "username", "") or user.email,
+        "email": user.email,
+        "first_name": getattr(user, "first_name", "") or "",
+        "last_name": getattr(user, "last_name", "") or "",
+        "is_active": user.is_active,
+        "is_staff": user.is_staff,
+        "groups": list(user.groups.values_list("name", flat=True)),
+    }
+
+
+def _mock_rh_payload(user_data):
+    return {
+        "id": int(user_data["id"]),
+        "username": user_data["email"],
+        "email": user_data["email"],
+        "first_name": user_data["prenom"],
+        "last_name": user_data["nom"],
+        "is_active": user_data["is_active"],
+        "is_staff": False,
+        "groups": list(user_data.get("groups", [])),
+    }
 
 
 @api_view(['POST'])
@@ -25,6 +50,15 @@ def personnel_login_view(request):
 
     user = User.objects.filter(email__iexact=email).first()
     if not user or not user.check_password(password):
+        mock_login = resolve_mock_rh_login(email)
+        if mock_login:
+            token, user_data = mock_login
+            return Response({
+                "success": True,
+                "token": token,
+                "user": _mock_rh_payload(user_data),
+            }, status=status.HTTP_200_OK)
+
         return Response({
             "success": False,
             "message": "l'adresse e-mail ou mot de passe incorrect"
@@ -37,22 +71,11 @@ def personnel_login_view(request):
         }, status=status.HTTP_400_BAD_REQUEST)
 
     refresh = RefreshToken.for_user(user)
-    user_payload = {
-        "id": user.id,
-        "username": getattr(user, "username", "") or user.email,
-        "email": user.email,
-        "first_name": getattr(user, "first_name", "") or "",
-        "last_name": getattr(user, "last_name", "") or "",
-        "is_active": user.is_active,
-        "is_staff": user.is_staff,
-        "groups": list(user.groups.values_list("name", flat=True)),
-    }
-
     return Response({
         "success": True,
         "token": str(refresh.access_token),
         "refresh": str(refresh),
-        "user": user_payload,
+        "user": _personnel_payload(user),
     }, status=status.HTTP_200_OK)
 
 @api_view(['POST'])

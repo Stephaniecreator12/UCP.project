@@ -27,14 +27,13 @@ User = get_user_model()
 def me(request):
     user = request.user
     
-    # Essayer avec PublicProfileSerializer (fournisseurs)
-    try:
+    if hasattr(user, "full_name"):
         serializer = PublicProfileSerializer(user)
         data = serializer.data
-    except Exception:
-        # Fallback pour les users RH (agents internes)
+    else:
         data = {
             "id": user.id,
+            "username": getattr(user, "username", "") or user.email,
             "email": user.email,
             "first_name": user.first_name,
             "last_name": user.last_name,
@@ -45,7 +44,8 @@ def me(request):
 
     return Response({
         "error": False,
-        "data": data
+        "data": data,
+        **data,
     })
 
 @api_view(["GET"])

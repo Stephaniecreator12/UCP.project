@@ -15,6 +15,42 @@ User = get_user_model()
 # Liste mockée d'utilisateurs RH pour le développement et les tests locaux
 # Permet de tester sans connexion réelle à la base de données des RH.
 MOCK_RH_DATABASE = {
+    "mock_token_cn_hashlah_940": {
+        "id": "940",
+        "matricule": "940/UCP",
+        "nom": "CN",
+        "prenom": "Validateur CN",
+        "email": "hashlah940@gmail.com",
+        "fonction": "Coordonnateur National",
+        "programme_code": "FM",
+        "programme_nom": "Fonds Mondial",
+        "is_active": True,
+        "groups": ["APPROBATEUR_NATIONAL", "CN"],
+    },
+    "mock_token_rpm_raknaliarisoa": {
+        "id": "941",
+        "matricule": "941/UCP",
+        "nom": "RAKOTO",
+        "prenom": "RPM Validateur",
+        "email": "raknaliarisoa@gmail.com",
+        "fonction": "Responsable Passation de Marché",
+        "programme_code": "FM",
+        "programme_nom": "Fonds Mondial",
+        "is_active": True,
+        "groups": ["RPM", "VALIDATEUR_PROGRAMMATIQUE"],
+    },
+    "mock_token_gp_razafi": {
+        "id": "942",
+        "matricule": "942/UCP",
+        "nom": "RAZAFY",
+        "prenom": "GP Validateur",
+        "email": "razafimahaleomami@gmail.com",
+        "fonction": "Gestionnaire Programme",
+        "programme_code": "FM",
+        "programme_nom": "Fonds Mondial",
+        "is_active": True,
+        "groups": ["GP", "VALIDATEUR_TECHNIQUE"],
+    },
     "mock_token_nalisoa_87": {
         "id": "87",
         "matricule": "002/UCP",
@@ -25,7 +61,7 @@ MOCK_RH_DATABASE = {
         "programme_code": "FM",
         "programme_nom": "Fonds Mondial",
         "is_active": True,
-        "groups": ["DEMANDEUR"]
+        "groups": ["VALIDATEUR_HIERARCHIQUE"]
     },
     "mock_token_anthony_32": {
         "id": "32",
@@ -37,7 +73,7 @@ MOCK_RH_DATABASE = {
         "programme_code": "GAVI",
         "programme_nom": "Alliance Gavi",
         "is_active": True,
-        "groups": ["VALIDATEUR_TECHNIQUE"]
+        "groups": ["AGENT_ACHAT"]
     },
     "mock_token_raf_gavi_33": {
         "id": "33",
@@ -61,7 +97,7 @@ MOCK_RH_DATABASE = {
         "programme_code": "FM",
         "programme_nom": "Fonds Mondial",
         "is_active": True,
-        "groups": ["DEMANDEUR"]
+        "groups": []
         
     },
     "mock_token_secretaire_50": {
@@ -86,9 +122,50 @@ MOCK_RH_DATABASE = {
         "programme_code": "FM",
         "programme_nom": "Fonds Mondial",
         "is_active": True,
-        "groups": ["SECRETAIRE", "SECRETAIRE_CONTRACTUALISATION"]
+        "groups": ["LOGISTIQUE"]
     }
 }
+
+MOCK_RH_LOGIN_ALIASES = {
+    "hashlah940@gmail.com": "mock_token_cn_hashlah_940",
+    "cn@ucp.mg": "mock_token_cn_hashlah_940",
+    "cn": "mock_token_cn_hashlah_940",
+    "raknaliarisoa@gmail.com": "mock_token_rpm_raknaliarisoa",
+    "rpm@ucp.mg": "mock_token_rpm_raknaliarisoa",
+    "rpm": "mock_token_rpm_raknaliarisoa",
+    "razafimahaleomami@gmail.com": "mock_token_gp_razafi",
+    "gp@ucp.mg": "mock_token_gp_razafi",
+    "gp": "mock_token_gp_razafi",
+    "nalisoa@ucp.mg": "mock_token_nalisoa_87",
+    "nalisoa@ucp": "mock_token_nalisoa_87",
+    "pfgavi@ucp.mg": "mock_token_anthony_32",
+    "pfgavi@ucp": "mock_token_anthony_32",
+    "raf.gavi@ucp.mg": "mock_token_raf_gavi_33",
+    "raf.gavi@ucp": "mock_token_raf_gavi_33",
+    "secretaire@ucp.mg": "mock_token_secretaire_50",
+    "secretaire@ucp": "mock_token_secretaire_50",
+    "alice@ucp.mg": "mock_token_alice_100",
+    "alice@ucp": "mock_token_alice_100",
+    "contractualisation@ucp.mg": "mock_token_contractualisation_101",
+    "contractualisation@ucp": "mock_token_contractualisation_101",
+}
+
+
+def resolve_mock_rh_login(identifier: str):
+    """Return a development RH token and profile for a known local identifier."""
+    if not settings.DEBUG:
+        return None
+
+    normalized = (identifier or "").strip().lower()
+    token = MOCK_RH_LOGIN_ALIASES.get(normalized)
+    if not token:
+        return None
+
+    user_data = MOCK_RH_DATABASE.get(token)
+    if not user_data:
+        return None
+
+    return token, user_data
 
 def resolve_identity_from_db(token: str):
     """

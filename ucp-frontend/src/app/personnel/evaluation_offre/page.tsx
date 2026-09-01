@@ -839,7 +839,7 @@ function EvaluationSecretaireContent() {
                         <input
                           disabled
                           className={disabledClass}
-                          value="Paul Budget (hashlah940@gmail.com)"
+                          value="À définir"
                         />
                       </label>
                       <div className="grid grid-cols-2 gap-2 sm:col-span-2">

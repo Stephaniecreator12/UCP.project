@@ -1,0 +1,37 @@
+export const USER_STORAGE_KEY = "user_profile";
+
+export const VALIDATOR_GROUPS = [
+  "VALIDATEUR_HIERARCHIQUE",
+  "VALIDATEUR_TECHNIQUE",
+  "VALIDATEUR_PROGRAMMATIQUE",
+  "APPROBATEUR_NATIONAL",
+] as const;
+
+export const COMPOSITION_VALIDATOR_GROUPS = [
+  "RPM",
+  "GP",
+  "CN",
+  "VALIDATEUR_PROGRAMMATIQUE",
+  "VALIDATEUR_TECHNIQUE",
+  "APPROBATEUR_NATIONAL",
+] as const;
+
+export const FINANCE_GROUPS = [
+  "FINANCE",
+  "RAF",
+  "VALIDATEUR_BUDGETAIRE",
+] as const;
+
+export const AGENT_ACHAT_GROUP = "AGENT_ACHAT" as const;
+export const LOGISTIQUE_GROUP = "LOGISTIQUE" as const;
+export const AGENT_MARCHE_GROUP = "AGENT_MARCHE" as const;
+export const MARCHES_GROUP = "MARCHES" as const;
+export const SECRETAIRE_GROUP = "SECRETAIRE" as const;
+export const SECRETAIRE_CONTRACTUALISATION_GROUP =
+  "SECRETAIRE_CONTRACTUALISATION" as const;
+
+export const MARKET_GROUPS = [
+  AGENT_MARCHE_GROUP,
+  MARCHES_GROUP,
+  LOGISTIQUE_GROUP,
+] as const;

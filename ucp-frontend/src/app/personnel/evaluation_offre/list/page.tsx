@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertCircle, Loader, CheckCircle2, Clock } from "lucide-react";
 import TopHeader from "@/app/components/TopHeader";
@@ -43,19 +43,8 @@ export default function EvaluationListPage() {
   const [evaluations, setEvaluations] = useState<EvaluationList[]>([]);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    const token = getToken();
-    if (!token) {
-      router.push("/login");
-      return;
-    }
-
-    loadEvaluations();
-  }, []);
-
-  const loadEvaluations = async () => {
+  const loadEvaluations = useCallback(async () => {
     try {
-      setState("loading");
       const data = await fetchEvaluationList();
       setEvaluations(data);
       setState("ready");
@@ -64,7 +53,21 @@ export default function EvaluationListPage() {
       setError(msg);
       setState("error");
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    const token = getToken();
+    if (!token) {
+      router.push("/login");
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      void loadEvaluations();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [loadEvaluations, router]);
 
   if (state === "loading") {
     return (
@@ -88,7 +91,7 @@ export default function EvaluationListPage() {
             Mes évaluations assignées
           </h1>
           <p className="text-slate-600 mt-2">
-            Consultez et complétez vos évaluations d'offres.
+            Consultez et complétez vos évaluations d&apos;offres.
           </p>
         </div>
 

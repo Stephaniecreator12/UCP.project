@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -22,13 +22,11 @@ export default function EvaluatorHeader({ seanceId }: { seanceId?: number }) {
     ? `/personnel/evaluation/dao/${resolvedSeanceId}/offres`
     : "/personnel/evaluation/login";
 
-  const [evaluatorName, setEvaluatorName] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      setEvaluatorName(localStorage.getItem("evaluator_name"));
-    }
-  }, []);
+  const [evaluatorName] = useState<string | null>(() =>
+    typeof window !== "undefined"
+      ? localStorage.getItem("evaluator_name")
+      : null,
+  );
 
   const handleLogout = () => {
     logoutEvaluator();

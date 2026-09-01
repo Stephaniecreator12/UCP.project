@@ -32,8 +32,8 @@ export default function FinancierForm({
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
         <h3 className="text-lg font-bold text-gray-900 mb-2">Évaluation financière</h3>
         <div className="bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-lg p-4 flex items-center gap-2">
-          🔒 Module verrouillé : le score technique doit d'abord être validé par le nombre
-          requis d'évaluateurs (double aveugle).
+          🔒 Module verrouillé : le score technique doit d&apos;abord être validé
+          par le nombre requis d&apos;évaluateurs (double aveugle).
         </div>
       </div>
     );
@@ -68,7 +68,7 @@ export default function FinancierForm({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-            Montant lu de l'offre (MGA) :
+            Montant lu de l&apos;offre (MGA) :
           </label>
           <input
             type="number"

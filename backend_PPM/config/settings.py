@@ -95,7 +95,7 @@ UNFOLD = {
                     {
                         "title": _("Tableau de bord"),
                         "icon": "dashboard",
-                        "link": reverse_lazy("admin:index"),
+                        "link": reverse_lazy("ppm_dashboard"),
                     },
                 ],
             },

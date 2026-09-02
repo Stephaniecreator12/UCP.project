@@ -1,10 +1,10 @@
 from rest_framework import serializers
 from apps.common.models import ChoiceGroup, reference_codes, reference_choices
 from apps.common.serializers import DynamicChoiceField
-from apps.ppm.models.Biens import Biens, FinancingSource
+from apps.ppm.models.Consultances import Consultance, FinancingSource
 
 
-class BiensSerializer(serializers.ModelSerializer):
+class ConsultanceSerializer(serializers.ModelSerializer):
     reference_bailleur = DynamicChoiceField(
         choices=lambda: reference_choices(ChoiceGroup.FINANCING_SOURCE, FinancingSource.choices),
         required=False,
@@ -13,7 +13,7 @@ class BiensSerializer(serializers.ModelSerializer):
     )
 
     class Meta:
-        model = Biens
+        model = Consultance
         fields = "__all__"
 
     def validate_financing_sources(self, value):

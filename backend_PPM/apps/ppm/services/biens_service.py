@@ -38,6 +38,7 @@ def _biens_to_dict(obj: Biens) -> dict:
 
 
 def create_biens(data: dict) -> Biens:
+    valid_fields = {f.name for f in Biens._meta.get_fields()}
     defaults = {
         'code_suivi': '',
         'montant_estimatif': 0,
@@ -53,7 +54,7 @@ def create_biens(data: dict) -> Biens:
         'reference_bailleur': None,
         'project_code': None,
     }
-    payload = {**defaults, **data}
+    payload = {**defaults, **{k: v for k, v in data.items() if k in valid_fields}}
     return Biens.objects.create(**payload)
 
 

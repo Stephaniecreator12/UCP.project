@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Plus } from "lucide-react";
+import { Plus, RefreshCw } from "lucide-react";
 import SidebarMenu from "@/app/components/SidebarMenu";
 import GridTable from "@/app/components/GridTable";
 import TopHeader from "@/app/components/TopHeader";
@@ -57,7 +57,6 @@ export default function GestionMarches() {
 
   const hasUnsavedRow = rows.some((row) => String(row._id ?? "").startsWith("_new_"));
 
-  // ... [Garde tes fonctions existantes intactes : parseAmount, loadData, handleRowChange, etc. Ne modifie que le JSX en bas] ...
   const parseAmount = (value: unknown): number => {
     if (typeof value === "number") return Number.isFinite(value) ? value : 0;
     if (typeof value !== "string") return 0;
@@ -178,7 +177,7 @@ const loadData = useCallback(async (): Promise<GridRow[]> => {
   useEffect(() => {
     if (!saveMessage) return;
     if (saveMessageTimeoutRef.current) window.clearTimeout(saveMessageTimeoutRef.current);
-    saveMessageTimeoutRef.current = window.setTimeout(() => setSaveMessage(null), 1800);
+    saveMessageTimeoutRef.current = window.setTimeout(() => setSaveMessage(null), 2500);
   }, [saveMessage]);
 
   const requestPasswordConfirmation = (options: { title: string; message: string; confirmLabel?: string; }): Promise<string | null> => {
@@ -224,7 +223,7 @@ const loadData = useCallback(async (): Promise<GridRow[]> => {
           return;
         }
         const password = await requestPasswordConfirmation({ title: "Supprimer la ligne", message: "Confirme l'action avec ton mot de passe.", confirmLabel: "Supprimer" });
-        if (!password) { setSaveMessage({ type: "error", message: "Suppression annulÃ©e." }); return; }
+        if (!password) { setSaveMessage({ type: "error", message: "Suppression annulée." }); return; }
         const typeMapping: Record<MenuItemType, "Travaux" | "Biens" | "Consultance"> = { works: "Travaux", "goods-services": "Biens", consultants: "Consultance" };
         const rowToDelete = rows.find((r) => r._id === rowId);
         await deleteProcurement(numericId, (rowToDelete?.type as "Travaux" | "Biens" | "Consultance") ?? typeMapping[activeMenu], password);
@@ -262,8 +261,6 @@ const handleRowSave = async (row: GridRow) => {
       consultants: "Consultance",
     };
 
-    // Option 2 (architecture): on envoie le modÃ¨le UI et on laisse
-    // `buildProcurementPayload` (services/api.ts) mapper vers le backend.
     const procurementData: Procurement = {
       ...row,
       type: typeMapping[activeMenu],
@@ -314,7 +311,6 @@ const handleRowSave = async (row: GridRow) => {
 };
 
   const handleRowUpdate = (updatedRow: GridRow) => {
-    console.log("ðŸŸ¢ handleRowUpdate appelÃ© avec:", updatedRow); // DEBUG
     setRows((prevRows) => prevRows.map((row) => (row._id === updatedRow._id ? updatedRow : row)));
   };
 
@@ -328,11 +324,12 @@ const handleRowSave = async (row: GridRow) => {
         </div>
 
         <main
-          className="page-enter-up flex min-w-0 flex-col rounded-[14px] border border-[#d9dee3] bg-white p-3 py-2 shadow-[0_18px_36px_-30px_rgba(34,44,52,0.5)] max-[1150px]:min-h-0 min-[1151px]:h-[calc(100vh-15px)] min-[1151px]:overflow-hidden"
+          className="page-enter-up flex min-w-0 flex-col rounded-[14px] border border-[#d9dee3] bg-white p-3 py-2 shadow-[0_18px_36px_-30px_rgba(34,44,52,0.5)] min-[1151px]:h-[calc(100vh-15px)] min-[1151px]:overflow-hidden max-[1150px]:min-h-0"
           style={{ animationDelay: "0.14s", position: "relative" }}
         >
+          {/* Header bar with title, stats, and add button */}
           <header
-            className="page-enter-up relative grid grid-cols-[minmax(0,1fr)_auto] gap-4 rounded-[14px] border border-[#d9dee3] bg-white px-4 pb-4 pt-[0.95rem] shadow-[0_18px_36px_-30px_rgba(34,44,52,0.5)] max-[900px]:grid-cols-1"
+            className="page-enter-up relative flex items-center justify-between gap-4 rounded-[14px] border border-[#d9dee3] bg-white px-4 py-3 shadow-[0_18px_36px_-30px_rgba(34,44,52,0.5)] max-[900px]:flex-wrap max-[900px]:gap-2"
             style={{ animationDelay: "0.2s" }}
           >
             <div
@@ -340,34 +337,58 @@ const handleRowSave = async (row: GridRow) => {
               aria-hidden="true"
             />
 
-            <div>
+            {/* Left: title */}
+            <div className="min-w-0">
               <p className="m-0 text-[0.7rem] uppercase tracking-[0.05em] text-[#627080]">
                 Passation de marchés
               </p>
-              <h1 className="my-[0.32rem] text-[1.3rem] font-bold tracking-[0.05em] text-[#0c7340]">
+              <h1 className="my-[0.15rem] text-[1.3rem] font-bold tracking-[0.05em] text-[#0c7340] truncate">
                 {config.label}
               </h1>
             </div>
 
-            <div className="grid grid-cols-[auto_auto] justify-end gap-[0.65rem] max-[900px]:grid-cols-1">
-              <div className="w-[138px] rounded-xl border border-[#d9dee3] bg-[#f6f7f8] px-[0.7rem] py-[5px] max-[900px]:w-full">
-                <span className="m-0 text-[0.7rem] uppercase tracking-[0.05em] text-[#627080]">
+            {/* Center: stat badges */}
+            <div className="flex items-center gap-2 max-[900px]:w-full max-[900px]:justify-center">
+              <div className="rounded-xl border border-[#d9dee3] bg-[#f6f7f8] px-3 py-1.5 text-center">
+                <span className="m-0 text-[0.65rem] uppercase tracking-[0.04em] text-[#627080] block">
                   Marchés
                 </span>
-                <strong className="mt-[0.06rem] block text-[#0c7340]">{rows.length}</strong>
+                <strong className="text-[#0c7340] text-sm">{rows.length}</strong>
               </div>
-              <div className="w-[253px] rounded-xl border border-[#d9dee3] bg-[#f6f7f8] px-[0.7rem] py-[5px] max-[900px]:w-full">
-                <span className="m-0 text-[0.7rem] uppercase tracking-[0.05em] text-[#627080]">
-                  Montant total estimatif (Ar)
+              <div className="rounded-xl border border-[#d9dee3] bg-[#f6f7f8] px-3 py-1.5 text-center">
+                <span className="m-0 text-[0.65rem] uppercase tracking-[0.04em] text-[#627080] block">
+                  Montant total (Ar)
                 </span>
-                <strong className="mt-[0.06rem] block text-[#0c7340]">
-                  {totalEstimatedAmountDisplay}
-                </strong>
+                <strong className="text-[#0c7340] text-sm">{totalEstimatedAmountDisplay}</strong>
               </div>
+            </div>
+
+            {/* Right: action buttons */}
+            <div className="flex items-center gap-2 max-[900px]:w-full max-[900px]:justify-end">
+              <button
+                type="button"
+                onClick={() => void loadData()}
+                disabled={isLoading || isSaving}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[#d9dee3] bg-white px-3 py-1.5 text-[0.8rem] font-semibold text-[#395569] transition-all hover:bg-[#f6f7f8] disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Rafraîchir les données"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`} />
+                <span className="max-[600px]:hidden">Rafraîchir</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleAddRow}
+                disabled={isLoading || isSaving || hasUnsavedRow}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[#76cba0] bg-[linear-gradient(180deg,#15ba66,#078848)] px-4 py-1.5 text-[0.8rem] font-bold text-white shadow-[0_2px_8px_-2px_rgba(15,129,72,0.4)] transition-all hover:shadow-[0_4px_12px_-2px_rgba(15,129,72,0.5)] disabled:opacity-50 disabled:cursor-not-allowed"
+                title={hasUnsavedRow ? "Enregistre ou supprime la ligne en cours d'abord" : "Ajouter un nouveau marché"}
+              >
+                <Plus className="h-4 w-4" />
+                <span>Ajouter</span>
+              </button>
             </div>
           </header>
 
-          {/* SaveMessage en bas Ã  droite, animÃ© droite -> gauche */}
+          {/* Save toast */}
           {saveMessage && (
             <div
               className={`fixed bottom-[20px] right-6 z-[100] min-w-[220px] max-w-[340px] rounded-[10px] border px-[0.8rem] py-[0.65rem] font-semibold shadow-lg transition-opacity duration-200 animate-saveMessageSlide ${
@@ -381,54 +402,24 @@ const handleRowSave = async (row: GridRow) => {
             </div>
           )}
 
+          {/* Grid area — flex-1 fills remaining space, overflow handled by GridTable internally */}
           <div
-            className="page-enter-up mt-[0.9rem] flex min-h-0 flex-1 flex-col overflow-hidden rounded-[14px] border border-[#d9dee3] bg-white shadow-[0_18px_36px_-30px_rgba(34,44,52,0.5)]"
+            className="page-enter-up mt-2 flex min-h-0 flex-1 flex-col overflow-hidden rounded-[14px] border border-[#d9dee3] bg-white shadow-[0_18px_36px_-30px_rgba(34,44,52,0.5)]"
             style={{ animationDelay: "0.28s" }}
           >
-            <div className="min-h-0 flex-1 overflow-hidden max-[1150px]:max-h-none min-[1151px]:max-h-[80vh]">
-              <GridTable
-                columns={columnsForGrid}
-                rows={rows}
-                onRowChange={handleRowChange}
-                onRowSave={handleRowSave}
-                onRowUpdate={handleRowUpdate}
-                onRowDelete={handleRowDelete}
-                onRowStop={handleRowStop}
-                isLoading={isLoading || isSaving}
-              />
-            </div>
-
-            <div className="relative z-50 flex min-h-[58px] items-center justify-start border-t border-[rgba(171,187,177,0.7)] bg-[linear-gradient(180deg,rgba(246,250,248,0.98),rgba(236,243,239,0.98))] px-[14px] py-[10px] max-[900px]:hidden">
-              <button
-                type="button"
-                className="inline-flex items-center gap-[0.44rem] rounded-full border border-[#76cba0] bg-[linear-gradient(180deg,#15ba66,#078848)] px-4 py-[0.52rem] font-bold text-white transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-55"
-                onClick={handleAddRow}
-                disabled={isLoading || isSaving || hasUnsavedRow}
-              >
-                <Plus className="h-4 w-4" />
-                <span>Ajouter une ligne</span>
-              </button>
-            </div>
+            <GridTable
+              columns={columnsForGrid}
+              rows={rows}
+              onRowChange={handleRowChange}
+              onRowSave={handleRowSave}
+              onRowUpdate={handleRowUpdate}
+              onRowDelete={handleRowDelete}
+              onRowStop={handleRowStop}
+              isLoading={isLoading || isSaving}
+            />
           </div>
 
-          {/* Bouton Flottant Ajouter une ligne Mobile */}
-          <div
-            className="page-enter-up fixed right-4 bottom-4 z-50 hidden max-[900px]:block"
-            style={{ animationDelay: "0.34s" }}
-            aria-hidden="false"
-          >
-            <button
-              type="button"
-              className="inline-flex items-center gap-[0.44rem] rounded-full border border-[#76cba0] bg-[linear-gradient(180deg,#15ba66,#078848)] px-4 py-[0.52rem] font-bold text-white shadow-lg transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-55"
-              onClick={handleAddRow}
-              disabled={isLoading || isSaving || hasUnsavedRow}
-            >
-              <Plus className="h-4 w-4" />
-              <span>Ajouter une ligne</span>
-            </button>
-          </div>
-
-          {/* Modal Mot de Passe */}
+          {/* Password modal */}
           {isPasswordModalOpen && (
             <div className="fixed inset-0 z-[90] bg-[#12182073] backdrop-blur-[3px] grid place-items-center p-4" role="dialog" aria-modal="true">
               <div className="w-[min(460px,100%)] p-4 border border-[#d9dee3] rounded-[14px] bg-white shadow-[0_18px_36px_-30px_rgba(34,44,52,0.5)]">

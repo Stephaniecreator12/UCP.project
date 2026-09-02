@@ -17,6 +17,113 @@ interface GridCellProps {
   maxDate?: string;
 }
 
+function MultiSelectCell({
+  column,
+  value,
+  onChange,
+  onConfirm,
+}: {
+  column: ColumnConfig;
+  value: unknown;
+  onChange: (value: unknown) => void;
+  onConfirm?: (value: unknown) => boolean | void;
+}) {
+  const [open, setOpen] = React.useState(false);
+  const popoverRef = React.useRef<HTMLDivElement>(null);
+
+  const selectedValues: string[] = Array.isArray(value)
+    ? (value as unknown[]).map(String)
+    : typeof value === "string" && value
+      ? value.split(",").map((s) => s.trim()).filter(Boolean)
+      : [];
+
+  React.useEffect(() => {
+    if (!open) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [open]);
+
+  const toggleValue = (code: string) => {
+    const next = selectedValues.includes(code)
+      ? selectedValues.filter((v) => v !== code)
+      : [...selectedValues, code];
+    onChange(next);
+    if (onConfirm) onConfirm(next);
+  };
+
+  const getLabel = (code: string) =>
+    column.options?.find((o) => o.value === code)?.label ?? code;
+
+  return (
+    <div className="relative" ref={popoverRef}>
+      <button
+        type="button"
+        onClick={() => setOpen((p) => !p)}
+        className={`w-full min-h-[24px] px-2 py-0.5 text-left text-[0.8rem] rounded-md border transition-all ${
+          selectedValues.length
+            ? "border-emerald-200 bg-emerald-50/50 hover:bg-emerald-50"
+            : "border-slate-200 bg-transparent text-[#98a0ab] hover:bg-slate-50"
+        }`}
+      >
+        {selectedValues.length > 0 ? (
+          <span className="flex flex-wrap gap-1">
+            {selectedValues.map((v) => (
+              <span
+                key={v}
+                className="inline-flex items-center gap-0.5 rounded-full bg-emerald-100 px-1.5 py-px text-[0.7rem] font-medium text-emerald-700"
+              >
+                {getLabel(v)}
+                <span
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleValue(v);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.stopPropagation();
+                      toggleValue(v);
+                    }
+                  }}
+                  className="ml-0.5 cursor-pointer text-emerald-500 hover:text-emerald-700"
+                >
+                  x
+                </span>
+              </span>
+            ))}
+          </span>
+        ) : (
+          <span>Sélectionner...</span>
+        )}
+      </button>
+      {open && (
+        <div className="absolute z-50 mt-1 min-w-[180px] max-h-[200px] overflow-auto rounded-lg border border-slate-200 bg-white shadow-lg">
+          {column.options?.map((opt) => (
+            <label
+              key={opt.value}
+              className="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-[0.8rem] text-slate-700 hover:bg-slate-50 transition-colors"
+            >
+              <input
+                type="checkbox"
+                checked={selectedValues.includes(opt.value)}
+                onChange={() => toggleValue(opt.value)}
+                className="w-3.5 h-3.5 rounded text-emerald-600 border-slate-300 focus:ring-transparent"
+              />
+              {opt.label}
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function GridCell({
   column,
   value,
@@ -64,6 +171,17 @@ export default function GridCell({
           );
         })}
       </div>
+    );
+  }
+
+  if (column.type === "multi_select" && column.options) {
+    return (
+      <MultiSelectCell
+        column={column}
+        value={value}
+        onChange={onChange}
+        onConfirm={onConfirm}
+      />
     );
   }
 

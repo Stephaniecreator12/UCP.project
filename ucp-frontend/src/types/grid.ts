@@ -7,6 +7,7 @@ export type FieldType =
   | "number"
   | "date"
   | "select"
+  | "multi_select"
   | "checkbox"
   | "textarea"
   // Boutons de bascule (ex: Prévu / Réel, Forfait / Temps passé)

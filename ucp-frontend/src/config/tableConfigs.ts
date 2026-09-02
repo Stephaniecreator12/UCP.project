@@ -8,6 +8,12 @@ import { MenuItemType } from "@/types/grid";
 
 // Options pour les listes déroulantes strictement contrôlées
 
+const FINANCING_SOURCE_OPTIONS: SelectOption[] = [
+  { value: "FM", label: "Fonds Mondial" },
+  { value: "GAVI", label: "Alliance Gavi" },
+  { value: "BM", label: "Banque Mondiale" },
+];
+
 //BST:bien & service et travaux
 const METHOD_OPTIONS_BST: SelectOption[] = [
   { value: "aon", label: "AON", description: "Appel d'Offres National" },
@@ -64,6 +70,30 @@ export const WORKS_GOODS_COLUMNS: ColumnConfig[] = [
     type: "text",
     editable: true,
     placeholder: "Saisir AGMO",
+  },
+  {
+    key: "financing_sources",
+    label: "Sources financement",
+    width: "180px",
+    type: "multi_select",
+    editable: true,
+    options: FINANCING_SOURCE_OPTIONS,
+  },
+  {
+    key: "reference_bailleur",
+    label: "Bailleur référent",
+    width: "140px",
+    type: "select",
+    editable: true,
+    options: FINANCING_SOURCE_OPTIONS,
+  },
+  {
+    key: "project_code",
+    label: "Code projet",
+    width: "120px",
+    type: "text",
+    editable: true,
+    placeholder: "Code projet",
   },
   {
     key: "method",
@@ -223,6 +253,30 @@ export const CONSULTANTS_COLUMNS: ColumnConfig[] = [
     type: "text",
     editable: true,
     placeholder: "Agmo/Direction",
+  },
+  {
+    key: "financing_sources",
+    label: "Sources financement",
+    width: "180px",
+    type: "multi_select",
+    editable: true,
+    options: FINANCING_SOURCE_OPTIONS,
+  },
+  {
+    key: "reference_bailleur",
+    label: "Bailleur référent",
+    width: "140px",
+    type: "select",
+    editable: true,
+    options: FINANCING_SOURCE_OPTIONS,
+  },
+  {
+    key: "project_code",
+    label: "Code projet",
+    width: "120px",
+    type: "text",
+    editable: true,
+    placeholder: "Code projet",
   },
   {
     key: "estimated_amount",

@@ -4,7 +4,6 @@ from apps.ppm.views import biens_view
 from apps.ppm.views import consultances_view
 
 
-
 urlpatterns = [
     path("travaux/add/", travaux_view.add_travaux),
     path("travaux/update/<int:id>/", travaux_view.edit_travaux),

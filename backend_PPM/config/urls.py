@@ -23,6 +23,7 @@ from apps.log.views.individual_traceability_view import IndividualTraceabilityAP
 from apps.log.views.operational_monitoring_view import OperationalMonitoringAPIView
 from django.urls import path, include
 from django.http import JsonResponse
+from apps.ppm.views.dashboard_view import ppm_dashboard_view
 
 def home_view(request):
     return JsonResponse({
@@ -34,6 +35,7 @@ def home_view(request):
 
 urlpatterns = [
     path("", home_view, name="home"),
+    path("admin/ppm-dashboard/", ppm_dashboard_view, name="ppm_dashboard"),
     path("admin/", admin.site.urls),
     path("api/ppm/", include("apps.ppm.urls")),
     path("api/common/", include("apps.common.urls")),
@@ -48,7 +50,7 @@ urlpatterns = [
     path("api/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),#refresh → renouveler le token
     path("api/achats/", include("apps.achats.urls")),
     path("api/ouverture/", include("apps.ouverture_offre.urls")),
-    path("api/evaluation/", include("apps.evaluation_offre.urls"))
+    path("api/evaluation/", include("apps.evaluation_offre.urls")),
 ]
 
 if settings.DEBUG:

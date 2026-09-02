@@ -1,0 +1,478 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tableau de bord PPM | UCP Admin</title>
+  <link rel="icon" href="{% static 'admin/favicon.ico' %}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <style>
+    /* ── Reset & Tokens ──────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --font: 'Plus Jakarta Sans', ui-sans-serif, system-ui, -apple-system, sans-serif;
+      --green-50: #f0fdf4; --green-100: #dcfce7; --green-200: #bbf7d0;
+      --green-400: #4ade80; --green-500: #22c55e; --green-600: #16a34a;
+      --green-700: #15803d; --green-800: #166534; --green-900: #14532d;
+      --gray-50: #f9fafb; --gray-100: #f3f4f6; --gray-200: #e5e7eb;
+      --gray-300: #d1d5db; --gray-400: #9ca3af; --gray-500: #6b7280;
+      --gray-600: #4b5563; --gray-700: #374151; --gray-800: #1f2937;
+      --gray-900: #111827;
+      --white: #ffffff; --radius: 12px; --shadow: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+      --shadow-md: 0 4px 6px -1px rgba(0,0,0,.07), 0 2px 4px -2px rgba(0,0,0,.05);
+    }
+    html { font-size: 15px; -webkit-font-smoothing: antialiased; }
+    body { font-family: var(--font); color: var(--gray-800); background: #eceeef; min-height: 100vh; }
+    a { color: inherit; text-decoration: none; }
+    button, input, select { font-family: inherit; }
+
+    /* ── Shell ────────────────────────────────────────────────── */
+    .shell { display: flex; min-height: 100vh; }
+
+    /* ── Sidebar ──────────────────────────────────────────────── */
+    .sidebar {
+      width: 240px; flex-shrink: 0; background: var(--white);
+      border-right: 1px solid var(--gray-200); display: flex;
+      flex-direction: column; position: sticky; top: 0; height: 100vh;
+    }
+    .sidebar-brand {
+      padding: 20px 20px 16px; border-bottom: 1px solid var(--gray-100);
+      display: flex; align-items: center; gap: 12px;
+    }
+    .sidebar-brand img { width: 36px; height: 36px; border-radius: 8px; }
+    .sidebar-brand-text { font-size: .82rem; font-weight: 700; color: var(--green-800); line-height: 1.25; }
+    .sidebar-brand-text span { display: block; font-size: .65rem; font-weight: 500; color: var(--gray-400); text-transform: uppercase; letter-spacing: .06em; margin-top: 1px; }
+    .sidebar-nav { flex: 1; overflow-y: auto; padding: 12px 10px; }
+    .sidebar-section { margin-bottom: 8px; }
+    .sidebar-section-title {
+      font-size: .6rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .08em; color: var(--gray-400); padding: 6px 10px 4px;
+    }
+    .sidebar-link {
+      display: flex; align-items: center; gap: 10px; padding: 9px 12px;
+      border-radius: 8px; font-size: .82rem; font-weight: 500;
+      color: var(--gray-600); transition: all .15s;
+    }
+    .sidebar-link:hover { background: var(--gray-50); color: var(--gray-800); }
+    .sidebar-link.active { background: var(--green-50); color: var(--green-700); font-weight: 600; }
+    .sidebar-link svg { width: 18px; height: 18px; flex-shrink: 0; opacity: .65; }
+    .sidebar-link.active svg { opacity: 1; }
+    .sidebar-footer {
+      padding: 14px 16px; border-top: 1px solid var(--gray-100);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .sidebar-footer .avatar {
+      width: 32px; height: 32px; border-radius: 50%; background: var(--green-100);
+      display: flex; align-items: center; justify-content: center;
+      font-size: .75rem; font-weight: 700; color: var(--green-700);
+    }
+    .sidebar-footer .user-info { font-size: .78rem; font-weight: 600; color: var(--gray-700); }
+    .sidebar-footer .user-info span { display: block; font-size: .65rem; font-weight: 400; color: var(--gray-400); }
+
+    /* ── Main ─────────────────────────────────────────────────── */
+    .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+    /* ── Header ───────────────────────────────────────────────── */
+    .header {
+      background: var(--white); border-bottom: 1px solid var(--gray-200);
+      padding: 0 28px; height: 56px; display: flex; align-items: center;
+      justify-content: space-between; position: sticky; top: 0; z-index: 20;
+    }
+    .header::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+      background: linear-gradient(90deg, var(--green-500), var(--green-400), var(--green-500));
+    }
+    .header-left { display: flex; align-items: center; gap: 16px; }
+    .header-left h1 { font-size: 1rem; font-weight: 700; color: var(--green-800); }
+    .header-left .breadcrumb { font-size: .75rem; color: var(--gray-400); }
+    .header-right { display: flex; align-items: center; gap: 10px; }
+    .header-btn {
+      display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px;
+      border-radius: 8px; font-size: .78rem; font-weight: 600; cursor: pointer;
+      border: 1px solid var(--gray-200); background: var(--white);
+      color: var(--gray-600); transition: all .15s;
+    }
+    .header-btn:hover { background: var(--gray-50); border-color: var(--gray-300); }
+    .header-btn svg { width: 15px; height: 15px; }
+
+    /* ── Content ──────────────────────────────────────────────── */
+    .content { flex: 1; padding: 24px 28px; max-width: 1400px; }
+
+    /* ── KPI strip ────────────────────────────────────────────── */
+    .kpi-strip { display: flex; gap: 14px; margin-bottom: 22px; flex-wrap: wrap; }
+    .kpi {
+      background: var(--white); border: 1px solid var(--gray-200);
+      border-radius: var(--radius); padding: 16px 22px;
+      display: flex; align-items: center; gap: 14px;
+      box-shadow: var(--shadow); min-width: 170px; flex: 1;
+    }
+    .kpi-icon {
+      width: 42px; height: 42px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .kpi-icon svg { width: 20px; height: 20px; }
+    .kpi-icon--green { background: var(--green-50); color: var(--green-600); }
+    .kpi-icon--amber { background: #fffbeb; color: #d97706; }
+    .kpi-icon--blue { background: #eff6ff; color: #2563eb; }
+    .kpi-text .kpi-label { font-size: .65rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--gray-400); }
+    .kpi-text .kpi-value { font-size: 1.35rem; font-weight: 800; color: var(--green-800); margin-top: 1px; }
+
+    /* ── Filters ──────────────────────────────────────────────── */
+    .filters-card {
+      background: var(--white); border: 1px solid var(--gray-200);
+      border-radius: var(--radius); padding: 16px 20px;
+      margin-bottom: 22px; box-shadow: var(--shadow);
+    }
+    .filters-card form { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+    .filter-group { display: flex; flex-direction: column; gap: 4px; min-width: 155px; flex: 1; }
+    .filter-group label { font-size: .7rem; font-weight: 600; color: var(--gray-600); }
+    .filter-group select {
+      border: 1px solid var(--gray-200); border-radius: 8px; padding: 8px 12px;
+      font-size: .82rem; background: var(--white); color: var(--gray-800);
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .filter-group select:focus { outline: none; border-color: var(--green-500); box-shadow: 0 0 0 3px rgba(22,163,74,.12); }
+    .filter-actions { display: flex; gap: 8px; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px;
+      border-radius: 8px; font-size: .8rem; font-weight: 600; cursor: pointer;
+      border: none; transition: all .15s;
+    }
+    .btn-primary { background: linear-gradient(180deg, var(--green-500), var(--green-700)); color: var(--white); box-shadow: 0 1px 3px rgba(22,163,74,.25); }
+    .btn-primary:hover { box-shadow: 0 3px 10px rgba(22,163,74,.35); transform: translateY(-1px); }
+    .btn-ghost { background: var(--white); color: var(--gray-600); border: 1px solid var(--gray-200); }
+    .btn-ghost:hover { background: var(--gray-50); border-color: var(--gray-300); }
+
+    /* ── Charts grid ──────────────────────────────────────────── */
+    .charts-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin-bottom: 24px; }
+    .chart-card {
+      background: var(--white); border: 1px solid var(--gray-200);
+      border-radius: var(--radius); padding: 20px;
+      box-shadow: var(--shadow); display: flex; flex-direction: column;
+      align-items: center;
+    }
+    .chart-card h3 {
+      font-size: .72rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .04em; color: var(--gray-500); margin-bottom: 14px;
+      text-align: center;
+    }
+    .chart-wrap { position: relative; width: 180px; height: 180px; }
+    .chart-empty { color: var(--gray-400); font-style: italic; font-size: .82rem; padding: 30px 0; }
+
+    /* ── Tables grid ──────────────────────────────────────────── */
+    .tables-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
+    .table-card {
+      background: var(--white); border: 1px solid var(--gray-200);
+      border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow);
+    }
+    .table-card-header {
+      padding: 14px 20px; border-bottom: 1px solid var(--gray-100);
+      background: var(--gray-50); display: flex; align-items: center; gap: 8px;
+    }
+    .table-card-header svg { width: 16px; height: 16px; color: var(--green-600); }
+    .table-card-header h3 {
+      font-size: .78rem; font-weight: 700; color: var(--gray-700);
+      text-transform: uppercase; letter-spacing: .03em;
+    }
+    .data-table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+    .data-table th {
+      text-align: left; padding: 10px 18px; font-size: .68rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .05em; color: var(--gray-400);
+      background: var(--gray-50); border-bottom: 1px solid var(--gray-100);
+    }
+    .data-table td { padding: 11px 18px; border-bottom: 1px solid var(--gray-50); color: var(--gray-700); }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table tbody tr:hover td { background: rgba(22,163,74,.025); }
+    .data-table .col-count { text-align: center; font-weight: 700; color: var(--green-700); }
+    .data-table .col-amount { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; color: var(--gray-800); }
+    .empty-row td { text-align: center; color: var(--gray-400); font-style: italic; padding: 28px 18px; }
+
+    /* ── Responsive ───────────────────────────────────────────── */
+    @media (max-width: 1100px) { .charts-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 900px) {
+      .sidebar { display: none; }
+      .content { padding: 16px; }
+      .charts-grid { grid-template-columns: 1fr 1fr; }
+      .tables-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 600px) {
+      .charts-grid { grid-template-columns: 1fr; }
+      .kpi-strip { flex-direction: column; }
+      .filters-card form { flex-direction: column; }
+      .filter-group { min-width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="shell">
+
+  <!-- ── Sidebar ─────────────────────────────────────────────── -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <img src="{% static 'admin/ucp-sante-logo-color.png' %}" alt="UCP">
+      <div class="sidebar-brand-text">UCP Admin<span>e-Procurement</span></div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">Navigation</div>
+        <a href="{% url 'admin:index' %}" class="sidebar-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          Tableau de bord admin
+        </a>
+        <a href="{% url 'ppm_dashboard' %}" class="sidebar-link active">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-9-9"/><path d="M21 3v6h-6"/></svg>
+          Tableau de bord PPM
+        </a>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">Planification</div>
+        <a href="{% url 'admin:ppm_travaux_changelist' %}" class="sidebar-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 20h20"/><path d="M5 20V8l7-4 7 4v12"/></svg>
+          Travaux
+        </a>
+        <a href="{% url 'admin:ppm_biens_changelist' %}" class="sidebar-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+          Biens & Services
+        </a>
+        <a href="{% url 'admin:ppm_consultance_changelist' %}" class="sidebar-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Consultants
+        </a>
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="avatar">U</div>
+      <div class="user-info">UCP Admin<span>Administrateur</span></div>
+    </div>
+  </aside>
+
+  <!-- ── Main ────────────────────────────────────────────────── -->
+  <div class="main">
+
+    <!-- Header -->
+    <header class="header">
+      <div class="header-left">
+        <h1>Tableau de bord PPM</h1>
+        <span class="breadcrumb">Plan Prévisionnel de Marchés</span>
+      </div>
+      <div class="header-right">
+        <a href="{% url 'admin:index' %}" class="header-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
+          Retour admin
+        </a>
+      </div>
+    </header>
+
+    <!-- Content -->
+    <div class="content">
+
+      <!-- KPI Strip -->
+      <div class="kpi-strip">
+        <div class="kpi">
+          <div class="kpi-icon kpi-icon--green">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-9-9"/><path d="M21 3v6h-6"/></svg>
+          </div>
+          <div class="kpi-text">
+            <div class="kpi-label">Total marchés</div>
+            <div class="kpi-value">{{ total_count }}</div>
+          </div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-icon kpi-icon--amber">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          </div>
+          <div class="kpi-text">
+            <div class="kpi-label">Montant total (Ar)</div>
+            <div class="kpi-value">{{ total_amount }}</div>
+          </div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-icon kpi-icon--blue">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          </div>
+          <div class="kpi-text">
+            <div class="kpi-label">Bailleurs</div>
+            <div class="kpi-value">{{ by_bailleur|length }}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filters -->
+      <div class="filters-card">
+        <form method="get" action="">
+          <div class="filter-group">
+            <label for="f-bailleur">Bailleur</label>
+            <select name="bailleur" id="f-bailleur">
+              <option value="">Tous les bailleurs</option>
+              {% for b in available_bailleurs %}
+                <option value="{{ b }}" {% if filters.bailleur == b %}selected{% endif %}>{{ b }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="filter-group">
+            <label for="f-agmo">AGMO</label>
+            <select name="agmo" id="f-agmo">
+              <option value="">Tous les AGMO</option>
+              {% for a in available_agmos %}
+                <option value="{{ a }}" {% if filters.agmo == a %}selected{% endif %}>{{ a }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="filter-group">
+            <label for="f-statut">Statut PPM</label>
+            <select name="statut" id="f-statut">
+              <option value="">Tous les statuts</option>
+              {% for s in available_statuts %}
+                <option value="{{ s }}" {% if filters.statut == s %}selected{% endif %}>{{ s }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="filter-group">
+            <label for="f-model_type">Type de marché</label>
+            <select name="model_type" id="f-model_type">
+              <option value="">Tous les types</option>
+              <option value="travaux" {% if filters.model_type == "travaux" %}selected{% endif %}>Travaux</option>
+              <option value="biens" {% if filters.model_type == "biens" %}selected{% endif %}>Biens & Services</option>
+              <option value="consultants" {% if filters.model_type == "consultants" %}selected{% endif %}>Consultants</option>
+            </select>
+          </div>
+          <div class="filter-actions">
+            <button type="submit" class="btn btn-primary">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+              Filtrer
+            </button>
+            {% if filters.bailleur or filters.agmo or filters.statut or filters.model_type %}
+              <a href="{% url 'ppm_dashboard' %}" class="btn btn-ghost">Réinitialiser</a>
+            {% endif %}
+          </div>
+        </form>
+      </div>
+
+      <!-- Charts -->
+      <div class="charts-grid">
+        <div class="chart-card">
+          <h3>Répartition par Bailleur</h3>
+          {% if by_bailleur %}
+            <div class="chart-wrap"><canvas id="chartBailleur"></canvas></div>
+          {% else %}
+            <div class="chart-empty">Aucune donnée</div>
+          {% endif %}
+        </div>
+        <div class="chart-card">
+          <h3>Répartition par AGMO</h3>
+          {% if by_agmo %}
+            <div class="chart-wrap"><canvas id="chartAgmo"></canvas></div>
+          {% else %}
+            <div class="chart-empty">Aucune donnée</div>
+          {% endif %}
+        </div>
+        <div class="chart-card">
+          <h3>Répartition par Statut</h3>
+          {% if by_statut %}
+            <div class="chart-wrap"><canvas id="chartStatut"></canvas></div>
+          {% else %}
+            <div class="chart-empty">Aucune donnée</div>
+          {% endif %}
+        </div>
+        <div class="chart-card">
+          <h3>Répartition par Type</h3>
+          {% if by_model %}
+            <div class="chart-wrap"><canvas id="chartModel"></canvas></div>
+          {% else %}
+            <div class="chart-empty">Aucune donnée</div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Tables -->
+      <div class="tables-grid">
+        <div class="table-card">
+          <div class="table-card-header">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            <h3>Détail par Bailleur</h3>
+          </div>
+          {% if by_bailleur %}
+          <table class="data-table">
+            <thead><tr><th>Bailleur</th><th style="text-align:center">Total</th><th style="text-align:right">Montant estimé (Ar)</th></tr></thead>
+            <tbody>
+              {% for name, data in by_bailleur %}
+              <tr><td>{{ name }}</td><td class="col-count">{{ data.count }}</td><td class="col-amount">{{ data.formatted }}</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          {% else %}<table class="data-table"><tbody><tr class="empty-row"><td>Aucune donnée disponible</td></tr></tbody></table>{% endif %}
+        </div>
+
+        <div class="table-card">
+          <div class="table-card-header">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            <h3>Détail par AGMO</h3>
+          </div>
+          {% if by_agmo %}
+          <table class="data-table">
+            <thead><tr><th>AGMO</th><th style="text-align:center">Total</th><th style="text-align:right">Montant estimé (Ar)</th></tr></thead>
+            <tbody>
+              {% for name, data in by_agmo %}
+              <tr><td>{{ name }}</td><td class="col-count">{{ data.count }}</td><td class="col-amount">{{ data.formatted }}</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          {% else %}<table class="data-table"><tbody><tr class="empty-row"><td>Aucune donnée disponible</td></tr></tbody></table>{% endif %}
+        </div>
+
+        <div class="table-card">
+          <div class="table-card-header">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg>
+            <h3>Détail par Statut</h3>
+          </div>
+          {% if by_statut %}
+          <table class="data-table">
+            <thead><tr><th>Statut</th><th style="text-align:center">Total</th></tr></thead>
+            <tbody>
+              {% for name, data in by_statut %}
+              <tr><td>{{ name }}</td><td class="col-count">{{ data.count }}</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          {% else %}<table class="data-table"><tbody><tr class="empty-row"><td>Aucune donnée disponible</td></tr></tbody></table>{% endif %}
+        </div>
+
+        <div class="table-card">
+          <div class="table-card-header">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-9-9"/><path d="M21 3v6h-6"/></svg>
+            <h3>Détail par Type de Marché</h3>
+          </div>
+          {% if by_model %}
+          <table class="data-table">
+            <thead><tr><th>Type</th><th style="text-align:center">Total</th><th style="text-align:right">Montant estimé (Ar)</th></tr></thead>
+            <tbody>
+              {% for name, data in by_model %}
+              <tr><td>{{ name }}</td><td class="col-count">{{ data.count }}</td><td class="col-amount">{{ data.formatted }}</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          {% else %}<table class="data-table"><tbody><tr class="empty-row"><td>Aucune donnée disponible</td></tr></tbody></table>{% endif %}
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const P = ['#15803d','#22c55e','#4ade80','#86efac','#f59e0b','#fbbf24','#fcd34d','#0ea5e9','#38bdf8','#7dd3fc','#ef4444','#f87171','#fca5a5','#8b5cf6','#a78bfa','#c4b5fd','#ec4899','#f472b6'];
+  const O = { responsive:true, maintainAspectRatio:true, cutout:'62%', plugins:{ legend:{ position:'bottom', labels:{ boxWidth:10, padding:8, font:{ size:10.5, family:'Plus Jakarta Sans' } } }, tooltip:{ callbacks:{ label:function(c){ var v=c.raw,t=c.dataset.data.reduce(function(a,b){return a+b},0),p=t?((v/t)*100).toFixed(1):0; return v.toLocaleString('fr-FR')+' ('+p+'%)'; } } } } };
+  function D(id,l,d){ var el=document.getElementById(id); if(!el||!d.length)return; new Chart(el,{type:'doughnut',data:{labels:l,datasets:[{data:d,backgroundColor:P.slice(0,d.length),borderWidth:2,borderColor:'#fff'}]},options:O}); }
+  D('chartBailleur',[{% for n,d in by_bailleur %}'{{ n|escapejs }}'{% if not forloop.last %},{% endif %}{% endfor %}],[{% for n,d in by_bailleur %}{{ d.count }}{% if not forloop.last %},{% endif %}{% endfor %}]);
+  D('chartAgmo',[{% for n,d in by_agmo %}'{{ n|escapejs }}'{% if not forloop.last %},{% endif %}{% endfor %}],[{% for n,d in by_agmo %}{{ d.count }}{% if not forloop.last %},{% endif %}{% endfor %}]);
+  D('chartStatut',[{% for n,d in by_statut %}'{{ n|escapejs }}'{% if not forloop.last %},{% endif %}{% endfor %}],[{% for n,d in by_statut %}{{ d.count }}{% if not forloop.last %},{% endif %}{% endfor %}]);
+  D('chartModel',[{% for n,d in by_model %}'{{ n|escapejs }}'{% if not forloop.last %},{% endif %}{% endfor %}],[{% for n,d in by_model %}{{ d.count }}{% if not forloop.last %},{% endif %}{% endfor %}]);
+})();
+</script>
+</body>
+</html>

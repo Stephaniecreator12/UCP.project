@@ -410,6 +410,7 @@ export default function OuvertureOffrePage() {
     consumeOpeningFlashMessage("/personnel/ouverture_offre"),
   );
   const isSecretaire = isSecretaireUser(currentUser);
+  const isAdmin = isAdminUser(currentUser);
   const categoryTypes = useReferenceChoices("CATEGORY_TYPE", []);
   const procedureChoices = useReferenceChoices("PROCEDURE_TYPE", []);
   const seanceStatusChoices = useReferenceChoices("STATUT_SEANCE", []);
@@ -802,9 +803,8 @@ export default function OuvertureOffrePage() {
                     </p>
                   </div>
                 </div>
-              </div>
-
-              {currentUser && (
+                </div>
+                {currentUser && (
                 <div className="relative z-10 w-fit rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-bold text-slate-600">
                   {isSecretaire ? "Secrétaire" : "Utilisateur"} :{" "}
                   <span className="text-slate-900">
@@ -869,7 +869,15 @@ export default function OuvertureOffrePage() {
                         ? "1. Dossiers DAO / DC à suivre"
                         : "1. Vue des séances d'ouverture"}
                     </h2>
-
+                    {(isSecretaire || isAdmin) && (
+                      <button
+                        type="button"
+                        onClick={() => router.push("/personnel/ouverture_offre/new")}
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-white transition-all hover:-translate-y-0.5 hover:bg-emerald-700 shadow-lg shadow-emerald-500/20"
+                      >
+                        <Plus className="h-4 w-4" /> Nouvelle Séance
+                      </button>
+                    )}
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                       <div className="relative min-w-[280px]">
                         <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />

@@ -46,6 +46,7 @@ def _consultance_to_dict(obj: Consultance) -> dict:
 
 
 def create_consultance(data: dict) -> Consultance:
+    valid_fields = {f.name for f in Consultance._meta.get_fields()}
     defaults = {
         'ref_code_suivi': '',
         'agmoxdirection': '',
@@ -60,7 +61,7 @@ def create_consultance(data: dict) -> Consultance:
         'reference_bailleur': None,
         'project_code': None,
     }
-    payload = {**defaults, **data}
+    payload = {**defaults, **{k: v for k, v in data.items() if k in valid_fields}}
     return Consultance.objects.create(**payload)
 
 

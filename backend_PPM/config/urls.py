@@ -24,6 +24,7 @@ from apps.log.views.operational_monitoring_view import OperationalMonitoringAPIV
 from django.urls import path, include
 from django.http import JsonResponse
 from apps.ppm.views.dashboard_view import ppm_dashboard_view
+from config.views import AdminLoginView
 
 def home_view(request):
     return JsonResponse({
@@ -36,6 +37,7 @@ def home_view(request):
 urlpatterns = [
     path("", home_view, name="home"),
     path("admin/ppm-dashboard/", ppm_dashboard_view, name="ppm_dashboard"),
+    path("admin/login/", AdminLoginView.as_view(), name="admin_login"),
     path("admin/", admin.site.urls),
     path("api/ppm/", include("apps.ppm.urls")),
     path("api/common/", include("apps.common.urls")),

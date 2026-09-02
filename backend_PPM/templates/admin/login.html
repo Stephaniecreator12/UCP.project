@@ -1,0 +1,83 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrastyle %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'admin/ucp-admin.css' %}">
+  {{ form.media }}
+{% endblock %}
+
+{% block title %}{{ title }} | {{ site_title }}{% endblock %}
+
+{% block content_title %}{% endblock %}
+{% block breadcrumbs %}{% endblock %}
+
+{% block content %}
+<div id="content-main">
+  <div class="ucp-login-card">
+    <div class="ucp-login-top-accent"></div>
+    <div class="ucp-login-glow"></div>
+
+    <div class="ucp-login-head">
+      <div class="ucp-login-logo">
+        <img src="{% static 'admin/ucp-sante-logo-color.png' %}" alt="UCP" class="ucp-login-logo-img">
+      </div>
+      <p class="ucp-login-eyebrow">e-Procurement</p>
+      <h1>Bienvenue</h1>
+    </div>
+
+    <div class="ucp-login-divider"></div>
+
+    {% if form.errors and not form.non_field_errors %}
+      <div class="errornote">
+        {% if form.errors.items|length == 1 %}{% translate "Please correct the error below." %}{% else %}{% translate "Please correct the errors below." %}{% endif %}
+      </div>
+    {% endif %}
+
+    {% if form.non_field_errors %}
+      {% for error in form.non_field_errors %}
+        <div class="errornote">
+          {{ error }}
+        </div>
+      {% endfor %}
+    {% endif %}
+
+    <form action="{{ app_path }}" method="post" id="login-form">
+      {% csrf_token %}
+
+      <div class="form-row">
+        {{ form.username.errors }}
+        <label for="id_username">{% translate 'Email address' %}</label>
+        <input type="text" name="username" autofocus autocapitalize="none" autocomplete="username"
+               maxlength="254" id="id_username" required
+               placeholder="admin@ucp.cd"
+               value="{{ form.username.value|default:'' }}">
+      </div>
+
+      <div class="form-row">
+        {{ form.password.errors }}
+        <label for="id_password">{% translate 'Password' %}</label>
+        <input type="password" name="password" autocomplete="current-password"
+               id="id_password" required
+               placeholder="••••••••">
+        <input type="hidden" name="next" value="{{ next }}">
+      </div>
+
+      <div class="submit-row">
+        <input type="submit" value="{% translate 'Se connecter' %}">
+      </div>
+
+      {% url 'admin_password_reset' as password_reset_url %}
+      {% if password_reset_url %}
+        <div class="password-reset-link">
+          <a href="{{ password_reset_url }}">{% translate 'Mot de passe oublié ?' %}</a>
+        </div>
+      {% endif %}
+    </form>
+
+    <div class="ucp-login-footer">
+      <p>Unité de Coordination des Projets &copy; 2026</p>
+    </div>
+  </div>
+</div>
+{% endblock %}

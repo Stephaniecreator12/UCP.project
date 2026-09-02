@@ -38,6 +38,7 @@ def _travaux_to_dict(obj: Travaux) -> dict:
 
 
 def create_travaux(data: dict) -> Travaux:
+    valid_fields = {f.name for f in Travaux._meta.get_fields()}
     defaults = {
         "code_suivi": "",
         "montant_estimatif": 0,
@@ -53,7 +54,7 @@ def create_travaux(data: dict) -> Travaux:
         "reference_bailleur": None,
         "project_code": None,
     }
-    payload = {**defaults, **data}
+    payload = {**defaults, **{k: v for k, v in data.items() if k in valid_fields}}
     return Travaux.objects.create(**payload)
 
 

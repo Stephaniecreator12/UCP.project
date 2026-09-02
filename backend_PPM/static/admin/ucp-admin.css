@@ -1558,13 +1558,14 @@ body.login {
   background: linear-gradient(180deg, #f5f6f6 0%, #eef1f0 100%) !important;
 }
 
-#container.login {
+body.login #container {
   display: flex !important;
   justify-content: center !important;
   align-items: center !important;
   min-height: 100vh !important;
   padding: 24px !important;
   box-sizing: border-box !important;
+  position: relative !important;
 }
 
 #container.login #header {
@@ -1595,92 +1596,205 @@ body.login {
   padding: 0 !important;
 }
 
+/* ── Floating background orbs (matching frontend) ── */
+.ucp-login-bg-orbs {
+  position: fixed !important;
+  inset: 0 !important;
+  pointer-events: none !important;
+  z-index: 0 !important;
+  overflow: hidden !important;
+}
+
+.ucp-login-bg-orbs .ucp-login-orb {
+  position: absolute !important;
+  border-radius: 42px !important;
+}
+
+.ucp-login-bg-orbs .ucp-login-orb--green {
+  top: -96px !important;
+  left: -64px !important;
+  width: 240px !important;
+  height: 280px !important;
+  transform: rotate(-17deg) !important;
+  background: linear-gradient(140deg, #a2f3b5 0%, #41f37c 62%, #a2f8be 100%) !important;
+  box-shadow: 0 45px 80px -30px rgba(33, 83, 46, 0.6) !important;
+  animation: loginFloatOrb1 9s ease-in-out infinite !important;
+}
+
+.ucp-login-bg-orbs .ucp-login-orb--dark {
+  top: 10% !important;
+  left: 9% !important;
+  width: 200px !important;
+  height: 180px !important;
+  transform: rotate(-32deg) !important;
+  background: linear-gradient(125deg, rgba(58, 69, 82, 0.44) 0%, rgba(15, 20, 27, 0.14) 100%) !important;
+  border-radius: 34px !important;
+  animation: loginFloatOrb2 9s ease-in-out infinite 1.2s !important;
+}
+
+.ucp-login-bg-orbs .ucp-login-orb--gray {
+  bottom: 8% !important;
+  right: 6% !important;
+  width: 250px !important;
+  height: 210px !important;
+  transform: rotate(-13deg) !important;
+  background: linear-gradient(125deg, rgba(131, 138, 146, 0.42) 0%, rgba(15, 20, 27, 0.12) 100%) !important;
+  border-radius: 28px !important;
+  opacity: 0.9 !important;
+  animation: loginFloatOrb3 9s ease-in-out infinite 2.2s !important;
+}
+
+.ucp-login-bg-orbs .ucp-login-orb-border {
+  position: absolute !important;
+  top: 18% !important;
+  right: 12% !important;
+  width: 112px !important;
+  height: 112px !important;
+  border-radius: 28px !important;
+  border: 1px solid rgba(167, 243, 208, 0.8) !important;
+  opacity: 0.7 !important;
+}
+
+/* ── Card ── */
 .ucp-login-card {
-  position: relative;
-  overflow: hidden;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.97) 0%, rgba(248, 250, 249, 0.96) 100%) !important;
-  border: 1px solid rgba(226, 232, 240, 0.85) !important;
+  position: relative !important;
+  overflow: hidden !important;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(248, 250, 249, 0.93) 100%) !important;
+  border: 1px solid rgba(226, 232, 240, 0.8) !important;
   border-radius: 30px !important;
   box-shadow: 0 28px 70px -42px rgba(15, 23, 42, 0.34) !important;
-  padding: 32px 32px 24px !important;
+  padding: 28px 28px 24px !important;
   backdrop-filter: blur(4px) !important;
-  animation: ucpFadeIn 0.4s ease-out both;
+  animation: ucpFadeIn 0.4s ease-out both !important;
+  z-index: 1 !important;
 }
 
+/* ── Top accent line with glow animation ── */
 .ucp-login-top-accent {
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 4px;
-  background: linear-gradient(90deg, rgba(34, 197, 94, 0) 0%, rgba(34, 197, 94, 0.88) 18%, rgba(21, 128, 61, 0.94) 50%, rgba(34, 197, 94, 0.88) 82%, rgba(34, 197, 94, 0) 100%);
+  position: absolute !important;
+  inset: 0 0 auto 0 !important;
+  height: 4px !important;
+  background: linear-gradient(90deg, rgba(34, 197, 94, 0) 0%, rgba(34, 197, 94, 0.88) 18%, rgba(21, 128, 61, 0.94) 50%, rgba(34, 197, 94, 0.88) 82%, rgba(34, 197, 94, 0) 100%) !important;
 }
 
-.ucp-login-glow {
-  position: absolute;
-  top: -24px;
-  right: -16px;
-  left: -16px;
-  height: 140px;
-  background: radial-gradient(circle at 80% 10%, rgba(247, 247, 248, 0.72), transparent 60%);
-  pointer-events: none;
+/* ── Decorative corner elements (matching frontend) ── */
+.ucp-login-deco {
+  position: absolute !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  pointer-events: none !important;
+  z-index: 1 !important;
 }
 
+.ucp-login-deco--tr {
+  top: 20px !important;
+  right: 20px !important;
+  opacity: 0.75 !important;
+}
+
+.ucp-login-deco--bl {
+  bottom: 20px !important;
+  left: 24px !important;
+  opacity: 0.65 !important;
+}
+
+.ucp-login-deco-line {
+  display: block !important;
+  height: 1px !important;
+  width: 40px !important;
+  background: var(--ucp-line) !important;
+}
+
+.ucp-login-deco-line--short {
+  width: 24px !important;
+}
+
+.ucp-login-deco-line--accent {
+  width: 56px !important;
+  background: rgba(34, 197, 94, 0.3) !important;
+}
+
+.ucp-login-deco-dot {
+  width: 6px !important;
+  height: 6px !important;
+  border-radius: 50% !important;
+  background: var(--ucp-green) !important;
+  opacity: 0.8 !important;
+  animation: loginFloatSoft 9s ease-in-out infinite !important;
+}
+
+.login-line-glow {
+  animation: loginLineGlow 4.6s ease-in-out infinite !important;
+  transform-origin: center !important;
+  will-change: opacity, transform !important;
+}
+
+.login-float-soft {
+  animation: loginFloatSoft 9s ease-in-out infinite !important;
+  will-change: transform !important;
+}
+
+/* ── Logo + headings ── */
 .ucp-login-head {
-  text-align: center;
-  margin-bottom: 24px;
-  position: relative;
+  text-align: center !important;
+  margin-bottom: 24px !important;
+  position: relative !important;
 }
 
 .ucp-login-logo {
-  width: 92px;
-  height: 92px;
-  margin: 0 auto 18px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 22px;
-  border: 1px solid rgba(226, 232, 240, 0.9);
-  background: linear-gradient(180deg, #f8faf9 0%, #f1f5f3 100%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  width: 96px !important;
+  height: 96px !important;
+  margin: 0 auto 18px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 22px !important;
+  border: 1px solid rgba(226, 232, 240, 0.9) !important;
+  background: linear-gradient(180deg, #f8faf9 0%, #f1f5f3 100%) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8) !important;
 }
 
 .ucp-login-logo-img {
-  width: 70px;
-  height: 70px;
-  object-fit: contain;
+  width: 72px !important;
+  height: 72px !important;
+  object-fit: contain !important;
 }
 
 .ucp-login-eyebrow {
   margin: 0 0 6px !important;
   font-family: var(--ucp-font) !important;
   font-size: 11px !important;
-  font-weight: 800 !important;
-  letter-spacing: 0.2em !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.22em !important;
   text-transform: uppercase !important;
   color: var(--ucp-green-700) !important;
 }
 
 .ucp-login-head h1 {
-  margin: 0 !important;
+  margin: 8px 0 0 !important;
   font-family: var(--ucp-font) !important;
-  font-size: 28px !important;
-  font-weight: 800 !important;
+  font-size: 30px !important;
+  font-weight: 700 !important;
   color: #0f172a !important;
 }
 
+/* ── Divider with glow animation ── */
 .ucp-login-divider {
-  display: block;
-  width: 96px;
-  height: 2px;
-  margin: 14px auto 0;
-  background: linear-gradient(90deg, rgba(34, 197, 94, 0), rgba(34, 197, 94, 0.8), rgba(34, 197, 94, 0));
+  display: block !important;
+  width: 96px !important;
+  height: 2px !important;
+  margin: 12px auto 0 !important;
+  background: linear-gradient(90deg, rgba(34, 197, 94, 0), rgba(34, 197, 94, 0.8), rgba(34, 197, 94, 0)) !important;
 }
 
+/* ── Form ── */
 #container.login form {
   margin: 0 !important;
 }
 
 #container.login .form-row {
-  padding: 8px 0 !important;
+  padding: 10px 0 !important;
   border: none !important;
   overflow: visible !important;
 }
@@ -1692,20 +1806,41 @@ body.login {
   margin-bottom: 6px !important;
   display: block !important;
   padding-top: 0 !important;
+  text-align: left !important;
 }
 
 #container.login input[type="text"],
 #container.login input[type="password"] {
   width: 100% !important;
   padding: 12px 16px !important;
-  border-radius: 14px !important;
+  border: 1px solid var(--ucp-line) !important;
+  border-radius: 16px !important;
   font-size: 14px !important;
+  font-family: var(--ucp-font) !important;
+  color: var(--ucp-text) !important;
+  background: var(--ucp-surface) !important;
+  box-shadow: var(--ucp-shadow-sm) !important;
+  transition: border-color var(--ucp-transition), box-shadow var(--ucp-transition) !important;
+  box-sizing: border-box !important;
+  outline: none !important;
 }
 
+#container.login input[type="text"]:focus,
+#container.login input[type="password"]:focus {
+  border-color: #10b981 !important;
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1) !important;
+}
+
+#container.login input[type="text"]::placeholder,
+#container.login input[type="password"]::placeholder {
+  color: #94a3b8 !important;
+}
+
+/* ── Submit button ── */
 #container.login .submit-row {
   background: transparent !important;
   box-shadow: none !important;
-  padding: 8px 0 4px !important;
+  padding: 12px 0 4px !important;
   margin: 0 !important;
   display: block !important;
   border: none !important;
@@ -1713,29 +1848,43 @@ body.login {
 
 #container.login .submit-row input[type="submit"] {
   width: 100% !important;
-  padding: 13px 24px !important;
+  padding: 14px 24px !important;
   font-size: 14px !important;
-  font-weight: 800 !important;
+  font-weight: 700 !important;
+  font-family: var(--ucp-font) !important;
   letter-spacing: 0.02em !important;
-  border-radius: 14px !important;
+  border-radius: 16px !important;
   background: #166534 !important;
   border: none !important;
+  color: #fff !important;
+  cursor: pointer !important;
   box-shadow: 0 16px 30px -20px rgba(22, 101, 52, 0.65) !important;
+  transition: background 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease !important;
 }
 
 #container.login .submit-row input[type="submit"]:hover {
   background: #14532d !important;
+  transform: translateY(-1px) !important;
 }
 
+#container.login .submit-row input[type="submit"]:active {
+  transform: translateY(0) !important;
+}
+
+/* ── Error note ── */
 #container.login .errornote {
   background: var(--ucp-danger-50) !important;
   border: 1px solid var(--ucp-danger-200) !important;
   color: var(--ucp-danger-700) !important;
-  border-radius: 14px !important;
+  border-radius: 16px !important;
   padding: 12px 16px !important;
-  position: relative;
+  font-family: var(--ucp-font) !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  position: relative !important;
 }
 
+/* ── Password reset link ── */
 #container.login .password-reset-link {
   text-align: center !important;
   margin-top: 12px !important;
@@ -1754,15 +1903,16 @@ body.login {
   text-decoration: underline !important;
 }
 
+/* ── Footer ── */
 .ucp-login-footer {
-  margin-top: 24px;
-  padding-top: 16px;
-  border-top: 1px solid rgba(226, 232, 240, 0.8);
-  text-align: center;
-  font-size: 11px;
-  color: #64748b;
-  font-weight: 500;
-  font-family: var(--ucp-font);
+  margin-top: 24px !important;
+  padding-top: 16px !important;
+  border-top: 1px solid var(--ucp-line) !important;
+  text-align: center !important;
+  font-size: 12px !important;
+  color: #94a3b8 !important;
+  font-weight: 500 !important;
+  font-family: var(--ucp-font) !important;
 }
 
 body.login .skip-to-content-link {
@@ -2081,6 +2231,53 @@ body.login .skip-to-content-link {
   }
 }
 
+@keyframes loginFloatSoft {
+  0%, 100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -10px, 0);
+  }
+}
+
+@keyframes loginLineGlow {
+  0%, 100% {
+    opacity: 0.62;
+    transform: scaleX(0.96);
+  }
+  50% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+
+@keyframes loginFloatOrb1 {
+  0%, 100% {
+    transform: rotate(-17deg) translate3d(0, 0, 0);
+  }
+  50% {
+    transform: rotate(-17deg) translate3d(0, -10px, 0);
+  }
+}
+
+@keyframes loginFloatOrb2 {
+  0%, 100% {
+    transform: rotate(-32deg) translate3d(0, 0, 0);
+  }
+  50% {
+    transform: rotate(-32deg) translate3d(0, -10px, 0);
+  }
+}
+
+@keyframes loginFloatOrb3 {
+  0%, 100% {
+    transform: rotate(-13deg) translate3d(0, 0, 0);
+  }
+  50% {
+    transform: rotate(-13deg) translate3d(0, -10px, 0);
+  }
+}
+
 .module,
 #changelist,
 fieldset,
@@ -2194,6 +2391,15 @@ fieldset,
 
   .object-tools a {
     margin: 4px 4px 4px 0 !important;
+  }
+
+  /* Hide floating orbs and decorative elements on mobile */
+  .ucp-login-bg-orbs {
+    display: none !important;
+  }
+
+  .ucp-login-deco {
+    display: none !important;
   }
 }
 

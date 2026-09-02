@@ -14,19 +14,35 @@
 
 {% block content %}
 <div id="content-main">
+  <div class="ucp-login-bg-orbs">
+    <div class="ucp-login-orb ucp-login-orb--green"></div>
+    <div class="ucp-login-orb ucp-login-orb--dark"></div>
+    <div class="ucp-login-orb ucp-login-orb--gray"></div>
+    <div class="ucp-login-orb-border"></div>
+  </div>
+
   <div class="ucp-login-card">
-    <div class="ucp-login-top-accent"></div>
-    <div class="ucp-login-glow"></div>
+    <div class="ucp-login-top-accent login-line-glow"></div>
+
+    <div class="ucp-login-deco ucp-login-deco--tr">
+      <span class="ucp-login-deco-line"></span>
+      <span class="ucp-login-deco-dot"></span>
+      <span class="ucp-login-deco-line ucp-login-deco-line--short"></span>
+    </div>
+
+    <div class="ucp-login-deco ucp-login-deco--bl">
+      <span class="ucp-login-deco-line"></span>
+      <span class="ucp-login-deco-line ucp-login-deco-line--accent"></span>
+    </div>
 
     <div class="ucp-login-head">
       <div class="ucp-login-logo">
         <img src="{% static 'admin/ucp-sante-logo-color.png' %}" alt="UCP" class="ucp-login-logo-img">
       </div>
-      <p class="ucp-login-eyebrow">e-Procurement</p>
-      <h1>Bienvenue</h1>
+      <p class="ucp-login-eyebrow">Unité de Coordination des Projets</p>
+      <h1>Connexion</h1>
+      <div class="ucp-login-divider login-line-glow"></div>
     </div>
-
-    <div class="ucp-login-divider"></div>
 
     {% if form.errors and not form.non_field_errors %}
       <div class="errornote">
@@ -47,19 +63,19 @@
 
       <div class="form-row">
         {{ form.username.errors }}
-        <label for="id_username">{% translate 'Email address' %}</label>
+        <label for="id_username">{% translate 'Email' %}</label>
         <input type="text" name="username" autofocus autocapitalize="none" autocomplete="username"
                maxlength="254" id="id_username" required
-               placeholder="admin@ucp.cd"
+               placeholder="Saisir votre email"
                value="{{ form.username.value|default:'' }}">
       </div>
 
       <div class="form-row">
         {{ form.password.errors }}
-        <label for="id_password">{% translate 'Password' %}</label>
+        <label for="id_password">{% translate 'Mot de passe' %}</label>
         <input type="password" name="password" autocomplete="current-password"
                id="id_password" required
-               placeholder="••••••••">
+               placeholder="Saisir votre mot de passe">
         <input type="hidden" name="next" value="{{ next }}">
       </div>
 
@@ -76,7 +92,7 @@
     </form>
 
     <div class="ucp-login-footer">
-      <p>Unité de Coordination des Projets &copy; 2026</p>
+      Unité de Coordination des Projets
     </div>
   </div>
 </div>

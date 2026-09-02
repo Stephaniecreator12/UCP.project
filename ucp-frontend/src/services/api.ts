@@ -2,22 +2,11 @@
  * Service API pour appeler le backend Django (backend_PPM)
  * Ce service gère désormais les 3 types de marchés : Travaux, Biens, Consultance
  */
+import { api } from "./config";
+
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL;
 export const API_RH_URL = process.env.NEXT_PUBLIC_API_RH_URL
-const SESSION_EXPIRED_MESSAGE = "Session expirée. Connecte-toi puis réessaie.";
-
-const clearSessionAndRedirectToLogin = () => {
-  if (typeof window === "undefined") return;
-  localStorage.removeItem("access_token");
-  localStorage.removeItem("refresh_token");
-  window.location.href = "/auth/login";
-};
-
-const throwSessionExpiredError = (): never => {
-  clearSessionAndRedirectToLogin();
-  throw new Error(SESSION_EXPIRED_MESSAGE);
-};
 
 // Interface commune pour un marché (Travaux, Biens ou Consultance)
 // Note: Les champs peuvent varier légèrement entre les modèles Django,
@@ -177,7 +166,7 @@ const getEndpoint = (type: "Travaux" | "Biens" | "Consultance") => {
       : type === "Biens"
         ? "biens"
         : "consultances";
-  return `${API_BASE_URL}/api/ppm/${segment}`;
+  return `/ppm/${segment}`;
 };
 
 const toDateValue = (value: unknown): string | null => {
@@ -192,35 +181,14 @@ const toDateValue = (value: unknown): string | null => {
 export async function getAllProcurements(): Promise<Procurement[]> {
   try {
     const urls = [
-      `${API_BASE_URL}/api/ppm/travaux/list/`,
-      `${API_BASE_URL}/api/ppm/biens/list/`,
-      `${API_BASE_URL}/api/ppm/consultances/list/`,
+      `/ppm/travaux/list/`,
+      `/ppm/biens/list/`,
+      `/ppm/consultances/list/`,
     ];
 
     const responses = await Promise.all(
       urls.map(async (url): Promise<BackendListResponse> => {
-        const res = await fetch(url, { cache: "no-store" }).catch((err) => {
-          const detail = err instanceof Error ? err.message : String(err);
-          throw new Error(
-            `Impossible de joindre l'API (${url}). Détail: ${detail}`,
-          );
-        }); // Ajout de no-store pour éviter les problèmes de cache
-
-        if (!res.ok) {
-          const responseForText = res.clone();
-          const body = await responseForText.text().catch(() => "");
-          const snippet = body.trim().slice(0, 300);
-          throw new Error(
-            `Erreur API (${url}) (HTTP ${res.status})${snippet ? ` : ${snippet}` : ""}`,
-          );
-        }
-        const data = await res
-          .json()
-          .catch(() => ({ travaux: [], biens: [], consultance: [] }));
-
-        // 🔍 DEBUG - Voir ce que retourne chaque endpoint
-        console.log(`Réponse de ${url}:`, data);
-
+        const { data } = await api.get<BackendListResponse>(url);
         return data;
       }),
     );
@@ -354,14 +322,8 @@ export async function getProcurementById(
     }
 
     const endpoint = getEndpoint(type);
-    // Note: Les URLs Django semblent être orientées action (list/add),
-    // il faudra vérifier s'il existe une vue 'detail' standard : api/Travaux/{id}/
-    // Si ce n'est pas le cas, on devra peut-être filtrer la liste.
-    // Supposons pour l'instant une URL standard REST :
-    const response = await fetch(`${endpoint}/${id}/`);
-
-    if (!response.ok) throw new Error("Marché non trouvé");
-    return (await response.json()) as Procurement;
+    const { data } = await api.get(`${endpoint}/${id}/`);
+    return data as Procurement;
   } catch (error) {
     console.error("Erreur API:", error);
     return null;
@@ -384,29 +346,13 @@ export async function createProcurement(
   try {
     let endpoint = "";
     if (data.type === "Travaux")
-      endpoint = `${API_BASE_URL}/api/ppm/travaux/add/`;
+      endpoint = `/ppm/travaux/add/`;
     else if (data.type === "Biens")
-      endpoint = `${API_BASE_URL}/api/ppm/biens/add/`;
+      endpoint = `/ppm/biens/add/`;
     else if (data.type === "Consultance")
-      endpoint = `${API_BASE_URL}/api/ppm/consultances/add/`;
+      endpoint = `/ppm/consultances/add/`;
 
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      const errorMessage =
-        errorData.error || "Erreur lors de la création du marché";
-      console.error("Erreur API:", errorMessage);
-      throw new Error(errorMessage);
-    }
-
-    const createdItem = await response.json();
+    const { data: createdItem } = await api.post(endpoint, payload);
     return { ...data, id: createdItem.id };
   } catch (error: unknown) {
     console.error("Erreur API:", error);
@@ -569,31 +515,15 @@ export async function updateProcurement(
   try {
     let endpoint = "";
     if (data.type === "Travaux")
-      endpoint = `${API_BASE_URL}/api/ppm/travaux/update/${id}/`;
+      endpoint = `/ppm/travaux/update/${id}/`;
     else if (data.type === "Biens")
-      endpoint = `${API_BASE_URL}/api/ppm/biens/update/${id}/`;
+      endpoint = `/ppm/biens/update/${id}/`;
     else if (data.type === "Consultance")
-      endpoint = `${API_BASE_URL}/api/ppm/consultances/update/${id}/`;
+      endpoint = `/ppm/consultances/update/${id}/`;
 
     console.log("Envoi payload update:", payload); // DEBUG
 
-    const response = await fetch(endpoint, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      const errorMessage =
-        errorData.error || "Erreur lors de la mise à jour du marché";
-      console.error("Erreur API:", errorMessage);
-      throw new Error(errorMessage);
-    }
-
-    const updatedItem = await response.json();
+    const { data: updatedItem } = await api.put(endpoint, payload);
     return { ...(data as Procurement), id: updatedItem.id };
   } catch (error: unknown) {
     console.error("Erreur API:", error);
@@ -612,75 +542,20 @@ export async function calculatePlanning(
 ): Promise<PlanningResponse> {
   let endpoint = "";
   if (type === "Consultance") {
-    endpoint = `${API_BASE_URL}/api/ppm/consultances/planning/`;
+    endpoint = `/ppm/consultances/planning/`;
   } else if (type === "Biens") {
-    endpoint = `${API_BASE_URL}/api/ppm/biens/planning/`;
+    endpoint = `/ppm/biens/planning/`;
   } else {
-    endpoint = `${API_BASE_URL}/api/ppm/travaux/planning/`;
+    endpoint = `/ppm/travaux/planning/`;
   }
   try {
-    const token =
-      typeof window !== "undefined"
-        ? localStorage.getItem("access_token")
-        : null;
-
-    const headers: HeadersInit = {
-      "Content-Type": "application/json",
-    };
-
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
-
     const payload =
       type === "Consultance"
         ? { date_fin: dateFin, methode, duree }
         : { date_livr: dateFin, methode, duree };
 
-    console.log("🔵 calculatePlanning payload:", payload); // DEBUG
-    console.log("🔵 calculatePlanning endpoint:", endpoint); // DEBUG
-
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(payload),
-    });
-
-    if (response.status === 401 || response.status === 403) {
-      throwSessionExpiredError();
-    }
-
-    if (!response.ok) {
-      const responseForJson = response.clone();
-      const responseForText = response.clone();
-
-      const errorData: unknown = await responseForJson.json().catch(() => null);
-      const errorText: string = await responseForText.text().catch(() => "");
-
-      const asTrimmedString = (v: unknown): string => {
-        return typeof v === "string" ? v.trim() : "";
-      };
-
-      const fromJson =
-        errorData && typeof errorData === "object"
-          ? asTrimmedString((errorData as { error?: unknown }).error) ||
-            asTrimmedString((errorData as { detail?: unknown }).detail) ||
-            asTrimmedString((errorData as { message?: unknown }).message)
-          : asTrimmedString(errorData);
-
-      const fromText = asTrimmedString(errorText);
-
-      const details = fromJson || fromText;
-      const message = details
-        ? `Erreur de calcul (HTTP ${response.status}) : ${details}`
-        : `Erreur de calcul (HTTP ${response.status})`;
-
-      throw new Error(message);
-    }
-
-    const result = await response.json();
-    console.log("🔵 calculatePlanning result:", result); // DEBUG
-    return result;
+    const { data } = await api.post<PlanningResponse>(endpoint, payload);
+    return data;
   } catch (error) {
     console.error("Erreur calcul:", error);
     throw error;
@@ -694,16 +569,6 @@ export async function getProcurementStatus(
   type: "Travaux" | "Biens" | "Consultance",
   row: Record<string, unknown>,
 ): Promise<string> {
-  const token =
-    typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
-
-  const headers: HeadersInit = {
-    "Content-Type": "application/json",
-  };
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
-
   let endpoint = "";
   let dates_prevues: Record<string, string | null> = {};
   let dates_reels: Record<string, string | null> = {};
@@ -711,8 +576,8 @@ export async function getProcurementStatus(
   if (type === "Travaux" || type === "Biens") {
     endpoint =
       type === "Travaux"
-        ? `${API_BASE_URL}/api/ppm/travaux/status/`
-        : `${API_BASE_URL}/api/ppm/biens/status/`;
+        ? `/ppm/travaux/status/`
+        : `/ppm/biens/status/`;
 
     dates_prevues = {
       listesetspecifications_prevu: toDateValue(row.specifications_date),
@@ -734,7 +599,7 @@ export async function getProcurementStatus(
       date_livraison_reel: toDateValue(row.delivery_date_actual),
     };
   } else {
-    endpoint = `${API_BASE_URL}/api/ppm/consultances/status/`;
+    endpoint = `/ppm/consultances/status/`;
 
     dates_prevues = {
       TdR_prevu: toDateValue(row.terms_of_reference),
@@ -765,23 +630,7 @@ export async function getProcurementStatus(
     };
   }
 
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({ dates_prevues, dates_reels }),
-  });
-
-  if (response.status === 401 || response.status === 403) {
-    throwSessionExpiredError();
-  }
-
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(
-      data.detail || data.error || "Erreur lors du calcul du statut",
-    );
-  }
-
+  const { data } = await api.post<{ statut?: string }>(endpoint, { dates_prevues, dates_reels });
   return data.statut || "Statut indisponible";
 }
 
@@ -793,73 +642,14 @@ export async function deleteProcurement(
   type: "Travaux" | "Biens" | "Consultance",
   password: string,
 ): Promise<boolean> {
-  const getHeaders = (token: string | null): HeadersInit => {
-    const headers: HeadersInit = {
-      "Content-Type": "application/json",
-    };
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
-    return headers;
-  };
-
-  const refreshAccessToken = async (): Promise<string | null> => {
-    if (typeof window === "undefined") return null;
-    const refresh = localStorage.getItem("refresh_token");
-    if (!refresh) return null;
-
-    const refreshResponse = await fetch(`${API_BASE_URL}/api/token/refresh/`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh }),
-    });
-
-    if (!refreshResponse.ok) return null;
-    const refreshData = await refreshResponse.json().catch(() => ({}));
-    const newAccess = refreshData.access as string | undefined;
-    if (!newAccess) return null;
-    localStorage.setItem("access_token", newAccess);
-    return newAccess;
-  };
-
   let endpoint = "";
   if (type === "Travaux")
-    endpoint = `${API_BASE_URL}/api/ppm/travaux/delete/${id}/`;
+    endpoint = `/ppm/travaux/delete/${id}/`;
   else if (type === "Biens")
-    endpoint = `${API_BASE_URL}/api/ppm/biens/delete/${id}/`;
-  else endpoint = `${API_BASE_URL}/api/ppm/consultances/delete/${id}/`;
+    endpoint = `/ppm/biens/delete/${id}/`;
+  else endpoint = `/ppm/consultances/delete/${id}/`;
 
-  let accessToken =
-    typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
-  if (!accessToken) {
-    throwSessionExpiredError();
-  }
-
-  let response = await fetch(endpoint, {
-    method: "DELETE",
-    headers: getHeaders(accessToken),
-    body: JSON.stringify({ password }),
-  });
-
-  if (response.status === 401) {
-    accessToken = await refreshAccessToken();
-    if (!accessToken) {
-      throwSessionExpiredError();
-    }
-    response = await fetch(endpoint, {
-      method: "DELETE",
-      headers: getHeaders(accessToken),
-      body: JSON.stringify({ password }),
-    });
-  }
-
-  if (!response.ok) {
-    const data = await response.json().catch(() => ({}));
-    throw new Error(
-      data.detail || data.error || "Erreur lors de la suppression",
-    );
-  }
-
+  await api.delete(endpoint, { data: { password } });
   return true;
 }
 
@@ -868,35 +658,14 @@ export async function stopProcurement(
   type: "Travaux" | "Biens" | "Consultance",
   password: string,
 ): Promise<{ statut: string }> {
-  const token =
-    typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
-  if (!token) {
-    throwSessionExpiredError();
-  }
-
-  const headers: HeadersInit = { "Content-Type": "application/json" };
-  headers.Authorization = `Bearer ${token}`;
-
   let endpoint = "";
   if (type === "Travaux")
-    endpoint = `${API_BASE_URL}/api/ppm/travaux/arreter/${id}/`;
+    endpoint = `/ppm/travaux/arreter/${id}/`;
   else if (type === "Biens")
-    endpoint = `${API_BASE_URL}/api/ppm/biens/arreter/${id}/`;
-  else endpoint = `${API_BASE_URL}/api/ppm/consultances/arreter/${id}/`;
+    endpoint = `/ppm/biens/arreter/${id}/`;
+  else endpoint = `/ppm/consultances/arreter/${id}/`;
 
-  const res = await fetch(endpoint, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({ password }),
-  });
-
-  if (res.status === 401 || res.status === 403) {
-    throwSessionExpiredError();
-  }
-
-  const data = await res.json().catch(() => ({}));
-
-  if (!res.ok) throw new Error(data.error || data.detail || "Erreur arrêt");
+  const { data } = await api.post(endpoint, { password });
   return { statut: data.statut || "Arrêté" };
 }
 
@@ -1159,34 +928,19 @@ const achatsFetchJson = async <T>(
   path: string,
   init: RequestInit = {},
 ): Promise<T> => {
-  const token =
-    typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
-
   const headers = new Headers(init.headers);
   if (!headers.has("Content-Type") && init.body) {
     headers.set("Content-Type", "application/json");
   }
-  if (token) headers.set("Authorization", `Bearer ${token}`);
 
-  const response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers });
+  const { data } = await api.request<T>({
+    url: path,
+    method: (init.method as "GET" | "POST" | "PUT" | "DELETE") || "GET",
+    headers: Object.fromEntries(headers),
+    data: init.body ? JSON.parse(init.body as string) : undefined,
+  });
 
-  if (response.status === 401 || response.status === 403) {
-    throwSessionExpiredError();
-  }
-
-  const data: unknown = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const detail =
-      data && typeof data === "object"
-        ? ((data as { detail?: unknown; error?: unknown }).detail ??
-            (data as { detail?: unknown; error?: unknown }).error) ||
-          data
-        : data;
-    throw new Error(
-      typeof detail === "string" && detail.trim() ? detail : "Erreur API",
-    );
-  }
-  return data as T;
+  return data;
 };
 
 export async function getCurrentUserProfile(): Promise<CurrentUserProfile> {

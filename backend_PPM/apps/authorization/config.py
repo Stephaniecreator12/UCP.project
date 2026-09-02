@@ -45,7 +45,10 @@ GROUP_DEFINITIONS = [
                 "evaluationseanceassignation": ["view", "add", "change", "delete"],
                 "evaluationoffre": ["view", "add", "change", "delete"],
                 "examenpreliminaire": ["view", "add", "change", "delete"],
+                "criteretemplate": ["view", "add", "change", "delete"],
+                "criteretechnique": ["view", "add", "change", "delete"],
                 "evaluationtechnique": ["view", "add", "change", "delete"],
+                "notetechniquecritere": ["view", "add", "change", "delete"],
                 "evaluationfinanciere": ["view", "add", "change", "delete"],
                 "evaluationconclusion": ["view", "add", "change", "delete"],
                 "decisionfinale": ["view", "add", "change", "delete"],
@@ -61,6 +64,9 @@ GROUP_DEFINITIONS = [
             "log": {
                 "logconsultation": ["view", "add", "change", "delete"],
                 "logdownload": ["view", "add", "change", "delete"],
+            },
+            "common": {
+                "referencechoice": ["view", "add", "change", "delete"],
             },
         },
     },

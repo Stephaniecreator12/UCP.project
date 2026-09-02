@@ -2,32 +2,67 @@ from datetime import datetime, timedelta
 from apps.ppm.models.Consultances import Consultance
 from apps.ppm.services.procurement_service import delete_service, arreter_service, statut_service
 
+
+def _consultance_to_dict(obj: Consultance) -> dict:
+    return {
+        "id": obj.id,
+        "ref_code_suivi": obj.ref_code_suivi or "",
+        "intitule": obj.intitule or "",
+        "agmoxdirection": obj.agmoxdirection or "",
+        "montant_estimatif": float(obj.montant_estimatif) if obj.montant_estimatif else 0,
+        "methode": obj.methode or "",
+        "approche": obj.approche or "",
+        "revue": obj.revue or "",
+        "forfaitxtemps": obj.forfaitxtemps or "",
+        "commentaire": obj.commentaire or "",
+        "statut": obj.statut or "",
+        "financing_sources": obj.financing_sources or [],
+        "reference_bailleur": obj.reference_bailleur or "",
+        "project_code": obj.project_code or "",
+        "TdR_prevu": obj.TdR_prevu.isoformat() if obj.TdR_prevu else None,
+        "ami_prevu": obj.ami_prevu.isoformat() if obj.ami_prevu else None,
+        "liste_restreinte_prevu": obj.liste_restreinte_prevu.isoformat() if obj.liste_restreinte_prevu else None,
+        "demande_proposition_prevu": obj.demande_proposition_prevu.isoformat() if obj.demande_proposition_prevu else None,
+        "date_invitation_prevu": obj.date_invitation_prevu.isoformat() if obj.date_invitation_prevu else None,
+        "date_ouverture_prevu": obj.date_ouverture_prevu.isoformat() if obj.date_ouverture_prevu else None,
+        "rapport_evaluation_prevu": obj.rapport_evaluation_prevu.isoformat() if obj.rapport_evaluation_prevu else None,
+        "ouverture_plis_prevu": obj.ouverture_plis_prevu.isoformat() if obj.ouverture_plis_prevu else None,
+        "projet_contrat_prevu": obj.projet_contrat_prevu.isoformat() if obj.projet_contrat_prevu else None,
+        "date_signature_prevu": obj.date_signature_prevu.isoformat() if obj.date_signature_prevu else None,
+        "date_fin_prevu": obj.date_fin_prevu.isoformat() if obj.date_fin_prevu else None,
+        "duree": obj.duree,
+        "TdR_reel": obj.TdR_reel.isoformat() if obj.TdR_reel else None,
+        "ami_reel": obj.ami_reel.isoformat() if obj.ami_reel else None,
+        "liste_restreinte_reel": obj.liste_restreinte_reel.isoformat() if obj.liste_restreinte_reel else None,
+        "demande_proposition_reel": obj.demande_proposition_reel.isoformat() if obj.demande_proposition_reel else None,
+        "date_invitation_reel": obj.date_invitation_reel.isoformat() if obj.date_invitation_reel else None,
+        "date_ouverture_reel": obj.date_ouverture_reel.isoformat() if obj.date_ouverture_reel else None,
+        "rapport_evaluation_reel": obj.rapport_evaluation_reel.isoformat() if obj.rapport_evaluation_reel else None,
+        "ouverture_plis_reel": obj.ouverture_plis_reel.isoformat() if obj.ouverture_plis_reel else None,
+        "projet_contrat_reel": obj.projet_contrat_reel.isoformat() if obj.projet_contrat_reel else None,
+        "date_signature_reel": obj.date_signature_reel.isoformat() if obj.date_signature_reel else None,
+        "date_fin_reel": obj.date_fin_reel.isoformat() if obj.date_fin_reel else None,
+    }
+
+
 def create_consultance(data: dict) -> Consultance:
     defaults = {
-        'ref_code_suivi': 'Code Suivi par défaut',
-        'agmoxdirection': 'Direction Générale',
-        'montant_estimatif': 1000000.00,
-        'methode': "Appel d'offres",
-        'approche': 'Approche 1',
-        'revue': 'Revue préalable',
-        'forfaitxtemps': 'Forfait',
-        'commentaire': 'Remarque par défaut',
-        'statut': 'En cours',
-        # dates prévues par défaut
-        'TdR_prevu': '2026-01-01',
-        'ami_prevu': '2026-01-01',
-        'liste_restreinte_prevu': '2026-01-01',
-        'demande_proposition_prevu': '2026-01-01',
-        'date_invitation_prevu': '2026-01-01',
-        'date_ouverture_prevu': '2026-01-01',
-        'rapport_evaluation_prevu': '2026-01-01',
-        'ouverture_plis_prevu': '2026-01-01',
-        'projet_contrat_prevu': '2026-01-01',
-        'date_signature_prevu': '2026-01-01',
-        'date_fin_prevu': '2026-01-01',
+        'ref_code_suivi': '',
+        'agmoxdirection': '',
+        'montant_estimatif': 0,
+        'methode': '',
+        'approche': '',
+        'revue': '',
+        'forfaitxtemps': '',
+        'commentaire': '',
+        'statut': '',
+        'financing_sources': [],
+        'reference_bailleur': None,
+        'project_code': None,
     }
     payload = {**defaults, **data}
     return Consultance.objects.create(**payload)
+
 
 def update_consultance(consultance_id: int, data: dict) -> Consultance:
     obj = Consultance.objects.get(id=consultance_id)
@@ -37,8 +72,10 @@ def update_consultance(consultance_id: int, data: dict) -> Consultance:
     obj.save()
     return obj
 
+
 def list_consultance() -> list:
-    return list(Consultance.objects.values())
+    return [_consultance_to_dict(obj) for obj in Consultance.objects.all()]
+
 
 def compute_planning_consultance(date_fin_str: str, methode: str = "SMC", duree: int = 60) -> dict:
     if not date_fin_str:
@@ -69,12 +106,14 @@ def compute_planning_consultance(date_fin_str: str, methode: str = "SMC", duree:
         'date_fin_prevu': date_fin.strftime('%Y-%m-%d'),
     }
 
+
 def compute_status_consultance(dates_prevues: dict, dates_reelles: dict, est_arrete: bool = False) -> str:
-    # Si tu veux prendre en compte est_arrete, adapte statut_service ou code ici
     return statut_service(dates_prevues, dates_reelles)
+
 
 def delete_consultance_http(request, consultance_id: int):
     return delete_service(request, Consultance, consultance_id)
+
 
 def stop_consultance_http(request, consultance_id: int):
     return arreter_service(request, Consultance, consultance_id)

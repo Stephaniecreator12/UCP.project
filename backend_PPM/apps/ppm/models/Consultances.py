@@ -68,10 +68,6 @@ class Consultance(models.Model):
         if errors:
             raise ValidationError(errors)
 
-    def save(self, *args, **kwargs):
-        self.full_clean()
-        super().save(*args, **kwargs)
-
     def __str__(self):
         return f"{self.ref_code_suivi or ''} — {self.intitule}" if self.ref_code_suivi else self.intitule
 

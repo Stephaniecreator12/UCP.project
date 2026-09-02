@@ -2,33 +2,60 @@ from datetime import datetime, timedelta
 from apps.ppm.models.Biens import Biens
 from apps.ppm.services.procurement_service import delete_service, arreter_service, statut_service
 
+
+def _biens_to_dict(obj: Biens) -> dict:
+    return {
+        "id": obj.id,
+        "code_suivi": obj.code_suivi or "",
+        "intitule": obj.intitule or "",
+        "montant_estimatif": float(obj.montant_estimatif) if obj.montant_estimatif else 0,
+        "agmo": obj.agmo or "",
+        "methode_epm": obj.methode_epm or "",
+        "approches": obj.approches or "",
+        "revue": obj.revue or "",
+        "listesetspecifications": obj.listesetspecifications.isoformat() if obj.listesetspecifications else None,
+        "prevu": obj.prevu or "",
+        "reel": obj.reel or "",
+        "commentaire": obj.commentaire or "",
+        "statut": obj.statut or "",
+        "financing_sources": obj.financing_sources or [],
+        "reference_bailleur": obj.reference_bailleur or "",
+        "project_code": obj.project_code or "",
+        "dossiers_appel_prevu": obj.dossiers_appel_prevu.isoformat() if obj.dossiers_appel_prevu else None,
+        "date_lancement_prevu": obj.date_lancement_prevu.isoformat() if obj.date_lancement_prevu else None,
+        "date_ouverture_prevu": obj.date_ouverture_prevu.isoformat() if obj.date_ouverture_prevu else None,
+        "rapport_evaluation_prevu": obj.rapport_evaluation_prevu.isoformat() if obj.rapport_evaluation_prevu else None,
+        "date_signature_prevu": obj.date_signature_prevu.isoformat() if obj.date_signature_prevu else None,
+        "date_livraison_prevu": obj.date_livraison_prevu.isoformat() if obj.date_livraison_prevu else None,
+        "duree": obj.duree,
+        "dossiers_appel_reel": obj.dossiers_appel_reel.isoformat() if obj.dossiers_appel_reel else None,
+        "date_lancement_reel": obj.date_lancement_reel.isoformat() if obj.date_lancement_reel else None,
+        "date_ouverture_reel": obj.date_ouverture_reel.isoformat() if obj.date_ouverture_reel else None,
+        "rapport_evaluation_reel": obj.rapport_evaluation_reel.isoformat() if obj.rapport_evaluation_reel else None,
+        "date_signature_reel": obj.date_signature_reel.isoformat() if obj.date_signature_reel else None,
+        "date_livraison_reel": obj.date_livraison_reel.isoformat() if obj.date_livraison_reel else None,
+    }
+
+
 def create_biens(data: dict) -> Biens:
     defaults = {
-        'code_suivi': 'Code Suivi par défaut',
-        'montant_estimatif': 1000000.00,
-        'agmo': 'Direction Générale',
-        'methode_epm': "Appel d'offres",
-        'approches': 'Approche 1',
-        'revue': 'Revue préalable',
-        'prevu': 'Prévu',
-        'reel': 'Réel',
-        'commentaire': 'Remarque par défaut',
-        'statut': 'En cours',
-        'dossiers_appel_prevu': '2026-01-01',
-        'date_lancement_prevu': '2026-01-01',
-        'date_ouverture_prevu': '2026-01-01',
-        'rapport_evaluation_prevu': '2026-01-01',
-        'date_signature_prevu': '2026-01-01',
-        'date_livraison_prevu': '2026-01-01',
-        'dossiers_appel_reel': '2026-01-01',
-        'date_lancement_reel': '2026-01-01',
-        'date_ouverture_reel': '2026-01-01',
-        'rapport_evaluation_reel': '2026-01-01',
-        'date_signature_reel': '2026-01-01',
-        'date_livraison_reel': '2026-01-01',
+        'code_suivi': '',
+        'montant_estimatif': 0,
+        'agmo': '',
+        'methode_epm': '',
+        'approches': '',
+        'revue': '',
+        'prevu': '',
+        'reel': '',
+        'commentaire': '',
+        'statut': '',
+        'financing_sources': [],
+        'reference_bailleur': None,
+        'project_code': None,
     }
     payload = {**defaults, **data}
     return Biens.objects.create(**payload)
+
 
 def update_biens(biens_id: int, data: dict) -> Biens:
     obj = Biens.objects.get(id=biens_id)
@@ -38,12 +65,12 @@ def update_biens(biens_id: int, data: dict) -> Biens:
     obj.save()
     return obj
 
+
 def list_biens() -> list:
-    return list(Biens.objects.values())
+    return [_biens_to_dict(obj) for obj in Biens.objects.all()]
+
 
 def compute_planning_biens(date_livr_str: str, methode: str = "AOI", duree: int = 60) -> dict:
-    # même logique que Travaux, ajuste la config si besoin
-    from datetime import datetime, timedelta
     if not date_livr_str:
         raise ValueError("La date de livraison est obligatoire")
     date_livr = datetime.strptime(date_livr_str, '%Y-%m-%d')
@@ -68,11 +95,14 @@ def compute_planning_biens(date_livr_str: str, methode: str = "AOI", duree: int 
         'date_livraison_prevu': date_livr.strftime('%Y-%m-%d')
     }
 
+
 def compute_status_biens(dates_prevues: dict, dates_reelles: dict) -> str:
     return statut_service(dates_prevues, dates_reelles)
 
+
 def delete_biens_http(request, biens_id: int):
     return delete_service(request, Biens, biens_id)
+
 
 def stop_biens_http(request, biens_id: int):
     return arreter_service(request, Biens, biens_id)

@@ -60,10 +60,6 @@ class Travaux(models.Model):
         if errors:
             raise ValidationError(errors)
 
-    def save(self, *args, **kwargs):
-        self.full_clean()
-        super().save(*args, **kwargs)
-
     def __str__(self):
         return f"{self.code_suivi or ''} — {self.intitule}" if self.code_suivi else self.intitule
 

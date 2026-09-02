@@ -38,6 +38,11 @@ export interface Procurement {
   status?: string;
   review_notes?: string;
 
+  // Sources de financement
+  financing_sources?: string[];
+  reference_bailleur?: string;
+  project_code?: string;
+
   // Dates prévues (Planifié)
   date_invitation?: string;
   date_opening_submissions?: string;
@@ -84,6 +89,11 @@ interface BackendProcurementItem {
   commentaire?: string;
   statut?: string;
   listesetspecifications?: string;
+
+  // Sources de financement
+  financing_sources?: string[];
+  reference_bailleur?: string;
+  project_code?: string;
 
   // Travaux & Biens - Dates prévues
   listesetspecifications_prevu?: string;
@@ -245,6 +255,10 @@ export async function getAllProcurements(): Promise<Procurement[]> {
         status: item.statut,
         agmo: item.agmo || item.agmoxdirection, // ← AJOUT
         pricing_type: item.forfaitxtemps, // ← AJOUT pour Consultance
+        // Sources de financement
+        financing_sources: Array.isArray(item.financing_sources) ? item.financing_sources : [],
+        reference_bailleur: item.reference_bailleur || undefined,
+        project_code: item.project_code || undefined,
       };
 
       if (type === "Consultance") {
@@ -428,9 +442,13 @@ function buildProcurementPayload(data: Procurement): Record<string, unknown> {
 
   const dataExtras = data as unknown as Record<string, unknown>;
 
-  const basePayload = {
+  const basePayload: Record<string, unknown> = {
     commentaire: data.review_notes || "",
     montant_estimatif: data.estimated_amount || 0,
+    // Sources de financement
+    financing_sources: data.financing_sources || [],
+    reference_bailleur: data.reference_bailleur || null,
+    project_code: data.project_code || null,
   };
 
   if (data.type === "Consultance") {

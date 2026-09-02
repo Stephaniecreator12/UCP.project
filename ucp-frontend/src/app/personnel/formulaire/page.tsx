@@ -204,8 +204,8 @@ const loadData = useCallback(async (): Promise<GridRow[]> => {
   const handleAddRow = () => {
     const newId = `_new_${Date.now()}`;
     const typeMapping: Record<MenuItemType, "Travaux" | "Biens" | "Consultance"> = { works: "Travaux", "goods-services": "Biens", consultants: "Consultance" };
-    const newRow: GridRow = { _id: newId, review_status: "post", type: typeMapping[activeMenu] };
-    config.columns.forEach((col) => { newRow[col.key] = ""; });
+    const newRow: GridRow = { _id: newId, review_status: "post", type: typeMapping[activeMenu], financing_sources: [], reference_bailleur: "", project_code: "" };
+    config.columns.forEach((col) => { newRow[col.key] = newRow[col.key] ?? ""; });
     setRows((prev) => [...prev, newRow]);
   };
 

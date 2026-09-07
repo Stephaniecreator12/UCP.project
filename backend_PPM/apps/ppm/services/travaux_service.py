@@ -55,7 +55,9 @@ def create_travaux(data: dict) -> Travaux:
         "project_code": None,
     }
     payload = {**defaults, **{k: v for k, v in data.items() if k in valid_fields}}
-    return Travaux.objects.create(**payload)
+    obj = Travaux(**payload)
+    obj.save()
+    return obj
 
 
 def update_travaux(travaux_id: int, data: dict) -> Travaux:

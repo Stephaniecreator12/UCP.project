@@ -21,6 +21,7 @@ import {
   deleteProcurement,
   getAllProcurements,
   getProcurementStatus,
+  saveProcurementStatus,
   Procurement,
   stopProcurement,
   updateProcurement,
@@ -212,6 +213,20 @@ const loadData = useCallback(async (): Promise<GridRow[]> => {
     setRows((prevRows) =>
       prevRows.map((row) => (row._id === rowId ? { ...row, [columnKey]: value } : row)),
     );
+
+    if (columnKey === "status" && !rowId.startsWith("_new_")) {
+      const numericId = Number.parseInt(rowId, 10);
+      if (Number.isFinite(numericId) && numericId > 0) {
+        const typeMapping: Record<MenuItemType, "Travaux" | "Biens" | "Consultance"> = {
+          works: "Travaux",
+          "goods-services": "Biens",
+          consultants: "Consultance",
+        };
+        saveProcurementStatus(numericId, typeMapping[activeMenu], String(value))
+          .then(() => setSaveMessage({ type: "success", message: "Statut enregistré" }))
+          .catch(() => setSaveMessage({ type: "error", message: "Erreur enregistrement statut" }));
+      }
+    }
   };
 
   const handleRowDelete = async (rowId: string) => {
@@ -281,22 +296,7 @@ const handleRowSave = async (row: GridRow) => {
 
     if (result) {
       setSaveMessage({ type: "success", message: "Enregistré avec succès" });
-      const refreshedRows = await loadData();
-
-      try {
-        const savedId = String(result.id ?? "");
-        const savedRow = refreshedRows.find((r) => String(r._id ?? "") === savedId);
-        if (savedRow) {
-          const newStatus = await getProcurementStatus(typeMapping[activeMenu], savedRow);
-          setRows((prev) =>
-            prev.map((r) =>
-              String(r._id ?? "") === savedId ? { ...r, status: newStatus } : r,
-            ),
-          );
-        }
-      } catch (error) {
-        console.error("Erreur calcul statut:", error);
-      }
+      await loadData();
     }
 
   } catch (e: unknown) {
@@ -312,6 +312,29 @@ const handleRowSave = async (row: GridRow) => {
 
   const handleRowUpdate = (updatedRow: GridRow) => {
     setRows((prevRows) => prevRows.map((row) => (row._id === updatedRow._id ? updatedRow : row)));
+  };
+
+  const handlePlanningCalculated = async (updatedRow: GridRow) => {
+    try {
+      const rowId = Number(String(updatedRow._id ?? ""));
+      if (!Number.isFinite(rowId) || rowId <= 0) return;
+      const typeMapping: Record<MenuItemType, "Travaux" | "Biens" | "Consultance"> = {
+        works: "Travaux",
+        "goods-services": "Biens",
+        consultants: "Consultance",
+      };
+      const procurementType = typeMapping[activeMenu];
+      await updateProcurement(rowId, { ...updatedRow, type: procurementType });
+      const newStatus = await getProcurementStatus(procurementType, updatedRow);
+      setRows((prev) =>
+        prev.map((r) =>
+          String(r._id ?? "") === String(updatedRow._id) ? { ...r, status: newStatus } : r,
+        ),
+      );
+      await saveProcurementStatus(rowId, procurementType, newStatus);
+    } catch (error) {
+      console.error("Erreur calcul statut après planning:", error);
+    }
   };
 
 
@@ -413,6 +436,7 @@ const handleRowSave = async (row: GridRow) => {
               onRowChange={handleRowChange}
               onRowSave={handleRowSave}
               onRowUpdate={handleRowUpdate}
+              onPlanningCalculated={handlePlanningCalculated}
               onRowDelete={handleRowDelete}
               onRowStop={handleRowStop}
               isLoading={isLoading || isSaving}

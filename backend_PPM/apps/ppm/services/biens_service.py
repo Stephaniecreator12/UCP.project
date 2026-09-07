@@ -55,7 +55,9 @@ def create_biens(data: dict) -> Biens:
         'project_code': None,
     }
     payload = {**defaults, **{k: v for k, v in data.items() if k in valid_fields}}
-    return Biens.objects.create(**payload)
+    obj = Biens(**payload)
+    obj.save()
+    return obj
 
 
 def update_biens(biens_id: int, data: dict) -> Biens:

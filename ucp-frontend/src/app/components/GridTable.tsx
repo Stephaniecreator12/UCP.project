@@ -12,6 +12,7 @@ interface GridTableProps {
   onRowDelete?: (rowId: string) => void;
   onRowStop?: (rowId: string) => void;
   onRowUpdate?: (updatedRow: GridRow) => void;
+  onPlanningCalculated?: (updatedRow: GridRow) => void;
   isLoading?: boolean;
 }
 
@@ -23,6 +24,7 @@ export default function GridTable({
   onRowDelete,
   onRowStop,
   onRowUpdate,
+  onPlanningCalculated,
   isLoading = false,
 }: GridTableProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -410,15 +412,11 @@ const getLatestDriverDates = (row: GridRow) => {
     const input = cell?.querySelector<HTMLInputElement>('input[type="date"]');
     
     if (input?.value) {
-      // Si un input existe et a une valeur, l'utiliser
       latestValues[key] = input.value;
-      console.log(`getLatestDriverDates - ${key} depuis input:`, input.value); // DEBUG
     } else {
-      // Sinon, utiliser la valeur du row
       const value = row[key];
       if (value && typeof value === 'string' && value.trim() !== '') {
         latestValues[key] = value;
-        console.log(`getLatestDriverDates - ${key} depuis row:`, value); // DEBUG
       }
     }
   });
@@ -439,13 +437,9 @@ const getLatestDriverDates = (row: GridRow) => {
 
 const handleCalculate = async (row: GridRow) => {
   saveScrollPosition();
-  console.log("🟠 handleCalculate start - row reçue:", row);
   
-  // Récupérer les dernières valeurs des champs de date directement depuis le DOM
   const latestDriverDates = getLatestDriverDates(row);
-  console.log("🟠 latestDriverDates:", latestDriverDates);
   
-  // IMPORTANT: Utiliser la date du DOM si disponible, sinon celle du row
   const driverDate = String(
     latestDriverDates.delivery_date ||
     latestDriverDates.mission_end_date ||
@@ -455,7 +449,6 @@ const handleCalculate = async (row: GridRow) => {
     row.mission_end_date_actual ||
     ""
   );
-  console.log("🟠 driverDate utilisée:", driverDate);
   
   if (!driverDate) {
     alert("Veuillez d'abord saisir une date de fin (Livraison ou Fin de mission).");
@@ -472,9 +465,7 @@ const handleCalculate = async (row: GridRow) => {
     const { calculatePlanning } = await import("@/services/api");
     const type = (row.type as "Travaux" | "Biens" | "Consultance" | undefined) ?? "Travaux";
     const newDates = await calculatePlanning(type, driverDate, String(row.method).toLowerCase());
-    console.log("🟠 nouvelles dates reçues de l'API:", newDates);
 
-    // Construction des nouvelles dates calculées
     let mappedDates: GridRow = {};
     
     if (type === "Consultance") {
@@ -486,7 +477,7 @@ const handleCalculate = async (row: GridRow) => {
         financial_opening_date: newDates.ouverture_plis_prevu,
         contract_date: newDates.date_signature_prevu,
         mission_end_date: newDates.date_fin_prevu,
-        technical_evaluation: newDates.evaluation_technique_prevu,
+        technical_evaluation: newDates.rapport_evaluation_prevu,
         contract_draft: newDates.projet_contrat_prevu,
         invitation_date: newDates.date_invitation_prevu,
         restricted_list: newDates.liste_restreinte_prevu,
@@ -504,44 +495,19 @@ const handleCalculate = async (row: GridRow) => {
       };
     }
 
-    console.log("Nouvelles dates calculées:", mappedDates);
-    console.log("Anciennes dates:", {
-      // Pour Consultance
-      terms_of_reference: row.terms_of_reference,
-      ami: row.ami,
-      request_for_proposal: row.request_for_proposal,
-      submissions_opening_date: row.submissions_opening_date,
-      financial_opening_date: row.financial_opening_date,
-      contract_date: row.contract_date,
-      mission_end_date: row.mission_end_date,
-      technical_evaluation: row.technical_evaluation,
-      contract_draft: row.contract_draft,
-      invitation_date: row.invitation_date,
-      restricted_list: row.restricted_list,
-      // Pour Travaux/Biens
-      tender_documents_date: row.tender_documents_date,
-      launch_date: row.launch_date,
-      opening_date: row.opening_date,
-      delivery_date: row.delivery_date,
-      specifications_date: row.specifications_date,
-    });
-
-    console.log("🟠 mappedDates à appliquer:", mappedDates);
-    
     if (onRowUpdate && row._id) {
-      console.log("🟠 Appel onRowUpdate avec:", {
-        ...row,
-        ...mappedDates,
-      });
-      
-      onRowUpdate({
+      const updatedRow = {
         ...row,
         ...mappedDates,
         ...(type === "Consultance" ? { pricing_type: String(row.pricing_type ?? "").trim() || "forfait" } : {}),
         _isCalculated: true
-      });
+      };
+      
+      onRowUpdate(updatedRow);
+      if (onPlanningCalculated) {
+        onPlanningCalculated(updatedRow);
+      }
     } else {
-      console.log("🟠 onRowUpdate non défini ou row._id manquant!");
     }
     
     alert("Calcul terminé avec succès !");
@@ -554,7 +520,7 @@ const handleCalculate = async (row: GridRow) => {
     const normalizedStatus = String(row.status ?? "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     if (normalizedStatus === "arrete") return false;
     const isConsultanceForfaitAfterCalc = row.type === "Consultance" && row._isCalculated === true && String(row.pricing_type ?? "forfait").toLowerCase() === "forfait";
-    if (column.type === "action_button" || column.key === "status" || column.readonly || column.editable === false) return false;
+    if (column.type === "action_button" || column.readonly || column.editable === false) return false;
     if (!isActual && column.type === "date") {
       if (row._isCalculated === true) return true;
       if (column.key === "delivery_date" || column.key === "mission_end_date") return true;
@@ -683,21 +649,17 @@ const handleCalculate = async (row: GridRow) => {
                   </td>
 
                       {columns.map((column) => {
-                            const isStatusColumn = column.key === "status";
                             const isColumnEditableForRow = column.isSplit 
                               ? (isCellEditable(row, column, false) || isCellEditable(row, column, true)) 
                               : isCellEditable(row, column, false);
                             
                             const cellValue = getCellValue(row, column);
-                            
-                            const statusDisplayValue = cellValue; 
-                            const statusToneClass = isStatusColumn ? getStatusToneClass(statusDisplayValue) : "";
                         return (
                     <td
                       key={`${row._id}-${column.key}`}
                       data-col-key={column.key}
-                      className={`align-middle border border-[#d9dee3] ${isStatusColumn ? "" : isRowStopped ? "" : isColumnEditableForRow ? "bg-white group-hover:bg-[#f8fbf9]" : "bg-[#f7f8f9]"} ${isRowStopped ? "pointer-events-none select-none" : ""}`}
-                      style={{ width: getColumnWidth(column), minWidth: getColumnWidth(column), padding: isStatusColumn ? "0" : "4px 8px", cursor: isColumnEditableForRow && !isStatusColumn ? "pointer" : "not-allowed" }}
+                      className={`align-middle border border-[#d9dee3] ${isRowStopped ? "" : isColumnEditableForRow ? "bg-white group-hover:bg-[#f8fbf9]" : "bg-[#f7f8f9]"} ${isRowStopped ? "pointer-events-none select-none" : ""}`}
+                      style={{ width: getColumnWidth(column), minWidth: getColumnWidth(column), padding: "4px 8px", cursor: isColumnEditableForRow ? "pointer" : "not-allowed" }}
                     >
                       {column.isSplit ? (
                         <div className="flex flex-col h-full">
@@ -760,19 +722,18 @@ const handleCalculate = async (row: GridRow) => {
                         </div>
                       ) : (
                         <div
-                          className={isStatusColumn ? `flex items-center justify-center rounded-full m-[0.35rem] text-[0.74rem] font-bold border border-[#d9dee3] h-full w-full ${statusToneClass}` : "h-full w-full p-2 flex items-center justify-center"}
+                          className="h-full w-full p-2 flex items-center justify-center"
                           onClick={() => { if (column.type === "action_button" && column.key === "action_calculation") handleCalculate(row); }}
                         >
                           {column.type === "action_button" ? (
                             <button className="w-full box-border py-[6px] px-2 rounded-[9px] bg-gradient-to-r from-emerald-600 to-emerald-700 text-white border border-emerald-500 shadow-[0_8px_14px_-10px_rgba(5,150,105,0.4)] font-['ManRope Fallback'] text-[0.89rem] font-bold whitespace-nowrap text-center tracking-[0.01em] leading-[1.05] hover:from-emerald-700 hover:to-emerald-800 transition-all" onClick={(e) => { e.stopPropagation(); handleCalculate(row); }}>
                               Planifier
                             </button>
-                          ) : isColumnEditableForRow && !isStatusColumn ? (
+                          ) : isColumnEditableForRow ? (
                             <GridCell column={column} value={row[column.key] ?? ""} onChange={(val) => commitCellValue(row, column, column.key, val, false)} onBlur={() => undefined} onConfirm={(val) => commitCellValue(row, column, column.key, val, true)} onValidationMessage={showDateValidationPopup} onKeyDown={handleClassicInputKeyDown} minDate={column.type === "date" ? getDateBounds(row, column.key).minDate : undefined} maxDate={column.type === "date" ? getDateBounds(row, column.key).maxDate : undefined} />
                           ) : (
                             <div className="flex items-center justify-center text-center min-h-[18px] py-[0.2rem] px-[0.2rem] text-[0.82rem]">
-                              {isStatusColumn ? statusDisplayValue : 
-                              column.type === "date" ? formatDateForDisplay(cellValue) : cellValue}
+                              {column.type === "date" ? formatDateForDisplay(cellValue) : cellValue}
                              </div>
                           )}
                         </div>

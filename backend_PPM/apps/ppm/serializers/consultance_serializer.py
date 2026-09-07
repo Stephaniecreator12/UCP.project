@@ -15,6 +15,18 @@ class ConsultanceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Consultance
         fields = "__all__"
+        extra_kwargs = {
+            'intitule': {'required': False},
+            'montant_estimatif': {'required': False},
+            'methode': {'required': False, 'allow_blank': True},
+            'approche': {'required': False, 'allow_blank': True},
+            'revue': {'required': False, 'allow_blank': True},
+            'ref_code_suivi': {'required': False, 'allow_blank': True},
+            'agmoxdirection': {'required': False, 'allow_blank': True},
+            'forfaitxtemps': {'required': False, 'allow_blank': True},
+            'commentaire': {'required': False, 'allow_blank': True},
+            'statut': {'required': False, 'allow_blank': True},
+        }
 
     def validate_financing_sources(self, value):
         if not isinstance(value, list):

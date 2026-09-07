@@ -1,5 +1,7 @@
 from datetime import datetime
+
 from django.contrib.auth import authenticate
+from django.utils import timezone
 from rest_framework.response import Response
 
 def delete_service(request, model_class, id):
@@ -30,7 +32,7 @@ def arreter_service(request, model_class, id):
     return Response({"ok": True, "id": item.id, "statut": item.statut, "message": "Arrêté avec succès"}, status=200)
 
 def statut_service(dates_prevues: dict, dates_reelles: dict):
-    aujourdhui = datetime.now().date()
+    aujourdhui = timezone.now().date()
     etapes_cles = list(dates_prevues.keys())
     total = len(etapes_cles)
     if total == 0:
@@ -61,3 +63,13 @@ def statut_service(dates_prevues: dict, dates_reelles: dict):
     if date_suivante and date_suivante < aujourdhui:
         return "En cours (en retard)"
     return "En cours (dans les temps)"
+
+def save_statut_service(request, model_class, item_id):
+    try:
+        item = model_class.objects.get(id=item_id)
+    except model_class.DoesNotExist:
+        return Response({'error': 'Élément non trouvé'}, status=404)
+    statut = request.data.get('statut', '')
+    item.statut = statut
+    item.save(update_fields=['statut'])
+    return Response({'id': item.id, 'statut': item.statut}, status=200)

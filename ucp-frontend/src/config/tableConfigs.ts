@@ -220,12 +220,19 @@ export const WORKS_GOODS_COLUMNS: ColumnConfig[] = [
   },
   {
     key: "status",
-    label: "status",
-    width: "150px",
-    readonly: true,
-    editable: false,
-    calculated: true,
-    calculateValue: (row) => String(row.status ?? "-"),
+    label: "Statut",
+    width: "180px",
+    type: "select",
+    editable: true,
+    options: [
+      { value: "Non démarré (dans les temps)", label: "Non démarré (dans les temps)" },
+      { value: "Non démarré (en retard)", label: "Non démarré (en retard)" },
+      { value: "En cours (dans les temps)", label: "En cours (dans les temps)" },
+      { value: "En cours (en retard)", label: "En cours (en retard)" },
+      { value: "Terminé", label: "Terminé" },
+      { value: "Arrêté", label: "Arrêté" },
+      { value: "Données insuffisantes", label: "Données insuffisantes" },
+    ],
   },
 ];
 
@@ -450,12 +457,19 @@ export const CONSULTANTS_COLUMNS: ColumnConfig[] = [
   },
   {
     key: "status",
-    label: "status",
-    width: "150px",
-    readonly: true,
-    editable: false,
-    calculated: true,
-    calculateValue: (row) => String(row.status ?? "-"),
+    label: "Statut",
+    width: "180px",
+    type: "select",
+    editable: true,
+    options: [
+      { value: "Non démarré (dans les temps)", label: "Non démarré (dans les temps)" },
+      { value: "Non démarré (en retard)", label: "Non démarré (en retard)" },
+      { value: "En cours (dans les temps)", label: "En cours (dans les temps)" },
+      { value: "En cours (en retard)", label: "En cours (en retard)" },
+      { value: "Terminé", label: "Terminé" },
+      { value: "Arrêté", label: "Arrêté" },
+      { value: "Données insuffisantes", label: "Données insuffisantes" },
+    ],
   },
 ];
 

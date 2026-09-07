@@ -62,7 +62,9 @@ def create_consultance(data: dict) -> Consultance:
         'project_code': None,
     }
     payload = {**defaults, **{k: v for k, v in data.items() if k in valid_fields}}
-    return Consultance.objects.create(**payload)
+    obj = Consultance(**payload)
+    obj.save()
+    return obj
 
 
 def update_consultance(consultance_id: int, data: dict) -> Consultance:
@@ -95,9 +97,13 @@ def compute_planning_consultance(date_fin_str: str, methode: str = "SMC", duree:
         raise ValueError(f"Méthode '{methode}' non supportée")
     tdr_offset, ami_off, dem_off, rapp_off, ouv_off, proj_off = configs[methode]
     tdr = date_signature - timedelta(days=tdr_offset)
+    liste_restreinte_off = ami_off + int((dem_off - ami_off) * 0.4)
+    date_invitation_off = ami_off + int((dem_off - ami_off) * 0.7)
     return {
         'TdR_prevu': tdr.strftime('%Y-%m-%d'),
         'ami_prevu': (tdr + timedelta(days=ami_off)).strftime('%Y-%m-%d'),
+        'liste_restreinte_prevu': (tdr + timedelta(days=liste_restreinte_off)).strftime('%Y-%m-%d'),
+        'date_invitation_prevu': (tdr + timedelta(days=date_invitation_off)).strftime('%Y-%m-%d'),
         'demande_proposition_prevu': (tdr + timedelta(days=dem_off)).strftime('%Y-%m-%d'),
         'date_ouverture_prevu': (tdr + timedelta(days=dem_off)).strftime('%Y-%m-%d'),
         'rapport_evaluation_prevu': (tdr + timedelta(days=rapp_off)).strftime('%Y-%m-%d'),

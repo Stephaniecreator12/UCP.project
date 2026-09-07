@@ -15,6 +15,17 @@ class BiensSerializer(serializers.ModelSerializer):
     class Meta:
         model = Biens
         fields = "__all__"
+        extra_kwargs = {
+            'intitule': {'required': False},
+            'montant_estimatif': {'required': False},
+            'agmo': {'required': False, 'allow_blank': True},
+            'methode_epm': {'required': False, 'allow_blank': True},
+            'approches': {'required': False, 'allow_blank': True},
+            'revue': {'required': False, 'allow_blank': True},
+            'code_suivi': {'required': False, 'allow_blank': True},
+            'commentaire': {'required': False, 'allow_blank': True},
+            'statut': {'required': False, 'allow_blank': True},
+        }
 
     def validate_financing_sources(self, value):
         if not isinstance(value, list):

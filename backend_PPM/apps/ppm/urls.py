@@ -12,6 +12,7 @@ urlpatterns = [
     path("travaux/planning/", travaux_view.planning_travaux),
     path("travaux/status/", travaux_view.status_travaux_view),
     path("travaux/arreter/<int:id>/", travaux_view.stop_travaux_view),
+    path("travaux/statut/<int:id>/", travaux_view.save_statut_travaux),
     
     path("biens/add/", biens_view.add_biens),
     path("biens/update/<int:id>/", biens_view.edit_biens),
@@ -20,6 +21,7 @@ urlpatterns = [
     path("biens/status/", biens_view.status_biens_view),
     path("biens/delete/<int:id>/", biens_view.delete_biens_view),
     path("biens/arreter/<int:id>/", biens_view.stop_biens_view),
+    path("biens/statut/<int:id>/", biens_view.save_statut_biens),
     
     path("consultances/add/", consultances_view.add_consultance),
     path("consultances/update/<int:id>/", consultances_view.edit_consultance),
@@ -28,4 +30,5 @@ urlpatterns = [
     path("consultances/status/", consultances_view.status_consultance_view),
     path("consultances/delete/<int:id>/", consultances_view.delete_consultance_view),
     path("consultances/arreter/<int:id>/", consultances_view.stop_consultance_view),
+    path("consultances/statut/<int:id>/", consultances_view.save_statut_consultance),
 ]

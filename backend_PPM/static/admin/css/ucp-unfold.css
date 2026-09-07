@@ -146,9 +146,29 @@ a.primaryAction:hover {
 ::-webkit-scrollbar-thumb { background: #bfc8d0; border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: #627080; }
 
-/* ── Login page accent ── */
-.login-logo img {
-  border-radius: 12px;
-  border: 1px solid var(--ucp-line);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+/* ── Login page: override Unfold accent colors to UCP green ── */
+body.login .text-primary-600 {
+  color: var(--ucp-green) !important;
+}
+
+body.login .dark\:text-primary-500 {
+  color: var(--ucp-green) !important;
+}
+
+body.login button[type="submit"] {
+  background: var(--ucp-green) !important;
+}
+
+body.login button[type="submit"]:hover {
+  background: var(--ucp-green-strong) !important;
+}
+
+body.login a.text-primary-600,
+body.login a.dark\:text-primary-500 {
+  color: var(--ucp-green) !important;
+}
+
+body.login a.text-primary-600:hover,
+body.login a.dark\:text-primary-500:hover {
+  color: var(--ucp-green-strong) !important;
 }

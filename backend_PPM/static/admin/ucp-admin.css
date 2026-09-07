@@ -1551,49 +1551,29 @@ input[type="file"] {
 }
 
 /* ════════════════════════════════════════════════════════════════
-   13. LOGIN PAGE — matching ucp-frontend login design
+   13. LOGIN PAGE — Unfold layout + UCP branding
    ════════════════════════════════════════════════════════════════ */
 
 body.login {
   background: linear-gradient(180deg, #f5f6f6 0%, #eef1f0 100%) !important;
 }
 
-body.login #container {
-  display: flex !important;
-  justify-content: center !important;
-  align-items: center !important;
-  min-height: 100vh !important;
-  padding: 24px !important;
-  box-sizing: border-box !important;
-  position: relative !important;
+/* ── Override Unfold's unauthenticated layout for login ── */
+body.login .ucp-login-page {
+  background: transparent !important;
 }
 
-#container.login #header {
-  background: none !important;
-  border: none !important;
-  box-shadow: none !important;
-  position: static !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-  min-height: 0 !important;
-  padding: 0 !important;
+body.login #page {
+  background: transparent !important;
 }
 
-#container.login .ucp-header-inner {
-  display: none !important;
-}
-
-#container.login #content,
-#container.login .main,
-#container.login #main {
-  width: 100% !important;
+body.login #page > .flex > .w-full {
   max-width: 420px !important;
-  padding: 0 !important;
-  margin: 0 auto !important;
 }
 
-#container.login .content {
-  padding: 0 !important;
+/* ── Hide Unfold's default unauthenticated header (back link + theme toggle) ── */
+body.login .absolute.flex.flex-row {
+  display: none !important;
 }
 
 /* ── Floating background orbs (matching frontend) ── */
@@ -1788,29 +1768,28 @@ body.login #container {
   background: linear-gradient(90deg, rgba(34, 197, 94, 0), rgba(34, 197, 94, 0.8), rgba(34, 197, 94, 0)) !important;
 }
 
-/* ── Form ── */
-#container.login form {
+/* ── Form overrides (inside Unfold layout) ── */
+.ucp-login-card form {
   margin: 0 !important;
 }
 
-#container.login .form-row {
-  padding: 10px 0 !important;
-  border: none !important;
-  overflow: visible !important;
+/* ── Unfold field wrapper ── */
+.ucp-login-card .form-field {
+  margin-bottom: 16px !important;
 }
 
-#container.login .form-row label {
+/* ── Labels (via Unfold helpers) ── */
+.ucp-login-card .form-field label,
+.ucp-login-card .form-checkbox label {
   font-size: 13px !important;
   font-weight: 700 !important;
   color: #334155 !important;
   margin-bottom: 6px !important;
-  display: block !important;
-  padding-top: 0 !important;
-  text-align: left !important;
 }
 
-#container.login input[type="text"],
-#container.login input[type="password"] {
+/* ── Text & password inputs ── */
+.ucp-login-card input[type="text"],
+.ucp-login-card input[type="password"] {
   width: 100% !important;
   padding: 12px 16px !important;
   border: 1px solid var(--ucp-line) !important;
@@ -1825,28 +1804,19 @@ body.login #container {
   outline: none !important;
 }
 
-#container.login input[type="text"]:focus,
-#container.login input[type="password"]:focus {
+.ucp-login-card input[type="text"]:focus,
+.ucp-login-card input[type="password"]:focus {
   border-color: #10b981 !important;
   box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1) !important;
 }
 
-#container.login input[type="text"]::placeholder,
-#container.login input[type="password"]::placeholder {
+.ucp-login-card input[type="text"]::placeholder,
+.ucp-login-card input[type="password"]::placeholder {
   color: #94a3b8 !important;
 }
 
-/* ── Submit button ── */
-#container.login .submit-row {
-  background: transparent !important;
-  box-shadow: none !important;
-  padding: 12px 0 4px !important;
-  margin: 0 !important;
-  display: block !important;
-  border: none !important;
-}
-
-#container.login .submit-row input[type="submit"] {
+/* ── Submit button (Unfold primary button) ── */
+.ucp-login-submit {
   width: 100% !important;
   padding: 14px 24px !important;
   font-size: 14px !important;
@@ -1862,20 +1832,28 @@ body.login #container {
   transition: background 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease !important;
 }
 
-#container.login .submit-row input[type="submit"]:hover {
+.ucp-login-submit:hover {
   background: #14532d !important;
   transform: translateY(-1px) !important;
 }
 
-#container.login .submit-row input[type="submit"]:active {
+.ucp-login-submit:active {
   transform: translateY(0) !important;
 }
 
+/* ── Password reset link (Unfold secondary button) ── */
+.ucp-password-reset-link {
+  text-align: center !important;
+  margin-top: 4px !important;
+  font-family: var(--ucp-font) !important;
+  font-size: 13px !important;
+}
+
 /* ── Error note ── */
-#container.login .errornote {
-  background: var(--ucp-danger-50) !important;
-  border: 1px solid var(--ucp-danger-200) !important;
-  color: var(--ucp-danger-700) !important;
+.ucp-login-card .errornote {
+  background: #fff1f2 !important;
+  border: 1px solid #fecdd3 !important;
+  color: #be123c !important;
   border-radius: 16px !important;
   padding: 12px 16px !important;
   font-family: var(--ucp-font) !important;
@@ -1884,23 +1862,10 @@ body.login #container {
   position: relative !important;
 }
 
-/* ── Password reset link ── */
-#container.login .password-reset-link {
-  text-align: center !important;
-  margin-top: 12px !important;
-}
-
-#container.login .password-reset-link a {
-  color: var(--ucp-green) !important;
-  text-decoration: none !important;
-  font-family: var(--ucp-font) !important;
-  font-size: 13px !important;
-  font-weight: 600 !important;
-}
-
-#container.login .password-reset-link a:hover {
-  color: var(--ucp-green-strong) !important;
-  text-decoration: underline !important;
+/* ── Unfold error message blocks ── */
+.ucp-login-card .mb-6 .bg-red-50,
+.ucp-login-card .mb-6 .dark\\:bg-red-900\/20 {
+  border-radius: 16px !important;
 }
 
 /* ── Footer ── */
@@ -1913,10 +1878,6 @@ body.login #container {
   color: #94a3b8 !important;
   font-weight: 500 !important;
   font-family: var(--ucp-font) !important;
-}
-
-body.login .skip-to-content-link {
-  display: none !important;
 }
 
 /* ════════════════════════════════════════════════════════════════

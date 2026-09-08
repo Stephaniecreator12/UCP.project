@@ -22,6 +22,10 @@ import {
   VALIDATOR_GROUPS,
   FINANCE_GROUPS,
   MARCHE_GROUPS as MARKET_GROUPS,
+  RPM as RPM_GROUP,
+  GP as GP_GROUP,
+  CN as CN_GROUP,
+  COMPOSITION_VALIDATOR_GROUPS,
 } from "@/constants/groups";
 interface LoginResult {
   status: number;
@@ -362,4 +366,35 @@ export const fetchCurrentUser = async (): Promise<UserProfile> => {
     throw new Error("Impossible de récupérer le profil utilisateur");
   }
   return result.data;
+};
+
+export const getCurrentUser = fetchCurrentUser;
+
+export const isCompositionValidatorUser = (user: UserProfile | null) =>
+  !!user?.groups?.some(
+    (group): group is (typeof COMPOSITION_VALIDATOR_GROUPS)[number] =>
+      COMPOSITION_VALIDATOR_GROUPS.includes(
+        group as (typeof COMPOSITION_VALIDATOR_GROUPS)[number],
+      ),
+  );
+
+const COMPOSITION_ROLE_LABELS: Record<
+  (typeof COMPOSITION_VALIDATOR_GROUPS)[number],
+  string
+> = {
+  RPM: "Responsable Passation de Marché",
+  GP: "Gestionnaire de Programme",
+  CN: "Coordonnateur National",
+};
+
+export const getCompositionValidatorRoleLabel = (
+  user: UserProfile | null,
+): string => {
+  const group = user?.groups?.find(
+    (g): g is (typeof COMPOSITION_VALIDATOR_GROUPS)[number] =>
+      COMPOSITION_VALIDATOR_GROUPS.includes(
+        g as (typeof COMPOSITION_VALIDATOR_GROUPS)[number],
+      ),
+  );
+  return group ? COMPOSITION_ROLE_LABELS[group] : "";
 };

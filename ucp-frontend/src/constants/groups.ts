@@ -17,6 +17,11 @@ export const SECRETAIRE_CONTRACTUALISATION = "SECRETAIRE_CONTRACTUALISATION";
 export const AUDITEUR = "AUDITEUR";
 export const EVALUATEUR = "EVALUATEUR";
 export const PRESIDENT = "PRESIDENT";
+export const RPM = "RPM";
+export const GP = "GP";
+export const CN = "CN";
+
+export const COMPOSITION_VALIDATOR_GROUPS = [RPM, GP, CN] as const;
 
 export const VALIDATOR_GROUPS = [
   VALIDATEUR_HIERARCHIQUE,

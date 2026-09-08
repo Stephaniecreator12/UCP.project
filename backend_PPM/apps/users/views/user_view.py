@@ -4,10 +4,12 @@ from apps.authorization.constants import ADMIN, DEMANDEUR
 from apps.users.services.sync import sync_user_from_rh
 
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
+
+from apps.users.permissions import IsAdminGroup
 
 from apps.users.serializers.user_serializer import (
     UserSerializer,
@@ -47,7 +49,7 @@ def me(request):
     })
 
 @api_view(["GET"])
-@permission_classes([IsAuthenticated, IsAdminUser])
+@permission_classes([IsAuthenticated, IsAdminGroup])
 def list_users(request):
 
     users = User.objects.all().order_by("id")

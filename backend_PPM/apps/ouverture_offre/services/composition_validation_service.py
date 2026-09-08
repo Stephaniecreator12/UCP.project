@@ -7,6 +7,7 @@ from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from apps.authorization.constants import (
+    ADMIN,
     APPROBATEUR_NATIONAL,
     CN,
     GP,
@@ -57,6 +58,8 @@ def get_user_composition_role(user) -> str | None:
         return None
 
     group_names = set(user.groups.values_list("name", flat=True))
+    if ADMIN in group_names:
+        return ADMIN
     for group, role in COMPOSITION_GROUP_TO_ROLE.items():
         if group in group_names:
             return role
@@ -235,8 +238,10 @@ def list_composition_pending(user) -> list[dict]:
     if not role:
         raise PermissionDenied({"detail": "Accès réservé aux validateurs CN/GP/RPM."})
 
-    seances = (
-        SeanceOuverture.objects.filter(validations_composition__role=role)
+    is_admin = role == ADMIN
+
+    base_qs = (
+        SeanceOuverture.objects
         .filter(
             Q(validations_composition__notification_sent_at__isnull=False)
             | Q(
@@ -255,15 +260,20 @@ def list_composition_pending(user) -> list[dict]:
         .order_by("-date_soumission_membres", "-updated_at")
     )
 
+    if is_admin:
+        seances = base_qs
+    else:
+        seances = base_qs.filter(validations_composition__role=role)
+
     result = []
     for seance in seances:
-        validation = _get_validation_for_role(seance, role)
+        validation = _get_validation_for_role(seance, role) if not is_admin else _get_current_validation(seance)
         if not validation:
             continue
 
         if (
             validation.decision == ValidationCompositionMembre.Decision.EN_ATTENTE
-            and get_active_composition_role(seance) != role
+            and get_active_composition_role(seance) != validation.role
         ):
             continue
 
@@ -289,6 +299,8 @@ def get_composition_detail(seance_id: int, user) -> dict:
     if not role:
         raise PermissionDenied({"detail": "Accès réservé aux validateurs CN/GP/RPM."})
 
+    is_admin = role == ADMIN
+
     seance = (
         SeanceOuverture.objects.filter(pk=seance_id)
         .prefetch_related(
@@ -301,13 +313,13 @@ def get_composition_detail(seance_id: int, user) -> dict:
     if not seance:
         raise ValidationError({"detail": "Séance introuvable."})
 
-    validation = _get_validation_for_role(seance, role)
+    validation = _get_validation_for_role(seance, role) if not is_admin else _get_current_validation(seance)
     if not validation:
         raise PermissionDenied({"detail": "Vous n'êtes pas autorisé sur cette séance."})
 
     if (
         validation.decision == ValidationCompositionMembre.Decision.EN_ATTENTE
-        and get_active_composition_role(seance) != role
+        and get_active_composition_role(seance) != validation.role
     ):
         raise PermissionDenied({"detail": "Votre validation n'est pas encore active."})
 
@@ -384,6 +396,8 @@ def valider_composition(seance_id: int, user, commentaire: str = "") -> SeanceOu
     if not role:
         raise PermissionDenied({"detail": "Accès réservé aux validateurs CN/GP/RPM."})
 
+    is_admin = role == ADMIN
+
     seance = (
         SeanceOuverture.objects.select_for_update()
         .filter(pk=seance_id)
@@ -393,11 +407,12 @@ def valider_composition(seance_id: int, user, commentaire: str = "") -> SeanceOu
     if not seance or seance.statut != SeanceOuverture.Statut.EN_VALIDATION_MEMBRES:
         raise ValidationError({"detail": "Cette séance n'est pas en validation de composition."})
 
-    validation = _get_validation_for_role(seance, role)
+    validation = _get_validation_for_role(seance, role) if not is_admin else _get_current_validation(seance)
     if not validation:
         raise PermissionDenied({"detail": "Validation non autorisée pour votre rôle."})
 
-    if get_active_composition_role(seance) != role:
+    active_role = get_active_composition_role(seance)
+    if active_role != validation.role:
         raise PermissionDenied({"detail": "Votre validation n'est pas encore active."})
 
     if validation.decision != ValidationCompositionMembre.Decision.EN_ATTENTE:
@@ -431,6 +446,8 @@ def rejeter_composition(seance_id: int, user, commentaire: str = "") -> SeanceOu
     if not role:
         raise PermissionDenied({"detail": "Accès réservé aux validateurs CN/GP/RPM."})
 
+    is_admin = role == ADMIN
+
     seance = (
         SeanceOuverture.objects.select_for_update()
         .filter(pk=seance_id)
@@ -440,11 +457,12 @@ def rejeter_composition(seance_id: int, user, commentaire: str = "") -> SeanceOu
     if not seance or seance.statut != SeanceOuverture.Statut.EN_VALIDATION_MEMBRES:
         raise ValidationError({"detail": "Cette séance n'est pas en validation de composition."})
 
-    validation = _get_validation_for_role(seance, role)
+    validation = _get_validation_for_role(seance, role) if not is_admin else _get_current_validation(seance)
     if not validation:
         raise PermissionDenied({"detail": "Validation non autorisée pour votre rôle."})
 
-    if get_active_composition_role(seance) != role:
+    active_role = get_active_composition_role(seance)
+    if active_role != validation.role:
         raise PermissionDenied({"detail": "Votre validation n'est pas encore active."})
 
     if validation.decision != ValidationCompositionMembre.Decision.EN_ATTENTE:

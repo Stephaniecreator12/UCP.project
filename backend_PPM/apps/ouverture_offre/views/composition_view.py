@@ -3,6 +3,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.response import Response
 
+from apps.authorization.constants import ADMIN
 from apps.ouverture_offre.models import SeanceOuverture
 from apps.ouverture_offre.permissions import IsSecretaireOuLectureSeule
 from apps.ouverture_offre.serializers import (
@@ -22,11 +23,11 @@ from apps.ouverture_offre.services import get_visible_seance
 
 class IsCompositionValidateur(BasePermission):
     def has_permission(self, request, view):
-        return bool(
-            request.user
-            and request.user.is_authenticated
-            and get_user_composition_role(request.user)
-        )
+        if not request.user or not request.user.is_authenticated:
+            return False
+        if request.user.groups.filter(name=ADMIN).exists():
+            return True
+        return bool(get_user_composition_role(request.user))
 
 
 @api_view(["GET"])

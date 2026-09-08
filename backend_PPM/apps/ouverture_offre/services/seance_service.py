@@ -2,6 +2,7 @@ from django.contrib.auth import get_user_model
 from django.db import transaction
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from django.utils import timezone
+from apps.authorization.constants import ADMIN
 import re
 
 
@@ -123,7 +124,8 @@ def create_seance(validated_data, user):
 
 @transaction.atomic
 def update_seance(seance, validated_data, user):
-    if seance.secretaire_id != user.id:
+    is_admin = user.groups.filter(name=ADMIN).exists()
+    if not is_admin and seance.secretaire_id != user.id:
         raise PermissionDenied({"detail": "Seul le secretaire de cette seance peut la modifier."})
 
     if seance.statut not in [

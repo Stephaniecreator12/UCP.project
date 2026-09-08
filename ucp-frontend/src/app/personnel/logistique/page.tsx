@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useState, useRef } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Search, X, ChevronDown, Activity, PackageCheck, ChevronLeft, ChevronRight as ChevronRightIcon, CheckCircle } from "lucide-react";
 
 import TopHeader from "@/app/components/TopHeader";
@@ -34,6 +34,7 @@ import { getme } from "@/services/profile";
 import {
   DemandeAchat,
   listDemandesAchat,
+  type DashboardScope,
 } from "@/services/achats";
 
 type SectionKey = "all" | "action";
@@ -161,6 +162,8 @@ export default function MarcheDashboardPage() {
 function MarcheDashboardPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const basePath = pathname.startsWith("/personnel/marche") ? "/personnel/marche" : "/personnel/logistique";
   const filterParam = searchParams.get("filtre");
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   useEffect(() => {
@@ -181,17 +184,22 @@ function MarcheDashboardPageContent() {
   const [resolveIssueModalDemandeId, setResolveIssueModalDemandeId] = useState<number | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const searchParamsString = searchParams.toString();
+  const rawScope = (searchParams.get("scope") ?? "").trim().toLowerCase();
+  const dashboardScope: DashboardScope = rawScope === "all" ? "all" : "mine";
 
   const mineScopeHref = useMemo(() => {
     const params = new URLSearchParams(searchParamsString);
     params.delete("scope");
     const queryString = params.toString();
-    return queryString ? `/logistique?${queryString}` : "/logistique";
-  }, [searchParamsString]);
+    return queryString ? `${basePath}?${queryString}` : basePath;
+  }, [searchParamsString, basePath]);
 
   const allScopeHref = useMemo(() => {
-    return "/personnel/demande-achat?scope=all";
-  }, []);
+    const params = new URLSearchParams(searchParamsString);
+    params.set("scope", "all");
+    const queryString = params.toString();
+    return `${basePath}?${queryString}`;
+  }, [searchParamsString, basePath]);
 
   const showToast = (message: string) => {
     setToastMessage(message);
@@ -200,7 +208,7 @@ function MarcheDashboardPageContent() {
 
   const reloadDemandes = async () => {
     try {
-      const data = await listDemandesAchat("all");
+      const data = await listDemandesAchat(dashboardScope);
       setDemandes(data);
     } catch {}
   };
@@ -219,7 +227,7 @@ function MarcheDashboardPageContent() {
     const load = async () => {
       setLoading(true);
       try {
-        const data = await listDemandesAchat("all");
+        const data = await listDemandesAchat(dashboardScope);
         setDemandes(data);
         setError(null);
       } catch (err) {
@@ -229,7 +237,7 @@ function MarcheDashboardPageContent() {
       }
     };
     void load();
-  }, [currentUser, router]);
+  }, [currentUser, router, dashboardScope]);
 
   useEffect(() => {
     if (filterParam === "toutes") setActiveSection("all");
@@ -334,14 +342,22 @@ function MarcheDashboardPageContent() {
                   <button
                     type="button"
                     onClick={() => router.replace(mineScopeHref)}
-                    className="rounded-md bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors"
+                    className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                      dashboardScope === "mine"
+                        ? "bg-slate-900 text-white shadow-sm"
+                        : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                    }`}
                   >
                     Mes dossiers
                   </button>
                   <button
                     type="button"
                     onClick={() => router.replace(allScopeHref)}
-                    className="rounded-md px-3 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
+                    className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                      dashboardScope === "all"
+                        ? "bg-slate-900 text-white shadow-sm"
+                        : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                    }`}
                   >
                     Tous les dossiers
                   </button>

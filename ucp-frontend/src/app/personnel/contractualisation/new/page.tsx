@@ -4,6 +4,7 @@ import React, { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AlertCircle, ArrowLeft, Loader2 } from "lucide-react";
 import { createContrat } from "@/services/contractualisation";
+import { getToken } from "@/services/auth";
 import { fetchClassement } from "@/services/evaluationService";
 import TopHeader from "@/app/components/TopHeader";
 
@@ -13,6 +14,10 @@ function CreateContratPageContent() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!getToken()) {
+      router.replace("/auth/login");
+      return;
+    }
     const seanceIdStr = searchParams.get("seance_id");
     const offreIdStr = searchParams.get("offre_id");
 

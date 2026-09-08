@@ -24,6 +24,7 @@ import {
   updateEcheancier,
   deleteDocument,
 } from "@/services/contractualisation";
+import { getToken } from "@/services/auth";
 import { Contrat } from "@/types/contractualisation";
 import TopHeader from "@/app/components/TopHeader";
 
@@ -79,6 +80,10 @@ export default function ContratDetailPage() {
   const contratId = Number(params?.id);
 
   useEffect(() => {
+    if (!getToken()) {
+      router.replace("/auth/login");
+      return;
+    }
     if (Number.isNaN(contratId) || !contratId) {
       router.replace("/personnel/contractualisation");
       return;

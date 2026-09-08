@@ -56,6 +56,9 @@ const MENU_LINKS: MenuLink[] = [
       "MARCHES",
       "LOGISTIQUE",
       "SECRETAIRE_CONTRACTUALISATION",
+      "RPM",
+      "GP",
+      "CN",
     ],
     match: (p) => p === "/personnel/dashboard",
   },
@@ -136,6 +139,18 @@ const MENU_LINKS: MenuLink[] = [
     match: (p) => p.startsWith("/personnel/validation-ouverture"),
   },
   {
+    label: "Ouverture Offre",
+    href: "/personnel/ouverture_offre",
+    groups: ["ADMIN", "SECRETAIRE", "RPM", "GP", "CN"],
+    match: (p) => p.startsWith("/personnel/ouverture_offre") && !p.startsWith("/personnel/ouverture_offre/validation-membres"),
+  },
+  {
+    label: "Validation Composition",
+    href: "/personnel/ouverture_offre/validation-membres",
+    groups: ["ADMIN", "RPM", "GP", "CN"],
+    match: (p) => p.startsWith("/personnel/ouverture_offre/validation-membres"),
+  },
+  {
     label: "Évaluation des offres",
     href: "/personnel/evaluation_offre",
     groups: ["ADMIN", "AUDITEUR", "EVALUATEUR", "PRESIDENT"],
@@ -160,6 +175,8 @@ const getMenuIcon = (href: string) => {
   if (href === "/personnel/evaluation_offre") return FileCheck2;
   if (href === "/personnel/evaluation_offre/list") return ClipboardList;
   if (href === "/personnel/validation-ouverture") return FileCheck2;
+  if (href === "/personnel/ouverture_offre") return FileCheck2;
+  if (href === "/personnel/ouverture_offre/validation-membres") return FileCheck2;
   return ClipboardList;
 };
 

@@ -11,6 +11,13 @@ from .seance_view import (
     seance_validate_president,
     download_pv,
 )
+from .composition_view import (
+    composition_pending_list,
+    composition_detail,
+    composition_valider,
+    composition_rejeter,
+    seance_soumettre_membres,
+)
 
 __all__ = [
     "available_users", 
@@ -24,4 +31,9 @@ __all__ = [
     "seance_validate_member",
     "seance_validate_president",
     "download_pv",
+    "composition_pending_list",
+    "composition_detail",
+    "composition_valider",
+    "composition_rejeter",
+    "seance_soumettre_membres",
 ]

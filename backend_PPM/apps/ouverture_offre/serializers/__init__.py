@@ -1,5 +1,6 @@
 from .user_serializer import SimpleUserSerializer
 from .seance_serializer import (
+    CommissionMemberInputSerializer,
     MembreSeanceSerializer,
     OffreOuvertureSerializer,
     RejetSeanceSerializer,
@@ -12,6 +13,7 @@ from .seance_serializer import (
 
 __all__ = [
     "SimpleUserSerializer",
+    "CommissionMemberInputSerializer",
     "MembreSeanceSerializer",
     "SeanceOuvertureSerializer",
     "ValidationAccessSerializer",

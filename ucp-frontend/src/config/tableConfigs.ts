@@ -69,7 +69,7 @@ export const WORKS_GOODS_COLUMNS: ColumnConfig[] = [
     width: "130px",
     type: "text",
     editable: true,
-    placeholder: "Saisir AGMO",
+    placeholder: "Saisir Agmo",
   },
   {
     key: "financing_sources",

@@ -17,13 +17,13 @@ npm run dev
 ## Structure de la page
 
 - **Header** : badge « Mode présentation », rappel « 100% mocké », recherche plein texte, filtre présentateur (Tous/P1–P4), barre de progression des éléments vus.
-- **Sidebar (gauche)** : 10 groupes, 37 formulaires + dashboards. Un clic = un élément dans la zone principale. Checkmarks ✓/○ de suivi.
+- **Sidebar (gauche)** : 10 groupes, 41 formulaires + dashboards. Un clic = un élément dans la zone principale. Checkmarks ✓/○ de suivi.
 - **Zone principale** : bandeau vert (rôle d'origine contourné) + bloc utilité ámbré (🎯 utilité, 📜 règles, 🎤 script à lire) + le formulaire/dashboard mocké + navigation Précédent/Suivant.
 - **Toast** : `.ucp-toast--success` (réutilise `globals.css`) sur chaque soumission simulée.
 
 Tous les formulaires utilisent `useState` local + `onSubmit={(e) => { e.preventDefault(); notify(...) }}`.
 
-## Catalogue (37 éléments)
+## Catalogue (41 éléments)
 
 ### 1. Authentification — P1/P2
 | # | Élément sidebar | Fichier réel répliqué | Rôle contourné |
@@ -65,42 +65,48 @@ Tous les formulaires utilisent `useState` local + `onSubmit={(e) => { e.preventD
 | 19 | Saisie membres (CIN 12) | `personnel/ouverture_offre/membres/page.tsx` | Secrétaire |
 | 20 | Validation publique (lien e-mail) | `personnel/ouverture_offre/validation/[id]/page.tsx` | Commission sans JWT |
 | 21 | Validation composition | `personnel/ouverture_offre/validation-membres/page.tsx` | RPM/GP/CN |
+| 22 | Détail séance [id] (plis, enveloppes, scellé, commission, PV) | `personnel/ouverture_offre/[id]/page.tsx` → `components/SeanceOuvertureDetail.tsx` | Secrétaire/Admin |
+| 23 | Aiguillage validation (secrétaire / membre 4 étapes + accès direct) | `personnel/validation-ouverture/page.tsx` | Secrétaire + Commission |
 
 ### 6. Évaluation des offres — P2/P4
 | # | Élément | Réel | Rôle contourné |
 |---|---|---|---|
-| 22 | Wizard 6 étapes (double aveugle, 60/40) | `evaluation/components/EvaluationWizardForm.tsx` | Évaluateur assigné |
-| 23 | Évaluation 4 étapes (legacy) | `evaluation_offre/components/EvaluationForm.tsx` | Évaluateur |
-| 24 | Assignation 3 évaluateurs | `evaluation_offre/[id]/assign/page.tsx` | Secrétaire évaluation |
-| 25 | Offres + classement final | `evaluation/classement/[seanceId]/page.tsx` | Évaluateur/Secrétaire |
+| 24 | Wizard 6 étapes (double aveugle, 60/40) | `evaluation/components/EvaluationWizardForm.tsx` | Évaluateur assigné |
+| 25 | Évaluation 4 étapes (legacy) | `evaluation_offre/components/EvaluationForm.tsx` | Évaluateur |
+| 26 | Assignation 3 évaluateurs | `evaluation_offre/[id]/assign/page.tsx` | Secrétaire évaluation |
+| 27 | Offres + classement final | `evaluation/classement/[seanceId]/page.tsx` | Évaluateur/Secrétaire |
+| 28 | Mes évaluations assignées (badges EXAMEN→CONSOLIDEE) | `evaluation_offre/list/page.tsx` | Évaluateur |
 
 ### 7. TDR / ST — P1
 | # | Élément | Réel | Rôle contourné |
 |---|---|---|---|
-| 26 | Nouveau TDR/ST | `personnel/TdrSt/new/page.tsx` | Demandeur |
-| 27 | Suivi + décisions | `personnel/TdrSt/formulaire/page.tsx` | Point focal/Gestionnaire |
+| 29 | Nouveau TDR/ST | `personnel/TdrSt/new/page.tsx` | Demandeur |
+| 30 | Suivi + décisions | `personnel/TdrSt/formulaire/page.tsx` | Point focal/Gestionnaire |
+| 31 | Brouillon express (modale 2 champs) | `personnel/TdrSt/formulaire/components/DocumentFormModal.tsx` | Demandeur |
 
 ### 8. Contractualisation — P4
 | # | Élément | Réel | Rôle contourné |
 |---|---|---|---|
-| 28 | Init contrat (rang 1 auto) | `personnel/contractualisation/new/page.tsx` | Secrétaire |
-| 29 | Dossier NOTI5 (5 sections, 100 %) | `personnel/contractualisation/[id]/page.tsx` | Secrétaire contractualisation |
+| 32 | Init contrat (rang 1 auto) | `personnel/contractualisation/new/page.tsx` | Secrétaire |
+| 33 | Dossier NOTI5 (5 sections, 100 %) | `personnel/contractualisation/[id]/page.tsx` | Secrétaire contractualisation |
 
 ### 9. Espaces métier — P3
 | # | Élément | Réel | Rôle contourné |
 |---|---|---|---|
-| 30 | Validation / Passation / Logistique (filtres partagés) | `validation/page.tsx` + `passation/page.tsx` + `logistique/page.tsx` | Valideurs / Achats / Logistique |
+| 34 | Validation / Passation / Logistique (filtres partagés) | `validation/page.tsx` + `passation/page.tsx` + `logistique/page.tsx` | Valideurs / Achats / Logistique |
 
 ### 10. Dashboards analytiques — P1/P2/P3/P4
 | # | Élément | Réel | Rôle contourné |
 |---|---|---|---|
-| 31 | Dashboard passations (donuts) | `personnel/dashboard/page.tsx` | Personnel connecté |
-| 32 | Radar demande-achat (12 sections) | `personnel/demande-achat/dashboard/page.tsx` | Tous |
-| 33 | Analytics TDR/ST | `personnel/TdrSt/dashboard/page.tsx` | Pilotes |
-| 34 | Admin DAO & traçabilité | `personnel/log-dashboard/page.tsx` | Admin |
-| 35 | Suivi contractualisation | `personnel/contractualisation/page.tsx` | Secrétaire |
-| 36 | Pilotage évaluation + ouvertures | `evaluation_offre/page.tsx` + `ouverture_offre/page.tsx` | Secrétaire |
-| 37 | PPM admin Django (back-office, filtres GET + donuts + 4 tables) | `backend_PPM/apps/ppm/views/dashboard_view.py` + `templates/admin/ppm/dashboard.html` | Admin Django (staff) |
+| 35 | Dashboard passations (donuts) | `personnel/dashboard/page.tsx` | Personnel connecté |
+| 36 | Radar demande-achat (12 sections) | `personnel/demande-achat/dashboard/page.tsx` | Tous |
+| 37 | Analytics TDR/ST | `personnel/TdrSt/dashboard/page.tsx` | Pilotes |
+| 38 | Admin DAO & traçabilité | `personnel/log-dashboard/page.tsx` | Admin |
+| 39 | Suivi contractualisation | `personnel/contractualisation/page.tsx` | Secrétaire |
+| 40 | Pilotage évaluation + ouvertures | `evaluation_offre/page.tsx` + `ouverture_offre/page.tsx` | Secrétaire |
+| 41 | PPM admin Django (back-office, filtres GET + donuts + 4 tables) | `backend_PPM/apps/ppm/views/dashboard_view.py` + `templates/admin/ppm/dashboard.html` | Admin Django (staff) |
+
+> **Couverture à 100 % :** les seules routes sans exhibit sont de pures redirections sans UI (`demande-achat/nouvelle`, `TdrSt/page`, `evaluation_offre/access`, `evaluation_offre/[id]/evaluate`) — rien à projeter.
 
 ## Styling — fidélité garantie
 

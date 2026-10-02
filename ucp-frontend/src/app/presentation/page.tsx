@@ -1341,6 +1341,167 @@ function ValidationCompositionDemo({ notify }: { notify: Notify }) {
   );
 }
 
+/* ================= E+. Détail séance + landing validation ================= */
+
+function SeanceDetailDemo({ notify }: { notify: Notify }) {
+  const [form, setForm] = useState({ ref: "DAO-2026-011", objet: "Ouverture AOI vaccins", president: "Mme Rabe (Présidente)", date: "2026-10-10", heure: "10:00", lieu: "Salle UCP", obs: "Séance publique.", scelle: "", rature: false, ratureDesc: "", substitution: false });
+  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setForm((p) => ({ ...p, [k]: e.target.value }));
+  const [offres, setOffres] = useState([
+    { nom: "EURL MediDistrib", pli: true, motif: "", date: "2026-11-14", heure: "09:30", adm: "DEPOSEE", tech: "DEPOSEE", fin: "DEPOSEE", montant: "47 900 000", obs: "Pli cacheté intact." },
+    { nom: "Vakinankaratra SARL", pli: false, motif: "Désistement écrit reçu le 10/11.", date: "", heure: "", adm: "", tech: "", fin: "", montant: "", obs: "" },
+  ]);
+  const [issues, setIssues] = useState<string[]>([]);
+  const envOpts = ["", "DEPOSEE", "MANQUANTE", "RECU", "INTEGRE", "MANQUANT"];
+  const check = () => {
+    const errs: string[] = [];
+    if (!form.scelle) errs.push("Renseigne l'état du scellé.");
+    if (form.rature && !form.ratureDesc.trim()) errs.push("Décris la rature ou la manipulation constatée.");
+    setIssues(errs);
+    return errs.length === 0;
+  };
+  return (
+    <div className={`${cardClass} space-y-4`}>
+      <p className={sectionTitleClass}>Détail séance [id] — replica ouverture_offre/[id] → SeanceOuvertureDetail</p>
+      <div className="flex flex-wrap items-center gap-2">
+        <button type="button" className="rounded-xl border border-slate-200 px-3 py-1.5 text-[12px] font-bold" onClick={() => notify("Retour simulé : /ouverture_offre (mock).")}>← Retour</button>
+        <p className="font-mono text-[13px] font-black">SE-2026-011 — {form.ref}</p>
+        <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-black text-amber-700">BROUILLON</span>
+        <span className="ml-auto flex gap-2">
+          <button type="button" className="rounded-xl border border-slate-200 px-3 py-1.5 text-[11px] font-bold" onClick={() => notify("Invitations simulées renvoyées à la commission (mock).")}>Renvoyer les invitations</button>
+          <button type="button" className="rounded-xl bg-slate-900 px-3 py-1.5 text-[11px] font-bold text-white" onClick={() => notify("PV simulé téléchargé : PV-SE-2026-011.pdf (mock).")}>Télécharger le PV PDF</button>
+        </span>
+      </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Field label="Référence dossier"><input className={fieldClass} value={form.ref} onChange={set("ref")} /></Field>
+        <Field label="Objet"><input className={fieldClass} value={form.objet} onChange={set("objet")} /></Field>
+        <Field label="Président de séance"><select className={fieldClass} value={form.president} onChange={set("president")}><option>Mme Rabe (Présidente)</option><option>A. Rakoto</option><option>Non désigné</option></select></Field>
+        <Field label="Date / Heure"><div className="flex gap-2"><input type="date" className={fieldClass} value={form.date} onChange={set("date")} /><input type="time" className={fieldClass} value={form.heure} onChange={set("heure")} /></div></Field>
+        <Field label="Lieu"><input className={fieldClass} value={form.lieu} onChange={set("lieu")} /></Field>
+        <Field label="Observations"><textarea className={textareaClass} value={form.obs} onChange={set("obs")} /></Field>
+        <Field label="État du scellé *"><select className={fieldClass} value={form.scelle} onChange={set("scelle")}><option value="">Sélectionner…</option><option value="INTACT">Intact</option><option value="ALTERE">Altéré</option></select></Field>
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 text-sm font-bold"><input type="checkbox" checked={form.rature} onChange={(e) => setForm({ ...form, rature: e.target.checked })} className="h-4 w-4 accent-amber-600" /> Présence de rature</label>
+          {form.rature && <Field label="Description rature *"><input className={fieldClass} value={form.ratureDesc} onChange={set("ratureDesc")} placeholder="Décrire la rature constatée…" /></Field>}
+          <label className="flex items-center gap-2 text-sm font-bold"><input type="checkbox" checked={form.substitution} onChange={(e) => setForm({ ...form, substitution: e.target.checked })} className="h-4 w-4 accent-emerald-600" /> Document de substitution présent</label>
+        </div>
+      </div>
+      <div>
+        <label className={labelClass}>Plis reçus — enveloppes administrative / technique / financière</label>
+        {offres.map((o, i) => (
+          <div key={i} className="mb-2 space-y-2 rounded-2xl border border-slate-200 bg-slate-50/50 p-3">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+              <input className={fieldClass} value={o.nom} onChange={(e) => setOffres(offres.map((x, j) => (j === i ? { ...x, nom: e.target.value } : x)))} placeholder="Soumissionnaire" />
+              <label className="flex items-center gap-2 text-[13px] font-bold"><input type="checkbox" checked={o.pli} onChange={(e) => setOffres(offres.map((x, j) => (j === i ? { ...x, pli: e.target.checked } : x)))} className="h-4 w-4 accent-emerald-600" /> Pli reçu</label>
+              <button type="button" className="justify-self-end text-red-500" onClick={() => setOffres(offres.filter((_, j) => j !== i))}>Supprimer l&apos;offre ✕</button>
+            </div>
+            {!o.pli && <Field label="Motif de l'absence de pli"><input className={fieldClass} value={o.motif} onChange={(e) => setOffres(offres.map((x, j) => (j === i ? { ...x, motif: e.target.value } : x)))} /></Field>}
+            {o.pli && (
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+                <input type="date" className={fieldClass} value={o.date} onChange={(e) => setOffres(offres.map((x, j) => (j === i ? { ...x, date: e.target.value } : x)))} title="Date de réception" />
+                <input type="time" className={fieldClass} value={o.heure} onChange={(e) => setOffres(offres.map((x, j) => (j === i ? { ...x, heure: e.target.value } : x)))} title="Heure de réception" />
+                {(["adm", "tech", "fin"] as const).map((k) => (
+                  <select key={k} className={fieldClass} value={o[k]} onChange={(e) => setOffres(offres.map((x, j) => (j === i ? { ...x, [k]: e.target.value } : x)))} title={`Enveloppe ${k}`}>
+                    {envOpts.map((v) => <option key={v} value={v}>{v || "—"}</option>)}
+                  </select>
+                ))}
+              </div>
+            )}
+            {o.pli && (
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <Field label="Montant global (Ar)"><input className={fieldClass} value={o.montant} onChange={(e) => setOffres(offres.map((x, j) => (j === i ? { ...x, montant: e.target.value } : x)))} /></Field>
+                <Field label="Observations"><input className={fieldClass} value={o.obs} onChange={(e) => setOffres(offres.map((x, j) => (j === i ? { ...x, obs: e.target.value } : x)))} /></Field>
+              </div>
+            )}
+          </div>
+        ))}
+        <button type="button" className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-[12px] font-bold" onClick={() => setOffres([...offres, { nom: "", pli: true, motif: "", date: "", heure: "", adm: "", tech: "", fin: "", montant: "", obs: "" }])}>+ Ajouter une offre</button>
+      </div>
+      <div className="rounded-2xl border border-slate-200 p-4">
+        <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">Commission — décisions</p>
+        {[["A. Rakoto (membre)", "VALIDÉE le 11/10"], ["B. Rabe (membre)", "En attente"], ["Mme Rabe (présidente)", "En attente"]].map(([n, d]) => (
+          <div key={n} className="mt-2 flex flex-wrap items-center gap-2 text-[13px] font-semibold">
+            <span className="flex-1">{n} — <span className="text-slate-400">{d}</span></span>
+            <button type="button" className="rounded-lg bg-emerald-600 px-3 py-1 text-[11px] font-bold text-white" onClick={() => notify(`Validation simulée : ${n} (mock).`)}>Valider</button>
+            <button type="button" className="rounded-lg border border-red-200 px-3 py-1 text-[11px] font-bold text-red-600" onClick={() => notify(`Rejet simulé : ${n} (mock).`)}>Rejeter</button>
+          </div>
+        ))}
+      </div>
+      {issues.length > 0 && <div className="rounded-2xl bg-red-50 px-4 py-3 text-[13px] font-bold text-red-700">{issues.map((m) => <p key={m}>• {m}</p>)}</div>}
+      <div className="flex flex-wrap gap-2">
+        <button type="button" className="rounded-2xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-bold" onClick={() => { if (!check()) return notify("Échec simulé : corrigez les points bloquants (mock)."); notify("Brouillon simulé sauvegardé (mock)."); }}>Sauvegarder brouillon</button>
+        <button type="button" className="btn-primary" onClick={() => { if (!check()) return notify("Échec simulé : scellé / rature requis (mock)."); notify("Séance simulée soumise en validation (mock)."); }}>Soumettre la séance</button>
+      </div>
+    </div>
+  );
+}
+
+function ValLandingDemo({ notify }: { notify: Notify }) {
+  const [view, setView] = useState<"secretaire" | "membre">("membre");
+  const [showDirect, setShowDirect] = useState(false);
+  const [seance, setSeance] = useState("11");
+  return (
+    <div className={`${cardClass} space-y-4`}>
+      <p className={sectionTitleClass}>Aiguillage validation — replica validation-ouverture (landing)</p>
+      <div className="flex gap-1 rounded-2xl bg-slate-100 p-1">
+        {(["secretaire", "membre"] as const).map((v) => <button key={v} type="button" onClick={() => setView(v)} className={`flex-1 rounded-xl px-3 py-2 text-[12px] font-black ${view === v ? "bg-white shadow" : "text-slate-500"}`}>{v === "secretaire" ? "Vue secrétaire / admin" : "Vue membre / président"}</button>)}
+      </div>
+      {view === "secretaire" ? (
+        <div className="rounded-2xl border border-emerald-200 bg-white p-6">
+          <h3 className="text-lg font-bold">Validation Ouverture</h3>
+          <p className="mt-2 text-sm font-medium text-slate-500">En tant que secrétaire, gérez les séances depuis le module principal :</p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <button type="button" className="rounded-xl bg-emerald-600 px-6 py-3 font-semibold text-white hover:bg-emerald-700" onClick={() => notify("Redirection simulée : /ouverture_offre (mock).")}>✓ Ouvrir le module Ouverture des offres</button>
+            <button type="button" className="rounded-xl border border-slate-300 bg-white px-6 py-3 font-semibold text-slate-700 hover:bg-slate-50" onClick={() => notify("Redirection simulée : /ouverture_offre/membres (mock).")}>✉ Gérer les membres de commission</button>
+          </div>
+        </div>
+      ) : (
+        <div className="mx-auto max-w-md space-y-4">
+          <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white">
+            <div className="border-b border-slate-100 bg-gradient-to-r from-emerald-50 to-teal-50 px-6 py-5">
+              <div className="flex items-center gap-3">
+                <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-100 text-xl text-emerald-700">✓</span>
+                <div>
+                  <h3 className="text-lg font-black">Validation Ouverture des Offres</h3>
+                  <p className="text-sm text-slate-600">Accès réservé aux membres de commission et président</p>
+                </div>
+              </div>
+            </div>
+            <div className="space-y-4 p-6">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <p className="mb-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">Comment accéder à la validation</p>
+                {[["✉", "Recevez l'invitation par email", "Le secrétaire envoie les invitations quand la séance est prête pour validation"], ["🔑", "Cliquez sur le lien dans l'email", "Le lien contient votre rôle (membre/président) et votre email pré-remplis"], ["🔒", "Entrez le mot de passe reçu", "Le mot de passe unique se trouve dans le même email d'invitation"], ["✓", "Validez ou rejetez", "Consultez le PV et donnez votre décision (Validation/Rejet/Report)"]].map(([i, t, d]) => (
+                  <div key={t} className="mb-3 flex items-start gap-3 last:mb-0">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">{i}</span>
+                    <div className="text-sm"><p className="font-semibold">{t}</p><p className="text-slate-500">{d}</p></div>
+                  </div>
+                ))}
+              </div>
+              {!showDirect ? (
+                <button type="button" onClick={() => setShowDirect(true)} className="w-full rounded-xl bg-emerald-600 px-6 py-3 font-semibold text-white shadow-lg shadow-emerald-500/20 hover:bg-emerald-700">← J&apos;ai mon lien d&apos;invitation — Accéder à la validation</button>
+              ) : (
+                <div className="space-y-3 border-t border-slate-200 pt-4">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Accès direct (si lien perdu)</p>
+                  <p className="text-sm text-slate-600">Si vous n&apos;avez pas le lien, entrez l&apos;ID de séance (?seance=…) :</p>
+                  <div className="flex gap-2">
+                    <input className={fieldClass} value={seance} onChange={(e) => setSeance(e.target.value)} placeholder="ID séance" />
+                    <button type="button" className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white" onClick={() => notify(`Redirection simulée : /ouverture_offre/validation/${seance || "1"}?role=membre (mock).`)}>🔑 Aller à la validation</button>
+                  </div>
+                  <button type="button" onClick={() => setShowDirect(false)} className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">← Revenir aux instructions</button>
+                </div>
+              )}
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                <p className="font-semibold">⚠ Lien expiré ou introuvable ?</p>
+                <p className="mt-1">Contactez le secrétaire de commission pour qu&apos;il renvoie l&apos;invitation.</p>
+              </div>
+            </div>
+          </div>
+          <button type="button" className="mx-auto flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-700" onClick={() => notify("Retour simulé : /dashboard (mock).")}>← Retour au dashboard</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ================= F. Évaluation ================= */
 
 function EvalWizardDemo({ notify }: { notify: Notify }) {
@@ -1603,6 +1764,71 @@ function OffresClassementDemo({ notify }: { notify: Notify }) {
   );
 }
 
+/* ================= F+. Mes évaluations (évaluateur) ================= */
+
+function EvalListDemo({ notify }: { notify: Notify }) {
+  const [screen, setScreen] = useState<"ready" | "empty" | "error">("ready");
+  const badge: Record<string, { label: string; cls: string }> = {
+    EXAMEN: { label: "Examen préliminaire", cls: "bg-blue-50 text-blue-900 border-blue-300" },
+    TECHNIQUE: { label: "Évaluation technique", cls: "bg-purple-50 text-purple-900 border-purple-300" },
+    FINANCIERE: { label: "Évaluation financière", cls: "bg-yellow-50 text-yellow-900 border-yellow-300" },
+    CONSOLIDEE: { label: "Consolidée", cls: "bg-green-50 text-green-900 border-green-300" },
+  };
+  const items = [
+    { ref: "AOI-2026-03", objet: "Fourniture de vaccins & chaîne de froid", soum: "EURL MediDistrib", montant: 47900000, statut: "TECHNIQUE", offre: "OFF-1", seance: "11" },
+    { ref: "AOI-2026-03", objet: "Fourniture de vaccins & chaîne de froid", soum: "Vakinankaratra SARL", montant: 52400000, statut: "EXAMEN", offre: "OFF-2", seance: "11" },
+    { ref: "DC-2026-11", objet: "Formation logistique — 40 agents", soum: "Miaro Conseil", montant: 44100000, statut: "CONSOLIDEE", offre: "OFF-3", seance: "9" },
+  ];
+  const mga = (n: number) => n.toLocaleString("fr-FR", { style: "currency", currency: "MGA" });
+  return (
+    <div className={`${cardClass} space-y-4`}>
+      <p className={sectionTitleClass}>Mes évaluations — replica evaluation_offre/list (évaluateur)</p>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h3 className="text-2xl font-bold">Mes évaluations assignées</h3>
+          <p className="mt-1 text-sm font-medium text-slate-500">Consultez et complétez vos évaluations d&apos;offres.</p>
+        </div>
+        <div className="flex gap-1 rounded-2xl bg-slate-100 p-1">
+          {(["ready", "empty", "error"] as const).map((s) => <button key={s} type="button" onClick={() => setScreen(s)} className={`rounded-xl px-3 py-1.5 text-[11px] font-black ${screen === s ? "bg-white shadow" : "text-slate-500"}`}>{s === "ready" ? "Liste" : s === "empty" ? "Vide" : "Erreur"}</button>)}
+        </div>
+      </div>
+      {screen === "error" && (
+        <div className="flex gap-3 rounded-lg border border-red-300 bg-red-50 p-4"><span className="text-red-600">⚠</span><p className="text-sm text-red-700">Erreur simulée : session évaluateur expirée — reconnectez-vous (mock).</p></div>
+      )}
+      {screen === "empty" && (
+        <div className="rounded-lg border border-yellow-300 bg-yellow-50 p-6 text-center">
+          <p className="font-semibold text-yellow-800">Aucune évaluation assignée</p>
+          <p className="mt-1 text-sm text-yellow-700">Vous recevrez une notification par email quand une offre vous sera assignée.</p>
+        </div>
+      )}
+      {screen === "ready" && (
+        <div className="grid gap-4">
+          {items.map((it) => (
+            <div key={it.offre} className="rounded-lg border border-slate-300 bg-white p-6 transition-shadow hover:shadow-lg">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="flex-1 space-y-2">
+                  <h3 className="text-lg font-semibold">{it.ref}</h3>
+                  <p className="text-sm text-slate-600">{it.objet}</p>
+                  <p className="text-sm text-slate-600">Soumissionnaire: <strong>{it.soum}</strong></p>
+                  <p className="text-xs text-slate-500">Montant: {mga(it.montant)}</p>
+                  <div className="mt-3"><span className={`inline-block rounded-lg border px-3 py-1 text-xs font-semibold ${badge[it.statut].cls}`}>{badge[it.statut].label}</span></div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => notify(`Grille simulée ouverte : /evaluation/offres/${it.offre}?seance=${it.seance} (mock).`)}
+                  className="flex items-center gap-2 whitespace-nowrap rounded-lg bg-emerald-700 px-4 py-2 font-semibold text-white transition-colors hover:bg-emerald-800"
+                >
+                  {it.statut === "CONSOLIDEE" ? "✓ Voir le détail" : "◷ Continuer"}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ================= G. TDR / ST ================= */
 
 function TdrNewDemo({ notify }: { notify: Notify }) {
@@ -1712,6 +1938,64 @@ function TdrSuiviDemo({ notify }: { notify: Notify }) {
         );
       })}
       {docs.length === 0 && <p className="text-sm font-semibold text-slate-400">Aucun document ne correspond aux filtres (mock).</p>}
+    </div>
+  );
+}
+
+/* ================= G+. Brouillon express (modale) ================= */
+
+function TdrModalDemo({ notify }: { notify: Notify }) {
+  const [open, setOpen] = useState(true);
+  const [readOnly, setReadOnly] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [isDetail, setIsDetail] = useState(false);
+  const [unite, setUnite] = useState("SUIVI_EVALUATION");
+  const [type, setType] = useState<"TDR" | "ST">("TDR");
+  return (
+    <div className={`${cardClass} space-y-4`}>
+      <p className={sectionTitleClass}>Brouillon express — replica TdrSt/formulaire/components/DocumentFormModal</p>
+      <div className="flex flex-wrap gap-2">
+        <button type="button" className="rounded-xl bg-slate-900 px-4 py-2 text-[12px] font-bold text-white" onClick={() => setOpen(true)}>Ouvrir la modale (mock)</button>
+        <label className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-[12px] font-bold"><input type="checkbox" checked={isDetail} onChange={(e) => setIsDetail(e.target.checked)} className="h-4 w-4 accent-emerald-600" /> Mode détail (document existant)</label>
+        <label className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-[12px] font-bold"><input type="checkbox" checked={readOnly} onChange={(e) => setReadOnly(e.target.checked)} className="h-4 w-4 accent-emerald-600" /> Lecture seule</label>
+      </div>
+      {open && (
+        <div>
+          <div className="rounded-2xl bg-slate-950/40 p-6 backdrop-blur-sm">
+            <div className={`space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm ${readOnly ? "opacity-75" : ""}`}>
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold">{isDetail ? "Détail du document" : "Nouveau brouillon"}</h2>
+                <button type="button" aria-label="Fermer" className="rounded-full bg-white/90 px-2.5 py-1 text-sm font-semibold text-slate-700 shadow transition hover:bg-white" onClick={() => setOpen(false)}>×</button>
+              </div>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <label className="block">
+                  <span className="block text-sm font-medium">Unité technique *</span>
+                  <input disabled={readOnly} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm disabled:bg-slate-100 disabled:text-slate-500" value={unite} onChange={(e) => setUnite(e.target.value)} />
+                </label>
+                <label className="block">
+                  <span className="block text-sm font-medium">Type de document *</span>
+                  <select disabled={readOnly} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm disabled:bg-slate-100 disabled:text-slate-500" value={type} onChange={(e) => setType(e.target.value as "TDR" | "ST")}>
+                    <option value="TDR">TDR</option>
+                    <option value="ST">ST</option>
+                  </select>
+                </label>
+              </div>
+              <div className="flex justify-end pt-4">
+                <button
+                  type="button" disabled={loading || readOnly}
+                  className="rounded-full bg-emerald-600 px-5 py-2 text-sm font-semibold text-white shadow transition hover:bg-emerald-700 disabled:opacity-50"
+                  onClick={() => {
+                    setLoading(true);
+                    setTimeout(() => { setLoading(false); setOpen(false); notify(`Brouillon ${type} simulé enregistré (${unite}) (mock).`); }, 600);
+                  }}
+                >
+                  {loading ? "…" : "OK"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -2515,6 +2799,8 @@ const GROUPS: { group: string; items: Item[] }[] = [
       { id: "membres", label: "Saisie membres", presenter: "P3", util: { purpose: "Saisie manuelle des membres avec brouillon local et contrôle CIN.", users: "Secrétaire / Admin", rules: "Final : CIN 12 chiffres, e-mails distincts, ≥3 complets.", script: "On peut préparer la commission en brouillon, le contrôle strict n'arrive qu'au final.", presenter: "Présentateur P3", file: "ouverture_offre/membres/page.tsx" } },
       { id: "val-pub", label: "Validation publique", presenter: "P3", util: { purpose: "Permet aux membres/président de valider via le lien e-mail, sans compte interne.", users: "Commission (sans JWT)", rules: "Rejet/report → commentaire requis ; report → date ; signature par mot de passe.", script: "Chaque membre signe depuis son e-mail : valider, rejeter ou reporter.", presenter: "Présentateur P3", file: "ouverture_offre/validation/[id]/page.tsx" } },
       { id: "val-comp", label: "Validation composition", presenter: "P4", util: { purpose: "Le contrôle (RPM/GP/CN) valide la composition de la commission.", users: "RPM / GP / CN + Admin", rules: "Rejet → motif ≥5 caractères ; filtres ALL/ACTION/URGENT/ARCHIVED.", script: "Dernier verrou qualité : la composition est validée ou renvoyée avec motif.", presenter: "Présentateur P4", file: "ouverture_offre/validation-membres/page.tsx" } },
+      { id: "seance-detail", label: "Détail séance [id]", presenter: "P3", util: { purpose: "Fiche d'ouverture : édite la séance, saisit les plis et l'état des 3 enveloppes, constate scellé/ratures, pilote la commission jusqu'au PV.", users: "Secrétaire (+ Admin)", rules: "État du scellé requis ; rature → description requise ; enveloppes DEPOSEE/MANQUANTE/RECU/INTEGRE/MANQUANT ; PV après validation.", script: "Le jour J : on ouvre chaque pli, on coche les enveloppes, on constate le scellé — puis on sort le PV.", presenter: "Présentateur P3", file: "ouverture_offre/[id]/page.tsx → SeanceOuvertureDetail.tsx" } },
+      { id: "val-landing", label: "Aiguillage validation", presenter: "P3", util: { purpose: "Aiguille chaque profil : secrétaire vers le module, membre/président vers sa validation par lien d'invitation.", users: "Secrétaire/Admin + Commission", rules: "Sans token → login ; ?role/?email pré-remplis ; accès direct via ?seance + lien /validation/[id].", script: "Chacun arrive ici depuis son e-mail : le secrétaire gère, le membre signe — même sans compte.", presenter: "Présentateur P3", file: "validation-ouverture/page.tsx" } },
     ],
   },
   {
@@ -2524,6 +2810,7 @@ const GROUPS: { group: string; items: Item[] }[] = [
       { id: "eval-legacy", label: "Évaluation 4 étapes", presenter: "P2", util: { purpose: "Version accordéon équivalente (examen/technique/financière/conclusion).", users: "Évaluateur", rules: "Justification ≥10 caractères ; conflit d'intérêt OUI requis.", script: "Même logique en quatre blocs pour les évaluateurs habitués à l'ancien écran.", presenter: "Présentateur P2", file: "evaluation_offre/components/EvaluationForm.tsx" } },
       { id: "assign", label: "Assignation évaluateurs", presenter: "P4", util: { purpose: "Désigne les 3 évaluateurs, planifie la session, renseigne lots et NIF.", users: "Secrétaire évaluation / Admin", rules: "Exactement 3 évaluateurs ; CIN 12 chiffres ; e-mails distincts ; lots requis.", script: "Le secrétaire planifie et invite nominativement trois évaluateurs.", presenter: "Présentateur P4", file: "evaluation_offre/[id]/assign/page.tsx" } },
       { id: "classement", label: "Offres + classement", presenter: "P4", util: { purpose: "Liste les offres et publie le classement officiel avec statuts.", users: "Évaluateur + Secrétaire", rules: "Classement disponible après 3 évaluations ; CTA contrat depuis le rang 1.", script: "Une fois notées, les offres sont classées et le rang 1 part en contrat.", presenter: "Présentateur P4", file: "evaluation/classement/[seanceId]/page.tsx" } },
+      { id: "eval-list", label: "Mes évaluations", presenter: "P2", util: { purpose: "Liste personnelle des offres à noter : avancement par étape, montants MGA, accès direct à la grille.", users: "Évaluateur", rules: "Badges EXAMEN→TECHNIQUE→FINANCIERE→CONSOLIDEE ; CONSOLIDEE → Voir le détail, sinon Continuer.", script: "Ma pile de copies : je vois où j'en suis sur chaque offre et je reprends en un clic.", presenter: "Présentateur P2", file: "evaluation_offre/list/page.tsx" } },
     ],
   },
   {
@@ -2531,6 +2818,7 @@ const GROUPS: { group: string; items: Item[] }[] = [
     items: [
       { id: "tdr-new", label: "Nouveau TDR/ST", presenter: "P1", util: { purpose: "Rédige le document technique lié au besoin : catégorie, période, budget USD.", users: "Demandeur / Initiateur", rules: "Fin ≥ début ; durée ≥1 ; montant requis ; ligne requise à l'envoi.", script: "Le besoin technique devient un TDR chiffré et daté, prêt pour validation.", presenter: "Présentateur P1", file: "TdrSt/new/page.tsx" } },
       { id: "tdr-suivi", label: "Suivi + décisions", presenter: "P1", util: { purpose: "Suit le cycle BROUILLON→VALIDE et porte les décisions techniques/finales.", users: "Demandeur, Point focal, Gestionnaire, Auditeur", rules: "Actions bornées par statut et rôle ; archive consultable.", script: "Chaque document avance par décisions tracées jusqu'à validation finale.", presenter: "Présentateur P1", file: "TdrSt/formulaire/page.tsx" } },
+      { id: "tdr-modal", label: "Brouillon express (modale)", presenter: "P1", util: { purpose: "Création ou consultation rapide d'un brouillon TDR/ST en modale, sans quitter le suivi.", users: "Demandeur", rules: "2 champs (unité + type TDR/ST via référentiel) ; lecture seule → OK désactivé + voile opacity-75.", script: "Un brouillon en dix secondes : unité, type, OK — sans quitter le tableau de suivi.", presenter: "Présentateur P1", file: "TdrSt/formulaire/components/DocumentFormModal.tsx" } },
     ],
   },
   {
@@ -2584,12 +2872,16 @@ function DemoFor({ id, notify }: { id: string; notify: Notify }) {
     case "membres": return <MembresDemo notify={notify} />;
     case "val-pub": return <ValidationPubliqueDemo notify={notify} />;
     case "val-comp": return <ValidationCompositionDemo notify={notify} />;
+    case "seance-detail": return <SeanceDetailDemo notify={notify} />;
+    case "val-landing": return <ValLandingDemo notify={notify} />;
     case "eval-wizard": return <EvalWizardDemo notify={notify} />;
     case "eval-legacy": return <EvalLegacyDemo notify={notify} />;
     case "assign": return <AssignDemo notify={notify} />;
     case "classement": return <OffresClassementDemo notify={notify} />;
+    case "eval-list": return <EvalListDemo notify={notify} />;
     case "tdr-new": return <TdrNewDemo notify={notify} />;
     case "tdr-suivi": return <TdrSuiviDemo notify={notify} />;
+    case "tdr-modal": return <TdrModalDemo notify={notify} />;
     case "contrat-init": return <ContratInitDemo notify={notify} />;
     case "contrat-dos": return <ContratDossierDemo notify={notify} />;
     case "espaces": return <EspacesDemo notify={notify} />;

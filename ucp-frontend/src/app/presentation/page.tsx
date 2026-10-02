@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 /* ======================================================================
    /presentation — exhaustive jury showcase, 100% mocked, self-contained.
@@ -119,7 +119,7 @@ function Bars({ data, color = "#059669" }: { data: { label: string; value: numbe
   );
 }
 
-/* ---------------- Utility + feedback ---------------- */
+/* ---------------- Utility descriptions ---------------- */
 
 export type Utility = {
   purpose: string;
@@ -154,62 +154,6 @@ function UtilityBox({ u }: { u: Utility }) {
           <p className="mt-1 text-[13px] font-medium italic leading-relaxed text-slate-700">“{u.script}”</p>
         </div>
       </div>
-    </div>
-  );
-}
-
-type FB = { item: string; name: string; rating: number; comment: string; date: string };
-
-function loadFB(): FB[] {
-  try {
-    return JSON.parse(localStorage.getItem("ucp-presentation-feedback") || "[]");
-  } catch {
-    return [];
-  }
-}
-
-function FeedbackInline({ itemId, itemLabel, onToast }: { itemId: string; itemLabel: string; onToast: Notify }) {
-  const [name, setName] = useState("Membre du jury");
-  const [rating, setRating] = useState(5);
-  const [comment, setComment] = useState("");
-  const [count, setCount] = useState(() => loadFB().filter((f) => f.item === itemId).length);
-  return (
-    <div className="rounded-3xl border border-violet-200 bg-violet-50/60 p-5">
-      <p className="text-[11px] font-black uppercase tracking-[0.18em] text-violet-700">
-        💬 Feedback jury — {itemLabel} {count > 0 && <span className="ml-1 rounded-full bg-violet-600 px-2 py-0.5 text-[10px] text-white">{count} avis</span>}
-      </p>
-      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <Field label="Nom du jury">
-          <input className={fieldClass} value={name} onChange={(e) => setName(e.target.value)} />
-        </Field>
-        <div>
-          <label className={labelClass}>Note</label>
-          <Stars value={rating} onChange={setRating} />
-        </div>
-      </div>
-      <div className="mt-3">
-        <Field label="Commentaire constructif">
-          <textarea className={textareaClass} value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Point fort, point à améliorer, question…" />
-        </Field>
-      </div>
-      <button
-        type="button"
-        className="mt-3 rounded-2xl bg-violet-600 px-5 py-2.5 text-sm font-bold text-white shadow hover:bg-violet-700"
-        onClick={() => {
-          if (!comment.trim()) {
-            onToast("Feedback simulé : ajoutez un commentaire avant d'envoyer.");
-            return;
-          }
-          const all = loadFB();
-          all.push({ item: itemId, name, rating, comment, date: new Date().toISOString() });
-          localStorage.setItem("ucp-presentation-feedback", JSON.stringify(all));
-          setCount(all.filter((f) => f.item === itemId).length);
-          setComment("");
-          onToast(`Feedback simulé enregistré pour « ${itemLabel} » (${rating}/5).`);
-        }}
-      >
-        Envoyer le feedback (mock)
-      </button>
     </div>
   );
 }
@@ -1438,12 +1382,6 @@ const GROUPS: { group: string; items: Item[] }[] = [
       { id: "dash-ouv", label: "Pilotage ouvertures", presenter: "P3", util: { purpose: "Double vue secrétaire/validateur avec machine d'états et PV PDF.", users: "Secrétaire + Commission", rules: "États DRAFT→VALIDATED ; commission ≥3 sinon modale de blocage.", script: "Les ouvertures : état de chaque dossier et PV téléchargeable.", presenter: "Présentateur P3", file: "ouverture_offre/page.tsx" } },
     ],
   },
-  {
-    group: "11 · Jury & feedback",
-    items: [
-      { id: "jury", label: "Mur des feedbacks", presenter: "Tous", util: { purpose: "Collecte, relit et exporte les avis du jury pendant la soutenance.", users: "Jury + présentateurs", rules: "Stockage local (localStorage) ; export JSON ; suppression possible.", script: "Chaque avis compte : notez, commentez, on relit tout ensemble à la fin.", presenter: "Tous", file: "présentation (local)" } },
-    ],
-  },
 ];
 
 function DemoFor({ id, notify }: { id: string; notify: Notify }) {
@@ -1489,43 +1427,6 @@ function DemoFor({ id, notify }: { id: string; notify: Notify }) {
   }
 }
 
-function JuryWall({ notify }: { notify: Notify }) {
-  const [all, setAll] = useState<FB[]>(() => loadFB());
-  const refresh = () => setAll(loadFB());
-  useEffect(() => {
-    const h = () => refresh();
-    window.addEventListener("storage", h);
-    const t = setInterval(refresh, 1500);
-    return () => { window.removeEventListener("storage", h); clearInterval(t); };
-  }, []);
-  return (
-    <div className={`${cardClass} space-y-4`}>
-      <p className={sectionTitleClass}>Mur des feedbacks — collecte jury (mock local)</p>
-      <div className="flex flex-wrap gap-2">
-        <button type="button" className="rounded-xl bg-slate-900 px-4 py-2 text-[12px] font-bold text-white" onClick={() => { refresh(); notify(`Mur simulé actualisé : ${loadFB().length} avis (mock).`); }}>Actualiser ({all.length})</button>
-        <button type="button" className="rounded-xl border border-slate-200 px-4 py-2 text-[12px] font-bold" onClick={() => {
-          const blob = new Blob([JSON.stringify(all, null, 2)], { type: "application/json" });
-          const a = document.createElement("a");
-          a.href = URL.createObjectURL(blob);
-          a.download = "feedbacks-jury.json";
-          a.click();
-          notify("Export simulé téléchargé : feedbacks-jury.json (mock).");
-        }}>Exporter JSON</button>
-        <button type="button" className="rounded-xl border border-red-200 px-4 py-2 text-[12px] font-bold text-red-600" onClick={() => { localStorage.removeItem("ucp-presentation-feedback"); refresh(); notify("Mur simulé vidé (mock)."); }}>Tout effacer</button>
-      </div>
-      {all.length === 0 && <p className="rounded-2xl bg-slate-50 px-4 py-6 text-center text-sm font-semibold text-slate-400">Aucun avis pour l&apos;instant — chaque fiche ci-dessus a son bloc « 💬 Feedback jury » (mock).</p>}
-      <div className="space-y-2">
-        {[...all].reverse().map((f, i) => (
-          <div key={i} className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
-            <p className="text-[12px] font-black">{f.name} <span className="ml-2 rounded bg-violet-100 px-2 py-0.5 text-[10px] text-violet-800">{f.item} · {"★".repeat(f.rating)}</span></p>
-            <p className="mt-1 text-[13px] font-medium text-slate-600">{f.comment}</p>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 export default function PresentationPage() {
   const [active, setActive] = useState("demande");
   const [toast, setToast] = useState<Toast>(null);
@@ -1549,7 +1450,7 @@ export default function PresentationPage() {
           <div>
             <p className="text-[11px] font-black uppercase tracking-[0.22em] text-emerald-700">UCP — Démo jury · 100% mocké · sans backend ni rôles</p>
             <h1 className="text-2xl font-black tracking-tight">Catalogue des formulaires & dashboards <span className="text-emerald-700">/presentation</span></h1>
-            <p className="mt-1 text-sm font-medium text-slate-500">{total} éléments · P1–P4 + Tous · utilité + script + feedback par fiche.</p>
+            <p className="mt-1 text-sm font-medium text-slate-500">{total} éléments · P1–P4 + Tous · description d&apos;utilité + script de présentation par fiche.</p>
             <div className="mt-2 h-2 w-64 overflow-hidden rounded-full bg-slate-100"><div className="h-full bg-emerald-500 transition-all" style={{ width: `${pct}%` }} /></div>
             <p className="mt-1 text-[11px] font-bold text-slate-400">{viewed.length}/{total} vus ({pct}%) — ordre suggéré : login → register → demande → validation → budget → mp-create → seance → val-pub → eval-wizard → tdr-new → contrat-dos → dash-global.</p>
           </div>
@@ -1598,9 +1499,8 @@ export default function PresentationPage() {
               <UtilityBox u={meta.util} />
             </>
           )}
-          {active === "jury" ? <JuryWall notify={notify} /> : <DemoFor id={active} notify={notify} />}
-          {meta && active !== "jury" && <FeedbackInline itemId={meta.id} itemLabel={meta.label} onToast={notify} />}
-          {meta && active !== "jury" && (
+          <DemoFor id={active} notify={notify} />
+          {meta && (
             <div className="flex flex-wrap justify-between gap-2">
               <button type="button" className="rounded-2xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-bold" onClick={() => {
                 const i = flat.findIndex((x) => x.id === active);

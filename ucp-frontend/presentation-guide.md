@@ -17,13 +17,13 @@ npm run dev
 ## Structure de la page
 
 - **Header** : badge « Mode présentation », rappel « 100% mocké », recherche plein texte, filtre présentateur (Tous/P1–P4), barre de progression des éléments vus.
-- **Sidebar (gauche)** : 10 groupes, 36 formulaires + dashboards. Un clic = un élément dans la zone principale. Checkmarks ✓/○ de suivi.
+- **Sidebar (gauche)** : 10 groupes, 37 formulaires + dashboards. Un clic = un élément dans la zone principale. Checkmarks ✓/○ de suivi.
 - **Zone principale** : bandeau vert (rôle d'origine contourné) + bloc utilité ámbré (🎯 utilité, 📜 règles, 🎤 script à lire) + le formulaire/dashboard mocké + navigation Précédent/Suivant.
 - **Toast** : `.ucp-toast--success` (réutilise `globals.css`) sur chaque soumission simulée.
 
 Tous les formulaires utilisent `useState` local + `onSubmit={(e) => { e.preventDefault(); notify(...) }}`.
 
-## Catalogue (36 éléments)
+## Catalogue (37 éléments)
 
 ### 1. Authentification — P1/P2
 | # | Élément sidebar | Fichier réel répliqué | Rôle contourné |
@@ -100,6 +100,7 @@ Tous les formulaires utilisent `useState` local + `onSubmit={(e) => { e.preventD
 | 34 | Admin DAO & traçabilité | `personnel/log-dashboard/page.tsx` | Admin |
 | 35 | Suivi contractualisation | `personnel/contractualisation/page.tsx` | Secrétaire |
 | 36 | Pilotage évaluation + ouvertures | `evaluation_offre/page.tsx` + `ouverture_offre/page.tsx` | Secrétaire |
+| 37 | PPM admin Django (back-office, filtres GET + donuts + 4 tables) | `backend_PPM/apps/ppm/views/dashboard_view.py` + `templates/admin/ppm/dashboard.html` | Admin Django (staff) |
 
 ## Styling — fidélité garantie
 

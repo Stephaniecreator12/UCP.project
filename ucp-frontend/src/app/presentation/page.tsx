@@ -1290,6 +1290,218 @@ function DashOuvertureDemo({ notify }: { notify: Notify }) {
   );
 }
 
+/* ================= J+. Dashboard PPM — back-office Django ================= */
+
+type PpmRow = { label: string; type: "travaux" | "biens" | "consultants"; bailleur: string; agmo: string; statut: string; montant: number };
+
+const PPM_ROWS: PpmRow[] = [
+  { label: "Réhabilitation CSB II Antsirabe", type: "travaux", bailleur: "GAVI", agmo: "DRSP Vakinankaratra", statut: "En cours", montant: 860500000 },
+  { label: "Construction dépôt vaccins Antananarivo", type: "travaux", bailleur: "Fonds Mondial", agmo: "UCP / Coordination", statut: "Non démarré", montant: 1200000000 },
+  { label: "Réhabilitation CSR Toamasina", type: "travaux", bailleur: "Banque Mondiale", agmo: "DRSP Atsinanana", statut: "Terminé", montant: 445750000 },
+  { label: "Extension laboratoire Analamanga", type: "travaux", bailleur: "Fonds Mondial", agmo: "DRSP Analamanga", statut: "Non démarré", montant: 520000000 },
+  { label: "Ordinateurs de bureau (25)", type: "biens", bailleur: "GAVI", agmo: "UCP / Coordination", statut: "En cours", montant: 62500000 },
+  { label: "Chaîne de froid (réfrigérateurs)", type: "biens", bailleur: "GAVI", agmo: "DRSP Analamanga", statut: "Non démarré", montant: 310000000 },
+  { label: "Motos agents de santé (12)", type: "biens", bailleur: "Fonds Mondial", agmo: "DRSP Vakinankaratra", statut: "En cours", montant: 144000000 },
+  { label: "Fournitures de bureau", type: "biens", bailleur: "Banque Mondiale", agmo: "UCP / Coordination", statut: "Terminé", montant: 28400000 },
+  { label: "Kits diagnostics paludisme", type: "biens", bailleur: "Fonds Mondial", agmo: "DRSP Atsinanana", statut: "En cours", montant: 210300000 },
+  { label: "Étude faisabilité CSB", type: "consultants", bailleur: "Banque Mondiale", agmo: "UCP / Coordination", statut: "Terminé", montant: 95000000 },
+  { label: "Audit financier annuel", type: "consultants", bailleur: "Fonds Mondial", agmo: "UCP / Coordination", statut: "En cours", montant: 120000000 },
+  { label: "Formation logistique 40 agents", type: "consultants", bailleur: "GAVI", agmo: "DRSP Analamanga", statut: "Non démarré", montant: 68250000 },
+];
+
+const PPM_PALETTE = ["#15803d", "#22c55e", "#4ade80", "#86efac", "#f59e0b", "#fbbf24", "#fcd34d", "#0ea5e9", "#38bdf8", "#7dd3fc", "#ef4444", "#f87171", "#8b5cf6", "#a78bfa", "#ec4899", "#f472b6"];
+
+function fmtAr(n: number) {
+  return n.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function DashPpmAdminDemo({ notify }: { notify: Notify }) {
+  const [draft, setDraft] = useState({ bailleur: "", agmo: "", statut: "", model_type: "" });
+  const [applied, setApplied] = useState(draft);
+  const setD = (k: keyof typeof draft) => (e: React.ChangeEvent<HTMLSelectElement>) => setDraft((p) => ({ ...p, [k]: e.target.value }));
+  const rows = PPM_ROWS.filter((r) =>
+    (!applied.bailleur || r.bailleur === applied.bailleur) &&
+    (!applied.agmo || r.agmo === applied.agmo) &&
+    (!applied.statut || r.statut === applied.statut) &&
+    (!applied.model_type || r.type === applied.model_type)
+  );
+  const hasFilter = !!(applied.bailleur || applied.agmo || applied.statut || applied.model_type);
+  const agg = (key: "bailleur" | "agmo" | "statut" | "type") => {
+    const m = new Map<string, { count: number; total: number }>();
+    rows.forEach((r) => {
+      const k = key === "type" ? r.type : r[key];
+      const e = m.get(k) ?? { count: 0, total: 0 };
+      e.count += 1;
+      e.total += r.montant;
+      m.set(k, e);
+    });
+    return [...m.entries()].sort((a, b) => b[1].count - a[1].count || a[0].localeCompare(b[0]));
+  };
+  const byBailleur = agg("bailleur");
+  const byAgmo = agg("agmo");
+  const byStatut = agg("statut");
+  const byModel = agg("type");
+  const seg = (entries: [string, { count: number; total: number }][]) =>
+    entries.map(([label, d], i) => ({ label, value: d.count, color: PPM_PALETTE[i % PPM_PALETTE.length] }));
+  const bailleurs = [...new Set(PPM_ROWS.map((r) => r.bailleur))].sort();
+  const agmos = [...new Set(PPM_ROWS.map((r) => r.agmo))].sort();
+  const statuts = [...new Set(PPM_ROWS.map((r) => r.statut))].sort();
+  const nav = (label: string) => notify(`Navigation simulée : ${label} (mock — Django admin).`);
+  const tableCls = "w-full text-left text-[12px]";
+  const thCls = "bg-slate-50 px-4 py-2.5 text-[10px] font-bold uppercase tracking-widest text-slate-400";
+
+  const detailTable = (title: string, entries: [string, { count: number; total: number }][], withAmount: boolean) => (
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+      <p className="border-b border-slate-100 bg-slate-50 px-4 py-3 text-[11px] font-black uppercase tracking-widest text-slate-600">{title}</p>
+      {entries.length === 0 ? (
+        <p className="px-4 py-7 text-center text-[12px] italic text-slate-400">Aucune donnée disponible</p>
+      ) : (
+        <table className={tableCls}>
+          <thead><tr><th className={thCls}>{withAmount ? title.replace("Détail par ", "").replace("de Marché", "").trim() : "Statut"}</th><th className={`${thCls} text-center`}>Total</th>{withAmount && <th className={`${thCls} text-right`}>Montant estimé (Ar)</th>}</tr></thead>
+          <tbody>
+            {entries.map(([name, d]) => (
+              <tr key={name} className="border-t border-slate-50 hover:bg-emerald-50/40">
+                <td className="px-4 py-2.5 font-semibold text-slate-700">{name}</td>
+                <td className="px-4 py-2.5 text-center font-black text-emerald-700">{d.count}</td>
+                {withAmount && <td className="px-4 py-2.5 text-right font-semibold tabular-nums">{fmtAr(d.total)}</td>}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+
+  return (
+    <div className={`${cardClass} space-y-5`}>
+      <p className={sectionTitleClass}>Back-office Django — replica templates/admin/ppm/dashboard.html (Plus Jakarta Sans, tokens verts)</p>
+      <div className="overflow-hidden rounded-2xl border border-slate-200">
+        <div className="flex min-h-[560px]">
+          {/* Sidebar admin */}
+          <aside className="hidden w-52 shrink-0 flex-col border-r border-slate-200 bg-white sm:flex">
+            <div className="flex items-center gap-2 border-b border-slate-100 px-4 py-3">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-700 text-sm font-black text-white">U</span>
+              <p className="text-[12px] font-bold leading-tight text-emerald-800">UCP Admin<span className="block text-[9px] font-medium uppercase tracking-widest text-slate-400">e-Procurement</span></p>
+            </div>
+            <nav className="flex-1 space-y-3 px-2 py-3">
+              <div>
+                <p className="px-2 pb-1 text-[9px] font-bold uppercase tracking-widest text-slate-400">Navigation</p>
+                {[["Tableau de bord admin", false], ["Tableau de bord PPM", true]].map(([l, on]) => (
+                  <button key={l as string} type="button" onClick={() => nav(l as string)} className={`block w-full rounded-lg px-3 py-2 text-left text-[12px] font-semibold ${on ? "bg-emerald-50 font-bold text-emerald-700" : "text-slate-600 hover:bg-slate-50"}`}>{l}</button>
+                ))}
+              </div>
+              <div>
+                <p className="px-2 pb-1 text-[9px] font-bold uppercase tracking-widest text-slate-400">Planification</p>
+                {["Travaux", "Biens & Services", "Consultants"].map((l) => (
+                  <button key={l} type="button" onClick={() => nav(`admin:ppm — ${l}`)} className="block w-full rounded-lg px-3 py-2 text-left text-[12px] font-medium text-slate-600 hover:bg-slate-50">{l}</button>
+                ))}
+              </div>
+            </nav>
+            <div className="flex items-center gap-2 border-t border-slate-100 px-4 py-3">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-[12px] font-bold text-emerald-700">U</span>
+              <p className="text-[12px] font-semibold text-slate-700">UCP Admin<span className="block text-[10px] font-normal text-slate-400">Administrateur</span></p>
+            </div>
+          </aside>
+          {/* Main */}
+          <div className="min-w-0 flex-1 bg-[#eceeef]">
+            <div className="relative flex items-center justify-between border-b border-slate-200 bg-white px-5 py-3">
+              <span className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-emerald-500 via-emerald-300 to-emerald-500" />
+              <p className="font-bold text-emerald-800">Tableau de bord PPM <span className="ml-2 text-[11px] font-medium text-slate-400">Plan Prévisionnel de Marchés</span></p>
+              <button type="button" onClick={() => nav("Retour admin")} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-bold text-slate-600 hover:bg-slate-50">← Retour admin</button>
+            </div>
+            <div className="space-y-4 p-4">
+              {/* KPI strip */}
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-50 text-lg text-emerald-600">↻</span>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Total marchés<span className="block text-xl font-black text-emerald-800">{rows.length}</span></p>
+                </div>
+                <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-50 text-lg text-amber-600">₳</span>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Montant total (Ar)<span className="block text-xl font-black tabular-nums text-emerald-800">{fmtAr(rows.reduce((s, r) => s + r.montant, 0))}</span></p>
+                </div>
+                <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-lg text-blue-600">◉</span>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Bailleurs<span className="block text-xl font-black text-emerald-800">{byBailleur.length}</span></p>
+                </div>
+              </div>
+              {/* Filters (GET form) */}
+              <form
+                className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+                onSubmit={(e) => { e.preventDefault(); setApplied(draft); notify(`Filtres PPM simulés appliqués : ${rows.length} marché(s) (mock).`); }}
+              >
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <Field label="Bailleur">
+                    <select className={fieldClass} value={draft.bailleur} onChange={setD("bailleur")}>
+                      <option value="">Tous les bailleurs</option>
+                      {bailleurs.map((b) => <option key={b} value={b}>{b}</option>)}
+                    </select>
+                  </Field>
+                  <Field label="AGMO">
+                    <select className={fieldClass} value={draft.agmo} onChange={setD("agmo")}>
+                      <option value="">Tous les AGMO</option>
+                      {agmos.map((a) => <option key={a} value={a}>{a}</option>)}
+                    </select>
+                  </Field>
+                  <Field label="Statut PPM">
+                    <select className={fieldClass} value={draft.statut} onChange={setD("statut")}>
+                      <option value="">Tous les statuts</option>
+                      {statuts.map((s) => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </Field>
+                  <Field label="Type de marché">
+                    <select className={fieldClass} value={draft.model_type} onChange={setD("model_type")}>
+                      <option value="">Tous les types</option>
+                      <option value="travaux">Travaux</option>
+                      <option value="biens">Biens & Services</option>
+                      <option value="consultants">Consultants</option>
+                    </select>
+                  </Field>
+                </div>
+                <div className="mt-3 flex gap-2">
+                  <button type="submit" className="rounded-lg bg-gradient-to-b from-emerald-500 to-emerald-700 px-5 py-2 text-[13px] font-bold text-white shadow">🔍 Filtrer</button>
+                  {hasFilter && (
+                    <button
+                      type="button"
+                      className="rounded-lg border border-slate-200 bg-white px-5 py-2 text-[13px] font-bold text-slate-600"
+                      onClick={() => { const empty = { bailleur: "", agmo: "", statut: "", model_type: "" }; setDraft(empty); setApplied(empty); notify("Filtres PPM simulés réinitialisés (mock)."); }}
+                    >
+                      Réinitialiser
+                    </button>
+                  )}
+                </div>
+              </form>
+              {/* Charts (doughnuts, cutout 62 %, légende bas) */}
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                {[
+                  ["Répartition par Bailleur", seg(byBailleur)],
+                  ["Répartition par AGMO", seg(byAgmo)],
+                  ["Répartition par Statut", seg(byStatut)],
+                  ["Répartition par Type", seg(byModel)],
+                ].map(([title, segments]) => (
+                  <div key={title as string} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <p className="mb-3 text-center text-[10px] font-black uppercase tracking-widest text-slate-500">{title}</p>
+                    {(segments as { label: string; value: number; color: string }[]).length === 0
+                      ? <p className="py-8 text-center text-[12px] italic text-slate-400">Aucune donnée</p>
+                      : <DonutCSS segments={segments as { label: string; value: number; color: string }[]} size={130} />}
+                  </div>
+                ))}
+              </div>
+              {/* Tables */}
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                {detailTable("Détail par Bailleur", byBailleur, true)}
+                {detailTable("Détail par AGMO", byAgmo, true)}
+                {detailTable("Détail par Statut", byStatut, false)}
+                {detailTable("Détail par Type de Marché", byModel, true)}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ================= Catalogue + page ================= */
 
 type Item = { id: string; label: string; presenter: string; util: Utility };
@@ -1380,6 +1592,7 @@ const GROUPS: { group: string; items: Item[] }[] = [
       { id: "dash-contrat", label: "Suivi contractualisation", presenter: "P4", util: { purpose: "Suit les NOTI5 : brouillons, attentes signature, signés.", users: "Secrétaire / Admin", rules: "Mapping EXECUTION/TERMINE→SIGNÉ ; recherche multi-champs.", script: "Les contrats : à faire, en attente de signature, signés.", presenter: "Présentateur P4", file: "contractualisation/page.tsx" } },
       { id: "dash-eval", label: "Pilotage évaluation", presenter: "P2", util: { purpose: "Pilote assignation, avancement et classement par séance.", users: "Secrétaire évaluation", rules: "Progression offres terminées/total ; ?seance deep-link.", script: "Le pilotage des notations : qui est assigné, où en est chaque offre.", presenter: "Présentateur P2", file: "evaluation_offre/page.tsx" } },
       { id: "dash-ouv", label: "Pilotage ouvertures", presenter: "P3", util: { purpose: "Double vue secrétaire/validateur avec machine d'états et PV PDF.", users: "Secrétaire + Commission", rules: "États DRAFT→VALIDATED ; commission ≥3 sinon modale de blocage.", script: "Les ouvertures : état de chaque dossier et PV téléchargeable.", presenter: "Présentateur P3", file: "ouverture_offre/page.tsx" } },
+      { id: "dash-ppm", label: "PPM admin Django", presenter: "P4", util: { purpose: "Pilotage du Plan Prévisionnel de Marchés côté back-office Django : consolide Travaux + Biens + Consultants avec filtres GET, 4 donuts et 4 tableaux détaillés.", users: "Admin Django (staff_member_required)", rules: "Accès staff uniquement ; 4 filtres combinés (bailleur, AGMO, statut, type) ; montants formatés fr (espace + 2 décimales) ; tri effectif décroissant ; Réinitialiser visible seulement si filtre actif.", script: "Côté back-office : douze marchés, quatre milliards d'ariary, ventilés par bailleur, agence, statut et type — et chaque filtre recalcule tout.", presenter: "Présentateur P4", file: "backend_PPM: apps/ppm/views/dashboard_view.py + templates/admin/ppm/dashboard.html" } },
     ],
   },
 ];
@@ -1423,6 +1636,7 @@ function DemoFor({ id, notify }: { id: string; notify: Notify }) {
     case "dash-contrat": return <DashContratDemo notify={notify} />;
     case "dash-eval": return <DashEvalSecDemo notify={notify} />;
     case "dash-ouv": return <DashOuvertureDemo notify={notify} />;
+    case "dash-ppm": return <DashPpmAdminDemo notify={notify} />;
     default: return null;
   }
 }

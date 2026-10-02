@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 /* ======================================================================
    /presentation — exhaustive jury showcase, 100% mocked, self-contained.
@@ -176,6 +176,7 @@ function LoginForm({ onSuccess }: { onSuccess: Notify }) {
   const [email, setEmail] = useState("demo@ucp.mg");
   const [password, setPassword] = useState("demo1234");
   const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   return (
     <div className="mx-auto w-full max-w-md overflow-hidden rounded-[30px] border border-slate-200/80 bg-white p-7 shadow sm:p-8">
       <p className="text-center text-[11px] font-bold uppercase tracking-[0.22em] text-emerald-700">Unité de Coordination des Projets</p>
@@ -185,8 +186,10 @@ function LoginForm({ onSuccess }: { onSuccess: Notify }) {
         onSubmit={(e) => {
           e.preventDefault();
           setLoading(true);
+          setMsg(null);
           setTimeout(() => {
             setLoading(false);
+            setMsg({ ok: true, text: `Bienvenue ${email} — redirection vers votre tableau de bord (mock).` });
             onSuccess(`Connexion simulée pour ${email} — routage par groupe (mock).`);
           }, 600);
         }}
@@ -199,9 +202,12 @@ function LoginForm({ onSuccess }: { onSuccess: Notify }) {
           <label className="mb-2 block text-sm font-bold text-slate-700">Mot de passe</label>
           <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Saisir votre mot de passe" className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/10" />
         </div>
-        <button type="submit" className="inline-flex w-full items-center justify-center rounded-2xl bg-[#166534] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#14532d]">
+        <button type={loading ? "button" : "submit"} className="inline-flex w-full items-center justify-center rounded-2xl bg-[#166534] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#14532d]">
           {loading ? "Connexion..." : "Se connecter"}
         </button>
+        {msg && (
+          <p className={`rounded-2xl px-4 py-3 text-center text-[13px] font-bold ${msg.ok ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"}`}>{msg.text}</p>
+        )}
         <p className="text-center text-[11px] font-semibold text-slate-400">Email inconnu → redirection inscription publique (mock).</p>
       </form>
     </div>
@@ -209,57 +215,108 @@ function LoginForm({ onSuccess }: { onSuccess: Notify }) {
 }
 
 function RegisterForm({ onSuccess }: { onSuccess: Notify }) {
-  const [f, setF] = useState({ full_name: "Jean Dupont", email: "jean@entreprise.mg", phone: "+261 34 00 000 00", type_entite: "ENTREPRISE", nif: "1234567", password: "demo1234", confirmPassword: "demo1234" });
+  const [f, setF] = useState({ full_name: "Jean Dupont", email: "jean@entreprise.mg", phone: "+261 34 00 000 00", type_entite: "", nif: "1234567", password: "demo1234", confirmPassword: "demo1234" });
+  const [loading, setLoading] = useState(false);
+  const [done, setDone] = useState(false);
+  const [cool, setCool] = useState(0);
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setF((p) => ({ ...p, [k]: e.target.value }));
+  if (done) {
+    return (
+      <div className="mx-auto w-full max-w-md space-y-4 rounded-[30px] border border-slate-200/80 bg-white p-6 text-center sm:p-8">
+        <p className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50 text-2xl text-emerald-600">✉</p>
+        <h3 className="text-xl font-black">Vérifiez votre boîte mail</h3>
+        <p className="text-sm font-medium text-slate-500">Un lien d&apos;activation a été envoyé à <span className="font-bold text-slate-800">{f.email}</span> — valable 24h. Pensez à vérifier vos spams.</p>
+        <button
+          type="button"
+          disabled={cool > 0}
+          className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm font-bold disabled:opacity-50"
+          onClick={() => {
+            setCool(60);
+            const t = setInterval(() => setCool((c) => { if (c <= 1) { clearInterval(t); return 0; } return c - 1; }), 1000);
+            onSuccess(`Lien simulé renvoyé à ${f.email} (mock).`);
+          }}
+        >
+          {cool > 0 ? `Renvoyer (${cool}s)` : "Vous n'avez rien reçu ? Renvoyer le mail"}
+        </button>
+        <button type="button" className="w-full rounded-2xl px-4 py-2 text-sm font-bold text-slate-500 hover:bg-slate-50" onClick={() => { setDone(false); onSuccess("Retour simulé au formulaire d'inscription (mock)."); }}>← Retour</button>
+        <button type="button" className="btn-primary w-full" onClick={() => onSuccess("Redirection simulée : /auth/login (mock).")}>Retour à la page de connexion</button>
+      </div>
+    );
+  }
   return (
     <form
       className="mx-auto w-full max-w-md space-y-4 rounded-[30px] border border-slate-200/80 bg-white p-6 sm:p-8"
       onSubmit={(e) => {
         e.preventDefault();
-        if (f.password !== f.confirmPassword) return onSuccess("Échec simulé : les mots de passe ne correspondent pas.");
-        onSuccess(`Compte fournisseur simulé créé pour ${f.email} — écran vérification e-mail (mock).`);
+        if (f.password !== f.confirmPassword) return onSuccess("Échec simulé : le mot de passe ne correspond pas.");
+        setLoading(true);
+        setTimeout(() => { setLoading(false); setDone(true); onSuccess(`Compte fournisseur simulé créé pour ${f.email} — écran vérification e-mail (mock).`); }, 700);
       }}
     >
-      <Field label="Nom complet"><input required className={fieldClass} value={f.full_name} onChange={set("full_name")} /></Field>
+      <p className="mx-auto w-fit rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-emerald-700">Inscription libre</p>
+      <Field label="Nom complet"><input className={fieldClass} value={f.full_name} onChange={set("full_name")} placeholder="Ex : Jean Dupont" /></Field>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Email"><input required type="email" className={fieldClass} value={f.email} onChange={set("email")} /></Field>
-        <Field label="Téléphone"><input required className={fieldClass} value={f.phone} onChange={set("phone")} /></Field>
+        <Field label="Email"><input type="email" className={fieldClass} value={f.email} onChange={set("email")} placeholder="adresse@mail.com" /></Field>
+        <Field label="Téléphone"><input className={fieldClass} value={f.phone} onChange={set("phone")} placeholder="+261 -- -- --- --" /></Field>
       </div>
       <Field label="Type d'entité">
         <select className={fieldClass} value={f.type_entite} onChange={set("type_entite")}>
-          {["ENTREPRISE", "BUREAU_ETUDES", "ONG", "PARTICULIER", "CONSULTANT"].map((o) => <option key={o}>{o}</option>)}
+          <option value="" disabled>Sélectionner…</option>
+          <option value="ENTREPRISE">Entreprise</option>
+          <option value="BUREAU_ETUDES">Bureau d&apos;études</option>
+          <option value="ONG">ONG</option>
+          <option value="PARTICULIER">Particulier</option>
+          <option value="CONSULTANT">Consultant</option>
         </select>
       </Field>
-      <Field label="NIF (fiscal)"><input required className={fieldClass} value={f.nif} onChange={set("nif")} /></Field>
+      <Field label="Numéro d'Identification Fiscale (NIF)"><input className={fieldClass} value={f.nif} onChange={set("nif")} placeholder="Saisir votre NIF" /></Field>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Mot de passe"><input required type="password" className={fieldClass} value={f.password} onChange={set("password")} /></Field>
-        <Field label="Confirmation"><input required type="password" className={fieldClass} value={f.confirmPassword} onChange={set("confirmPassword")} /></Field>
+        <Field label="Mot de passe"><input type="password" className={fieldClass} value={f.password} onChange={set("password")} placeholder="••••••••" /></Field>
+        <Field label="Confirmation"><input type="password" className={fieldClass} value={f.confirmPassword} onChange={set("confirmPassword")} placeholder="••••••••" /></Field>
       </div>
-      <button type="submit" className="btn-primary w-full">Créer mon compte UCP</button>
+      <button type="submit" disabled={loading} className="btn-primary w-full disabled:opacity-60">{loading ? "Traitement en cours..." : "Créer mon compte UCP"}</button>
+      <button type="button" className="w-full rounded-2xl px-4 py-2 text-sm font-bold text-slate-500 hover:bg-slate-50" onClick={() => onSuccess("Retour simulé : /auth/login (mock).")}>← Retour</button>
     </form>
   );
 }
 
 function VerifyEmailDemo({ notify }: { notify: Notify }) {
-  const [token, setToken] = useState("eyJ0b2tlbi1tb2NrLTIwMjY");
-  const [email, setEmail] = useState("jean@entreprise.mg");
-  const [status, setStatus] = useState<"idle" | "ok" | "expired">("idle");
+  const [status, setStatus] = useState<"verifying" | "ok" | "expired">("verifying");
+  const [cool, setCool] = useState(0);
+  useEffect(() => {
+    const t = setTimeout(() => setStatus((s) => (s === "verifying" ? "ok" : s)), 1200);
+    return () => clearTimeout(t);
+  }, []);
   return (
     <div className={`${cardClass} mx-auto max-w-md space-y-4 text-center`}>
-      <p className={sectionTitleClass}>Activation du compte — replica de auth/verify-email</p>
-      <Field label="Token (?token=…)"><input className={`${fieldClass} font-mono`} value={token} onChange={(e) => setToken(e.target.value)} /></Field>
-      <div className="flex gap-2">
-        <button type="button" className="btn-primary flex-1" onClick={() => { setStatus("ok"); notify("E-mail simulé vérifié — redirection connexion (mock)."); }}>Vérifier (mock)</button>
-        <button type="button" className="flex-1 rounded-2xl border border-slate-200 px-4 py-3 text-sm font-bold" onClick={() => setStatus("expired")}>Simuler expiré</button>
-      </div>
-      {status === "ok" && <p className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">✓ Compte activé (mock) — redirection /auth/login?verified=true</p>}
+      <p className={sectionTitleClass}>Activation du compte — replica de auth/verify-email (?token=… auto)</p>
+      {status === "verifying" && (
+        <div className="animate-pulse rounded-2xl bg-slate-50 px-4 py-6 text-sm font-bold text-slate-500">Vérification du lien en cours…</div>
+      )}
+      {status === "ok" && (
+        <div className="space-y-2 rounded-2xl bg-emerald-50 px-4 py-5">
+          <p className="text-sm font-black text-emerald-700">✓ Votre compte a été activé avec succès.</p>
+          <p className="text-[12px] font-semibold text-emerald-600">Redirection : /auth/login?verified=true dans 3s (mock).</p>
+          <button type="button" className="mt-1 text-[12px] font-bold text-slate-400 underline" onClick={() => setStatus("expired")}>Simuler un lien expiré</button>
+        </div>
+      )}
       {status === "expired" && (
         <div className="space-y-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-          <p className="text-sm font-bold text-amber-800">Lien expiré (mock). Renvoyer le lien :</p>
-          <div className="flex gap-2">
-            <input className={fieldClass} value={email} onChange={(e) => setEmail(e.target.value)} />
-            <button type="button" className="rounded-xl bg-amber-600 px-4 py-2 text-sm font-bold text-white" onClick={() => notify(`Lien simulé renvoyé à ${email} (mock).`)}>Renvoyer</button>
-          </div>
+          <p className="text-sm font-black text-amber-800">Ce lien est expiré ou invalide.</p>
+          <p className="text-[12px] font-semibold text-amber-700">Votre lien a expiré ? Demandez-en un nouveau :</p>
+          <button
+            type="button"
+            disabled={cool > 0}
+            className="w-full rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50"
+            onClick={() => {
+              setCool(60);
+              const t = setInterval(() => setCool((c) => { if (c <= 1) { clearInterval(t); return 0; } return c - 1; }), 1000);
+              notify("Lien simulé renvoyé à jean@entreprise.mg (mock).");
+            }}
+          >
+            {cool > 0 ? `Renvoyer (${cool}s)` : "Vous n'avez rien reçu ? Renvoyer le mail"}
+          </button>
+          <button type="button" className="text-[12px] font-bold text-slate-400 underline" onClick={() => setStatus("verifying")}>Rejouer la vérification</button>
         </div>
       )}
     </div>
@@ -267,13 +324,34 @@ function VerifyEmailDemo({ notify }: { notify: Notify }) {
 }
 
 function EvalLoginDemo({ notify }: { notify: Notify }) {
+  const [show, setShow] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   return (
-    <form onSubmit={(e) => { e.preventDefault(); notify("Accès évaluateur DAO simulé — liste des offres affichée (mock)."); }} className={`${cardClass} mx-auto max-w-md space-y-4`}>
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        setError(null);
+        setLoading(true);
+        setTimeout(() => {
+          setLoading(false);
+          notify("Accès évaluateur DAO simulé — liste des offres affichée (mock).");
+        }, 600);
+      }}
+      className={`${cardClass} mx-auto max-w-md space-y-4`}
+    >
       <p className={sectionTitleClass}>Login évaluateur DAO — replica de evaluation/login</p>
-      <Field label="Email"><input required type="email" defaultValue="evaluateur@ucp.mg" className={fieldClass} /></Field>
-      <Field label="Code / mot de passe DAO"><input required type="password" defaultValue="DAO-2026" className={fieldClass} /></Field>
-      <Field label="Séance (?seance=…)"><input defaultValue="Séance SE-2026-011 — AOI vaccins" className={fieldClass} /></Field>
-      <button className="btn-primary w-full" type="submit">Accéder aux offres</button>
+      <p className="rounded-2xl bg-slate-50 px-4 py-2.5 text-[12px] font-semibold text-slate-500">Séance liée : ?seance=11 — AOI vaccins (ID numérique via lien e-mail, mock).</p>
+      <Field label="Email"><input required type="email" defaultValue="evaluateur@ucp.mg" disabled={loading} placeholder="Saisir l'email reçu dans le mail" className={fieldClass} /></Field>
+      <div>
+        <label className={labelClass}>Code / mot de passe DAO</label>
+        <div className="relative">
+          <input required type={show ? "text" : "password"} defaultValue="DAO-2026" disabled={loading} placeholder="Saisir le code ou mot de passe reçu" className={`${fieldClass} pr-12`} />
+          <button type="button" onClick={() => setShow(!show)} aria-label={show ? "Masquer le mot de passe" : "Afficher le mot de passe"} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">{show ? "🙈" : "👁"}</button>
+        </div>
+      </div>
+      {error && <p className="rounded-2xl bg-red-50 px-4 py-3 text-[13px] font-bold text-red-600">{error}</p>}
+      <button className="btn-primary w-full disabled:opacity-60" type="submit" disabled={loading}>{loading ? "Vérification..." : "Accéder aux offres"}</button>
     </form>
   );
 }
@@ -281,98 +359,182 @@ function EvalLoginDemo({ notify }: { notify: Notify }) {
 /* ================= B. Demande d'achat — création & correction ================= */
 
 function DemandeAchatForm({ onSuccess }: { onSuccess: Notify }) {
+  const today = new Date().toISOString().slice(0, 10);
   const [typeDemande, setTypeDemande] = useState<"MATERIELS" | "PETITS_SERVICES">("MATERIELS");
-  const [f, setF] = useState({ uniteTechnique: "LOGISTIQUE", categorieBesoin: "NOUVEAU_BESOIN", priorite: "NORMAL", objet: "Achat ordinateurs de bureau", serviceBeneficiaire: "Service Informatique", lienPtba: "PTBA-2026-A1", justification: "Renouvellement du parc informatique (5 postes)." });
+  const [f, setF] = useState({ uniteTechnique: "", categorieBesoin: "", priorite: "", objet: "Achat ordinateurs de bureau", serviceBeneficiaire: "Service Informatique", lienPtba: "PTBA-2026-A1", justification: "Renouvellement du parc informatique (5 postes)." });
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setF((p) => ({ ...p, [k]: e.target.value }));
-  const [ligne, setLigne] = useState(
-    typeDemande === "MATERIELS"
-      ? { designation: "Ordinateur portable", marque: "HP ProBook 440", quantite: 5, unite: "Pièce", prix: 2500000, specs: "i5 / 16 Go / 512 Go SSD", lieu: "Antananarivo", destinataire: "S. Rabe" }
-      : null
-  );
+  const blankLigne = () => ({ designation: "", marque: "", quantite: 1, unite: "Pièce", prix: 0, specs: "", lieu: "", destinataire: "" });
+  const [lignes, setLignes] = useState([
+    { designation: "Ordinateur portable", marque: "HP ProBook 440", quantite: 5, unite: "Pièce", prix: 2500000, specs: "i5 / 16 Go / 512 Go SSD", lieu: "Antananarivo", destinataire: "S. Rabe" },
+  ]);
   const [svc, setSvc] = useState({ type_service: "FORMATION", description: "Formation logistique 40 agents", debut: "2026-11-10", fin: "2026-11-14", beneficiaires: 40, cout: 15000, lieu: "Antsirabe", livrables: "Attestations + rapport" });
   const [routing, setRouting] = useState<string | null>(null);
+  const switchType = (t: "MATERIELS" | "PETITS_SERVICES") => { setTypeDemande(t); setLignes(t === "MATERIELS" ? [blankLigne()] : []); setRouting(null); };
+  const submitLabel = typeDemande === "MATERIELS" ? "SOUMETTRE ET PRÉPARER LE TDR" : routing ? "SOUMETTRE LA DEMANDE" : "…CHOISIR LE PARCOURS";
   return (
-    <form onSubmit={(e) => { e.preventDefault(); if (typeDemande === "PETITS_SERVICES" && !routing) return onSuccess("Choisissez le routage : validation directe ou préparer TDR/ST (mock)."); onSuccess(`Demande ÉTAT DE BESOINS simulée transmise (${typeDemande}${routing ? " → " + routing : ""}) (mock).`); }} className={`${cardClass} space-y-6`}>
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (!f.uniteTechnique || !f.categorieBesoin || !f.priorite) return onSuccess("Échec simulé : qualification incomplète (cellule, catégorie, priorité) (mock).");
+        if (typeDemande === "MATERIELS") {
+          if (lignes.length < 1) return onSuccess("Échec simulé : ajoutez au moins une ligne de besoin (mock).");
+          return onSuccess("Demande simulée transmise → PREPARE_TDR : redirection /TdrSt/new?demandeId=DA-2026-014&docType=TDR (mock).");
+        }
+        if (svc.fin < svc.debut) return onSuccess("Échec simulé : la fin doit être postérieure au début (mock).");
+        if (!(svc.cout > 0)) return onSuccess("Échec simulé : le coût total doit être > 0 (mock).");
+        if (!routing) return onSuccess("Choisissez le parcours : validation directe ou préparer TDR/ST (mock).");
+        if (routing === "DIRECT_VALIDATION") return onSuccess("Demande SERVICES simulée transmise en validation directe (mock).");
+        return onSuccess(`Demande SERVICES simulée → ${routing} : redirection /TdrSt/new?demandeId=DA-2026-011 (mock).`);
+      }}
+      className={`${cardClass} space-y-6`}
+    >
       <p className={sectionTitleClass}>Section 1 — Qualification (replica demande-achat/new)</p>
       <div className="flex gap-2">
         {(["MATERIELS", "PETITS_SERVICES"] as const).map((t) => (
-          <button key={t} type="button" onClick={() => setTypeDemande(t)} className={`rounded-xl px-4 py-2 text-[12px] font-black ${typeDemande === t ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-600"}`}>{t}</button>
+          <button key={t} type="button" onClick={() => switchType(t)} className={`rounded-xl px-4 py-2 text-[12px] font-black ${typeDemande === t ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-600"}`}>{t === "MATERIELS" ? "Matériels" : "Petits services"}</button>
         ))}
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Unité technique (Cellule)"><select className={fieldClass} value={f.uniteTechnique} onChange={set("uniteTechnique")}>{["PASSATION", "SUIVI_EVALUATION", "FINANCE", "LOGISTIQUE", "COORDINATION", "TECHNIQUE", "RH_ADMIN"].map((o) => <option key={o}>{o}</option>)}</select></Field>
-        <Field label="Catégorie de besoin"><select className={fieldClass} value={f.categorieBesoin} onChange={set("categorieBesoin")}>{["NOUVEAU_BESOIN", "REAPPROVISIONNEMENT", "REMPLACEMENT", "URGENCE"].map((o) => <option key={o}>{o}</option>)}</select></Field>
-        <Field label="Priorité"><select className={fieldClass} value={f.priorite} onChange={set("priorite")}><option value="NORMAL">Normal (5 jours)</option><option value="URGENT">Urgent (48h)</option></select></Field>
-        <Field label="Objet"><input required className={fieldClass} value={f.objet} onChange={set("objet")} /></Field>
-        <Field label="Service bénéficiaire"><input required className={fieldClass} value={f.serviceBeneficiaire} onChange={set("serviceBeneficiaire")} /></Field>
-        <Field label="Lien PTBA"><input required className={fieldClass} value={f.lienPtba} onChange={set("lienPtba")} /></Field>
+        <Field label="Cellule *">
+          <select className={fieldClass} value={f.uniteTechnique} onChange={set("uniteTechnique")}>
+            <option value="">Sélectionner…</option>
+            <option value="PASSATION">Passation des marchés</option><option value="SUIVI_EVALUATION">Suivi-Évaluation</option><option value="FINANCE">Finance</option><option value="LOGISTIQUE">Logistique</option><option value="COORDINATION">Coordination</option><option value="TECHNIQUE">Technique</option><option value="RH_ADMIN">RH & Admin</option>
+          </select>
+        </Field>
+        <Field label="Catégorie de besoin *">
+          <select className={fieldClass} value={f.categorieBesoin} onChange={set("categorieBesoin")}>
+            <option value="">Sélectionner…</option>
+            <option value="NOUVEAU_BESOIN">Nouveau besoin</option><option value="REAPPROVISIONNEMENT">Réapprovisionnement</option><option value="REMPLACEMENT">Remplacement</option><option value="URGENCE">Urgence</option>
+          </select>
+        </Field>
+        <Field label="Priorité *"><select className={fieldClass} value={f.priorite} onChange={set("priorite")}><option value="">Sélectionner…</option><option value="NORMAL">Normal (5 jours)</option><option value="URGENT">Urgent (48h)</option></select></Field>
+        <Field label="Objet *"><input required className={fieldClass} value={f.objet} onChange={set("objet")} /></Field>
+        <Field label="Service bénéficiaire *"><input required className={fieldClass} value={f.serviceBeneficiaire} onChange={set("serviceBeneficiaire")} /></Field>
+        <Field label="Réf. PTBA *"><input required className={fieldClass} value={f.lienPtba} onChange={set("lienPtba")} /></Field>
       </div>
-      <Field label="Justification"><textarea required className={textareaClass} value={f.justification} onChange={set("justification")} /></Field>
-      <p className={sectionTitleClass}>Section 2 — Ligne de besoin ({typeDemande})</p>
-      {typeDemande === "MATERIELS" && ligne && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Désignation *"><input required className={fieldClass} value={ligne.designation} onChange={(e) => setLigne({ ...ligne, designation: e.target.value })} /></Field>
-          <Field label="Marque / modèle"><input className={fieldClass} value={ligne.marque} onChange={(e) => setLigne({ ...ligne, marque: e.target.value })} /></Field>
-          <Field label="Quantité (≥1) *"><input required type="number" min={1} className={fieldClass} value={ligne.quantite} onChange={(e) => setLigne({ ...ligne, quantite: Number(e.target.value) })} /></Field>
-          <Field label="Unité *"><input required className={fieldClass} value={ligne.unite} onChange={(e) => setLigne({ ...ligne, unite: e.target.value })} /></Field>
-          <Field label="Prix unitaire estimé (Ar)"><input type="number" className={fieldClass} value={ligne.prix} onChange={(e) => setLigne({ ...ligne, prix: Number(e.target.value) })} /></Field>
-          <Field label="Lieu de livraison *"><input required className={fieldClass} value={ligne.lieu} onChange={(e) => setLigne({ ...ligne, lieu: e.target.value })} /></Field>
-          <Field label="Caractéristiques techniques *"><textarea required className={textareaClass} value={ligne.specs} onChange={(e) => setLigne({ ...ligne, specs: e.target.value })} /></Field>
-          <Field label="Destinataire final *"><input required className={fieldClass} value={ligne.destinataire} onChange={(e) => setLigne({ ...ligne, destinataire: e.target.value })} /></Field>
-        </div>
+      <Field label="Justification *"><textarea required className={textareaClass} value={f.justification} onChange={set("justification")} /></Field>
+      <p className={sectionTitleClass}>Section 2 — Lignes de besoin ({typeDemande === "MATERIELS" ? "Matériels" : "Petits services"}) — {lignes.length} ligne(s)</p>
+      {typeDemande === "MATERIELS" && (
+        <>
+          {lignes.length === 0 && <p className="rounded-2xl bg-slate-50 px-4 py-6 text-center text-sm font-semibold text-slate-400">Aucune ligne — cliquez « Ajouter un besoin » (≥ 1 requise).</p>}
+          {lignes.map((ligne, i) => (
+            <div key={i} className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50/50 p-4">
+              <div className="flex items-center justify-between">
+                <p className="text-[12px] font-black text-slate-600">Besoin n°{i + 1}</p>
+                <button type="button" className="rounded-lg border border-red-200 px-3 py-1 text-[11px] font-black text-red-600" onClick={() => setLignes(lignes.filter((_, j) => j !== i))}>Supprimer</button>
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Field label="Désignation *"><input required className={fieldClass} value={ligne.designation} onChange={(e) => setLignes(lignes.map((x, j) => (j === i ? { ...x, designation: e.target.value } : x)))} /></Field>
+                <Field label="Marque / modèle"><input className={fieldClass} value={ligne.marque} onChange={(e) => setLignes(lignes.map((x, j) => (j === i ? { ...x, marque: e.target.value } : x)))} /></Field>
+                <Field label="Quantité * (≥ 1)"><input required type="number" min={1} className={fieldClass} value={ligne.quantite} onChange={(e) => setLignes(lignes.map((x, j) => (j === i ? { ...x, quantite: Number(e.target.value) } : x)))} /></Field>
+                <Field label="Unité *"><input required className={fieldClass} value={ligne.unite} onChange={(e) => setLignes(lignes.map((x, j) => (j === i ? { ...x, unite: e.target.value } : x)))} /></Field>
+                <Field label="Prix unitaire estimé (Ar)"><input type="number" min={0} className={fieldClass} value={ligne.prix} onChange={(e) => setLignes(lignes.map((x, j) => (j === i ? { ...x, prix: Number(e.target.value) } : x)))} /></Field>
+                <Field label="Lieu de livraison *"><input required className={fieldClass} value={ligne.lieu} onChange={(e) => setLignes(lignes.map((x, j) => (j === i ? { ...x, lieu: e.target.value } : x)))} /></Field>
+                <Field label="Caractéristiques techniques *"><textarea required className={textareaClass} value={ligne.specs} onChange={(e) => setLignes(lignes.map((x, j) => (j === i ? { ...x, specs: e.target.value } : x)))} /></Field>
+                <div>
+                  <label className={labelClass}>Destinataire final * (annuaire)</label>
+                  <input required list="da-annuaire" className={fieldClass} value={ligne.destinataire} onChange={(e) => setLignes(lignes.map((x, j) => (j === i ? { ...x, destinataire: e.target.value } : x)))} placeholder="Choisir ou saisir…" />
+                  <datalist id="da-annuaire">{MOCK.demandeurs.map((d) => <option key={d} value={d} />)}</datalist>
+                </div>
+              </div>
+            </div>
+          ))}
+          <button type="button" className="rounded-2xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-bold" onClick={() => setLignes([...lignes, blankLigne()])}>+ Ajouter un besoin (mock)</button>
+          <p className="text-[11px] font-bold text-slate-400">Matériels → toujours PREPARE_TDR : la demande prépare automatiquement le TDR (jamais de validation directe).</p>
+        </>
       )}
       {typeDemande === "PETITS_SERVICES" && (
         <>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Type de service *"><select className={fieldClass} value={svc.type_service} onChange={(e) => setSvc({ ...svc, type_service: e.target.value })}>{["FORMATION", "MAINTENANCE", "REPARATION", "NETTOYAGE", "PRESTATION_PONCTUELLE"].map((o) => <option key={o}>{o}</option>)}</select></Field>
-            <Field label="Nombre bénéficiaires"><input type="number" min={0} className={fieldClass} value={svc.beneficiaires} onChange={(e) => setSvc({ ...svc, beneficiaires: Number(e.target.value) })} /></Field>
-            <Field label="Début *"><input required type="date" className={fieldClass} value={svc.debut} onChange={(e) => setSvc({ ...svc, debut: e.target.value })} /></Field>
+            <Field label="Nombre bénéficiaires"><input type="number" min={0} step={1} className={fieldClass} value={svc.beneficiaires} onChange={(e) => setSvc({ ...svc, beneficiaires: Number(e.target.value) })} /></Field>
+            <Field label="Début *"><input required type="date" min={today} className={fieldClass} value={svc.debut} onChange={(e) => setSvc({ ...svc, debut: e.target.value })} /></Field>
             <Field label="Fin (≥ début) *"><input required type="date" min={svc.debut} className={fieldClass} value={svc.fin} onChange={(e) => setSvc({ ...svc, fin: e.target.value })} /></Field>
-            <Field label="Coût total estimé *"><input required type="number" className={fieldClass} value={svc.cout} onChange={(e) => setSvc({ ...svc, cout: Number(e.target.value) })} /></Field>
+            <Field label="Coût total estimé (Ar) *"><input required type="number" min={0} className={fieldClass} value={svc.cout} onChange={(e) => setSvc({ ...svc, cout: Number(e.target.value) })} /></Field>
             <Field label="Lieu d'exécution *"><input required className={fieldClass} value={svc.lieu} onChange={(e) => setSvc({ ...svc, lieu: e.target.value })} /></Field>
           </div>
           <Field label="Description du service *"><textarea required className={textareaClass} value={svc.description} onChange={(e) => setSvc({ ...svc, description: e.target.value })} /></Field>
           <Field label="Livrables attendus *"><input required className={fieldClass} value={svc.livrables} onChange={(e) => setSvc({ ...svc, livrables: e.target.value })} /></Field>
           <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4">
-            <p className="text-[11px] font-black uppercase tracking-widest text-sky-700">Routage TDR/ST (services uniquement)</p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {["DIRECT_VALIDATION", "PREPARE_TDR", "PREPARE_ST"].map((r) => (
-                <button key={r} type="button" onClick={() => setRouting(r)} className={`rounded-xl px-4 py-2 text-[12px] font-black ${routing === r ? "bg-sky-600 text-white" : "bg-white text-slate-600 border border-slate-200"}`}>{r}</button>
+            <p className="text-[11px] font-black uppercase tracking-widest text-sky-700">Parcours (services uniquement) — où va la demande ?</p>
+            <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
+              {[["DIRECT_VALIDATION", "Validation directe", "Petit montant, envoi immédiat au valideur."], ["PREPARE_TDR", "Préparer le TDR", "Prestation intellectuelle, TDR requis."], ["PREPARE_ST", "Préparer la ST", "Spécifications techniques requises."]].map(([v, t, d]) => (
+                <button key={v} type="button" onClick={() => setRouting(v)} className={`rounded-2xl border p-3 text-left ${routing === v ? "border-sky-600 bg-sky-600 text-white" : "border-slate-200 bg-white"}`}>
+                  <span className="block text-[12px] font-black">{t}</span>
+                  <span className={`block text-[11px] font-medium ${routing === v ? "text-sky-100" : "text-slate-500"}`}>{d}</span>
+                </button>
               ))}
             </div>
           </div>
         </>
       )}
-      <button type="submit" className="btn-primary">Soumettre la demande (mock)</button>
+      <button type="submit" className="btn-primary">{submitLabel} (mock)</button>
     </form>
   );
 }
 
 function CorrigerDemo({ notify }: { notify: Notify }) {
-  const [objet, setObjet] = useState("Achat ordinateurs — corrections demandées");
+  const [f, setF] = useState({ unite: "LOGISTIQUE", categorie: "NOUVEAU_BESOIN", priorite: "NORMAL", objet: "Achat ordinateurs — corrections demandées", service: "Service Informatique", ptba: "PTBA-2026-A1", justif: "Renouvellement du parc + précisions techniques ajoutées." });
+  const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setF((p) => ({ ...p, [k]: e.target.value }));
   const [docs, setDocs] = useState([{ type: "DEVIS_ESTIMATIF", name: "devis-medi.pdf" }]);
   const [newType, setNewType] = useState("SPECIFICATIONS_TECHNIQUES");
+  const typeLabels: Record<string, string> = { SPECIFICATIONS_TECHNIQUES: "Spécifications techniques détaillées (PDF)", TDR_SIMPLIFIE: "TDR simplifié (PDF)", DEVIS_ESTIMATIF: "Devis estimatif (PDF)", BON_SORTIE_STOCK: "Bon de sortie de stock (PDF)" };
   return (
-    <form onSubmit={(e) => { e.preventDefault(); notify("Dossier simulé corrigé + resoumis au valideur (mock)."); }} className={`${cardClass} space-y-4`}>
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        for (const d of docs) {
+          if (!d.type) return notify("Échec simulé : type de document requis pour chaque pièce (mock).");
+        }
+        notify("Dossier simulé corrigé + resoumis → /demande-achat/dashboard?filter=toutes (mock).");
+      }}
+      className={`${cardClass} space-y-4`}
+    >
       <p className={sectionTitleClass}>Correction (A_COMPLETER) — replica corriger/[id]</p>
-      <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-[13px] font-semibold text-red-800">Motif du rejet (mock) : « Préciser les caractéristiques techniques + joindre un devis estimatif PDF. »</div>
-      <Field label="Objet corrigé"><input required className={fieldClass} value={objet} onChange={(e) => setObjet(e.target.value)} /></Field>
+      <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-[13px] font-semibold text-red-800">Motif du rejet — validation technique (A_COMPLETER) : « Préciser les caractéristiques techniques + joindre un devis estimatif PDF. » (mock)</div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <Field label="Cellule *"><select className={fieldClass} value={f.unite} onChange={set("unite")}>{["PASSATION", "SUIVI_EVALUATION", "FINANCE", "LOGISTIQUE", "COORDINATION", "TECHNIQUE", "RH_ADMIN"].map((o) => <option key={o}>{o}</option>)}</select></Field>
+        <Field label="Catégorie *"><select className={fieldClass} value={f.categorie} onChange={set("categorie")}>{["NOUVEAU_BESOIN", "REAPPROVISIONNEMENT", "REMPLACEMENT", "URGENCE"].map((o) => <option key={o}>{o}</option>)}</select></Field>
+        <Field label="Priorité *"><select className={fieldClass} value={f.priorite} onChange={set("priorite")}><option value="NORMAL">Normal (5 jours)</option><option value="URGENT">Urgent (48h)</option></select></Field>
+      </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Field label="Objet *"><input required className={fieldClass} value={f.objet} onChange={set("objet")} /></Field>
+        <Field label="Service bénéficiaire *"><input required className={fieldClass} value={f.service} onChange={set("service")} /></Field>
+        <Field label="Réf. PTBA *"><input required className={fieldClass} value={f.ptba} onChange={set("ptba")} /></Field>
+        <Field label="Justification *"><textarea required className={textareaClass} value={f.justif} onChange={set("justif")} /></Field>
+      </div>
       <div>
-        <label className={labelClass}>Pièces jointes (PDF uniquement)</label>
+        <label className={labelClass}>Pièces jointes — PDF uniquement, type requis par document</label>
         <ul className="space-y-2">
           {docs.map((d, i) => (
-            <li key={i} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[13px] font-semibold">
-              <span className="rounded bg-slate-100 px-2 py-0.5 text-[11px] font-black">{d.type}</span>
-              <span className="flex-1 truncate">{d.name}</span>
+            <li key={i} className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[13px] font-semibold">
+              <span className="rounded bg-slate-100 px-2 py-0.5 text-[11px] font-black">{typeLabels[d.type] ?? d.type}</span>
+              <span className="flex-1 truncate">📄 {d.name}</span>
+              <select className="rounded-lg border border-slate-200 px-2 py-1 text-[12px]" value={d.type} onChange={(e) => setDocs(docs.map((x, j) => (j === i ? { ...x, type: e.target.value } : x)))}>
+                <option value="">Type requis…</option>
+                {Object.entries(typeLabels).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </select>
               <button type="button" className="text-red-500" onClick={() => setDocs(docs.filter((_, j) => j !== i))}>✕</button>
             </li>
           ))}
         </ul>
         <div className="mt-2 flex gap-2">
+          <label className="flex-1 cursor-pointer rounded-xl border border-dashed border-slate-300 bg-white px-4 py-2.5 text-center text-sm font-bold text-slate-500 hover:border-emerald-400">
+            + Joindre un PDF (mock)
+            <input
+              type="file" accept=".pdf,application/pdf" className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) return notify("Échec simulé : seuls les fichiers PDF sont acceptés (mock).");
+                setDocs([...docs, { type: newType, name: file.name }]);
+                e.target.value = "";
+              }}
+            />
+          </label>
           <select className={fieldClass} value={newType} onChange={(e) => setNewType(e.target.value)}>
-            {["SPECIFICATIONS_TECHNIQUES", "TDR_SIMPLIFIE", "DEVIS_ESTIMATIF", "BON_SORTIE_STOCK"].map((o) => <option key={o}>{o}</option>)}
+            {Object.entries(typeLabels).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
-          <button type="button" className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold" onClick={() => setDocs([...docs, { type: newType, name: "nouveau-doc.pdf" }])}>+ Ajouter (mock)</button>
         </div>
       </div>
       <button className="btn-primary" type="submit">Corriger & resoumettre (mock)</button>
@@ -388,16 +550,24 @@ function ValidationDemo({ notify }: { notify: Notify }) {
   const [commentaire, setCommentaire] = useState("Dossier conforme, visa accordé.");
   const [conformite, setConformite] = useState("CONFORME_STANDARDS");
   const [stock, setStock] = useState("STOCK_INSUFFISANT");
-  const [source, setSource] = useState("GAVI");
-  const [ligneB, setLigneB] = useState("2.2.1 Matériel informatique");
+  const [source, setSource] = useState("RSS3_GAVI");
+  const [ligneB, setLigneB] = useState("2.2.1 Materiel informatique");
   const [solde, setSolde] = useState(85000000);
+  const [confFin, setConfFin] = useState("CONFORME_MANUEL");
+  const [seuils, setSeuils] = useState("SEUIL_RESPECTE");
   const cout = 12500000;
   const apres = solde - cout;
+  const dispoAuto = apres >= 0 ? "DISPONIBLE" : "NON_DISPONIBLE";
+  const locked = etape === "BUDGETAIRE" && apres < 0;
+  const decOptions = (etape === "PROGRAMMATIQUE" || etape === "APPROBATION_FINALE")
+    ? ["APPROUVEE", "A_REVOIR", "REJETEE"]
+    : ["FAVORABLE", "A_COMPLETER", "DEFAVORABLE"];
   return (
-    <form onSubmit={(e) => { e.preventDefault(); if (apres < 0) return notify("Décision simulée forcée DEFAVORABLE : solde insuffisant (mock)."); if ((decision === "DEFAVORABLE" || decision === "A_COMPLETER") && !commentaire.trim()) return notify("Échec simulé : commentaire requis en cas de rejet (mock)."); notify(`Décision simulée [${etape}] : ${decision} (mock).`); }} className={`${cardClass} space-y-4`}>
+    <form onSubmit={(e) => { e.preventDefault(); const dec = locked ? "DEFAVORABLE" : decision; if ((dec === "DEFAVORABLE" || dec === "A_COMPLETER" || dec === "A_REVOIR" || dec === "REJETEE") && !commentaire.trim()) return notify("Échec simulé : observations obligatoires pour un refus / précisez les corrections (mock)."); if (etape === "TECHNIQUE" && stock === "STOCK_DISPONIBLE" && dec === "FAVORABLE" && !commentaire.trim()) return notify("Échec simulé : stock disponible — justification requise même si favorable (mock)."); notify(`Décision simulée [${etape}] : ${dec}${locked ? " (forcée : solde insuffisant)" : ""} (mock).`); }} className={`${cardClass} space-y-4`}>
       <p className={sectionTitleClass}>Validation — replica de ValidationModal.tsx</p>
-      <Field label="Étape de validation">
-        <select className={fieldClass} value={etape} onChange={(e) => setEtape(e.target.value)}>
+      <p className="rounded-2xl bg-slate-50 px-4 py-2.5 text-[12px] font-semibold text-slate-500">Étape en cours (auto) : dossier DA-2026-014 — phase {etape} (mock).</p>
+      <Field label="Étape de validation (auto en prod)">
+        <select className={fieldClass} value={etape} onChange={(e) => { setEtape(e.target.value); setDecision("FAVORABLE"); }}>
           {["HIERARCHIQUE", "TECHNIQUE", "BUDGETAIRE", "PROGRAMMATIQUE", "APPROBATION_FINALE"].map((o) => <option key={o}>{o}</option>)}
         </select>
       </Field>
@@ -410,24 +580,35 @@ function ValidationDemo({ notify }: { notify: Notify }) {
       {etape === "BUDGETAIRE" && (
         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Field label="Source financement *"><select className={fieldClass} value={source} onChange={(e) => setSource(e.target.value)}>{["SRPS_CS7_FM", "RSS3_GAVI", "FAE", "CDS", "VAR", "PARN2", "PPSB"].map((o) => <option key={o}>{o}</option>)}</select></Field>
-            <Field label="Ligne budgétaire *"><input className={fieldClass} value={ligneB} onChange={(e) => setLigneB(e.target.value)} /></Field>
+            <Field label="Source financement *"><select className={fieldClass} value={source} onChange={(e) => setSource(e.target.value)}>{["SRPS_CS7_FM", "RSS3_GAVI", "FAE_GAVI", "CDS_GAVI", "VAR_GAVI", "PARN2_BM", "PPSB_BM"].map((o) => <option key={o}>{o}</option>)}</select></Field>
+            <Field label="Ligne budgétaire *">
+              <select className={fieldClass} value={ligneB} onChange={(e) => setLigneB(e.target.value)}>
+                <option>2.1.1 Fournitures bureau</option>
+                <option>2.2.1 Materiel informatique</option>
+                <option>3.1.1 Services</option>
+              </select>
+            </Field>
+            <Field label="N° subvention (auto)"><input readOnly className={fieldClass} value="MDG-S-MOH-4041" /></Field>
+            <Field label="Coût estimé (auto)"><input readOnly className={fieldClass} value={`${cout.toLocaleString("fr-FR")} Ar`} /></Field>
             <Field label="Solde disponible"><input type="number" className={fieldClass} value={solde} onChange={(e) => setSolde(Number(e.target.value))} /></Field>
-            <Field label="Solde après engagement (auto)"><input readOnly className={`${fieldClass} ${apres < 0 ? "border-red-400 bg-red-50" : ""}`} value={`${apres.toLocaleString("fr-FR")} Ar`} /></Field>
+            <Field label="Solde après engagement (auto)"><input readOnly className={`${fieldClass} font-black ${apres < 0 ? "border-red-400 bg-red-50 text-red-700" : ""}`} value={`${apres.toLocaleString("fr-FR")} Ar`} /></Field>
+            <Field label="Disponibilité (auto)"><input readOnly disabled className={fieldClass} value={dispoAuto} /></Field>
+            <Field label="Conformité financière *"><select className={fieldClass} value={confFin} onChange={(e) => setConfFin(e.target.value)}><option>CONFORME_MANUEL</option><option>NON_CONFORME</option></select></Field>
+            <Field label="Respect des seuils *"><select className={fieldClass} value={seuils} onChange={(e) => setSeuils(e.target.value)}><option>SEUIL_RESPECTE</option><option>PROCEDURE_ADAPTEE</option></select></Field>
+            <Field label="N° engagement (auto si FAVORABLE)"><input readOnly className={fieldClass} value="ENG-2026-0417" /></Field>
           </div>
-          <p className="text-[12px] font-bold text-slate-500">N° engagement auto : ENG-2026-0417 (si FAVORABLE) — solde &lt; 0 force DEFAVORABLE.</p>
+          {locked && <p className="rounded-xl bg-red-50 px-4 py-2 text-[12px] font-black text-red-700">⛔ Solde insuffisant : DEFAVORABLE forcé, autres décisions verrouillées (mock).</p>}
         </div>
       )}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Décision">
-          <select className={fieldClass} value={decision} onChange={(e) => setDecision(e.target.value)}>
-            {(etape === "PROGRAMMATIQUE" || etape === "APPROBATION_FINALE"
-              ? ["APPROUVEE", "A_REVOIR", "REJETEE"]
-              : ["FAVORABLE", "A_COMPLETER", "DEFAVORABLE"]
-            ).map((o) => <option key={o}>{o}</option>)}
-          </select>
+          <div className="flex gap-2">
+            {decOptions.map((o) => (
+              <button key={o} type="button" disabled={locked && o !== "DEFAVORABLE"} onClick={() => setDecision(o)} className={`flex-1 rounded-xl border px-3 py-2.5 text-[12px] font-black transition disabled:cursor-not-allowed disabled:opacity-40 ${(locked ? o === "DEFAVORABLE" : decision === o) ? (o.includes("FAVOR") || o === "APPROUVEE" ? "border-emerald-500 bg-emerald-600 text-white" : o.includes("COMPLETER") || o === "A_REVOIR" ? "border-amber-500 bg-amber-500 text-white" : "border-red-500 bg-red-600 text-white") : "border-slate-200 bg-white text-slate-600"}`}>{o}</button>
+            ))}
+          </div>
         </Field>
-        <Field label="Observations (requises si rejet)"><textarea className={textareaClass} value={commentaire} onChange={(e) => setCommentaire(e.target.value)} /></Field>
+        <Field label="Observations (requises si refus / à compléter)"><textarea className={textareaClass} value={commentaire} onChange={(e) => setCommentaire(e.target.value)} /></Field>
       </div>
       <button className="btn-primary" type="submit">Valider l&apos;étape (mock)</button>
     </form>
@@ -435,19 +616,48 @@ function ValidationDemo({ notify }: { notify: Notify }) {
 }
 
 function BudgetDemo({ notify }: { notify: Notify }) {
-  const [ligne, setLigne] = useState("2.2.1 Matériel informatique");
+  const [ligne, setLigne] = useState("2.2.1 Materiel informatique");
   const [source, setSource] = useState("RSS3_GAVI");
+  const subventions: Record<string, string> = { SRPS_CS7_FM: "MDG-S-MOH-4041", RSS3_GAVI: "MDG-HSS-3", FAE_GAVI: "MDG-FAE", CDS_GAVI: "MDG-CDS", VAR_GAVI: "MDG-VAR", PARN2_BM: "PARN2-BM-P175110", PPSB_BM: "PPSB-BM-P174903" };
+  const soldes: Record<string, number> = { "2.1.1 Fournitures bureau": 45000000, "2.2.1 Materiel informatique": 85000000, "3.1.1 Services": 120000000 };
+  const cout = 12500000;
+  const dispo = soldes[ligne] ?? 0;
+  const apres = dispo - cout;
+  const ok = apres >= 0;
   return (
-    <form onSubmit={(e) => { e.preventDefault(); notify(`Imputation simulée : ${ligne} / ${source} (mock).`); }} className={`${cardClass} space-y-4`}>
+    <form onSubmit={(e) => { e.preventDefault(); if (!ligne || !source) return notify("Échec simulé : ligne et source requises (mock)."); notify(`Budget simulé validé : ${ligne} / ${source} — ENG-2026-0417 (mock).`); }} className={`${cardClass} space-y-4`}>
       <p className={sectionTitleClass}>Imputation budgétaire — replica de BudgetModal</p>
-      <Field label="Ligne budgétaire *"><input required className={fieldClass} value={ligne} onChange={(e) => setLigne(e.target.value)} /></Field>
-      <Field label="Source de financement *"><select className={fieldClass} value={source} onChange={(e) => setSource(e.target.value)}>{["SRPS_CS7_FM", "RSS3_GAVI", "FAE_GAVI", "CDS_GAVI", "VAR_GAVI", "PARN2_BM", "PPSB_BM"].map((o) => <option key={o}>{o}</option>)}</select></Field>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Field label="Subvention (auto)"><input readOnly className={fieldClass} value="MDG-S-MOH-4041" /></Field>
-        <Field label="Coût estimé"><input readOnly className={fieldClass} value="12 500 000 Ar" /></Field>
-        <Field label="Engagement"><input readOnly className={fieldClass} value="ENG-2026-0417" /></Field>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Field label="Ligne budgétaire *">
+          <select required className={fieldClass} value={ligne} onChange={(e) => setLigne(e.target.value)}>
+            <option value="">Sélectionner…</option>
+            <option>2.1.1 Fournitures bureau</option>
+            <option>2.2.1 Materiel informatique</option>
+            <option>3.1.1 Services</option>
+          </select>
+        </Field>
+        <Field label="Source de financement *">
+          <select required className={fieldClass} value={source} onChange={(e) => setSource(e.target.value)}>
+            <option value="">Sélectionner…</option>
+            <option value="SRPS_CS7_FM">SRPS / CS7 / Fonds Mondial</option>
+            <option value="RSS3_GAVI">RSS3 / GAVI</option>
+            <option value="FAE_GAVI">FAE / GAVI</option>
+            <option value="CDS_GAVI">CDS / GAVI</option>
+            <option value="VAR_GAVI">VAR / GAVI</option>
+            <option value="PARN2_BM">PARN2 / Banque Mondiale</option>
+            <option value="PPSB_BM">PPSB / Banque Mondiale</option>
+          </select>
+        </Field>
+        <Field label="N° subvention (auto)"><input readOnly className={fieldClass} value={subventions[source] ?? "—"} /></Field>
+        <Field label="Coût estimé (auto)"><input readOnly className={fieldClass} value={`${cout.toLocaleString("fr-FR")} Ar`} /></Field>
+        <Field label="Solde disponible (auto)"><input readOnly className={fieldClass} value={`${dispo.toLocaleString("fr-FR")} Ar`} /></Field>
+        <Field label="N° engagement"><input readOnly className={fieldClass} value="Généré après validation" /></Field>
       </div>
-      <button className="btn-primary" type="submit">Enregistrer le budget (mock)</button>
+      <Field label="Solde après engagement (auto)"><input readOnly className={`${fieldClass} font-black ${ok ? "" : "border-red-400 bg-red-50 text-red-700"}`} value={`${apres.toLocaleString("fr-FR")} Ar`} /></Field>
+      <p className={`rounded-2xl px-4 py-3 text-[13px] font-bold ${ok ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"}`}>
+        {ok ? "✓ Vérification automatique : solde suffisant." : "✕ Vérification automatique : solde insuffisant — imputation impossible."} Rappel : l&apos;engagement est généré après validation.
+      </p>
+      <button className="btn-primary" type="submit">Valider le budget (mock)</button>
     </form>
   );
 }
@@ -457,64 +667,115 @@ function PassationDemo({ notify }: { notify: Notify }) {
   const [date, setDate] = useState("2026-10-20");
   const [montant, setMontant] = useState(12500000);
   const [delai, setDelai] = useState(21);
+  const emails: Record<string, string> = { "EURL MediDistrib": "contact@medidistrib.mg", "Société Vakinankaratra SARL": "contact@vakinankaratra.mg", "Bureau d'études Miaro Conseil": "contact@miaro-conseil.mg" };
+  const today = new Date().toISOString().slice(0, 10);
   return (
-    <form onSubmit={(e) => { e.preventDefault(); notify(`Bon de commande simulé : ${fournisseur} — ${montant.toLocaleString("fr-FR")} Ar (mock).`); }} className={`${cardClass} space-y-4`}>
+    <form onSubmit={(e) => { e.preventDefault(); if (!fournisseur || !date || delai < 0) return notify("Échec simulé : fournisseur, date et délai requis (mock)."); notify(`Bon de commande simulé créé : ${fournisseur} — ${montant.toLocaleString("fr-FR")} Ar (mock).`); }} className={`${cardClass} space-y-4`}>
       <p className={sectionTitleClass}>Passation — Bon de commande (replica PassationModal)</p>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Type de procédure"><select className={fieldClass} defaultValue="DEMANDE_COTATION"><option>DEMANDE_COTATION</option><option>BON_COMMANDE_DIRECT</option><option>SELECTION_APRES_COTATION</option></select></Field>
-        <Field label="Fournisseur retenu *"><select required className={fieldClass} value={fournisseur} onChange={(e) => setFournisseur(e.target.value)}>{MOCK.fournisseurs.map((o) => <option key={o}>{o}</option>)}</select></Field>
-        <Field label="N° bon de commande"><input readOnly className={fieldClass} value="BC-2026-014 (DA→BC auto)" /></Field>
-        <Field label="Date du BC *"><input required type="date" min="2026-10-02" className={fieldClass} value={date} onChange={(e) => setDate(e.target.value)} /></Field>
+        <Field label="Type de procédure">
+          <select className={fieldClass} defaultValue="">
+            <option value="">Choisir…</option>
+            <option value="DEMANDE_COTATION">Demande de cotation</option>
+            <option value="BON_COMMANDE_DIRECT">Bon de commande direct</option>
+            <option value="SELECTION_APRES_COTATION">Sélection après cotation</option>
+          </select>
+        </Field>
+        <Field label="Fournisseur retenu *">
+          <select required className={fieldClass} value={fournisseur} onChange={(e) => setFournisseur(e.target.value)}>
+            <option value="">Choisir…</option>
+            {MOCK.fournisseurs.map((o) => <option key={o}>{o}</option>)}
+          </select>
+        </Field>
+        <Field label="E-mail fournisseur (auto)"><input readOnly className={fieldClass} value={emails[fournisseur] ?? "—"} /></Field>
+        <Field label="N° bon de commande (auto)"><input readOnly className={fieldClass} value="BC-2026-014 — généré automatiquement" /></Field>
+        <Field label="Date du BC *"><input required type="date" min={today} className={fieldClass} value={date} onChange={(e) => setDate(e.target.value)} /></Field>
         <Field label="Montant commande *"><input required type="number" className={fieldClass} value={montant} onChange={(e) => setMontant(Number(e.target.value))} /></Field>
         <Field label="Délai contractuel (jours) *"><input required type="number" min={0} className={fieldClass} value={delai} onChange={(e) => setDelai(Number(e.target.value))} /></Field>
+        <Field label="Conditions de livraison"><input placeholder="Ex : livraison franco Antananarivo" className={fieldClass} defaultValue="" /></Field>
+        <Field label="Garantie"><input placeholder="Ex : 12 mois pièces et main-d'œuvre" className={fieldClass} defaultValue="" /></Field>
       </div>
-      <button className="btn-primary" type="submit">Émettre le BC (mock)</button>
+      <button className="btn-primary" type="submit">Créer le bon de commande (mock)</button>
     </form>
   );
 }
 
 function LivraisonDemo({ notify }: { notify: Notify }) {
-  const [etat, setEtat] = useState("EN_TRANSIT");
+  const [etat, setEtat] = useState("");
+  const today = new Date().toISOString().slice(0, 10);
   return (
-    <form onSubmit={(e) => { e.preventDefault(); notify(`Expédition simulée : ${etat} (mock).`); }} className={`${cardClass} space-y-4`}>
+    <form onSubmit={(e) => { e.preventDefault(); if (!etat) return notify("Échec simulé : veuillez sélectionner l'état d'expédition (mock)."); notify(`Expédition simulée : ${etat} (mock).`); }} className={`${cardClass} space-y-4`}>
       <p className={sectionTitleClass}>Suivi expédition 8.1 — replica LivraisonModal</p>
-      <Field label="État expédition *"><select required className={fieldClass} value={etat} onChange={(e) => setEtat(e.target.value)}><option>EN_TRANSIT</option><option>ARRIVE</option><option>PARTIEL</option><option>RETARD</option></select></Field>
+      <Field label="État expédition *">
+        <select required className={fieldClass} value={etat} onChange={(e) => setEtat(e.target.value)}>
+          <option value="">Sélectionner…</option>
+          <option value="EN_TRANSIT">En transit</option>
+          <option value="ARRIVE">Arrivé sur site</option>
+          <option value="PARTIEL">Arrivée partielle</option>
+          <option value="RETARD">En retard</option>
+        </select>
+      </Field>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Arrivée prévue"><input type="date" defaultValue="2026-11-05" className={fieldClass} /></Field>
-        <Field label="Arrivée effective"><input type="date" defaultValue="2026-11-06" className={fieldClass} /></Field>
+        <Field label="Arrivée prévue"><input type="date" min={today} defaultValue="2026-11-05" className={fieldClass} /></Field>
+        <Field label="Arrivée effective"><input type="date" min={today} defaultValue="2026-11-06" className={fieldClass} /></Field>
       </div>
-      <button className="btn-primary" type="submit">Mettre à jour (mock)</button>
+      <button className="btn-primary" type="submit">Enregistrer le suivi (mock)</button>
     </form>
   );
 }
 
 function ReceptionDemo({ notify }: { notify: Notify }) {
-  const [qte, setQte] = useState(5);
-  const [cqte, setCqte] = useState("CONFORME");
+  const today = new Date().toISOString().slice(0, 10);
+  const [lignes, setLignes] = useState([
+    { designation: "Ordinateur portable HP ProBook", prevu: 5, recu: 5 },
+    { designation: "Clavier sans fil", prevu: 5, recu: 4 },
+  ]);
+  const [cqte, setCqte] = useState("PARTIELLE");
   const [cqual, setCqual] = useState("CONFORME");
-  const problem = cqte !== "CONFORME" || cqual !== "CONFORME";
-  const [ecart, setEcart] = useState({ type: "MANQUANT", action: "REMPLACEMENT", desc: "1 carton éventré." });
+  const qtyGap = lignes.some((l) => l.recu !== l.prevu);
+  const problem = cqte !== "CONFORME" || cqual !== "CONFORME" || qtyGap;
+  const [ecart, setEcart] = useState({ type: "MANQUANT", action: "REMPLACEMENT", desc: "1 clavier manquant.", dateRes: "", suiviRes: "" });
   return (
-    <form onSubmit={(e) => { e.preventDefault(); notify(problem ? `Réception simulée AVEC ÉCART (${ecart.type} → ${ecart.action}) (mock).` : "Réception simulée définitive (mock)."); }} className={`${cardClass} space-y-4`}>
+    <form onSubmit={(e) => { e.preventDefault(); if (lignes.some((l) => l.recu === null || Number.isNaN(l.recu))) return notify("Échec simulé : renseignez la quantité reçue de chaque ligne (mock)."); notify(problem ? `Réception simulée AVEC ÉCART (${ecart.type} → ${ecart.action}) (mock).` : "Réception simulée définitive (mock)."); }} className={`${cardClass} space-y-4`}>
       <p className={sectionTitleClass}>Réception + écarts + PJ — replica ReceptionModal</p>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Field label="Date réception *"><input required type="date" defaultValue="2026-11-06" className={fieldClass} /></Field>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Field label="Date réception *"><input required type="date" min={today} defaultValue="2026-11-06" className={fieldClass} /></Field>
         <Field label="Réceptionnaire"><input defaultValue="Service Logistique" className={fieldClass} /></Field>
-        <Field label="Qté reçue / 5 *"><input required type="number" className={fieldClass} value={qte} onChange={(e) => setQte(Number(e.target.value))} /></Field>
+      </div>
+      <Field label="Observations (constats finaux)"><input placeholder="Constats finaux de la réception…" className={fieldClass} defaultValue="" /></Field>
+      <div>
+        <label className={labelClass}>Lignes — prévu / reçu * (écart auto si ≠)</label>
+        <div className="overflow-x-auto rounded-2xl border border-slate-200">
+          <table className="w-full min-w-[480px] text-left text-[12px]">
+            <thead className="bg-slate-50 text-[10px] uppercase tracking-widest text-slate-400"><tr><th className="px-4 py-2">Désignation</th><th className="px-4 py-2 text-center">Prévu</th><th className="px-4 py-2 text-center">Reçu *</th><th className="px-4 py-2 text-center">Écart</th></tr></thead>
+            <tbody>
+              {lignes.map((l, i) => (
+                <tr key={i} className="border-t border-slate-100">
+                  <td className="px-4 py-2 font-bold">{l.designation}</td>
+                  <td className="px-4 py-2 text-center">{l.prevu}</td>
+                  <td className="px-4 py-2"><input required type="number" min={0} className={`${fieldClass} mx-auto max-w-[100px] text-center ${l.recu !== l.prevu ? "border-amber-400 bg-amber-50" : ""}`} value={l.recu} onChange={(e) => setLignes(lignes.map((x, j) => (j === i ? { ...x, recu: Number(e.target.value) } : x)))} /></td>
+                  <td className="px-4 py-2 text-center font-black">{l.recu !== l.prevu ? <span className="text-amber-600">⚠ {l.prevu - l.recu}</span> : <span className="text-emerald-600">—</span>}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div><label className={labelClass}>Conformité quantité *</label><div className="flex gap-2">{["CONFORME", "PARTIELLE"].map((o) => <button key={o} type="button" onClick={() => setCqte(o)} className={`flex-1 rounded-xl border px-3 py-2 text-[12px] font-black ${cqte === o ? "border-emerald-500 bg-emerald-50 text-emerald-800" : "border-slate-200"}`}>{o}</button>)}</div></div>
-        <div><label className={labelClass}>Conformité qualité *</label><div className="flex gap-2">{["CONFORME", "NON_CONFORME"].map((o) => <button key={o} type="button" onClick={() => setCqual(o)} className={`flex-1 rounded-xl border px-3 py-2 text-[12px] font-black ${cqual === o ? "border-emerald-500 bg-emerald-50 text-emerald-800" : "border-slate-200"}`}>{o}</button>)}</div></div>
+        <div><label className={labelClass}>Conformité quantité *</label><div className="flex gap-2">{[["CONFORME", "Totalité"], ["PARTIELLE", "Partielle"]].map(([v, l]) => <button key={v} type="button" onClick={() => setCqte(v)} className={`flex-1 rounded-xl border px-3 py-2 text-[12px] font-black ${cqte === v ? "border-emerald-500 bg-emerald-50 text-emerald-800" : "border-slate-200"}`}>{l}</button>)}</div></div>
+        <div><label className={labelClass}>Conformité qualité *</label><div className="flex gap-2">{[["CONFORME", "Conforme"], ["NON_CONFORME", "Non conforme"]].map(([v, l]) => <button key={v} type="button" onClick={() => setCqual(v)} className={`flex-1 rounded-xl border px-3 py-2 text-[12px] font-black ${cqual === v ? "border-emerald-500 bg-emerald-50 text-emerald-800" : "border-slate-200"}`}>{l}</button>)}</div></div>
       </div>
       {problem && (
         <div className="grid grid-cols-1 gap-4 rounded-2xl border border-red-200 bg-red-50/50 p-4 sm:grid-cols-2">
           <Field label="Type d'écart *"><select className={fieldClass} value={ecart.type} onChange={(e) => setEcart({ ...ecart, type: e.target.value })}><option>MANQUANT</option><option>DEFECTUEUX</option><option>NON_CONFORME</option><option>HORS_SPECIFICATIONS</option></select></Field>
           <Field label="Action corrective *"><select className={fieldClass} value={ecart.action} onChange={(e) => setEcart({ ...ecart, action: e.target.value })}><option>REMPLACEMENT</option><option>REPARATION</option><option>AVOIR</option><option>REJET</option></select></Field>
           <div className="sm:col-span-2"><Field label="Description écart *"><input required className={fieldClass} value={ecart.desc} onChange={(e) => setEcart({ ...ecart, desc: e.target.value })} /></Field></div>
+          <Field label="Date de résolution"><input type="date" min={today} className={fieldClass} value={ecart.dateRes} onChange={(e) => setEcart({ ...ecart, dateRes: e.target.value })} /></Field>
+          <Field label="Suivi de résolution"><input placeholder="Suivi…" className={fieldClass} value={ecart.suiviRes} onChange={(e) => setEcart({ ...ecart, suiviRes: e.target.value })} /></Field>
         </div>
       )}
-      <Field label="PJ : Bon de livraison (PDF)"><input type="file" accept=".pdf" className={fieldClass} onChange={() => {}} /></Field>
-      <Field label="PJ : PV de réception (PDF)"><input type="file" accept=".pdf" className={fieldClass} onChange={() => {}} /></Field>
+      <Field label="PJ : Bon de livraison (PDF)"><input type="file" accept=".pdf,application/pdf" className={fieldClass} onChange={() => {}} /></Field>
+      <Field label="PJ : PV de réception (PDF)"><input type="file" accept=".pdf,application/pdf" className={fieldClass} onChange={() => {}} /></Field>
       <button className="btn-primary" type="submit">{problem ? "Valider avec écart (mock)" : "Valider définitivement (mock)"}</button>
     </form>
   );
@@ -524,28 +785,35 @@ function ResolveIssueDemo({ notify }: { notify: Notify }) {
   return (
     <form onSubmit={(e) => { e.preventDefault(); notify("Écart simulé résolu (mock)."); }} className={`${cardClass} space-y-4`}>
       <p className={sectionTitleClass}>Résolution d&apos;écart — replica ResolveIssueModal</p>
+      <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] font-semibold text-amber-800">Écart constaté — DA n° DA-2026-014 : « 1 carton éventré » (type MANQUANT) (mock).</div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Date de résolution *"><input required type="date" defaultValue="2026-11-10" className={fieldClass} /></Field>
-        <Field label="Suivi / solution *"><textarea required defaultValue="Carton remplacé par le fournisseur le 10/11." className={textareaClass} /></Field>
+        <Field label="Date de résolution *"><input required type="date" min={new Date().toISOString().slice(0, 10)} defaultValue={new Date().toISOString().slice(0, 10)} className={fieldClass} /></Field>
+        <Field label="Commentaire / Solution apportée *"><textarea required placeholder="Expliquez comment l'écart a été résolu…" className={textareaClass} defaultValue="" /></Field>
       </div>
-      <button className="btn-primary" type="submit">Clôturer l&apos;écart (mock)</button>
+      <button className="btn-primary" type="submit">Confirmer la résolution (mock)</button>
     </form>
   );
 }
 
 function ClotureDemo({ notify }: { notify: Notify }) {
-  const [satis, setSatis] = useState(5);
-  const [statut, setStatut] = useState("CLOTURE");
+  const [satis, setSatis] = useState(0);
+  const [statut, setStatut] = useState("");
   return (
-    <form onSubmit={(e) => { e.preventDefault(); if (!satis) return notify("Échec simulé : satisfaction requise (mock)."); notify(`Clôture simulée : ${statut}, satisfaction ${satis}/5 (mock).`); }} className={`${cardClass} space-y-4`}>
+    <form onSubmit={(e) => { e.preventDefault(); if (!statut) return notify("Échec simulé : sélectionnez le statut final (mock)."); if (!satis) return notify("Échec simulé : veuillez donner une note de satisfaction (mock)."); notify(`Clôture simulée : ${statut}, satisfaction ${satis}/5 (mock).`); }} className={`${cardClass} space-y-4`}>
       <p className={sectionTitleClass}>Clôture finale — replica ClotureModal / ClosureModal</p>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Date de clôture *"><input required type="date" defaultValue="2026-11-12" className={fieldClass} /></Field>
-        <Field label="Statut final *"><select className={fieldClass} value={statut} onChange={(e) => setStatut(e.target.value)}><option>CLOTURE</option><option>PARTIELLEMENT_EXECUTE</option><option>ANNULE</option></select></Field>
+        <Field label="Date de clôture *"><input required type="date" min={new Date().toISOString().slice(0, 10)} defaultValue={new Date().toISOString().slice(0, 10)} className={fieldClass} /></Field>
+        <Field label="Statut final *">
+          <select required className={fieldClass} value={statut} onChange={(e) => setStatut(e.target.value)}>
+            <option value="">Sélectionnez le statut…</option>
+            <option value="CLOTURE">Clôturé avec succès</option>
+            <option value="PARTIELLEMENT_EXECUTE">Partiellement exécuté</option>
+          </select>
+        </Field>
       </div>
       <div><label className={labelClass}>Satisfaction (1–5) *</label><Stars value={satis} onChange={setSatis} /></div>
       <Field label="Commentaires finaux"><textarea defaultValue="Prestation conforme, délai respecté." className={textareaClass} /></Field>
-      <button className="btn-primary" type="submit">Clôturer le dossier (mock)</button>
+      <button className="btn-primary" type="submit">Valider la clôture (mock)</button>
     </form>
   );
 }
@@ -553,151 +821,289 @@ function ClotureDemo({ notify }: { notify: Notify }) {
 /* ================= D. Marchés / DAO ================= */
 
 function ProcurementCreateDemo({ notify }: { notify: Notify }) {
-  const [f, setF] = useState({ title: "Fourniture de vaccins — AOI-2026-03", procedure: "AOI", category: "BIENS", deadline: "2026-11-15T12:00", publication: "2026-10-02T09:00", optionKey: "2.2.1 Matériel informatique", status: "PUBLISHED" });
+  const [f, setF] = useState({ title: "Fourniture de vaccins — AOI-2026-03", procedure: "", category: "", deadline: "2026-11-15T12:00", publication: "2026-10-02T09:00", optionKey: "", status: "PUBLISHED" });
   const [sources, setSources] = useState<string[]>(["GAVI"]);
+  const [refBailleur, setRefBailleur] = useState("GAVI");
   const [ateliers, setAteliers] = useState<string[]>(["2026-10-20T10:00"]);
+  const [annexCount, setAnnexCount] = useState(2);
+  const catalog: Record<string, { ligne: string; subvention: string }> = {
+    SRPS_CS7_FM: { ligne: "SRPS CS7 — Fonds Mondial", subvention: "MDG-S MOH 4041" },
+    RSS3_GAVI: { ligne: "RSS3 — GAVI", subvention: "MDG-HSS-3" },
+    FAE_GAVI: { ligne: "FAE — GAVI", subvention: "MDG-FAE" },
+    CDS_GAVI: { ligne: "CDS — GAVI", subvention: "MDG-CDS" },
+    VAR_GAVI: { ligne: "VAR — GAVI", subvention: "MDG-VAR" },
+    PARN2_BM_P175110: { ligne: "PARN2 — BM P175110", subvention: "P175110" },
+    PARN2_BM_PAD4924: { ligne: "PARN2 — BM PAD4924", subvention: "PAD4924" },
+    PPSB_BM_P174903: { ligne: "PPSB — BM P174903", subvention: "P174903" },
+  };
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setF((p) => ({ ...p, [k]: e.target.value }));
-  const toggle = (s: string) => setSources((p) => (p.includes(s) ? p.filter((x) => x !== s) : [...p, s]));
+  const toggle = (s: string) => setSources((p) => {
+    const next = p.includes(s) ? p.filter((x) => x !== s) : [...p, s];
+    if (next.length === 1) setRefBailleur(next[0]);
+    return next;
+  });
   return (
-    <form onSubmit={(e) => { e.preventDefault(); if (!sources.length) return notify("Échec simulé : au moins 1 source de financement (mock)."); notify(`Marché simulé publié : ${f.title} (mock).`); }} className={`${cardClass} space-y-5`}>
+    <form onSubmit={(e) => { e.preventDefault(); if (!sources.length) return notify("Échec simulé : au moins 1 source de financement (mock)."); notify(`Marché simulé publié sur le portail : ${f.title} (mock).`); }} className={`${cardClass} space-y-5`}>
       <p className={sectionTitleClass}>A — Marché (7 sections) — replica procurementForm + create</p>
-      <Field label="Intitulé (Section A) *"><input required className={fieldClass} value={f.title} onChange={set("title")} /></Field>
+      <Field label="Intitulé (Section A) *"><input required placeholder="Saisir l'intitulé…" className={fieldClass} value={f.title} onChange={set("title")} /></Field>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Field label="Procédure"><select className={fieldClass} value={f.procedure} onChange={set("procedure")}><option>AOI</option><option>AON</option><option>DC</option><option>GRE_A_GRE</option></select></Field>
-        <Field label="Catégorie"><select className={fieldClass} value={f.category} onChange={(e) => { set("category")(e); if (e.target.value !== "SERVICES") setAteliers([]); }}><option>BIENS</option><option>SERVICES</option><option>TRAVAUX</option></select></Field>
-        <Field label="Statut"><select className={fieldClass} value={f.status} onChange={set("status")}><option>PUBLISHED</option><option>CANCELLED</option><option>CLOSED</option></select></Field>
+        <Field label="Procédure">
+          <select className={fieldClass} value={f.procedure} onChange={set("procedure")}>
+            <option value="">Aucun</option><option value="AOI">AOI</option><option value="AON">AON</option><option value="DC">DC</option><option value="GRE_A_GRE">Gré à gré</option>
+          </select>
+        </Field>
+        <Field label="Catégorie">
+          <select className={fieldClass} value={f.category} onChange={(e) => { set("category")(e); if (e.target.value !== "SERVICES") setAteliers([]); }}>
+            <option value="">Aucun</option><option>BIENS</option><option>SERVICES</option><option>TRAVAUX</option>
+          </select>
+        </Field>
+        <Field label="Statut"><select className={fieldClass} value={f.status} onChange={set("status")}><option value="PUBLISHED">Publié</option><option value="CANCELLED">Annulé</option><option value="CLOSED">Clôturé</option></select></Field>
       </div>
       <div>
         <label className={labelClass}>Sources de financement (Section B) *</label>
-        <div className="flex flex-wrap gap-2">{["FM", "GAVI", "BM"].map((s) => <button key={s} type="button" onClick={() => toggle(s)} className={`rounded-xl border px-4 py-2 text-[12px] font-black ${sources.includes(s) ? "border-emerald-500 bg-emerald-50 text-emerald-800" : "border-slate-200"}`}>{s}</button>)}</div>
+        <div className="flex flex-wrap gap-3">
+          {[["FM", "Fonds Mondial"], ["GAVI", "Alliance Gavi"], ["BM", "Banque Mondiale"]].map(([v, l]) => (
+            <label key={v} className="flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-[13px] font-bold">
+              <input type="checkbox" checked={sources.includes(v)} onChange={() => toggle(v)} className="h-4 w-4 accent-emerald-600" />{l}
+            </label>
+          ))}
+        </div>
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Libellé budgétaire"><select className={fieldClass} value={f.optionKey} onChange={set("optionKey")}><option>2.1.1 Fournitures bureau</option><option>2.2.1 Matériel informatique</option><option>3.1.1 Services</option></select></Field>
-        <Field label="Code projet (auto)"><input readOnly className={fieldClass} value="MDG-S-MOH-4041" /></Field>
-        <Field label="Publication"><input type="datetime-local" className={fieldClass} value={f.publication} onChange={set("publication")} /></Field>
+        <Field label="Référence bailleur">
+          {sources.length > 1 ? (
+            <select className={fieldClass} value={refBailleur} onChange={(e) => setRefBailleur(e.target.value)}>{sources.map((s) => <option key={s}>{s}</option>)}</select>
+          ) : sources.length === 1 ? (
+            <input readOnly className={`${fieldClass} bg-slate-50`} value={`${refBailleur} (auto)`} />
+          ) : (
+            <input readOnly className={`${fieldClass} bg-slate-50`} value="Aucun" />
+          )}
+        </Field>
+        <Field label="Libellé budgétaire (catalogue)">
+          {sources.length === 0 ? (
+            <input readOnly className={`${fieldClass} bg-slate-50`} value="Aucun — sélectionnez un bailleur" />
+          ) : (
+            <select className={fieldClass} value={f.optionKey} onChange={set("optionKey")}>
+              <option value="">Sélectionner…</option>
+              {Object.entries(catalog).map(([k, v]) => <option key={k} value={k}>{k} — {v.ligne}</option>)}
+            </select>
+          )}
+        </Field>
+        <Field label="Code projet (auto)"><input readOnly className={fieldClass} value={f.optionKey ? catalog[f.optionKey].subvention : "—"} /></Field>
+        <Field label="Date de publication"><input type="datetime-local" className={fieldClass} value={f.publication} onChange={set("publication")} /></Field>
         <Field label="Date limite"><input type="datetime-local" className={fieldClass} value={f.deadline} onChange={set("deadline")} /></Field>
       </div>
       {f.category === "SERVICES" && (
         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-          <label className={labelClass}>Dates d&apos;atelier (SERVICES uniquement)</label>
-          {ateliers.map((a, i) => (
-            <div key={i} className="mb-2 flex gap-2">
-              <input type="datetime-local" className={fieldClass} value={a} onChange={(e) => setAteliers(ateliers.map((x, j) => (j === i ? e.target.value : x)))} />
-              <button type="button" className="rounded-xl border border-slate-200 px-3" onClick={() => setAteliers(ateliers.filter((_, j) => j !== i))}>✕</button>
-            </div>
-          ))}
-          <button type="button" className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-[12px] font-bold" onClick={() => setAteliers([...ateliers, "2026-10-25T10:00"])}>+ Ajouter une date</button>
+          <label className={labelClass}>Dates d&apos;atelier (SERVICES uniquement) — chips supprimables</label>
+          <div className="flex flex-wrap gap-2">
+            {ateliers.map((a, i) => (
+              <span key={i} className="flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-[12px] font-bold shadow-sm">
+                {a.replace("T", " ")}
+                <button type="button" className="text-red-500" onClick={() => setAteliers(ateliers.filter((_, j) => j !== i))}>✕</button>
+              </span>
+            ))}
+          </div>
+          <button type="button" className="mt-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-[12px] font-bold" onClick={() => setAteliers([...ateliers, "2026-10-25T10:00"])}>+ Ajouter une date</button>
         </div>
       )}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Field label="Dossiers techniques (PDF ×n)"><input type="file" accept=".pdf" multiple className={fieldClass} onChange={() => {}} /></Field>
-        <Field label="Annexes (max 5)"><input type="file" multiple className={fieldClass} onChange={() => {}} /></Field>
-        <Field label="Modèle de soumission (.docx)"><input type="file" accept=".docx" className={fieldClass} onChange={() => {}} /></Field>
+        <div>
+          <label className={labelClass}>Annexes (tous types, max 5 — {annexCount}/5)</label>
+          <input type="file" multiple disabled={annexCount >= 5} className={`${fieldClass} disabled:opacity-40`} onChange={() => { if (annexCount >= 5) return notify("Échec simulé : 5 annexes maximum (mock)."); setAnnexCount(annexCount + 1); }} />
+        </div>
+        <Field label="Modèle de soumission (.docx, unique)"><input type="file" accept=".docx" className={fieldClass} onChange={() => {}} /></Field>
       </div>
-      <button className="btn-primary" type="submit">Publier le marché (mock)</button>
+      <button className="btn-primary" type="submit">Publier sur le portail (mock)</button>
     </form>
   );
 }
 
 function ProcurementUpdateDemo({ notify }: { notify: Notify }) {
-  const [title, setTitle] = useState("Fourniture de vaccins — AOI-2026-03 (v2)");
-  const [deleted, setDeleted] = useState<string[]>([]);
-  const docs = ["DAO-complet.pdf", "annexe-prix.xlsx"];
+  const [f, setF] = useState({ title: "Fourniture de vaccins — AOI-2026-03 (v2)", procedure: "AOI", category: "BIENS", publication: "2026-10-02T09:00", deadline: "2026-11-15T12:00", status: "PUBLISHED" });
+  const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setF((p) => ({ ...p, [k]: e.target.value }));
+  const [delTech, setDelTech] = useState<number[]>([]);
+  const [delAnnex, setDelAnnex] = useState<number[]>([]);
+  const techDocs = [{ id: 101, name: "DAO-complet.pdf" }, { id: 102, name: "CCAG.pdf" }];
+  const annexDocs = [{ id: 201, name: "annexe-prix.xlsx" }, { id: 202, name: "plan-livraison.pdf" }];
+  const [replaceModel, setReplaceModel] = useState(false);
   return (
-    <form onSubmit={(e) => { e.preventDefault(); notify(`Marché simulé mis à jour (${deleted.length} PJ supprimée(s)) (mock).`); }} className={`${cardClass} space-y-4`}>
-      <p className={sectionTitleClass}>Édition marché — replica procurementUpdateForm + [id]/update</p>
-      <Field label="Intitulé *"><input required className={fieldClass} value={title} onChange={(e) => setTitle(e.target.value)} /></Field>
+    <form onSubmit={(e) => { e.preventDefault(); notify(`Marché simulé mis à jour : ${delTech.length} doc(s) technique(s) + ${delAnnex.length} annexe(s) supprimé(s)${replaceModel ? " + modèle remplacé" : ""} → /procurement (mock).`); }} className={`${cardClass} space-y-4`}>
+      <p className={sectionTitleClass}>Édition marché — replica procurementUpdateForm + [id]/update (pré-rempli getMarketById)</p>
+      <Field label="Intitulé *"><input required className={fieldClass} value={f.title} onChange={set("title")} /></Field>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <Field label="Procédure"><select className={fieldClass} value={f.procedure} onChange={set("procedure")}><option>AOI</option><option>AON</option><option>DC</option><option>GRE_A_GRE</option></select></Field>
+        <Field label="Catégorie"><select className={fieldClass} value={f.category} onChange={set("category")}><option>BIENS</option><option>SERVICES</option><option>TRAVAUX</option></select></Field>
+        <Field label="Statut"><select className={fieldClass} value={f.status} onChange={set("status")}><option value="PUBLISHED">Publié</option><option value="CANCELLED">Annulé</option><option value="CLOSED">Clôturé</option></select></Field>
+        <Field label="Financement"><input readOnly className={`${fieldClass} bg-slate-50`} value="GAVI — RSS3_GAVI / MDG-HSS-3" /></Field>
+        <Field label="Publication"><input type="datetime-local" className={fieldClass} value={f.publication} onChange={set("publication")} /></Field>
+        <Field label="Date limite"><input type="datetime-local" className={fieldClass} value={f.deadline} onChange={set("deadline")} /></Field>
+      </div>
       <div>
-        <label className={labelClass}>Pièces actuelles (cocher = supprimer → deletedAnnexIds[])</label>
-        {docs.map((d) => (
-          <label key={d} className="mb-2 flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold">
-            <span>📎 {d} <span className="ml-2 rounded bg-slate-100 px-2 py-0.5 text-[10px]">ACTUEL</span></span>
-            <input type="checkbox" checked={deleted.includes(d)} onChange={() => setDeleted((p) => (p.includes(d) ? p.filter((x) => x !== d) : [...p, d]))} className="h-4 w-4 accent-red-500" />
+        <label className={labelClass}>Documents techniques actuels (cocher = deletedTechnicalDocumentIds[])</label>
+        {techDocs.map((d) => (
+          <label key={d.id} className="mb-2 flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold">
+            <span>📎 {d.name} <span className="ml-2 rounded bg-slate-100 px-2 py-0.5 text-[10px]">ACTUEL</span></span>
+            <input type="checkbox" checked={delTech.includes(d.id)} onChange={() => setDelTech((p) => (p.includes(d.id) ? p.filter((x) => x !== d.id) : [...p, d.id]))} className="h-4 w-4 accent-red-500" />
           </label>
         ))}
+        <Field label="Nouveaux documents techniques (PDF)"><input type="file" accept=".pdf" multiple className={fieldClass} onChange={() => {}} /></Field>
       </div>
-      <Field label="Nouveaux fichiers"><input type="file" multiple className={fieldClass} onChange={() => {}} /></Field>
-      <button className="btn-primary" type="submit">Enregistrer les modifications (mock)</button>
+      <div>
+        <label className={labelClass}>Annexes actuelles (cocher = deletedAnnexIds[])</label>
+        {annexDocs.map((d) => (
+          <label key={d.id} className="mb-2 flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold">
+            <span>📎 {d.name} <span className="ml-2 rounded bg-slate-100 px-2 py-0.5 text-[10px]">ACTUEL</span></span>
+            <input type="checkbox" checked={delAnnex.includes(d.id)} onChange={() => setDelAnnex((p) => (p.includes(d.id) ? p.filter((x) => x !== d.id) : [...p, d.id]))} className="h-4 w-4 accent-red-500" />
+          </label>
+        ))}
+        <Field label="Nouvelles annexes (max 5)"><input type="file" multiple className={fieldClass} onChange={() => {}} /></Field>
+      </div>
+      <div>
+        <label className={labelClass}>Modèle de soumission actuel</label>
+        <p className="mb-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold">📎 modele-soumission.docx <span className="ml-2 rounded bg-slate-100 px-2 py-0.5 text-[10px]">ACTUEL</span></p>
+        <label className="flex cursor-pointer items-center gap-2 text-sm font-bold"><input type="checkbox" checked={replaceModel} onChange={() => setReplaceModel(!replaceModel)} className="h-4 w-4 accent-emerald-600" /> Remplacer le modèle (.docx)</label>
+        {replaceModel && <input type="file" accept=".docx" className={`${fieldClass} mt-2`} onChange={() => {}} />}
+      </div>
+      <button className="btn-primary" type="submit">Publier sur le portail (mock)</button>
     </form>
   );
 }
 
 function PpmpGridDemo({ notify }: { notify: Notify }) {
-  const [tab, setTab] = useState<"works" | "goods" | "consultants">("goods");
+  const [tab, setTab] = useState<"works" | "goods-services" | "consultants">("goods-services");
+  const methods = tab === "consultants" ? ["sfq", "sfqc", "smc", "sqc", "sci", "sed"] : ["aon", "aoi", "dc", "ed"];
   const [rows, setRows] = useState([
-    { title: "Ordinateurs de bureau (25)", method: "AON", amount: "62 500 000", status: "En cours dans le temps" },
-    { title: "Réhabilitation CSB II", method: "AOI", amount: "860 500 000", status: "Non démarré dans le temps" },
+    { ref: "PPM-2026-014", title: "Ordinateurs de bureau (25)", agmo: "UCP / Coordination", fin: "GAVI", bailleur: "RSS3_GAVI", code: "MDG-HSS-3", method: "aon", amount: "62 500 000", status: "En cours (dans les temps)" },
+    { ref: "PPM-2026-007", title: "Réhabilitation CSB II", agmo: "DRSP Vakinankaratra", fin: "Fonds Mondial", bailleur: "SRPS_CS7_FM", code: "MDG-S-MOH-4041", method: "aoi", amount: "860 500 000", status: "Non démarré (dans les temps)" },
   ]);
   const [pwd, setPwd] = useState("");
   const [showPwd, setShowPwd] = useState(false);
+  const [pwdMode, setPwdMode] = useState<"delete" | "stop">("delete");
+  const [eye, setEye] = useState(false);
   return (
     <div className={`${cardClass} space-y-4`}>
       <p className={sectionTitleClass}>Planning passation PPMP — replica personnel/formulaire (GridTable)</p>
       <div className="flex flex-wrap items-center gap-2">
-        {(["works", "goods", "consultants"] as const).map((t) => (
-          <button key={t} type="button" onClick={() => setTab(t)} className={`rounded-xl px-4 py-2 text-[12px] font-black ${tab === t ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600"}`}>{t === "works" ? "Travaux" : t === "goods" ? "Biens" : "Consultance"}</button>
+        {(["works", "goods-services", "consultants"] as const).map((t) => (
+          <button key={t} type="button" onClick={() => setTab(t)} className={`rounded-xl px-4 py-2 text-[12px] font-black ${tab === t ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600"}`}>{t === "works" ? "Travaux" : t === "goods-services" ? "Biens & Services" : "Consultants"}</button>
         ))}
-        <span className="ml-auto rounded-full bg-slate-100 px-3 py-1 text-[11px] font-black">{rows.length} marchés — Total {(923000000).toLocaleString("fr-FR")} Ar</span>
+        <span className="ml-auto rounded-full bg-slate-100 px-3 py-1 text-[11px] font-black">{rows.length} marchés — Montant total (Ar) {(923000000).toLocaleString("fr-FR", { minimumFractionDigits: 2 })}</span>
+        <button type="button" className="rounded-xl border border-slate-200 px-4 py-2 text-[12px] font-bold" onClick={() => notify("Rafraîchissement simulé du planning (mock).")}>Rafraîchir</button>
       </div>
+      <p className="text-[11px] font-bold text-slate-400">Méthode : {tab === "works" ? "Méthode P.M" : tab === "goods-services" ? "Méthode E.P.M" : "Sélection consultants"} — statuts auto recalculés (mock).</p>
       <div className="overflow-x-auto rounded-2xl border border-slate-200">
-        <table className="w-full min-w-[640px] text-left text-[12px]">
+        <table className="w-full min-w-[980px] text-left text-[12px]">
           <thead className="bg-slate-50 text-[10px] uppercase tracking-widest text-slate-400">
-            <tr><th className="px-4 py-3">Intitulé</th><th className="px-4 py-3">Méthode</th><th className="px-4 py-3">Montant</th><th className="px-4 py-3">Statut</th><th className="px-4 py-3">Actions</th></tr>
+            <tr><th className="px-4 py-3">Réf suivi</th><th className="px-4 py-3">Intitulé</th><th className="px-4 py-3">AGMO</th><th className="px-4 py-3">Financement</th><th className="px-4 py-3">Réf bailleur</th><th className="px-4 py-3">Méthode</th><th className="px-4 py-3">Montant (Ar)</th><th className="px-4 py-3">Statut</th><th className="px-4 py-3">Actions</th></tr>
           </thead>
           <tbody>
             {rows.map((r, i) => (
               <tr key={i} className="border-t border-slate-100">
+                <td className="px-4 py-2 font-mono font-black">{r.ref}</td>
                 <td className="px-4 py-2"><input className={fieldClass} value={r.title} onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)))} /></td>
-                <td className="px-4 py-2"><select className={fieldClass} value={r.method} onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, method: e.target.value } : x)))}><option>AON</option><option>AOI</option><option>DC</option><option>ED</option></select></td>
-                <td className="px-4 py-2 font-bold">{r.amount}</td>
+                <td className="px-4 py-2">{r.agmo}</td>
+                <td className="px-4 py-2">{r.fin}</td>
+                <td className="px-4 py-2 font-mono text-[11px]">{r.bailleur}</td>
+                <td className="px-4 py-2"><select className={fieldClass} value={r.method} onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, method: e.target.value } : x)))}>{methods.map((m) => <option key={m}>{m}</option>)}</select></td>
+                <td className="px-4 py-2 font-bold tabular-nums">{r.amount}</td>
                 <td className="px-4 py-2"><span className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-black text-emerald-700">{r.status}</span></td>
-                <td className="px-4 py-2"><button type="button" className="rounded-lg border border-red-200 px-3 py-1.5 text-[11px] font-black text-red-600" onClick={() => setShowPwd(true)}>Supprimer</button></td>
+                <td className="px-4 py-2">
+                  <div className="flex gap-1">
+                    <button type="button" className="rounded-lg border border-slate-200 px-2 py-1.5 text-[11px] font-black" onClick={() => notify(`Ligne simulée sauvegardée : ${r.ref} (mock).`)}>Sauver</button>
+                    <button type="button" className="rounded-lg border border-amber-300 px-2 py-1.5 text-[11px] font-black text-amber-700" onClick={() => { setPwdMode("stop"); setShowPwd(true); }}>Arrêter</button>
+                    <button type="button" className="rounded-lg border border-red-200 px-2 py-1.5 text-[11px] font-black text-red-600" onClick={() => { setPwdMode("delete"); setShowPwd(true); }}>Supprimer</button>
+                  </div>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
       {showPwd && (
-        <div className="flex gap-2 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-          <input type="password" placeholder="Mot de passe requis (mock)" className={fieldClass} value={pwd} onChange={(e) => setPwd(e.target.value)} />
-          <button type="button" className="rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white" onClick={() => { setShowPwd(false); setPwd(""); notify("Suppression simulée autorisée par mot de passe (mock)."); }}>Confirmer</button>
+        <div className="space-y-2 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+          <p className="text-sm font-black text-amber-800">{pwdMode === "delete" ? "Supprimer la ligne" : "Arrêter la ligne"} — mot de passe requis (mock).</p>
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <input type={eye ? "text" : "password"} placeholder="Mot de passe" className={`${fieldClass} pr-12`} value={pwd} onChange={(e) => setPwd(e.target.value)} />
+              <button type="button" onClick={() => setEye(!eye)} aria-label="Afficher/masquer" className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">👁</button>
+            </div>
+            <button type="button" className={`rounded-xl px-4 py-2 text-sm font-bold text-white ${pwdMode === "delete" ? "bg-red-600" : "bg-amber-600"}`} onClick={() => { if (!pwd.trim()) return notify("Échec simulé : mot de passe vide — action annulée (mock)."); setShowPwd(false); setPwd(""); notify(pwdMode === "delete" ? "Suppression simulée autorisée (mock)." : "Arrêt simulé enregistré (mock)."); }}>Confirmer</button>
+            <button type="button" className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold" onClick={() => { setShowPwd(false); setPwd(""); notify("Action annulée (mock)."); }}>Annuler</button>
+          </div>
         </div>
       )}
-      <button type="button" className="rounded-2xl border border-slate-200 px-5 py-2.5 text-sm font-bold" onClick={() => { setRows([...rows, { title: "Nouvelle ligne _new_", method: "DC", amount: "0", status: "Brouillon" }]); notify("Ligne simulée ajoutée (mock)."); }}>+ Ajouter une ligne (mock)</button>
+      <button type="button" className="rounded-2xl border border-slate-200 px-5 py-2.5 text-sm font-bold" onClick={() => { if (rows.some((r) => r.ref.includes("_new_"))) return notify("Échec simulé : sauvegardez la ligne _new_ avant d'en ajouter une (mock)."); setRows([...rows, { ref: "PPM-2026-_new_", title: "", agmo: "—", fin: "—", bailleur: "—", code: "—", method: methods[0], amount: "0", status: "Brouillon" }]); }}>+ Ajouter une ligne (mock)</button>
     </div>
   );
 }
 
 function PublicListDemo({ notify }: { notify: Notify }) {
   const [q, setQ] = useState("");
+  const [adv, setAdv] = useState(false);
+  const [dates, setDates] = useState({ pubAfter: "", pubBefore: "", deadAfter: "", deadBefore: "" });
   const [page, setPage] = useState(1);
-  const list = MOCK.marches.filter((m) => (m.ref + m.title).toLowerCase().includes(q.toLowerCase()));
+  const [fiche, setFiche] = useState<string | null>(null);
+  const setD = (k: keyof typeof dates) => (e: React.ChangeEvent<HTMLInputElement>) => setDates((p) => ({ ...p, [k]: e.target.value }));
+  const list = [
+    { ref: "AOI-2026-03", title: "Fourniture de vaccins & chaîne de froid", proc: "AOI", cat: "BIENS", montant: "1 240 000 000 Ar", online: "02/10/2026", deadline: "15/11/2026 12:00", countdown: "J-44", bailleur: "GAVI", refB: "MDG-S-MOH-4041", code: "MDG-S-MOH-4041", ateliers: [] as string[], annexes: ["DAO-complet.pdf", "annexe-prix.xlsx"] },
+    { ref: "DC-2026-11", title: "Formation logistique — 40 agents", proc: "DC", cat: "SERVICES", montant: "68 250 000 Ar", online: "08/10/2026", deadline: "05/11/2026 16:00", countdown: "J-34", bailleur: "GAVI", refB: "RSS3_GAVI", code: "MDG-HSS-3", ateliers: ["20/10/2026 10:00", "25/10/2026 10:00"], annexes: ["TDR-formation.pdf"] },
+    { ref: "AON-2026-07", title: "Travaux réhabilitation CSB II Antsirabe", proc: "AON", cat: "TRAVAUX", montant: "860 500 000 Ar", online: "05/10/2026", deadline: "28/11/2026 10:00", countdown: "J-57", bailleur: "Fonds Mondial", refB: "SRPS_CS7_FM", code: "MDG-S-MOH-4041", ateliers: [] as string[], annexes: ["plans-csb.pdf", "devis-quantitatif.xlsx"] },
+  ].filter((m) => (m.ref + m.title + m.code).toLowerCase().includes(q.toLowerCase()));
+  const f = list.find((m) => m.ref === fiche);
   return (
     <div className={`${cardClass} space-y-4`}>
       <p className={sectionTitleClass}>DAO publics — replica procurement (liste + détail [id])</p>
       <div className="flex gap-2">
         <input placeholder="Recherche titre / référence / code…" className={fieldClass} value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} />
-        <button type="button" className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold" onClick={() => setQ("")}>Effacer</button>
+        <button type="button" className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold" onClick={() => setAdv(!adv)}>Filtres avancés {adv ? "▾" : "▸"}</button>
       </div>
+      {adv && (
+        <div className="grid grid-cols-1 gap-3 rounded-2xl border border-slate-200 bg-slate-50/50 p-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Field label="Publié après"><input type="date" className={fieldClass} value={dates.pubAfter} onChange={setD("pubAfter")} /></Field>
+          <Field label="Publié avant"><input type="date" className={fieldClass} value={dates.pubBefore} onChange={setD("pubBefore")} /></Field>
+          <Field label="Limite après"><input type="date" className={fieldClass} value={dates.deadAfter} onChange={setD("deadAfter")} /></Field>
+          <Field label="Limite avant"><input type="date" className={fieldClass} value={dates.deadBefore} onChange={setD("deadBefore")} /></Field>
+          <div className="flex gap-2 sm:col-span-2 lg:col-span-4">
+            <button type="button" className="rounded-xl bg-slate-900 px-4 py-2 text-[12px] font-bold text-white" onClick={() => notify(`Recherche simulée : ${list.length} DAO (mock).`)}>Rechercher</button>
+            <button type="button" className="rounded-xl border border-slate-200 px-4 py-2 text-[12px] font-bold" onClick={() => { setQ(""); setDates({ pubAfter: "", pubBefore: "", deadAfter: "", deadBefore: "" }); }}>Effacer tous les filtres</button>
+          </div>
+        </div>
+      )}
       {list.map((m) => (
         <div key={m.ref} className="rounded-2xl border border-slate-200 bg-white p-4">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded bg-slate-900 px-2 py-1 font-mono text-[11px] font-black text-white">{m.ref}</span>
-            <span className="rounded bg-amber-100 px-2 py-1 text-[10px] font-black text-amber-800">Réponse sous 5 j</span>
-            <span className="ml-auto text-[11px] font-bold text-red-600">⏳ Limite : {m.deadline}</span>
+            <button type="button" onClick={() => setFiche(m.ref)} className="rounded bg-slate-900 px-2 py-1 font-mono text-[11px] font-black text-white hover:bg-slate-700">{m.ref}</button>
+            {m.proc === "DC" && <span className="rounded bg-amber-100 px-2 py-1 text-[10px] font-black text-amber-800">DC – Réponse sous 5 jours</span>}
+            <span className="ml-auto text-[11px] font-bold text-red-600">⏳ {m.countdown} — Limite : {m.deadline}</span>
           </div>
           <p className="mt-2 font-black text-slate-900">{m.title}</p>
-          <p className="text-[12px] font-semibold text-slate-500">{m.montant} — Bailleur GAVI (MDG-S-MOH-4041)</p>
-          <div className="mt-3 flex gap-2">
-            <button type="button" className="rounded-xl bg-emerald-600 px-4 py-2 text-[12px] font-bold text-white" onClick={() => notify(`DAO complet simulé téléchargé (${m.ref}) (mock).`)}>Télécharger DAO complet</button>
-            <button type="button" className="rounded-xl border border-slate-200 px-4 py-2 text-[12px] font-bold" onClick={() => notify(`Fiche simulée ouverte : ${m.ref} — §§ Caractéristiques / Financement / Calendrier / PJ (mock).`)}>Voir la fiche [id]</button>
+          <p className="text-[12px] font-semibold text-slate-500">En ligne le {m.online} — {m.montant}</p>
+          <p className="text-[12px] font-semibold text-slate-500">Financement : {m.bailleur} — Réf. Bailleur : {m.refB}</p>
+          {m.ateliers.length > 0 && <p className="text-[12px] font-semibold text-slate-500">Ateliers : {m.ateliers.join(" · ")}</p>}
+          <div className="mt-3 flex flex-wrap gap-2">
+            {m.annexes.map((a) => (
+              <button key={a} type="button" className="rounded-lg border border-slate-200 px-2 py-1 text-[11px] font-bold text-slate-600" onClick={() => notify(`Annexe simulée téléchargée : ${a} (tracking DOWNLOAD_ANNEXE mock).`)}>📎 {a}</button>
+            ))}
+            <button type="button" className="rounded-xl bg-emerald-600 px-4 py-2 text-[12px] font-bold text-white" onClick={() => notify(`DAO complet simulé téléchargé (${m.ref}) — connecté (mock).`)}>Télécharger DAO complet</button>
+            <button type="button" className="rounded-xl border border-slate-200 px-4 py-2 text-[12px] font-bold" onClick={() => setFiche(fiche === m.ref ? null : m.ref)}>{fiche === m.ref ? "Fermer la fiche" : "Voir la fiche [id]"}</button>
           </div>
+          {fiche === m.ref && f && (
+            <div className="mt-3 space-y-2 rounded-2xl bg-slate-50 p-4 text-[12px] font-medium text-slate-600">
+              <p><span className="rounded bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-800">PUBLISHED</span></p>
+              <p><span className="font-black">1. Caractéristiques :</span> {f.proc} — {f.cat} — Code projet {f.code} — Modèle : modele-soumission.docx</p>
+              <p><span className="font-black">2. Financement :</span> {f.bailleur} — Réf. Bailleur {f.refB}</p>
+              <p><span className="font-black">3. Calendrier :</span> publié le {f.online} — limite {f.deadline}{f.ateliers.length > 0 && <> — ateliers {f.ateliers.join(" · ")}</>}</p>
+              <p><span className="font-black">4. Pièces jointes :</span> {f.annexes.join(", ")}</p>
+            </div>
+          )}
         </div>
       ))}
       {list.length === 0 && <p className="text-sm font-semibold text-slate-400">Aucun DAO (mock).</p>}
       <div className="flex items-center justify-between">
         <button type="button" disabled={page <= 1} onClick={() => setPage(page - 1)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold disabled:opacity-40">← Précédent</button>
-        <span className="text-[12px] font-black">Page {page} — 10 / page (mock)</span>
+        <span className="text-[12px] font-black">Page {page} sur 3 — 10 / page (mock)</span>
         <button type="button" onClick={() => setPage(page + 1)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold">Suivant →</button>
       </div>
     </div>
@@ -707,24 +1113,55 @@ function PublicListDemo({ notify }: { notify: Notify }) {
 /* ================= E. Séances d'ouverture ================= */
 
 function SeanceNewDemo({ notify }: { notify: Notify }) {
-  const [f, setF] = useState({ ref: "DAO-2026-011", objet: "Ouverture AOI vaccins", statut: "BROUILLON", date: "2026-10-10", heure: "10:00", lieu: "Salle UCP", president: "Mme Rabe (Présidente)", obs: "Séance publique." });
+  const today = new Date().toISOString().slice(0, 10);
+  const [f, setF] = useState({ ref: "DAO-2026-011", objet: "Ouverture AOI vaccins", statut: "BROUILLON", date: "2026-10-10", heure: "10:00", lieu: "Salle UCP", president: "", obs: "Séance publique." });
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setF((p) => ({ ...p, [k]: e.target.value }));
-  const [members, setMembers] = useState("A. Rakoto — a.rakoto@ucp.mg — CIN 101234567890\nB. Rabe — b.rabe@ucp.mg — CIN 101234567891\nC. Randria — c.randria@ucp.mg — CIN 101234567892");
+  const users = ["Mme Rabe (Présidente)", "A. Rakoto", "B. Rabe", "C. Randria", "D. Rivo"];
+  const [members, setMembers] = useState([
+    { nom: "A. Rakoto", email: "a.rakoto@ucp.mg", cin: "101234567890", poste: "Passation", entite: "UCP" },
+    { nom: "B. Rabe", email: "b.rabe@ucp.mg", cin: "101234567891", poste: "Finance", entite: "UCP" },
+    { nom: "C. Randria", email: "c.randria@ucp.mg", cin: "101234567892", poste: "Logistique", entite: "UCP" },
+  ]);
   return (
-    <form onSubmit={(e) => { e.preventDefault(); const n = members.split("\n").filter(Boolean).length; if (n < 3) return notify(`Échec simulé : commission incomplète (${n}/3 min) (mock).`); notify(`Séance simulée créée : ${f.ref} (${n} membres) (mock).`); }} className={`${cardClass} space-y-4`}>
+    <form onSubmit={(e) => { e.preventDefault(); if (members.length < 3) return notify(`Échec simulé : commission incomplète (${members.length}/3 min) — membres complets actuellement : ${members.length} / 3 (mock).`); notify(`Séance simulée créée : ${f.ref} (${members.length} membres) → /ouverture_offre/SE-2026-011 (mock).`); }} className={`${cardClass} space-y-4`}>
       <p className={sectionTitleClass}>Nouvelle séance — replica ouverture_offre/new</p>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Référence dossier *"><input required className={fieldClass} value={f.ref} onChange={set("ref")} /></Field>
+        <Field label="Référence dossier *"><input required placeholder="Ex. DAO-2026-001" className={fieldClass} value={f.ref} onChange={set("ref")} /></Field>
         <Field label="Objet *"><input required className={fieldClass} value={f.objet} onChange={set("objet")} /></Field>
-        <Field label="Statut"><select className={fieldClass} value={f.statut} onChange={set("statut")}><option>BROUILLON</option><option>PRET</option><option>EN_VALIDATION</option></select></Field>
-        <Field label="Date"><input type="date" min="2026-10-02" className={fieldClass} value={f.date} onChange={set("date")} /></Field>
-        <Field label="Heure"><input type="time" className={fieldClass} value={f.heure} onChange={set("heure")} /></Field>
-        <Field label="Lieu"><input className={fieldClass} value={f.lieu} onChange={set("lieu")} /></Field>
-        <Field label="Président"><input className={fieldClass} value={f.president} onChange={set("president")} /></Field>
+        <Field label="Statut *">
+          <select className={fieldClass} value={f.statut} onChange={set("statut")}>
+            <option>BROUILLON</option><option>EN_SAISIE</option><option>A_VALIDER</option><option>EN_VALIDATION_MEMBRES</option><option>EN_VALIDATION_PRESIDENT</option><option>VALIDEE</option><option>REJETEE</option>
+          </select>
+        </Field>
+        <Field label="Date de séance *"><input required type="date" min={today} className={fieldClass} value={f.date} onChange={set("date")} /></Field>
+        <Field label="Heure *"><input required type="time" className={fieldClass} value={f.heure} onChange={set("heure")} /></Field>
+        <Field label="Lieu *"><input required className={fieldClass} value={f.lieu} onChange={set("lieu")} /></Field>
+        <Field label="Président de séance">
+          <select className={fieldClass} value={f.president} onChange={set("president")}>
+            <option value="">Non désigné</option>
+            {users.filter((u) => !members.some((m) => m.nom === u)).map((u) => <option key={u}>{u}</option>)}
+          </select>
+        </Field>
         <Field label="Observations"><textarea className={textareaClass} value={f.obs} onChange={set("obs")} /></Field>
       </div>
-      <Field label="Membres de commission (≥ 3 requis)"><textarea required className={textareaClass} value={members} onChange={(e) => setMembers(e.target.value)} /></Field>
-      <button className="btn-primary" type="submit">Créer la séance (mock)</button>
+      <div>
+        <label className={labelClass}>Membres de commission (≥ 3 requis) — président exclu</label>
+        {members.map((m, i) => (
+          <div key={i} className="mb-2 grid grid-cols-1 gap-2 rounded-2xl border border-slate-200 bg-slate-50/50 p-3 sm:grid-cols-6">
+            <input required className={fieldClass} value={m.nom} onChange={(e) => setMembers(members.map((x, j) => (j === i ? { ...x, nom: e.target.value } : x)))} placeholder="Nom et prénoms *" />
+            <input required type="email" className={fieldClass} value={m.email} onChange={(e) => setMembers(members.map((x, j) => (j === i ? { ...x, email: e.target.value } : x)))} placeholder="Email *" />
+            <input required className={fieldClass} value={m.cin} maxLength={12} onChange={(e) => setMembers(members.map((x, j) => (j === i ? { ...x, cin: e.target.value.replace(/\D/g, "") } : x)))} placeholder="CIN (12 chiffres) *" />
+            <input className={fieldClass} value={m.poste} onChange={(e) => setMembers(members.map((x, j) => (j === i ? { ...x, poste: e.target.value } : x)))} placeholder="Poste" />
+            <input className={fieldClass} value={m.entite} onChange={(e) => setMembers(members.map((x, j) => (j === i ? { ...x, entite: e.target.value } : x)))} placeholder="Entité" />
+            <button type="button" className="rounded-xl border border-red-200 px-2 text-red-500" onClick={() => setMembers(members.filter((_, j) => j !== i))} aria-label="Supprimer">✕</button>
+          </div>
+        ))}
+        <button type="button" className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-[12px] font-bold" onClick={() => setMembers([...members, { nom: "", email: "", cin: "", poste: "", entite: "" }])}>+ Ajouter un membre (recherche annuaire mock)</button>
+      </div>
+      <div className="flex gap-2">
+        <button type="button" className="rounded-2xl border border-slate-200 px-5 py-3 text-sm font-bold" onClick={() => notify("Création simulée annulée (mock).")}>Annuler</button>
+        <button className="btn-primary" type="submit">Créer la séance (mock)</button>
+      </div>
     </form>
   );
 }
@@ -735,21 +1172,38 @@ function MembresDemo({ notify }: { notify: Notify }) {
     { nom: "B. Rabe", email: "b.rabe@ucp.mg", cin: "101234567891", poste: "Finance", entite: "UCP" },
     { nom: "C. Randria", email: "c.randria@ucp.mg", cin: "101234567892", poste: "Logistique", entite: "UCP" },
   ]);
+  const [saved, setSaved] = useState<"draft" | "final" | null>(null);
+  const validateFinal = () => {
+    if (rows.length < 3) return `Commission incomplète : ${rows.length}/3 membres minimum (mock).`;
+    for (const r of rows) {
+      if (!r.nom.trim() || !r.email.trim() || !r.poste.trim() || !r.entite.trim()) return "Échec simulé : tous les champs sont requis en final (mock).";
+      if (!/^\d{12}$/.test(r.cin)) return `Échec simulé : CIN invalide pour ${r.nom || "?"} — 12 chiffres requis (mock).`;
+    }
+    const mails = rows.map((r) => r.email.toLowerCase());
+    if (new Set(mails).size !== mails.length) return "Échec simulé : e-mails en double détectés (mock).";
+    return null;
+  };
   return (
-    <form onSubmit={(e) => { e.preventDefault(); notify("Composition simulée enregistrée FINALE (mock)."); }} className={`${cardClass} space-y-4`}>
+    <form onSubmit={(e) => { e.preventDefault(); const err = validateFinal(); if (err) return notify(`Échec simulé : ${err}`); setSaved("final"); notify("Composition simulée enregistrée FINALE (mock)."); }} className={`${cardClass} space-y-4`}>
       <p className={sectionTitleClass}>Membres des commissions — replica ouverture_offre/membres</p>
+      <div className="flex flex-wrap gap-1.5">
+        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black">DAO-2026-011 — badge : BROUILLON (mock)</span>
+        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black">Total : {rows.length} (mock)</span>
+        {saved && <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-black text-emerald-800">Dernier enregistrement : {saved === "draft" ? "brouillon" : "final"} (mock)</span>}
+      </div>
       {rows.map((r, i) => (
-        <div key={i} className="grid grid-cols-1 gap-2 rounded-2xl border border-slate-200 bg-slate-50/50 p-3 sm:grid-cols-5">
+        <div key={i} className="grid grid-cols-1 gap-2 rounded-2xl border border-slate-200 bg-slate-50/50 p-3 sm:grid-cols-6">
           <input className={fieldClass} value={r.nom} onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, nom: e.target.value } : x)))} placeholder="Nom *" />
           <input type="email" className={fieldClass} value={r.email} onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, email: e.target.value } : x)))} placeholder="Email *" />
-          <input className={fieldClass} value={r.cin} maxLength={12} onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, cin: e.target.value.replace(/\D/g, "") } : x)))} placeholder="CIN 12 chiffres *" />
+          <input className={fieldClass} value={r.cin} maxLength={12} inputMode="numeric" onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, cin: e.target.value.replace(/\D/g, "") } : x)))} placeholder="CIN 12 chiffres *" />
           <input className={fieldClass} value={r.poste} onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, poste: e.target.value } : x)))} placeholder="Poste *" />
           <input className={fieldClass} value={r.entite} onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, entite: e.target.value } : x)))} placeholder="Entité *" />
+          <button type="button" className="rounded-xl border border-red-200 px-2 text-red-500" onClick={() => setRows(rows.filter((_, j) => j !== i))} aria-label="Supprimer la ligne">✕</button>
         </div>
       ))}
-      <div className="flex gap-2">
-        <button type="button" className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold" onClick={() => { setRows([...rows, { nom: "", email: "", cin: "", poste: "", entite: "" }]); }}>+ Membre</button>
-        <button type="button" className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold" onClick={() => notify("Brouillon simulé sauvegardé (localStorage mock).")}>Sauver brouillon</button>
+      <div className="flex flex-wrap gap-2">
+        <button type="button" className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold" onClick={() => setRows([...rows, { nom: "", email: "", cin: "", poste: "", entite: "" }])}>+ Ajouter une ligne</button>
+        <button type="button" className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold" onClick={() => { setSaved("draft"); notify("Brouillon simulé sauvegardé — contrôle libre (localStorage mock)."); }}>Sauver brouillon</button>
         <button type="submit" className="btn-primary">Enregistrer final (mock)</button>
       </div>
     </form>
@@ -757,50 +1211,131 @@ function MembresDemo({ notify }: { notify: Notify }) {
 }
 
 function ValidationPubliqueDemo({ notify }: { notify: Notify }) {
+  const [phase, setPhase] = useState<"acces" | "decision">("acces");
   const [role, setRole] = useState<"membre" | "president">("membre");
+  const [show, setShow] = useState(false);
   const [decision, setDecision] = useState("VALIDER");
   const [comment, setComment] = useState("");
+  const [confirmOpen, setConfirmOpen] = useState(false);
   return (
-    <form onSubmit={(e) => { e.preventDefault(); if (decision !== "VALIDER" && !comment.trim()) return notify("Échec simulé : commentaire requis pour REJETER/REPORTER (mock)."); notify(`Décision publique simulée : ${decision} (${role}) (mock).`); }} className={`${cardClass} space-y-4`}>
+    <div className={`${cardClass} space-y-4`}>
       <p className={sectionTitleClass}>Validation publique — replica validation/[id] (lien e-mail, sans JWT)</p>
-      <div className="flex gap-3">
-        {(["membre", "president"] as const).map((r) => (
-          <label key={r} className={`flex cursor-pointer items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-bold ${role === r ? "border-emerald-500 bg-emerald-50 text-emerald-800" : "border-slate-200 text-slate-600"}`}>
-            <input type="radio" checked={role === r} onChange={() => { setRole(r); setDecision(r === "president" ? "APPROUVER" : "VALIDER"); }} />{r}
-          </label>
-        ))}
-      </div>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Email *"><input required type="email" defaultValue="membre@commission.mg" className={fieldClass} /></Field>
-        <Field label="Mot de passe reçu *"><input required type="password" defaultValue="demo1234" className={fieldClass} /></Field>
-      </div>
-      <Field label="Décision">
-        <select className={fieldClass} value={decision} onChange={(e) => setDecision(e.target.value)}>
-          {role === "membre" ? ["VALIDER", "REJETER"].map((o) => <option key={o}>{o}</option>) : ["APPROUVER", "REPORTER", "REJETER"].map((o) => <option key={o}>{o}</option>)}
-        </select>
-      </Field>
-      {decision === "REPORTER" && <Field label="Date de report *"><input required type="date" min="2026-10-02" className={fieldClass} /></Field>}
-      <Field label="Observation (requise si rejet/report)"><textarea className={textareaClass} value={comment} onChange={(e) => setComment(e.target.value)} /></Field>
-      <button className="btn-primary" type="submit">Signer & soumettre (mock)</button>
-    </form>
+      {phase === "acces" ? (
+        <form
+          onSubmit={(e) => { e.preventDefault(); setPhase("decision"); notify(`Session publique simulée ouverte (${role}) (mock).`); }}
+          className="space-y-4"
+        >
+          <p className="rounded-2xl bg-slate-50 px-4 py-2.5 text-[12px] font-semibold text-slate-500">Phase 1 — Accès via le lien reçu (?role={role} verrouillé, mock).</p>
+          <div className="flex gap-3">
+            {(["membre", "president"] as const).map((r) => (
+              <label key={r} className={`flex cursor-pointer items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-bold ${role === r ? "border-emerald-500 bg-emerald-50 text-emerald-800" : "border-slate-200 text-slate-600"}`}>
+                <input type="radio" checked={role === r} onChange={() => { setRole(r); setDecision(r === "president" ? "APPROUVER" : "VALIDER"); }} />{r === "membre" ? "Membre" : "Président"}
+              </label>
+            ))}
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label="Email *"><input required type="email" defaultValue="membre@commission.mg" className={fieldClass} /></Field>
+            <div>
+              <label className={labelClass}>Mot de passe reçu par mail *</label>
+              <div className="relative">
+                <input required type={show ? "text" : "password"} defaultValue="demo1234" className={`${fieldClass} pr-12`} />
+                <button type="button" onClick={() => setShow(!show)} aria-label={show ? "Masquer" : "Afficher"} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">👁</button>
+              </div>
+            </div>
+          </div>
+          <button className="btn-primary" type="submit">Ouvrir la séance (mock)</button>
+        </form>
+      ) : (
+        <form
+          onSubmit={(e) => { e.preventDefault(); if (decision === "REJETER" && !comment.trim()) return notify("Échec simulé : commentaire requis pour REJETER (mock)."); if (decision === "REPORTER" && !comment.trim()) return notify("Échec simulé : commentaire + date requis pour REPORTER (mock)."); setConfirmOpen(true); }}
+          className="space-y-4"
+        >
+          <p className="rounded-2xl bg-slate-50 px-4 py-2.5 text-[12px] font-semibold text-slate-500">Phase 2 — Décision ({role}).</p>
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 text-[13px] font-medium text-slate-600">
+            <p className="font-black text-slate-900">SE-2026-011 — Ouverture AOI vaccins</p>
+            <p>Réf bailleur MDG-S-MOH-4041 — Limite 15/11/2026 12:00 — 4 plis reçus — Commission : 3 membres + présidente (mock).</p>
+          </div>
+          <Field label="Décision">
+            <select className={fieldClass} value={decision} onChange={(e) => setDecision(e.target.value)}>
+              {role === "membre" ? ["VALIDER", "REJETER"].map((o) => <option key={o}>{o}</option>) : ["APPROUVER", "REPORTER", "REJETER"].map((o) => <option key={o}>{o}</option>)}
+            </select>
+          </Field>
+          {decision === "REPORTER" && <Field label="Date de report * (président)"><input required type="date" min={new Date().toISOString().slice(0, 10)} className={fieldClass} /></Field>}
+          <Field label="Observation (requise si rejet / report)"><textarea className={textareaClass} value={comment} onChange={(e) => setComment(e.target.value)} /></Field>
+          <div className="flex gap-2">
+            <button type="button" className="rounded-2xl border border-slate-200 px-5 py-3 text-sm font-bold" onClick={() => setPhase("acces")}>← Retour accès</button>
+            <button className="btn-primary" type="submit">Signer & soumettre (mock)</button>
+          </div>
+        </form>
+      )}
+      {confirmOpen && (
+        <div className="rounded-2xl border border-emerald-300 bg-emerald-50 p-4">
+          <p className="text-sm font-black text-emerald-900">Confirmer la signature — ressaisissez le mot de passe reçu :</p>
+          <div className="mt-2 flex gap-2">
+            <input required type="password" placeholder="Mot de passe de validation" className={fieldClass} defaultValue="" />
+            <button type="button" className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white" onClick={() => { setConfirmOpen(false); notify(`Décision publique simulée signée : ${decision} (${role}) (mock).`); }}>Confirmer</button>
+            <button type="button" className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold" onClick={() => setConfirmOpen(false)}>Annuler</button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
 function ValidationCompositionDemo({ notify }: { notify: Notify }) {
   const [filter, setFilter] = useState("ACTION_REQUIRED");
+  const [q, setQ] = useState("");
+  const [sel, setSel] = useState("SE-2026-011");
   const [comment, setComment] = useState("");
+  const dossiers = [
+    { ref: "SE-2026-011", objet: "Ouverture AOI vaccins", membres: 4, urgent: true, etat: "À voter", title: "Fourniture de vaccins & chaîne de froid", fin: "GAVI — MDG-S-MOH-4041", deadline: "15/11/2026 12:00", code: "MDG-S-MOH-4041", proc: "AOI", cat: "BIENS", pub: "02/10/2026" },
+    { ref: "SE-2026-009", objet: "Ouverture AON réhabilitation", membres: 3, urgent: false, etat: "À voter", title: "Travaux réhabilitation CSB II Antsirabe", fin: "Fonds Mondial — MDG-S-MOH-4041", deadline: "28/11/2026 10:00", code: "MDG-S-MOH-4041", proc: "AON", cat: "TRAVAUX", pub: "05/10/2026" },
+  ].filter((d) => (d.ref + d.objet).toLowerCase().includes(q.toLowerCase()));
+  const d = dossiers.find((x) => x.ref === sel) ?? dossiers[0];
   return (
     <div className={`${cardClass} space-y-4`}>
       <p className={sectionTitleClass}>Validation composition — replica validation-membres (RPM/GP/CN)</p>
-      <div className="flex gap-2">{["ALL", "ACTION_REQUIRED", "URGENT", "ARCHIVED"].map((f) => <button key={f} type="button" onClick={() => setFilter(f)} className={`rounded-xl px-3 py-1.5 text-[11px] font-black ${filter === f ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600"}`}>{f}</button>)}</div>
-      <div className="rounded-2xl border border-slate-200 p-4">
-        <p className="font-black">SE-2026-011 — AOI vaccins <span className="ml-2 rounded bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-800">À VALIDER</span></p>
-        <p className="text-[12px] font-semibold text-slate-500">3 membres + présidente — CIN vérifiés (mock)</p>
-        <Field label="Commentaire (min 5 caractères si rejet)"><textarea className={textareaClass} value={comment} onChange={(e) => setComment(e.target.value)} /></Field>
-        <div className="mt-2 flex gap-2">
-          <button type="button" className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white" onClick={() => notify("Composition simulée VALIDÉE (mock).")}>Valider la composition</button>
-          <button type="button" className="rounded-xl border border-red-200 px-4 py-2 text-sm font-bold text-red-600" onClick={() => { if (comment.trim().length < 5) return notify("Échec simulé : motif ≥ 5 caractères requis (mock)."); notify("Composition simulée RENVOYÉE pour modification (mock)."); }}>Demander modification</button>
+      <p className="rounded-2xl bg-slate-50 px-4 py-2.5 text-[12px] font-semibold text-slate-500">Connecté : Rôle RPM — vote requis si « ma décision = EN_ATTENTE » (mock).</p>
+      <div className="flex flex-wrap gap-2">
+        {[["ALL", 2], ["ACTION_REQUIRED", 2], ["URGENT", 1], ["ARCHIVED", 5]].map(([f, n]) => <button key={f as string} type="button" onClick={() => setFilter(f as string)} className={`rounded-xl px-3 py-1.5 text-[11px] font-black ${filter === f ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600"}`}>{f} · {n}</button>)}
+      </div>
+      <input placeholder="Rechercher un DAO… (réf / objet)" className={fieldClass} value={q} onChange={(e) => setQ(e.target.value)} />
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[280px_1fr]">
+        <div className="space-y-2">
+          <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">Compositions à valider</p>
+          {dossiers.map((x) => (
+            <button key={x.ref} type="button" onClick={() => setSel(x.ref)} className={`w-full rounded-2xl border px-4 py-3 text-left ${sel === x.ref ? "border-emerald-500 bg-emerald-50" : "border-slate-200 bg-white"}`}>
+              <span className="font-mono text-[12px] font-black">{x.ref}</span>
+              {x.urgent && <span className="ml-2 rounded bg-red-100 px-2 py-0.5 text-[10px] font-black text-red-700">URGENT</span>}
+              <span className="block text-[12px] font-bold text-slate-600">{x.objet} — {x.membres} membres — {x.etat}</span>
+            </button>
+          ))}
+          {dossiers.length === 0 && <p className="text-[12px] font-semibold text-slate-400">Aucun DAO ne correspond à cette recherche.</p>}
         </div>
+        {d && (
+          <div className="rounded-2xl border border-slate-200 p-4">
+            <p className="font-black">{d.ref} — {d.title}</p>
+            <p className="text-[12px] font-semibold text-slate-500">{d.fin} — Limite {d.deadline} — Projet {d.code} — {d.proc}/{d.cat} — Publié le {d.pub}</p>
+            <div className="mt-3 flex items-center gap-1 text-[11px] font-black">
+              {["RPM", "GP", "CN"].map((s, i) => (
+                <span key={s} className="flex items-center gap-1">
+                  <span className={`rounded-full px-3 py-1 ${i === 0 ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-500"}`}>{s}{i === 0 ? " ✓" : ""}</span>
+                  {i < 2 && <span className="text-slate-300">→</span>}
+                </span>
+              ))}
+            </div>
+            <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {[["A. Rakoto", "Passation", "UCP", "101234567890", "a.rakoto@ucp.mg"], ["B. Rabe", "Finance", "UCP", "101234567891", "b.rabe@ucp.mg"], ["C. Randria", "Logistique", "UCP", "101234567892", "c.randria@ucp.mg"], ["Mme Rabe", "Présidente", "UCP", "101234567893", "p.rabe@ucp.mg"]].map((m) => (
+                <div key={m[4]} className="rounded-xl border border-slate-200 px-3 py-2 text-[12px] font-semibold"><span className="font-black">{m[0]}</span> — {m[1]} — {m[2]}<span className="block font-mono text-[11px] text-slate-400">CIN {m[3]} — {m[4]}</span></div>
+              ))}
+            </div>
+            <Field label="Commentaire (≥ 5 caractères si rejet)"><textarea className={textareaClass} value={comment} onChange={(e) => setComment(e.target.value)} /></Field>
+            <div className="mt-2 flex gap-2">
+              <button type="button" className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white" onClick={() => notify(`Composition simulée VALIDÉE : ${d.ref} (mock).`)}>Valider la composition</button>
+              <button type="button" className="rounded-xl border border-red-200 px-4 py-2 text-sm font-bold text-red-600" onClick={() => { if (comment.trim().length < 5) return notify("Échec simulé : motif ≥ 5 caractères requis (mock)."); notify(`Composition simulée RENVOYÉE : ${d.ref} (mock).`); }}>Demander modification</button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -812,10 +1347,13 @@ function EvalWizardDemo({ notify }: { notify: Notify }) {
   const [step, setStep] = useState(2);
   const [pre, setPre] = useState<Record<string, string>>({ offre_signee: "Oui", garantie_conforme: "Oui", dossier_admin_complet: "Oui", validite_conforme: "Oui", conditions_acceptees: "Oui" });
   const [notes, setNotes] = useState([4, 3.5, 4.5]);
-  const [fin, setFin] = useState({ lu: 48500000, corrections: -600000, rabais: 0 });
+  const [preComment, setPreComment] = useState("");
+  const [fin, setFin] = useState({ lu: 48500000, corrections: 600000, rabais: 0, moinsDisant: 47900000 });
   const [reco, setReco] = useState("ATTRIBUER");
-  const final = fin.lu + fin.corrections - fin.rabais;
-  const techScore = Math.round((notes.reduce((a, b) => a + b, 0) / (notes.length * 5)) * 100);
+  const final = fin.lu - fin.corrections - fin.rabais;
+  const finScore = final > 0 ? Math.round((fin.moinsDisant / final) * 100) : 0;
+  const pond = [40, 35, 25];
+  const techScore = Math.round(notes.reduce((a, b, i) => a + (b / 5) * pond[i], 0));
   const blocked = Object.values(pre).includes("Non");
   return (
     <div className={`${cardClass} space-y-4`}>
@@ -835,35 +1373,44 @@ function EvalWizardDemo({ notify }: { notify: Notify }) {
             </div>
           ))}
           {blocked && <p className="rounded-xl bg-red-50 px-4 py-2 text-[12px] font-black text-red-700">⛔ Un « Non » bloque la suite (mock) — offre non conforme.</p>}
+          {!blocked && <p className="rounded-xl bg-emerald-50 px-4 py-2 text-[12px] font-black text-emerald-700">✓ Examen préliminaire : Conforme (mock).</p>}
+          <Field label="Commentaire préliminaire"><textarea className={textareaClass} value={preComment} onChange={(e) => setPreComment(e.target.value)} placeholder="Précisions sur l'examen préliminaire…" /></Field>
         </div>
       )}
       {step === 3 && (
         <div className="space-y-3">
           {notes.map((n, i) => (
-            <div key={i} className="flex items-center gap-3">
-              <span className="w-40 text-[12px] font-bold">Critère C{i + 1} (pond. {i === 0 ? 40 : i === 1 ? 35 : 25}%)</span>
-              <input type="number" min={0} max={5} step={0.5} value={n} onChange={(e) => setNotes(notes.map((x, j) => (j === i ? Number(e.target.value) : x)))} className={`${fieldClass} max-w-[120px]`} />
-              <span className="text-[12px] font-bold text-slate-400">/ 5</span>
+            <div key={i} className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 px-3 py-2">
+              <span className="w-44 text-[12px] font-bold">Critère C{i + 1} (pond. {pond[i]}%)</span>
+              <input type="number" min={0} max={5} step={0.5} value={n} onChange={(e) => setNotes(notes.map((x, j) => (j === i ? Number(e.target.value) : x)))} className={`${fieldClass} max-w-[110px]`} />
+              <span className="text-[12px] font-bold text-slate-400">/ 5 → {Math.round((n / 5) * 100)}/100 → pondérée {((n / 5) * pond[i]).toFixed(1)}</span>
             </div>
           ))}
           <p className="text-sm font-black">Score technique : {techScore}/100 — seuil 70 {techScore >= 70 ? "✓ QUALIFIÉ" : "✗ ÉLIMINÉ"}</p>
         </div>
       )}
       {step === 4 && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Montant lu *"><input type="number" className={fieldClass} value={fin.lu} onChange={(e) => setFin({ ...fin, lu: Number(e.target.value) })} /></Field>
-          <Field label="Corrections"><input type="number" className={fieldClass} value={fin.corrections} onChange={(e) => setFin({ ...fin, corrections: Number(e.target.value) })} /></Field>
-          <Field label="Rabais"><input type="number" className={fieldClass} value={fin.rabais} onChange={(e) => setFin({ ...fin, rabais: Number(e.target.value) })} /></Field>
-          <p className="font-black sm:col-span-3">Montant final : {final.toLocaleString("fr-FR")} Ar — Score financier : 96/100 (moins-disant / final)</p>
+          <Field label="Corrections arithmétiques"><input type="number" className={fieldClass} value={fin.corrections} onChange={(e) => setFin({ ...fin, corrections: Number(e.target.value) })} /></Field>
+          <Field label="Rabais accordés"><input type="number" className={fieldClass} value={fin.rabais} onChange={(e) => setFin({ ...fin, rabais: Number(e.target.value) })} /></Field>
+          <Field label="Offre moins-disante (auto)"><input type="number" className={fieldClass} value={fin.moinsDisant} onChange={(e) => setFin({ ...fin, moinsDisant: Number(e.target.value) })} /></Field>
+          <p className="font-black sm:col-span-2">Final = lu − corrections − rabais = {final.toLocaleString("fr-FR")} Ar — Score financier = moins-disant / final × 100 = {finScore}/100</p>
         </div>
       )}
-      {step === 5 && <div className="rounded-2xl bg-slate-900 p-5 text-white"><p className="text-[11px] font-black uppercase tracking-widest text-emerald-300">Score final = 60% technique + 40% financier</p><p className="mt-1 text-3xl font-black">{Math.round(techScore * 0.6 + 96 * 0.4)}/100</p></div>}
+      {step === 5 && (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="rounded-2xl bg-slate-900 p-4 text-white"><p className="text-[10px] font-black uppercase tracking-widest text-emerald-300">Technique (60%)</p><p className="text-2xl font-black">{techScore}</p></div>
+          <div className="rounded-2xl bg-slate-900 p-4 text-white"><p className="text-[10px] font-black uppercase tracking-widest text-sky-300">Financier (40%)</p><p className="text-2xl font-black">{finScore}</p></div>
+          <div className="rounded-2xl bg-emerald-600 p-4 text-white"><p className="text-[10px] font-black uppercase tracking-widest text-emerald-100">Score final /100</p><p className="text-2xl font-black">{Math.round(techScore * 0.6 + finScore * 0.4)}</p></div>
+        </div>
+      )}
       {step === 6 && (
         <div className="space-y-3">
           <Field label="Recommandation"><select className={fieldClass} value={reco} onChange={(e) => setReco(e.target.value)}><option>ATTRIBUER</option><option>REJETER</option><option>RELANCER</option></select></Field>
           <Field label="Justification"><textarea defaultValue="Offre conforme, mieux-disante technique et financière." className={textareaClass} /></Field>
           <label className="flex items-center gap-2 text-sm font-bold"><input type="checkbox" defaultChecked className="h-4 w-4 accent-emerald-600" /> Déclaration d&apos;absence de conflit (OUI requis)</label>
-          <Field label="Signature (mot de passe) *"><input required type="password" defaultValue="eval2026" className={fieldClass} /></Field>
+          <Field label="Mot de passe DAO (reçu par mail) — signature *"><input required type="password" defaultValue="eval2026" className={fieldClass} /></Field>
         </div>
       )}
       <div className="flex gap-2">
@@ -877,17 +1424,76 @@ function EvalWizardDemo({ notify }: { notify: Notify }) {
 }
 
 function EvalLegacyDemo({ notify }: { notify: Notify }) {
+  const [open, setOpen] = useState(1);
+  const [exam, setExam] = useState<Record<string, string>>({ offre_signee: "O", garantie: "O", dossier_admin: "O", validite: "O", conditions_acceptees: "O" });
+  const [examComs, setExamComs] = useState<Record<string, string>>({});
+  const [notes, setNotes] = useState([4, 3.5]);
+  const [fin, setFin] = useState({ lu: 48500000, corrections: 600000, rabais: 0, moinsDisante: 47900000 });
+  const [reco, setReco] = useState("ATTRIBUER");
   const [justif, setJustif] = useState("Offre conforme sur tous les critères.");
+  const [conflit, setConflit] = useState(true);
+  const conforme = Object.values(exam).every((v) => v === "O");
+  const tech = Math.round(((notes[0] / 5) * 60 + (notes[1] / 5) * 40));
+  const final = fin.lu - fin.corrections - fin.rabais;
+  const finS = final > 0 ? Math.round((fin.moinsDisante / final) * 100) : 0;
+  const crits = [["offre_signee", "Offre signée"], ["garantie", "Garantie conforme"], ["dossier_admin", "Dossier administratif"], ["validite", "Validité de l'offre"], ["conditions_acceptees", "Conditions acceptées"]];
+  const head = (n: number, t: string) => (
+    <button type="button" onClick={() => setOpen(open === n ? 0 : n)} className={`flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-sm font-black ${open === n ? "border-emerald-500 bg-emerald-50 text-emerald-800" : "border-slate-200 bg-white text-slate-700"}`}>
+      <span>{n}. {t}</span><span>{open === n ? "▾" : "▸"}</span>
+    </button>
+  );
   return (
-    <div className={`${cardClass} space-y-4`}>
+    <div className={`${cardClass} space-y-3`}>
       <p className={sectionTitleClass}>Évaluation 4 étapes — replica EvaluationForm (legacy accordéon)</p>
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-        {["Offre signée", "Garantie conforme", "Dossier administratif", "Validité de l'offre"].map((c) => (
-          <label key={c} className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold"><span>{c}</span><input type="checkbox" defaultChecked className="h-4 w-4 accent-emerald-600" /></label>
-        ))}
-      </div>
-      <Field label="Justification (min 10 caractères) *"><textarea required minLength={10} className={textareaClass} value={justif} onChange={(e) => setJustif(e.target.value)} /></Field>
-      <button type="button" className="btn-primary" onClick={() => { if (justif.trim().length < 10) return notify("Échec simulé : justification ≥ 10 caractères (mock)."); notify("Évaluation legacy simulée sauvegardée (mock)."); }}>Sauvegarder (mock)</button>
+      {head(1, "Examen préliminaire")}
+      {open === 1 && (
+        <div className="space-y-2 rounded-2xl border border-slate-100 p-3">
+          {crits.map(([k, l]) => (
+            <div key={k} className="rounded-xl border border-slate-200 px-3 py-2">
+              <div className="flex items-center justify-between text-sm font-semibold">
+                <span>{l}</span>
+                <div className="flex gap-1">{["O", "N"].map((v) => <button key={v} type="button" onClick={() => setExam({ ...exam, [k]: v })} className={`rounded-lg px-3 py-1 text-[12px] font-black ${exam[k] === v ? (v === "O" ? "bg-emerald-600 text-white" : "bg-red-600 text-white") : "bg-slate-100"}`}>{v === "O" ? "Oui" : "Non"}</button>)}</div>
+              </div>
+              <input placeholder={`Commentaire ${l.toLowerCase()} (optionnel)`} className={`${fieldClass} mt-2`} value={examComs[k] ?? ""} onChange={(e) => setExamComs({ ...examComs, [k]: e.target.value })} />
+            </div>
+          ))}
+          <p className={`rounded-xl px-3 py-2 text-[12px] font-black ${conforme ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"}`}>{conforme ? "✓ Conforme — accès à la notation technique." : "⛔ Non conforme — notation technique bloquée (mock)."}</p>
+        </div>
+      )}
+      {head(2, "Notation technique (/5, seuil 70)")}
+      {open === 2 && (
+        <div className="space-y-2 rounded-2xl border border-slate-100 p-3">
+          {notes.map((n, i) => (
+            <div key={i} className="flex items-center gap-3 text-[12px] font-bold">
+              <span className="w-36">Critère T{i + 1}</span>
+              <input type="number" min={0} max={5} step={0.5} value={n} disabled={!conforme} onChange={(e) => setNotes(notes.map((x, j) => (j === i ? Number(e.target.value) : x)))} className={`${fieldClass} max-w-[110px]`} />
+              <span className="text-slate-400">/ 5</span>
+            </div>
+          ))}
+          <p className="text-sm font-black">Score : {tech}/100 {tech >= 70 ? "✓" : "✗ seuil 70 — financière bloquée (mock)"}</p>
+        </div>
+      )}
+      {head(3, "Offre financière")}
+      {open === 3 && (
+        <div className="grid grid-cols-1 gap-3 rounded-2xl border border-slate-100 p-3 sm:grid-cols-2">
+          <Field label="Montant lu *"><input type="number" className={fieldClass} value={fin.lu} onChange={(e) => setFin({ ...fin, lu: Number(e.target.value) })} /></Field>
+          <Field label="Corrections"><input type="number" className={fieldClass} value={fin.corrections} onChange={(e) => setFin({ ...fin, corrections: Number(e.target.value) })} /></Field>
+          <Field label="Rabais"><input type="number" className={fieldClass} value={fin.rabais} onChange={(e) => setFin({ ...fin, rabais: Number(e.target.value) })} /></Field>
+          <Field label="Offre moins-disante"><input type="number" className={fieldClass} value={fin.moinsDisante} onChange={(e) => setFin({ ...fin, moinsDisante: Number(e.target.value) })} /></Field>
+          <p className="text-sm font-black sm:col-span-2">Final {final.toLocaleString("fr-FR")} Ar — score {finS}/100</p>
+        </div>
+      )}
+      {head(4, "Conclusion & signature")}
+      {open === 4 && (
+        <div className="space-y-3 rounded-2xl border border-slate-100 p-3">
+          <p className="text-[12px] font-bold text-slate-500">Résumé : technique {tech} (60%) + financier {finS} (40%) = {Math.round(tech * 0.6 + finS * 0.4)}/100</p>
+          <Field label="Recommandation"><select className={fieldClass} value={reco} onChange={(e) => setReco(e.target.value)}><option>ATTRIBUER</option><option>REJETER</option><option>RELANCER</option></select></Field>
+          <Field label={`Justification (min 10 — ${justif.trim().length}/10) *`}><textarea required minLength={10} className={textareaClass} value={justif} onChange={(e) => setJustif(e.target.value)} /></Field>
+          <label className="flex items-center gap-2 text-sm font-bold"><input type="checkbox" checked={conflit} onChange={(e) => setConflit(e.target.checked)} className="h-4 w-4 accent-emerald-600" /> Déclaration d&apos;absence de conflit (OUI requis)</label>
+          <Field label="Mot de passe (si session sans token, min 6)"><input type="password" defaultValue="eval2026" className={fieldClass} /></Field>
+          <button type="button" className="btn-primary" onClick={() => { if (!conforme) return notify("Échec simulé : examen non conforme (mock)."); if (justif.trim().length < 10) return notify("Échec simulé : justification ≥ 10 caractères (mock)."); if (!conflit) return notify("Échec simulé : déclaration de conflit requise (mock)."); notify(`Évaluation legacy simulée transmise : ${reco} (mock).`); }}>Transmettre ({reco})</button>
+        </div>
+      )}
     </div>
   );
 }
@@ -898,55 +1504,101 @@ function AssignDemo({ notify }: { notify: Notify }) {
     { nom: "M. T. Rakoto", cin: "201234567891", entite: "Santé", poste: "Pharmacien", email: "t.rakoto@sante.mg" },
     { nom: "Mme S. Rabe", cin: "301234567892", entite: "UCP", poste: "Financière", email: "s.rabe@ucp.mg" },
   ]);
+  const [offres, setOffres] = useState([
+    { nom: "EURL MediDistrib — pli n°1", lot: "Lot 1", nif: "5001234" },
+    { nom: "Vakinankaratra SARL — pli n°2", lot: "Lot 1", nif: "5005678" },
+    { nom: "Miaro Conseil — pli n°3", lot: "Lot 2", nif: "5009012" },
+    { nom: "Société Antsirabe — pli n°4", lot: "Lot 2", nif: "5013456" },
+  ]);
   return (
-    <form onSubmit={(e) => { e.preventDefault(); notify("3 évaluateurs simulés assignés + invitations envoyées (mock)."); }} className={`${cardClass} space-y-4`}>
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        for (const o of offres) {
+          if (!o.lot.trim() || !o.nif.trim()) return notify("Échec simulé : lot et NIF/STAT requis pour chaque offre (mock).");
+        }
+        for (const v of evalList) {
+          if (!v.nom.trim() || !v.entite.trim() || !v.poste.trim() || !v.email.trim()) return notify("Échec simulé : tous les champs évaluateurs sont requis (mock).");
+          if (v.cin.length !== 12) return notify(`Échec simulé : CIN invalide (${v.nom || "?"}) — 12 chiffres requis (mock).`);
+        }
+        const mails = evalList.map((v) => v.email.toLowerCase());
+        if (new Set(mails).size !== mails.length) return notify("Échec simulé : les 3 e-mails doivent être distincts (mock).");
+        notify("3 évaluateurs simulés assignés + invitations envoyées (mock).");
+      }}
+      className={`${cardClass} space-y-4`}
+    >
       <p className={sectionTitleClass}>Assignation 3 évaluateurs — replica [id]/assign</p>
-      <div className="rounded-2xl bg-slate-50 px-4 py-3 text-[12px] font-semibold text-slate-600">DAO AOI-2026-03 — 4 offres — Limite 15/11 — Budget : R. Randria</div>
+      <div className="rounded-2xl bg-slate-50 px-4 py-3 text-[12px] font-semibold text-slate-600">DAO AOI-2026-03 — Fourniture de vaccins — Biens — Limite 15/11 — Représentant Budget : Paul Budget — 4 offres (mock)</div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Date d'évaluation *"><input required type="date" defaultValue="2026-11-20" className={fieldClass} /></Field>
         <Field label="Heure *"><input required type="time" defaultValue="09:00" className={fieldClass} /></Field>
       </div>
+      <div>
+        <label className={labelClass}>Offres — lot + NIF/STAT * (par soumissionnaire)</label>
+        {offres.map((o, i) => (
+          <div key={i} className="mb-2 grid grid-cols-1 gap-2 rounded-2xl border border-slate-200 bg-white p-3 sm:grid-cols-3">
+            <input readOnly className={`${fieldClass} bg-slate-50`} value={o.nom} />
+            <input required placeholder="N° lot *" className={fieldClass} value={o.lot} onChange={(e) => setOffres(offres.map((x, j) => (j === i ? { ...x, lot: e.target.value } : x)))} />
+            <input required placeholder="NIF/STAT *" className={fieldClass} value={o.nif} onChange={(e) => setOffres(offres.map((x, j) => (j === i ? { ...x, nif: e.target.value } : x)))} />
+          </div>
+        ))}
+      </div>
       {evalList.map((ev, i) => (
         <div key={i} className="grid grid-cols-1 gap-2 rounded-2xl border border-slate-200 p-3 sm:grid-cols-5">
           <input required className={fieldClass} value={ev.nom} onChange={(e) => setEvalList(evalList.map((x, j) => (j === i ? { ...x, nom: e.target.value } : x)))} placeholder="Nom *" />
-          <input required className={fieldClass} value={ev.cin} maxLength={12} onChange={(e) => setEvalList(evalList.map((x, j) => (j === i ? { ...x, cin: e.target.value.replace(/\D/g, "") } : x)))} placeholder="CIN 12 *" />
+          <input required className={fieldClass} value={ev.cin} maxLength={12} inputMode="numeric" onChange={(e) => setEvalList(evalList.map((x, j) => (j === i ? { ...x, cin: e.target.value.replace(/\D/g, "") } : x)))} placeholder="CIN 12 *" />
           <input required className={fieldClass} value={ev.entite} onChange={(e) => setEvalList(evalList.map((x, j) => (j === i ? { ...x, entite: e.target.value } : x)))} placeholder="Entité *" />
           <input required className={fieldClass} value={ev.poste} onChange={(e) => setEvalList(evalList.map((x, j) => (j === i ? { ...x, poste: e.target.value } : x)))} placeholder="Poste *" />
           <input required type="email" className={fieldClass} value={ev.email} onChange={(e) => setEvalList(evalList.map((x, j) => (j === i ? { ...x, email: e.target.value } : x)))} placeholder="Email *" />
         </div>
       ))}
-      <button className="btn-primary" type="submit">Envoyer les accès (mock)</button>
+      <div className="flex flex-wrap gap-2">
+        <button className="btn-primary" type="submit">Envoyer les accès (mock)</button>
+        <button type="button" className="rounded-2xl border border-slate-200 px-5 py-3 text-sm font-bold" onClick={() => notify("Invitations simulées renvoyées (nouveaux mots de passe) (mock).")}>Renvoyer les invitations</button>
+      </div>
     </form>
   );
 }
 
 function OffresClassementDemo({ notify }: { notify: Notify }) {
   const offres = [
-    { soum: "EURL MediDistrib", montant: "47 900 000 Ar", total: 89, tech: 85, fin: 96, statut: "VALIDÉE" },
-    { soum: "Vakinankaratra SARL", montant: "52 400 000 Ar", total: 81, tech: 78, fin: 87, statut: "VALIDÉE" },
-    { soum: "Miaro Conseil", montant: "44 100 000 Ar", total: 64, tech: 58, fin: 100, statut: "ÉLIMINÉE (tech < 70)" },
+    { ordre: 1, soum: "EURL MediDistrib", lot: "Lot 1", montant: "47 900 000 Ar", prog: "Terminée", total: 89.4, tech: 85.0, fin: 96.0, statut: "VALIDÉE", badge: "✓ qualifiée & conforme" },
+    { ordre: 2, soum: "Vakinankaratra SARL", lot: "Lot 1", montant: "52 400 000 Ar", prog: "Terminée", total: 81.6, tech: 78.0, fin: 87.0, statut: "VALIDÉE", badge: "✓ qualifiée & conforme" },
+    { ordre: 3, soum: "Miaro Conseil", lot: "Lot 2", montant: "44 100 000 Ar", prog: "En cours (2/3)", total: 74.8, tech: 58.0, fin: 100.0, statut: "ÉLIMINÉE", badge: "✗ technique < 70 · ⚠ consensus (écart 18 pts)" },
+    { ordre: 4, soum: "Société Antsirabe", lot: "Lot 2", montant: "—", prog: "Pas commencé", total: 0, tech: 0, fin: 0, statut: "EN ATTENTE", badge: "Financière verrouillée (double aveugle)" },
   ];
   return (
     <div className={`${cardClass} space-y-4`}>
       <p className={sectionTitleClass}>Offres + Classement final — replica dao/[seanceId]/offres + classement</p>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        {offres.map((o) => (
+          <div key={o.ordre} className="rounded-2xl border border-slate-200 p-3">
+            <p className="text-[13px] font-black">Offre n°{o.ordre} — {o.soum}</p>
+            <p className="text-[12px] font-semibold text-slate-500">{o.montant} — {o.lot} — {o.prog}</p>
+            <p className="mt-1 text-[11px] font-bold text-slate-500">{o.badge}</p>
+            <button type="button" className="mt-2 rounded-xl bg-slate-900 px-3 py-1.5 text-[11px] font-bold text-white" onClick={() => notify(`Grille simulée ouverte : offre n°${o.ordre} → /evaluation/offres/OFF-${o.ordre}?seance=11 (mock).`)}>{o.prog === "Terminée" ? "Voir" : o.prog.startsWith("En cours") ? "Continuer" : "Évaluer"}</button>
+          </div>
+        ))}
+      </div>
+      <p className="rounded-2xl bg-amber-50 px-4 py-2.5 text-[12px] font-bold text-amber-800">Classement officiel quand les 3 évaluateurs auront terminé — progression 2/4 (mock).</p>
       <div className="overflow-x-auto rounded-2xl border border-slate-200">
         <table className="w-full min-w-[620px] text-left text-[12px]">
           <thead className="bg-slate-50 text-[10px] uppercase tracking-widest text-slate-400"><tr><th className="px-4 py-3">Rang</th><th className="px-4 py-3">Soumissionnaire</th><th className="px-4 py-3">Total /100</th><th className="px-4 py-3">Tech.</th><th className="px-4 py-3">Fin.</th><th className="px-4 py-3">Statut</th></tr></thead>
           <tbody>
-            {offres.map((o, i) => (
+            {offres.slice(0, 3).map((o, i) => (
               <tr key={o.soum} className="border-t border-slate-100">
-                <td className="px-4 py-2 font-black">{i + 1}</td>
+                <td className="px-4 py-2 font-black">{o.statut === "EN ATTENTE" ? "—" : i + 1}</td>
                 <td className="px-4 py-2 font-bold">{o.soum}<br /><span className="font-semibold text-slate-400">{o.montant}</span></td>
-                <td className="px-4 py-2 font-black">{o.total}</td>
-                <td className="px-4 py-2">{o.tech}</td>
-                <td className="px-4 py-2">{o.fin}</td>
-                <td className="px-4 py-2"><span className={`rounded-full px-2 py-1 text-[10px] font-black ${o.statut.includes("VALID") ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"}`}>{o.statut}</span></td>
+                <td className="px-4 py-2 font-black tabular-nums">{o.total.toFixed(1)}</td>
+                <td className="px-4 py-2 tabular-nums">{o.tech.toFixed(1)}</td>
+                <td className="px-4 py-2 tabular-nums">{o.fin.toFixed(1)}</td>
+                <td className="px-4 py-2"><span className={`rounded-full px-2 py-1 text-[10px] font-black ${o.statut === "VALIDÉE" ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"}`}>{o.statut}</span></td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <button type="button" className="btn-primary" onClick={() => notify("Contrat simulé créé depuis le rang 1 (mock → /contractualisation/new).")}>Créer le contrat (rang 1) — mock</button>
+      <button type="button" className="btn-primary" onClick={() => notify("Contrat simulé créé : /contractualisation/new?seance_id=11&offre_id=OFF-1 (rang 1, mock).")}>Créer le contrat (rang 1) — mock</button>
     </div>
   );
 }
@@ -962,7 +1614,7 @@ function TdrNewDemo({ notify }: { notify: Notify }) {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Unité technique *"><input required className={fieldClass} value={f.unite} onChange={set("unite")} /></Field>
         <Field label="Type de document *"><select className={fieldClass} value={f.type} onChange={set("type")}><option>TDR</option><option>ST</option></select></Field>
-        <Field label="Catégorie d'activité *"><select className={fieldClass} value={f.categorie} onChange={set("categorie")}><option>FORMATION</option><option>ATELIER</option><option>ETUDE</option><option>CONSULTANT</option><option>BIENS</option><option>TRAVAUX</option></select></Field>
+        <Field label="Catégorie d'activité *"><select className={fieldClass} value={f.categorie} onChange={set("categorie")}><option>FORMATION</option><option>ATELIER</option><option>REUNION</option><option>REVUE</option><option>SUPERVISION</option><option>ETUDE</option><option>CONSULTANT</option><option>CABINET</option><option>BUREAU_ETUDES</option><option>ENTREPRISE</option><option>BIENS</option><option>TRAVAUX</option></select></Field>
         <Field label="Procédure envisagée *"><select className={fieldClass} value={f.procedure} onChange={set("procedure")}><option>DC</option><option>AOI</option><option>AON</option><option>GRE_A_GRE</option></select></Field>
       </div>
       <Field label="Intitulé *"><textarea required rows={2} className={textareaClass} value={f.intitule} onChange={set("intitule")} /></Field>
@@ -987,27 +1639,79 @@ function TdrNewDemo({ notify }: { notify: Notify }) {
 
 function TdrSuiviDemo({ notify }: { notify: Notify }) {
   const [q, setQ] = useState("");
-  const [obs, setObs] = useState("");
-  const docs = [
-    { num: "TDR-2026-07", title: "Formation logistique", statut: "SOUMIS", type: "TDR" },
-    { num: "ST-2026-04", title: "Spécifications ordinateurs", statut: "EN_VALIDATION", type: "ST" },
-    { num: "TDR-2026-02", title: "Étude CSB", statut: "VALIDE", type: "TDR" },
-  ].filter((d) => (d.num + d.title).toLowerCase().includes(q.toLowerCase()));
+  const [fSource, setFSource] = useState("");
+  const [fStatut, setFStatut] = useState("");
+  const [fType, setFType] = useState("");
+  const [obs, setObs] = useState<Record<string, string>>({});
+  const allDocs = [
+    { num: "TDR-2026-09", title: "TDR supervision formative", statut: "BROUILLON", type: "TDR", source: "GAVI" },
+    { num: "TDR-2026-07", title: "Formation logistique", statut: "SOUMIS", type: "TDR", source: "GAVI" },
+    { num: "ST-2026-04", title: "Spécifications ordinateurs", statut: "EN_VALIDATION", type: "ST", source: "Fonds Mondial" },
+    { num: "TDR-2026-02", title: "Étude CSB", statut: "VALIDE", type: "TDR", source: "Banque Mondiale" },
+  ];
+  const docs = allDocs.filter((d) =>
+    (d.num + d.title + d.type).toLowerCase().includes(q.toLowerCase()) &&
+    (!fSource || d.source === fSource) && (!fStatut || d.statut === fStatut) && (!fType || d.type === fType)
+  );
+  const hasFilter = !!(q || fSource || fStatut || fType);
+  const sectionOf = (s: string) => s === "BROUILLON" ? "Brouillons" : s === "VALIDE" || s === "REJETE" ? "Archive" : s === "A_REVOIR" ? "À revoir" : s === "EN_VALIDATION" ? "À valider" : "En attente de décision";
+  const sections = ["Brouillons", "En attente de décision", "À revoir", "À valider", "Archive"];
+  const decide = (num: string, dec: string) => {
+    notify(`Décision simulée ${dec} — ${num}${obs[num]?.trim() ? ` — « ${obs[num].trim()} »` : ""} (mock).`);
+  };
   return (
     <div className={`${cardClass} space-y-4`}>
       <p className={sectionTitleClass}>Suivi TDR/ST — replica TdrSt/formulaire (rôles + décisions)</p>
-      <input placeholder="Recherche n° / intitulé / PTBA… (auditeur/admin)" className={fieldClass} value={q} onChange={(e) => setQ(e.target.value)} />
-      {docs.map((d) => (
-        <div key={d.num} className="rounded-2xl border border-slate-200 p-4">
-          <p className="font-black">{d.num} — {d.title} <span className="ml-2 rounded bg-sky-100 px-2 py-0.5 text-[10px] font-black text-sky-800">{d.statut}</span></p>
-          <Field label="Observations"><textarea className={textareaClass} value={obs} onChange={(e) => setObs(e.target.value)} placeholder="Observations techniques / finales…" /></Field>
-          <div className="mt-2 flex flex-wrap gap-2">
-            <button type="button" className="rounded-xl bg-emerald-600 px-4 py-2 text-[12px] font-bold text-white" onClick={() => notify(`Décision simulée FAVORABLE/APPROUVÉ pour ${d.num} (mock).`)}>Favorable / Approuver</button>
-            <button type="button" className="rounded-xl border border-amber-300 px-4 py-2 text-[12px] font-bold text-amber-700" onClick={() => notify(`Document simulé renvoyé À REVOIR : ${d.num} (mock).`)}>À revoir / Rejeter</button>
-          </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <input placeholder="Recherche n° / intitulé / PTBA… (auditeur/admin)" className={fieldClass} value={q} onChange={(e) => setQ(e.target.value)} />
+        <select className={fieldClass} value={fSource} onChange={(e) => setFSource(e.target.value)}>
+          <option value="">Source : toutes</option><option>GAVI</option><option>Fonds Mondial</option><option>Banque Mondiale</option>
+        </select>
+        <select className={fieldClass} value={fStatut} onChange={(e) => setFStatut(e.target.value)}>
+          <option value="">Statut : tous</option><option>BROUILLON</option><option>SOUMIS</option><option>A_REVOIR</option><option>EN_VALIDATION</option><option>VALIDE</option><option>REJETE</option><option>SUSPENDU</option>
+        </select>
+        <select className={fieldClass} value={fType} onChange={(e) => setFType(e.target.value)}>
+          <option value="">Type : tous</option><option>TDR</option><option>ST</option>
+        </select>
+      </div>
+      {hasFilter && <button type="button" className="rounded-xl border border-slate-200 px-4 py-1.5 text-[12px] font-bold" onClick={() => { setQ(""); setFSource(""); setFStatut(""); setFType(""); }}>Tout effacer (mock)</button>}
+      <div className="rounded-2xl border border-sky-200 bg-sky-50/60 p-4">
+        <p className="text-[11px] font-black uppercase tracking-widest text-sky-700">États de besoins à documenter</p>
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-[12px] font-semibold">
+          <span className="font-mono font-black">DA-2026-014</span><span>Ordinateurs — TDR requis, non créé</span>
+          <button type="button" className="rounded-xl bg-sky-600 px-3 py-1.5 text-[11px] font-bold text-white" onClick={() => notify("Redirection simulée : /TdrSt/new?demandeId=DA-2026-014 (mock).")}>Créer le document</button>
         </div>
-      ))}
-      {docs.length === 0 && <p className="text-sm text-slate-400">Aucun document (mock).</p>}
+      </div>
+      {sections.map((sec) => {
+        const list = docs.filter((d) => sectionOf(d.statut) === sec);
+        if (list.length === 0) return null;
+        return (
+          <div key={sec}>
+            <p className="mb-2 text-[11px] font-black uppercase tracking-widest text-slate-400">{sec} · {list.length}</p>
+            <div className="space-y-3">
+              {list.map((d) => (
+                <div key={d.num} className="rounded-2xl border border-slate-200 p-4">
+                  <p className="font-black">{d.num} — {d.title} <span className="ml-2 rounded bg-sky-100 px-2 py-0.5 text-[10px] font-black text-sky-800">{d.statut}</span> <span className="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-black text-slate-500">{d.type} — {d.source}</span></p>
+                  <Field label="Observations"><textarea className={textareaClass} value={obs[d.num] ?? ""} onChange={(e) => setObs({ ...obs, [d.num]: e.target.value })} placeholder="Observations techniques / finales…" /></Field>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {d.statut === "BROUILLON" && <button type="button" className="rounded-xl bg-slate-900 px-4 py-2 text-[12px] font-bold text-white" onClick={() => decide(d.num, "ENVOYÉ EN VALIDATION")}>Envoyer en validation</button>}
+                    {d.statut === "SOUMIS" && (<>
+                      <button type="button" className="rounded-xl bg-emerald-600 px-4 py-2 text-[12px] font-bold text-white" onClick={() => decide(d.num, "FAVORABLE (technique)")}>Favorable</button>
+                      <button type="button" className="rounded-xl border border-amber-300 px-4 py-2 text-[12px] font-bold text-amber-700" onClick={() => decide(d.num, "À REVOIR (technique)")}>À revoir</button>
+                    </>)}
+                    {d.statut === "EN_VALIDATION" && (<>
+                      <button type="button" className="rounded-xl bg-emerald-600 px-4 py-2 text-[12px] font-bold text-white" onClick={() => decide(d.num, "APPROUVÉ (final)")}>Approuver</button>
+                      <button type="button" className="rounded-xl border border-red-300 px-4 py-2 text-[12px] font-bold text-red-600" onClick={() => decide(d.num, "REJETÉ (final)")}>Rejeter</button>
+                    </>)}
+                    {(d.statut === "VALIDE" || d.statut === "REJETE") && <span className="text-[12px] font-bold text-slate-400">Décision finale enregistrée — archivé (mock).</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+      {docs.length === 0 && <p className="text-sm font-semibold text-slate-400">Aucun document ne correspond aux filtres (mock).</p>}
     </div>
   );
 }
@@ -1015,52 +1719,110 @@ function TdrSuiviDemo({ notify }: { notify: Notify }) {
 /* ================= H. Contractualisation ================= */
 
 function ContratInitDemo({ notify }: { notify: Notify }) {
+  const [loading, setLoading] = useState(false);
   return (
-    <form onSubmit={(e) => { e.preventDefault(); notify("Contrat simulé auto-créé depuis le rang 1 (mock → /contractualisation/CTR-2026-09)."); }} className={`${cardClass} mx-auto max-w-md space-y-4 text-center`}>
-      <p className={sectionTitleClass}>Init contrat NOTI5 — replica contractualisation/new</p>
-      <Field label="Séance (?seance_id=…) *"><input required defaultValue="SE-2026-011" className={`${fieldClass} font-mono`} /></Field>
-      <Field label="Offre (?offre_id=… — sinon rang 1 auto)"><input defaultValue="rang 1 : EURL MediDistrib (auto)" className={fieldClass} /></Field>
-      <button className="btn-primary w-full" type="submit">Créer le contrat (mock)</button>
-    </form>
+    <div className={`${cardClass} mx-auto max-w-md space-y-4 text-center`}>
+      <p className={sectionTitleClass}>Init contrat NOTI5 — replica contractualisation/new (page auto, sans formulaire)</p>
+      <div className="rounded-2xl bg-slate-50 px-4 py-3 text-left font-mono text-[12px] font-bold text-slate-600">
+        ?seance_id=11 (requis)<br />?offre_id= — absent → rang 1 auto (EURL MediDistrib)
+      </div>
+      <button
+        className="btn-primary w-full disabled:opacity-60" type="button" disabled={loading}
+        onClick={() => {
+          setLoading(true);
+          setTimeout(() => { setLoading(false); notify("Contrat simulé auto-créé depuis le rang 1 → /contractualisation/CTR-2026-09 (mock)."); }, 900);
+        }}
+      >
+        {loading ? "Initialisation NOTI5…" : "Créer le contrat (mock)"}
+      </button>
+      <p className="text-[11px] font-semibold text-slate-400">Sans séance éligible ni rang 1 : erreur « aucun lauréat » (mock).</p>
+    </div>
   );
 }
 
 function ContratDossierDemo({ notify }: { notify: Notify }) {
   const [email, setEmail] = useState("prestataire@entreprise.mg");
+  const [tel, setTel] = useState("+261 34 11 222 33");
+  const [rep, setRep] = useState("M. R. Andria — Gérant");
   const [echeances, setEcheances] = useState([
-    { etape: "Avance de démarrage (30%)", montant: 14370000, pct: 30, date: "2026-12-01" },
-    { etape: "Livraison finale (70%)", montant: 33530000, pct: 70, date: "2027-02-15" },
+    { etape: "Avance de démarrage (30%)", montant: 14370000, pct: 30, date: "2026-12-01", statut: "À venir" },
+    { etape: "Livraison finale (70%)", montant: 33530000, pct: 70, date: "2027-02-15", statut: "À venir" },
   ]);
+  const [frm, setFrm] = useState({ etape: "", montant: 5000000, pct: 10, date: "2027-01-15" });
+  const [docs, setDocs] = useState([{ name: "NOTI5-CTR-2026-09.pdf", type: "Initial", sha: "a3f9…c41d", date: "01/12/2026" }]);
   const totalPct = echeances.reduce((s, e) => s + e.pct, 0);
-  const [etape, setEtape] = useState("Réception provisoire (20%)");
+  const totalMnt = echeances.reduce((s, e) => s + e.montant, 0);
   return (
     <div className={`${cardClass} space-y-5`}>
       <p className={sectionTitleClass}>Dossier contractuel NOTI5 (5 sections) — replica contractualisation/[id]</p>
-      <div className="rounded-2xl bg-slate-50 px-4 py-3 text-[12px] font-semibold">S1 — N° CTR-2026-09 — AOI — « Fourniture de vaccins » (lecture seule mock)</div>
+      <div className="rounded-2xl bg-slate-50 px-4 py-3 text-[12px] font-semibold">S1 — N° CTR-2026-09 — AOI — « Fourniture de vaccins » — statut BROUILLON (modifiable, mock)</div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Prestataire (auto)"><input readOnly className={fieldClass} value="EURL MediDistrib — NIF 5001234" /></Field>
+        <Field label="Prestataire (verrouillé)"><input readOnly className={`${fieldClass} bg-slate-50`} value="EURL MediDistrib — NIF 5001234 / STAT 789456" /></Field>
         <Field label="E-mail prestataire *"><input required type="email" className={fieldClass} value={email} onChange={(e) => setEmail(e.target.value)} /></Field>
+        <Field label="Téléphone prestataire"><input className={fieldClass} value={tel} onChange={(e) => setTel(e.target.value)} /></Field>
+        <Field label="Représentant signataire"><input className={fieldClass} value={rep} onChange={(e) => setRep(e.target.value)} /></Field>
         <Field label="Date de signature"><input type="date" defaultValue="2026-12-01" className={fieldClass} /></Field>
         <Field label="Durée d'exécution"><input defaultValue="90 jours" className={fieldClass} /></Field>
       </div>
+      <Field label="Montant TTC (verrouillé, MGA)"><input readOnly className={`${fieldClass} bg-slate-50`} value="47 900 000" /></Field>
       <Field label="Clauses particulières"><textarea defaultValue="Pénalités de retard 1/1000 par jour." className={textareaClass} /></Field>
       <div>
-        <label className={labelClass}>S4 — Échéancier (total doit = 100% — actuel : {totalPct}%)</label>
-        {echeances.map((ec, i) => (
-          <div key={i} className="mb-2 flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-[12px] font-bold">
-            <span className="flex-1">{ec.etape}</span><span>{ec.montant.toLocaleString("fr-FR")} Ar</span><span>{ec.pct}%</span>
-            <button type="button" className="text-red-500" onClick={() => setEcheances(echeances.filter((_, j) => j !== i))}>✕</button>
+        <label className={labelClass}>S4 — Échéancier (Σ = 100% — actuel : {totalPct}% — Σ {totalMnt.toLocaleString("fr-FR")} Ar)</label>
+        <div className="overflow-x-auto rounded-2xl border border-slate-200">
+          <table className="w-full min-w-[560px] text-left text-[12px]">
+            <thead className="bg-slate-50 text-[10px] uppercase tracking-widest text-slate-400"><tr><th className="px-4 py-2">Étape</th><th className="px-4 py-2 text-right">Montant</th><th className="px-4 py-2 text-center">%</th><th className="px-4 py-2">Échéance</th><th className="px-4 py-2">Statut</th><th className="px-4 py-2"></th></tr></thead>
+            <tbody>
+              {echeances.map((ec, i) => (
+                <tr key={i} className="border-t border-slate-100">
+                  <td className="px-4 py-2 font-bold">{ec.etape}</td>
+                  <td className="px-4 py-2 text-right tabular-nums">{ec.montant.toLocaleString("fr-FR")}</td>
+                  <td className="px-4 py-2 text-center font-black">{ec.pct}%</td>
+                  <td className="px-4 py-2">{ec.date}</td>
+                  <td className="px-4 py-2"><span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black">{ec.statut}</span></td>
+                  <td className="px-4 py-2 text-right"><button type="button" className="text-red-500" onClick={() => setEcheances(echeances.filter((_, j) => j !== i))}>✕</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-5">
+          <input required placeholder="Étape *" className={fieldClass} value={frm.etape} onChange={(e) => setFrm({ ...frm, etape: e.target.value })} />
+          <input required type="number" min={0} step={0.01} placeholder="Montant *" className={fieldClass} value={frm.montant} onChange={(e) => setFrm({ ...frm, montant: Number(e.target.value) })} />
+          <input required type="number" min={1} max={100} placeholder="% (1–100) *" className={fieldClass} value={frm.pct} onChange={(e) => setFrm({ ...frm, pct: Number(e.target.value) })} />
+          <input required type="date" className={fieldClass} value={frm.date} onChange={(e) => setFrm({ ...frm, date: e.target.value })} />
+          <button type="button" className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold" onClick={() => { if (!frm.etape.trim() || !(frm.montant > 0) || frm.pct < 1 || frm.pct > 100 || !frm.date) return notify("Échec simulé : étape, montant, % 1–100 et date requis (mock)."); setEcheances([...echeances, { ...frm, statut: "À venir" }]); setFrm({ etape: "", montant: 5000000, pct: 10, date: "2027-01-15" }); }}>+ Ajouter</button>
+        </div>
+        {totalPct !== 100 && <p className="mt-1 text-[12px] font-black text-amber-600">⚠ Total {totalPct}% — l&apos;envoi exige exactement 100% (mock).</p>}
+      </div>
+      <div>
+        <label className={labelClass}>S5 — Documents (PDF, max 50 Mo, ≥ 1 requis)</label>
+        {docs.map((d, i) => (
+          <div key={i} className="mb-2 flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-[12px] font-semibold">
+            <span className="flex-1">📄 {d.name}</span>
+            <span className="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-black">{d.type}</span>
+            <span className="font-mono text-[10px] text-slate-400">SHA-256 {d.sha} — {d.date}</span>
+            <button type="button" className="rounded-lg border border-slate-200 px-2 py-1 text-[11px] font-bold" onClick={() => notify(`Aperçu simulé : ${d.name} (mock).`)}>Voir</button>
+            <button type="button" className="text-red-500" onClick={() => { if (window.confirm("Supprimer ce document ? (mock)")) setDocs(docs.filter((_, j) => j !== i)); }}>✕</button>
           </div>
         ))}
-        <div className="flex gap-2">
-          <input className={fieldClass} value={etape} onChange={(e) => setEtape(e.target.value)} placeholder="Étape" />
-          <button type="button" className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold" onClick={() => setEcheances([...echeances, { etape, montant: 5000000, pct: 10, date: "2027-01-15" }])}>+ Ajouter</button>
-        </div>
+        <label className="block cursor-pointer rounded-xl border border-dashed border-slate-300 bg-white px-4 py-2.5 text-center text-sm font-bold text-slate-500 hover:border-emerald-400">
+          + Joindre un PDF — CONTRAT_SIGNÉ (Initial/Avenant) (mock)
+          <input type="file" accept=".pdf" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (!f) return; if (f.size > 50 * 1024 * 1024) return notify("Échec simulé : 50 Mo maximum (mock)."); setDocs([...docs, { name: f.name, type: "Initial", sha: "9be2…77aa", date: new Date().toLocaleDateString("fr-FR") }]); e.target.value = ""; }} />
+        </label>
       </div>
-      <Field label="S5 — Document contractuel (PDF, max 50 Mo, ≥1 requis)"><input type="file" accept=".pdf" className={fieldClass} onChange={() => {}} /></Field>
-      <div className="flex gap-2">
-        <button type="button" className="rounded-2xl border border-slate-200 px-5 py-3 text-sm font-bold" onClick={() => notify("Brouillon simulé sauvegardé (mock).")}>Sauver brouillon</button>
-        <button type="button" className="btn-primary" onClick={() => { if (!email.includes("@")) return notify("Échec simulé : e-mail prestataire requis (mock)."); if (totalPct !== 100) return notify(`Échec simulé : échéancier = ${totalPct}% (100% requis) (mock).`); notify(`Contrat simulé ENVOYÉ à ${email} (mock).`); }}>Envoyer au prestataire (mock)</button>
+      <div className="flex flex-wrap gap-2">
+        <button type="button" className="rounded-2xl border border-slate-200 px-5 py-3 text-sm font-bold" onClick={() => notify("Brouillon simulé sauvegardé (mock).")}>Sauvegarder brouillon</button>
+        <button
+          type="button" className="btn-primary"
+          onClick={() => {
+            if (!email.includes("@")) return notify("Échec simulé : e-mail prestataire manquant (mock).");
+            if (docs.length < 1) return notify("Échec simulé : aucun PDF attaché (mock).");
+            if (totalPct !== 100) return notify(`Échec simulé : échéancier = ${totalPct}% (100% requis) (mock).`);
+            notify(`Contrat simulé ENVOYÉ à ${email} (mock).`);
+          }}
+        >
+          Envoyer au prestataire (mock)
+        </button>
       </div>
     </div>
   );
@@ -1069,34 +1831,67 @@ function ContratDossierDemo({ notify }: { notify: Notify }) {
 /* ================= I. Espaces métier & filtres ================= */
 
 function EspacesDemo({ notify }: { notify: Notify }) {
+  const [espace, setEspace] = useState<"validation" | "passation" | "logistique">("validation");
   const [scope, setScope] = useState("mine");
   const [mode, setMode] = useState("status");
   const [q, setQ] = useState("");
-  const [fin, setFin] = useState<string[]>(["GAVI"]);
-  const rows = [
-    { num: "DA-2026-014", objet: "Ordinateurs de bureau", espace: "validation", etape: "TECHNIQUE", montant: "12 500 000 Ar" },
-    { num: "DA-2026-011", objet: "Formation 40 agents", espace: "passation", etape: "VALIDEE_BUDGETAIRE", montant: "68 250 000 Ar" },
-    { num: "DA-2026-009", objet: "Vaccins chaîne de froid", espace: "logistique", etape: "EN_COMMANDE", montant: "1 240 000 000 Ar" },
-  ].filter((r) => (r.num + r.objet + r.etape).toLowerCase().includes(q.toLowerCase()));
+  const [fin, setFin] = useState<string[]>(["RSS3_GAVI"]);
+  const [typeB, setTypeB] = useState("");
+  const [page, setPage] = useState(1);
+  const base = {
+    validation: [
+      { num: "DA-2026-014", objet: "Ordinateurs de bureau", etape: "TECHNIQUE", unite: "LOGISTIQUE", montant: "12 500 000 Ar", action: "Valider" },
+      { num: "DA-2026-013", objet: "Audit financier", etape: "HIERARCHIQUE", unite: "FINANCE", montant: "8 200 000 Ar", action: "Valider" },
+      { num: "DA-2026-010", objet: "Kits diagnostics", etape: "BUDGETAIRE", unite: "SUIVI_EVALUATION", montant: "210 300 000 Ar", action: "Valider" },
+    ],
+    passation: [
+      { num: "DA-2026-011", objet: "Formation 40 agents", etape: "VALIDEE_BUDGETAIRE", unite: "SUIVI_EVALUATION", montant: "68 250 000 Ar", action: "Commander" },
+      { num: "DA-2026-009", objet: "Vaccins chaîne de froid", etape: "EN_COMMANDE", unite: "LOGISTIQUE", montant: "1 240 000 000 Ar", action: "Consulter" },
+    ],
+    logistique: [
+      { num: "DA-2026-009", objet: "Vaccins chaîne de froid", etape: "EN_COMMANDE — réception attendue", unite: "LOGISTIQUE", montant: "1 240 000 000 Ar", action: "Réceptionner" },
+      { num: "DA-2026-007", objet: "Réhabilitation CSB II", etape: "LIVREE — écart détecté", unite: "TECHNIQUE", montant: "860 500 000 Ar", action: "Résoudre l'écart" },
+    ],
+  };
+  const rows = base[espace].filter((r) => (r.num + r.objet + r.etape + r.unite).toLowerCase().includes(q.toLowerCase()));
+  const codes = ["SRPS_CS7_FM", "RSS3_GAVI", "FAE_GAVI", "CDS_GAVI", "VAR_GAVI", "PARN2_BM", "PPSB_BM"];
   return (
     <div className={`${cardClass} space-y-4`}>
       <p className={sectionTitleClass}>Espaces Validation / Passation / Logistique-Marché — filtres partagés</p>
-      <div className="flex flex-wrap gap-2">
-        <div className="flex gap-1 rounded-xl bg-slate-100 p-1">{["mine", "all"].map((s) => <button key={s} type="button" onClick={() => setScope(s)} className={`rounded-lg px-3 py-1.5 text-[11px] font-black ${scope === s ? "bg-white shadow" : "text-slate-500"}`}>{s === "mine" ? "Mes dossiers" : "Tous"}</button>)}</div>
-        <div className="flex gap-1 rounded-xl bg-slate-100 p-1">{["status", "table"].map((s) => <button key={s} type="button" onClick={() => setMode(s)} className={`rounded-lg px-3 py-1.5 text-[11px] font-black ${mode === s ? "bg-white shadow" : "text-slate-500"}`}>{s === "status" ? "Vue statut" : "Vue tableau"}</button>)}</div>
-        <div className="flex gap-1">{["FM", "GAVI", "BM"].map((s) => <button key={s} type="button" onClick={() => setFin((p) => (p.includes(s) ? p.filter((x) => x !== s) : [...p, s]))} className={`rounded-xl border px-3 py-1.5 text-[11px] font-black ${fin.includes(s) ? "border-emerald-500 bg-emerald-50 text-emerald-800" : "border-slate-200"}`}>{s}</button>)}</div>
+      <div className="flex flex-wrap gap-1 rounded-2xl bg-slate-100 p-1">
+        {([["validation", "Validation (SOUMISE + étape)"], ["passation", "Passation (VALIDÉES → commandes)"], ["logistique", "Marché/Logistique (réceptions)"]] as const).map(([v, l]) => (
+          <button key={v} type="button" onClick={() => { setEspace(v); setPage(1); }} className={`flex-1 rounded-xl px-3 py-2 text-[12px] font-black ${espace === v ? "bg-white shadow" : "text-slate-500"}`}>{l}</button>
+        ))}
       </div>
-      <input placeholder="Recherche n° / objet / étape / statut… (mock)" className={fieldClass} value={q} onChange={(e) => setQ(e.target.value)} />
-      <p className="text-[11px] font-bold text-slate-400">Scope={scope} — Mode={mode} — Financements=[{fin.join(", ") || "—"}] — {rows.length} résultat(s) (mock)</p>
+      <div className="flex flex-wrap gap-2">
+        <div className="flex gap-1 rounded-xl bg-slate-100 p-1">{["mine", "all"].map((s) => <button key={s} type="button" onClick={() => setScope(s)} className={`rounded-lg px-3 py-1.5 text-[11px] font-black ${scope === s ? "bg-white shadow" : "text-slate-500"}`}>{s === "mine" ? "Mes dossiers" : "Tous les dossiers"}</button>)}</div>
+        <div className="flex gap-1 rounded-xl bg-slate-100 p-1">{["status", "table"].map((s) => <button key={s} type="button" onClick={() => setMode(s)} className={`rounded-lg px-3 py-1.5 text-[11px] font-black ${mode === s ? "bg-white shadow" : "text-slate-500"}`}>{s === "status" ? "Vue par statut" : "Vue tableau"}</button>)}</div>
+        <select className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-black text-slate-600" value={typeB} onChange={(e) => setTypeB(e.target.value)}>
+          <option value="">Type de besoin : tous</option><option value="MATERIELS">Matériels</option><option value="PETITS_SERVICES">Petits services</option>
+        </select>
+      </div>
+      <div>
+        <label className={labelClass}>Financement (catalogue source-ligne-code)</label>
+        <div className="flex flex-wrap gap-1">{codes.map((s) => <button key={s} type="button" onClick={() => setFin((p) => (p.includes(s) ? p.filter((x) => x !== s) : [...p, s]))} className={`rounded-lg border px-2 py-1 font-mono text-[10px] font-black ${fin.includes(s) ? "border-emerald-500 bg-emerald-50 text-emerald-800" : "border-slate-200 text-slate-400"}`}>{s}</button>)}</div>
+      </div>
+      <input placeholder="Rechercher un numéro, un objet, une unité, un statut… (mock)" className={fieldClass} value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} />
+      <p className="text-[11px] font-bold text-slate-400">Espace={espace} — Scope={scope} — {mode === "status" ? "Vue par statut" : "Vue tableau"} — {rows.length} résultat(s) — 5 / page (mock)</p>
       {rows.map((r) => (
         <div key={r.num} className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 px-4 py-3">
           <span className="font-mono text-[12px] font-black">{r.num}</span>
           <span className="text-sm font-bold">{r.objet}</span>
           <span className="rounded bg-sky-100 px-2 py-0.5 text-[10px] font-black text-sky-800">{r.etape}</span>
+          <span className="text-[11px] font-bold text-slate-400">{r.unite}</span>
           <span className="ml-auto text-[12px] font-bold">{r.montant}</span>
-          <button type="button" className="rounded-xl bg-emerald-600 px-3 py-1.5 text-[11px] font-bold text-white" onClick={() => notify(`Action simulée ouverte : ${r.num} (${r.espace}) (mock).`)}>Action</button>
+          <button type="button" className="rounded-xl bg-emerald-600 px-3 py-1.5 text-[11px] font-bold text-white" onClick={() => notify(`Action simulée ouverte : ${r.num} (${espace} → modale) (mock).`)}>{r.action}</button>
         </div>
       ))}
+      {rows.length === 0 && <p className="rounded-2xl bg-slate-50 px-4 py-6 text-center text-sm font-semibold text-slate-400">Aucun dossier visible dans cette vue.</p>}
+      <div className="flex items-center justify-between">
+        <button type="button" disabled={page <= 1} onClick={() => setPage(page - 1)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold disabled:opacity-40">←</button>
+        <span className="text-[12px] font-black">Page {page}</span>
+        <button type="button" onClick={() => setPage(page + 1)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold">→</button>
+      </div>
     </div>
   );
 }
@@ -1104,23 +1899,31 @@ function EspacesDemo({ notify }: { notify: Notify }) {
 /* ================= J. Dashboards analytiques ================= */
 
 function DashGlobalDemo() {
+  const mga = (n: number) => new Intl.NumberFormat("fr-FR", { style: "currency", currency: "MGA", maximumFractionDigits: 0 }).format(n);
+  const cards = [
+    { t: "Travaux", c: "#1f9d8b", m: [{ label: "aoi", value: 8, color: "#7ea9d4" }, { label: "aon", value: 5, color: "#5bd06ae0" }, { label: "dc", value: 3, color: "#acae6bd6" }], s: [{ label: "en cours dans le temps", value: 9, color: "#14b8a6" }, { label: "en cours en retard", value: 3, color: "#f97316" }, { label: "termine", value: 4, color: "#10b981" }] },
+    { t: "Biens", c: "#ef8d32", m: [{ label: "aon", value: 10, color: "#5bd06ae0" }, { label: "dc", value: 7, color: "#acae6bd6" }, { label: "ed", value: 2, color: "#b16bccc9" }], s: [{ label: "non demarre dans le temps", value: 6, color: "#14b8a6" }, { label: "en cours dans le temps", value: 8, color: "#14b8a6" }, { label: "termine", value: 5, color: "#10b981" }] },
+    { t: "Consultance", c: "#4b5563", m: [{ label: "sci", value: 6, color: "#f472b6" }, { label: "smc", value: 4, color: "#f59e0b" }, { label: "sfqc", value: 2, color: "#60a5fa" }], s: [{ label: "en cours dans le temps", value: 5, color: "#14b8a6" }, { label: "en cours en retard", value: 2, color: "#f97316" }, { label: "arrete", value: 1, color: "#8b5e3c" }, { label: "termine", value: 4, color: "#10b981" }] },
+  ];
   return (
     <div className={`${cardClass} space-y-5`}>
       <p className={sectionTitleClass}>Dashboard global passations — replica personnel/dashboard (donuts)</p>
+      <div>
+        <h3 className="text-xl font-black">Tableau de Bord <span className="text-emerald-600">UCP</span></h3>
+        <p className="text-[13px] font-medium text-slate-500">Suivi en temps réel des passations de marchés (mock)</p>
+      </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Kpi label="Total Marchés" value="47" sub="tous types (mock)" accent="#10b981" />
-        <Kpi label="Montant total" value="12,4 Mds MGA" sub="estimé cumulé (mock)" accent="#f59e0b" />
+        <Kpi label="Montant Total" value={mga(12400000000)} sub="estimé cumulé (mock)" accent="#f59e0b" />
       </div>
       <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-        {[
-          { t: "Travaux", c: "#1f9d8b", m: [{ label: "AOI", value: 8, color: "#7ea9d4" }, { label: "AON", value: 5, color: "#5bd06a" }, { label: "DC", value: 3, color: "#acae6b" }] },
-          { t: "Biens", c: "#ef8d32", m: [{ label: "AON", value: 10, color: "#5bd06a" }, { label: "DC", value: 7, color: "#acae6b" }, { label: "ED", value: 2, color: "#b16bcc" }] },
-          { t: "Consultance", c: "#4b5563", m: [{ label: "SCI", value: 6, color: "#f472b6" }, { label: "SMC", value: 4, color: "#f59e0b" }, { label: "ED", value: 2, color: "#b16bcc" }] },
-        ].map((g) => (
+        {cards.map((g) => (
           <div key={g.t} className="rounded-2xl border border-slate-200 p-4">
-            <p className="font-black uppercase" style={{ color: g.c }}>{g.t}</p>
-            <DonutCSS segments={g.m} size={120} />
-            <p className="mt-2 text-center text-[11px] font-bold text-slate-400">Méthode (g.) / Statut : 62% dans les temps (mock)</p>
+            <p className="mb-3 text-center font-black uppercase" style={{ color: g.c }}>{g.t}</p>
+            <div className="grid grid-cols-2 gap-2">
+              <div><p className="mb-1 text-center text-[10px] font-bold uppercase text-slate-500">Méthode</p><DonutCSS segments={g.m} size={110} /></div>
+              <div><p className="mb-1 text-center text-[10px] font-bold uppercase text-slate-500">Statut</p><DonutCSS segments={g.s} size={110} /></div>
+            </div>
           </div>
         ))}
       </div>
@@ -1130,30 +1933,47 @@ function DashGlobalDemo() {
 
 function DashDemandeRadarDemo({ notify }: { notify: Notify }) {
   const [page, setPage] = useState(1);
+  const [q, setQ] = useState("");
+  const [scope, setScope] = useState("mine");
+  const [fin, setFin] = useState<string[]>([]);
   const sections = [
-    ["En préparation", 4], ["Valid. hiérarchique", 3], ["Valid. technique", 2], ["Valid. budgétaire", 3],
-    ["Valid. programmatique", 1], ["Approbation finale", 1], ["À corriger", 2], ["En passation", 3],
-    ["En livraison", 2], ["Réception", 2], ["À clôturer", 2], ["Archives", 9],
+    ["En préparation", 4], ["En validation hiérarchique", 3], ["En validation technique", 2], ["En validation budgétaire", 3],
+    ["En validation programmatique", 1], ["En approbation finale", 1], ["En passation", 3], ["En cours de livraison", 2],
+    ["Réception", 2], ["À clôturer", 2], ["À corriger", 2], ["Archives", 9],
   ] as const;
   const rows = [
-    ["DA-2026-014", "Ordinateurs de bureau", "TECHNIQUE"],
-    ["DA-2026-011", "Formation 40 agents", "VALIDEE_BUDGETAIRE"],
-    ["DA-2026-009", "Vaccins chaîne de froid", "EN_COMMANDE"],
-    ["DA-2026-007", "Réhabilitation CSB II", "LIVREE"],
-    ["DA-2026-003", "Audit financier", "CLOTUREE"],
-  ];
+    ["DA-2026-014", "Ordinateurs de bureau", "R. Randria", "Matériels", "v1", "PTBA-2026-A1", "12 500 000 Ar", "TECHNIQUE", "02/10/2026"],
+    ["DA-2026-011", "Formation 40 agents", "S. Rabe", "Petits services", "v2", "PTBA-2026-A1", "68 250 000 Ar", "VALIDEE_BUDGETAIRE", "28/09/2026"],
+    ["DA-2026-009", "Vaccins chaîne de froid", "T. Rakoto", "Matériels", "v1", "PTBA-2026-B3", "1 240 000 000 Ar", "EN_COMMANDE", "20/09/2026"],
+    ["DA-2026-007", "Réhabilitation CSB II", "R. Randria", "Matériels", "v1", "PTBA-2026-C2", "860 500 000 Ar", "LIVREE", "12/09/2026"],
+    ["DA-2026-003", "Audit financier", "T. Rakoto", "Petits services", "v3", "PTBA-2026-A1", "120 000 000 Ar", "CLOTUREE", "01/09/2026"],
+  ].filter((r) => (r[0] + r[1]).toLowerCase().includes(q.toLowerCase()));
+  const codes = ["SRPS_CS7_FM", "RSS3_GAVI", "FAE_GAVI", "CDS_GAVI", "VAR_GAVI", "PARN2_BM", "PPSB_BM"];
   return (
     <div className={`${cardClass} space-y-4`}>
       <p className={sectionTitleClass}>Radar demande-achat — replica demande-achat/dashboard (12 sections)</p>
+      <div className="flex flex-wrap gap-2">
+        <div className="flex gap-1 rounded-xl bg-slate-100 p-1">{["mine", "all"].map((s) => <button key={s} type="button" onClick={() => setScope(s)} className={`rounded-lg px-3 py-1 text-[11px] font-black ${scope === s ? "bg-white shadow" : "text-slate-500"}`}>{s === "mine" ? "Radar de mes dossiers" : "Radar de tous les dossiers"}</button>)}</div>
+        <button type="button" className="rounded-xl bg-emerald-600 px-4 py-1.5 text-[11px] font-bold text-white" onClick={() => notify("Redirection simulée : /demande-achat/new (mock).")}>+ Nouvel état</button>
+      </div>
+      <input placeholder="Rechercher un numéro, un objet… (mock)" className={fieldClass} value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} />
+      <div>
+        <label className={labelClass}>Financement / Type de besoin — {fin.length > 0 ? <button type="button" className="underline" onClick={() => setFin([])}>Tout effacer ({fin.length})</button> : "Aucun filtre appliqué"}</label>
+        <div className="flex flex-wrap gap-1">{codes.map((c) => <button key={c} type="button" onClick={() => setFin((p) => (p.includes(c) ? p.filter((x) => x !== c) : [...p, c]))} className={`rounded-lg border px-2 py-1 font-mono text-[10px] font-black ${fin.includes(c) ? "border-emerald-500 bg-emerald-50 text-emerald-800" : "border-slate-200 text-slate-400"}`}>{c}</button>)}</div>
+      </div>
       <div className="flex flex-wrap gap-1.5">
         {sections.map(([s, n]) => <span key={s} className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black text-slate-600">{s} · {n}</span>)}
       </div>
+      <p className="text-[12px] font-black">Radar des dossiers — {rows.length} dossier(s) (mock)</p>
       <div className="overflow-x-auto rounded-2xl border border-slate-200">
-        <table className="w-full min-w-[600px] text-left text-[12px]">
-          <thead className="bg-slate-50 text-[10px] uppercase tracking-widest text-slate-400"><tr><th className="px-4 py-3">Numéro</th><th className="px-4 py-3">Intitulé</th><th className="px-4 py-3">Position</th><th className="px-4 py-3">Action</th></tr></thead>
-          <tbody>{rows.map((r) => <tr key={r[0]} className="border-t border-slate-100"><td className="px-4 py-2 font-mono font-black">{r[0]}</td><td className="px-4 py-2 font-bold">{r[1]}</td><td className="px-4 py-2"><span className="rounded bg-sky-100 px-2 py-0.5 text-[10px] font-black text-sky-800">{r[2]}</span></td><td className="px-4 py-2"><button type="button" className="rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-bold text-white" onClick={() => notify(`Détail simulé : ${r[0]} — timeline BROUILLON → CLOTUREE (mock).`)}>Détail</button></td></tr>)}</tbody>
+        <table className="w-full min-w-[860px] text-left text-[12px]">
+          <thead className="bg-slate-50 text-[10px] uppercase tracking-widest text-slate-400"><tr><th className="px-4 py-3">Numéro</th><th className="px-4 py-3">Intitulé</th><th className="px-4 py-3">Demandeur</th><th className="px-4 py-3">Type</th><th className="px-4 py-3">Version</th><th className="px-4 py-3">PTBA</th><th className="px-4 py-3">Montant</th><th className="px-4 py-3">Position actuelle</th><th className="px-4 py-3">Créé le</th><th className="px-4 py-3">Actions</th></tr></thead>
+          <tbody>
+            {rows.map((r) => <tr key={r[0]} className="border-t border-slate-100"><td className="px-4 py-2 font-mono font-black">{r[0]}</td><td className="px-4 py-2 font-bold">{r[1]}</td><td className="px-4 py-2">{r[2]}</td><td className="px-4 py-2">{r[3]}</td><td className="px-4 py-2">{r[4]}</td><td className="px-4 py-2 font-mono text-[11px]">{r[5]}</td><td className="px-4 py-2 font-bold tabular-nums">{r[6]}</td><td className="px-4 py-2"><span className="rounded bg-sky-100 px-2 py-0.5 text-[10px] font-black text-sky-800">{r[7]}</span></td><td className="px-4 py-2">{r[8]}</td><td className="px-4 py-2"><div className="flex gap-1"><button type="button" className="rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-bold text-white" onClick={() => notify(`Détail simulé : ${r[0]} — timeline BROUILLON → CLOTUREE (mock).`)}>Détail</button><button type="button" className="rounded-lg border border-slate-200 px-3 py-1.5 text-[11px] font-bold" onClick={() => notify(`Action simulée : ${r[0]} (mock).`)}>Action</button></div></td></tr>)}
+          </tbody>
         </table>
       </div>
+      {rows.length === 0 && <p className="rounded-2xl bg-slate-50 px-4 py-6 text-center text-sm font-semibold text-slate-400">Aucun dossier visible dans cette vue.</p>}
       <div className="flex items-center justify-between">
         <button type="button" disabled={page <= 1} onClick={() => setPage(page - 1)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold disabled:opacity-40">←</button>
         <span className="text-[12px] font-black">Page {page} — 5 / page (mock)</span>
@@ -1163,82 +1983,174 @@ function DashDemandeRadarDemo({ notify }: { notify: Notify }) {
   );
 }
 
-function DashTdrDemo() {
+function DashTdrDemo({ notify }: { notify: Notify }) {
+  const months = [["Jan", 8], ["Fév", 12], ["Mar", 9], ["Avr", 14], ["Mai", 18], ["Juin", 11], ["Juil", 13], ["Aoû", 10], ["Sep", 15], ["Oct", 18], ["Nov", 12], ["Déc", 7]] as [string, number][];
+  const radar = [["FM", 20], ["GAVI", 26], ["BM", 10]] as [string, number][];
+  const maxR = 26;
+  const pt = (i: number) => {
+    const angle = (Math.PI / 2) + (i * 2 * Math.PI) / radar.length;
+    const r = 12 + (radar[i][1] / maxR) * 48;
+    return `${60 + r * Math.cos(angle)},${60 - r * Math.sin(angle)}`;
+  };
   return (
     <div className={`${cardClass} space-y-5`}>
       <p className={sectionTitleClass}>Analytics TDR/ST — replica TdrSt/dashboard (KPI + bar/pie/radar)</p>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h3 className="text-lg font-black">Dashboard TdR/ST</h3>
+          <p className="text-[12px] font-medium text-slate-500">Tableau de bord des indicateurs — Vision globale (mock)</p>
+        </div>
+        <div className="flex gap-2">
+          <button type="button" className="rounded-xl border border-slate-200 px-4 py-2 text-[12px] font-bold" onClick={() => notify("Retour simulé : /TdrSt/formulaire (mock).")}>← Retour au formulaire</button>
+          <button type="button" className="rounded-xl bg-slate-900 px-4 py-2 text-[12px] font-bold text-white" onClick={() => notify("Données simulées actualisées (mock).")}>Actualiser</button>
+        </div>
+      </div>
+      <p className="text-[13px] font-bold text-slate-600">Total documents (année) : 56 — Taux de validation : 75.0% — Sources de financement : 3 (mock)</p>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Kpi label="Docs ce mois" value="18" sub="▲ +12% (mock)" accent="#10b981" />
-        <Kpi label="Délai moyen" value="6,2 j" sub="seuil 10 j (mock)" accent="#f59e0b" />
-        <Kpi label="Validés" value="42" sub="▲ +8% (mock)" accent="#3b82f6" />
-        <Kpi label="En attente" value="7" sub="▼ −3 (mock)" accent="#ef4444" />
+        <Kpi label="Documents ce mois" value="18" sub="▲ +12% vs mois précédent (mock)" accent="#10b981" />
+        <Kpi label="Délai moyen validation" value="6,2 j" sub="seuil : 10 j — vs mois précédent (mock)" accent="#f59e0b" />
+        <Kpi label="Documents validés" value="42" sub="▲ +8% vs mois précédent (mock)" accent="#3b82f6" />
+        <Kpi label="En attente" value="7" sub="▼ −3 vs mois précédent (mock)" accent="#ef4444" />
       </div>
       <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-        <div className="rounded-2xl border border-slate-200 p-4"><p className="mb-2 text-[11px] font-black uppercase text-slate-500">Docs / mois (bar)</p><Bars data={[{ label: "J", value: 8 }, { label: "F", value: 12 }, { label: "M", value: 9 }, { label: "A", value: 14 }, { label: "M", value: 18 }, { label: "J", value: 11 }]} /></div>
-        <div className="rounded-2xl border border-slate-200 p-4"><p className="mb-2 text-[11px] font-black uppercase text-slate-500">Par type (donut)</p><DonutCSS size={120} segments={[{ label: "TDR", value: 34, color: "#10b981" }, { label: "ST", value: 22, color: "#3b82f6" }]} /></div>
-        <div className="rounded-2xl border border-slate-200 p-4"><p className="mb-2 text-[11px] font-black uppercase text-slate-500">Par source (radar→bar mock)</p><Bars color="#8b5cf6" data={[{ label: "FM", value: 20 }, { label: "GAVI", value: 26 }, { label: "BM", value: 10 }]} /></div>
+        <div className="rounded-2xl border border-slate-200 p-4">
+          <p className="text-[11px] font-black uppercase text-slate-500">Documents déposés</p>
+          <p className="mb-2 text-[11px] font-semibold text-slate-400">Nombre de documents déposés par mois</p>
+          <Bars data={months.map(([label, value]) => ({ label, value }))} color="#22c55e" />
+        </div>
+        <div className="rounded-2xl border border-slate-200 p-4">
+          <p className="text-[11px] font-black uppercase text-slate-500">Documents par type</p>
+          <p className="mb-2 text-[11px] font-semibold text-slate-400">Classification des documents</p>
+          <DonutCSS size={120} segments={[{ label: "TDR", value: 34, color: "#10b981" }, { label: "ST", value: 22, color: "#3b82f6" }]} />
+        </div>
+        <div className="rounded-2xl border border-slate-200 p-4">
+          <p className="text-[11px] font-black uppercase text-slate-500">Documents par source</p>
+          <p className="mb-2 text-[11px] font-semibold text-slate-400">Répartition par source de financement</p>
+          <svg viewBox="0 0 120 120" className="mx-auto h-36 w-36">
+            {[20, 40, 60].map((r) => <polygon key={r} points={`${60},${60 - r} ${60 + r * 0.866},${60 + r * 0.5} ${60 - r * 0.866},${60 + r * 0.5}`} fill="none" stroke="#e5e7eb" strokeWidth="1" />)}
+            <polygon points={radar.map((_, i) => pt(i)).join(" ")} fill="#22c55e" fillOpacity="0.25" stroke="#22c55e" strokeWidth="2" />
+            {radar.map(([l, v], i) => <text key={l} x={60 + 68 * Math.cos(Math.PI / 2 + (i * 2 * Math.PI) / 3)} y={60 - 68 * Math.sin(Math.PI / 2 + (i * 2 * Math.PI) / 3)} textAnchor="middle" fontSize="9" fontWeight="800" fill="#475569">{l} {v}</text>)}
+          </svg>
+        </div>
       </div>
-      <p className="text-[12px] font-semibold text-slate-400">Total année : 56 — Taux validation : 75% — 3 sources (mock). Bouton « Actualiser » (mock).</p>
     </div>
   );
 }
 
-function DashLogAdminDemo({ notify }: { notify: Notify }) {
+function DashLogAdminDemo() {
+  const annexes = [["DAO-complet-AOI-03.pdf", 210, 82], ["annexe-prix.xlsx", 140, 54], ["plan-csb.pdf", 88, 31], ["CCAG.pdf", 76, 27], ["TDR-formation.pdf", 64, 22], ["devis-quantitatif.xlsx", 52, 18], ["PV-modele.docx", 41, 14], ["RC-pro.pdf", 33, 11], ["quitus-fiscal.pdf", 21, 7], ["attestation-CNAPS.pdf", 12, 4]] as [string, number, number][];
+  const users = [
+    ["EURL MediDistrib", "12/01/2026", "28/10/2026", 210, 48, "Élevé"],
+    ["Vakinankaratra SARL", "03/02/2026", "25/10/2026", 120, 22, "Moyen"],
+    ["Miaro Conseil", "19/03/2026", "Jamais", 45, 3, "Faible"],
+  ] as [string, string, string, number, number, string][];
+  const stat = (label: string, value: string, desc: string, accent: string, icon: string) => (
+    <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+      <div className="flex items-center gap-2"><span className="flex h-9 w-9 items-center justify-center rounded-xl text-base" style={{ background: `${accent}18`, color: accent }}>{icon}</span><p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</p></div>
+      <p className="mt-1 text-xl font-black text-slate-900">{value}</p>
+      <p className="text-[11px] font-semibold text-slate-400">{desc}</p>
+    </div>
+  );
   return (
     <div className={`${cardClass} space-y-5`}>
       <p className={sectionTitleClass}>Admin DAO performance — replica log-dashboard (traçabilité)</p>
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Kpi label="Consultations" value="1 284" sub="vues totales (mock)" accent="#3b82f6" />
-        <Kpi label="Téléch. DAO" value="462" sub="dossiers complets (mock)" accent="#8b5cf6" />
-        <Kpi label="Conversion" value="36,0%" sub="downloads/vues (mock)" accent="#ec4899" />
-        <Kpi label="Clôture" value="68%" sub="dossiers finalisés (mock)" accent="#10b981" />
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h3 className="text-lg font-black">Tableau de bord d&apos;administration</h3>
+          <p className="text-[12px] font-semibold text-slate-400">Suivi des performances, traçabilité et monitoring des DAO (mock)</p>
+        </div>
+        <div className="flex gap-2">
+          <span className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">5 DAO suivis</span>
+          <span className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">3 entreprises actives</span>
+        </div>
       </div>
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        <div className="rounded-2xl border border-slate-200 p-4"><p className="mb-2 text-[11px] font-black uppercase text-slate-500">Consultations / DAO (ViewsChart mock)</p><Bars color="#3b82f6" data={[{ label: "AOI3", value: 320 }, { label: "AON7", value: 410 }, { label: "DC11", value: 180 }, { label: "AOI9", value: 240 }, { label: "AON2", value: 134 }]} /></div>
-        <div className="rounded-2xl border border-slate-200 p-4"><p className="mb-2 text-[11px] font-black uppercase text-slate-500">Téléchargements / DAO (donut mock)</p><DonutCSS size={120} segments={[{ label: "AOI-03", value: 190, color: "#8b5cf6" }, { label: "AON-07", value: 150, color: "#3b82f6" }, { label: "DC-11", value: 122, color: "#ec4899" }]} /></div>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {stat("Consultations", "1 284", "Vues totales sur les dossiers", "#3b82f6", "👁")}
+        {stat("Téléchargements DAO", "462", "Dossiers complets récupérés", "#8b5cf6", "⬇")}
+        {stat("Taux de conversion", "36,0%", "Ratio téléchargements / vues", "#ec4899", "📊")}
+        {stat("Taux de clôture", "68%", "Dossiers finalisés", "#10b981", "✓")}
       </div>
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <div className="rounded-2xl border border-slate-200 p-4">
-          <p className="mb-2 text-[11px] font-black uppercase text-slate-500">Top annexes (AnnexesTable mock)</p>
-          {[["DAO-complet.pdf", 210, 82], ["annexe-prix.xlsx", 140, 54], ["plan-csb.pdf", 88, 31]].map(([n, c, p], i) => (
-            <div key={n as string} className="mb-2 flex items-center gap-2 text-[12px] font-bold"><span>{i === 0 ? "🏆" : i === 1 ? "🥈" : "🥉"}</span><span className="flex-1 truncate">{n}</span><span>{c}</span><div className="h-2 w-20 overflow-hidden rounded bg-slate-100"><div className="h-full bg-emerald-500" style={{ width: `${p}%` }} /></div></div>
+          <p className="text-[11px] font-black uppercase text-slate-500">Consultations par DAO</p>
+          <p className="mb-2 text-[11px] font-semibold text-slate-400">Nombre de vues par dossier — Total : 1 284</p>
+          <Bars color="#3b82f6" data={[{ label: "AOI3", value: 320 }, { label: "AON7", value: 410 }, { label: "DC11", value: 180 }, { label: "AOI9", value: 240 }, { label: "AON2", value: 134 }]} />
+        </div>
+        <div className="rounded-2xl border border-slate-200 p-4">
+          <p className="text-[11px] font-black uppercase text-slate-500">Répartition des téléchargements</p>
+          <p className="mb-2 text-[11px] font-semibold text-slate-400">Volume par dossier — 462 total</p>
+          <DonutCSS size={120} segments={[{ label: "AOI-03", value: 190, color: "#8b5cf6" }, { label: "AON-07", value: 150, color: "#3b82f6" }, { label: "DC-11", value: 122, color: "#ec4899" }]} />
+        </div>
+      </div>
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        <div className="rounded-2xl border border-slate-200 p-4">
+          <p className="text-[11px] font-black uppercase text-slate-500">Annexes les plus téléchargées</p>
+          <p className="mb-2 text-[11px] font-semibold text-slate-400">Top 10 des fichiers par taux d&apos;intérêt — {annexes.length} fichiers</p>
+          {annexes.map(([n, c, p], i) => (
+            <div key={n} className="mb-1.5 flex items-center gap-2 text-[12px] font-bold"><span className="w-6 text-slate-400">{i + 1}</span><span className="flex-1 truncate">{n}</span><span>{c}</span><div className="h-2 w-20 overflow-hidden rounded bg-fuchsia-50"><div className="h-full bg-gradient-to-r from-violet-500 to-fuchsia-500" style={{ width: `${p}%` }} /></div><span className="w-10 text-right text-[11px] text-slate-400">{p}%</span></div>
           ))}
         </div>
-        <div className="rounded-2xl border border-amber-200 bg-amber-50/50 p-4">
-          <p className="mb-2 text-[11px] font-black uppercase text-amber-700">Alertes supervision (MonitoringPanel mock)</p>
-          <p className="text-[12px] font-semibold">⚠️ Limite imminente : AON-2026-07 (J-3)</p>
-          <p className="text-[12px] font-semibold">💤 Inactifs &gt; 7 j : DC-2026-05</p>
-          <p className="text-[12px] font-semibold">Taux clôture global : 68%</p>
+        <div className="rounded-2xl border border-slate-200 p-4">
+          <p className="text-[11px] font-black uppercase text-slate-500">Alertes de supervision</p>
+          <p className="mb-2 text-[11px] font-semibold text-slate-400">Points de contrôle UCP</p>
+          <p className="rounded-xl bg-red-50 px-3 py-2 text-[12px] font-bold text-red-700">URGENT — Date limite imminente : AON-2026-07 — Échéance : 28/11/2026</p>
+          <p className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-[12px] font-bold text-amber-700">Dormant — Dossiers inactifs (&gt; 7 jours) : DC-2026-05</p>
+          <div className="mt-2 flex items-center gap-3">
+            <svg viewBox="0 0 80 80" className="h-16 w-16"><circle cx="40" cy="40" r="32" fill="none" stroke="#e5e7eb" strokeWidth="9" /><circle cx="40" cy="40" r="32" fill="none" stroke="#f59e0b" strokeWidth="9" strokeLinecap="round" strokeDasharray="68 100" transform="rotate(-90 40 40)" /><text x="40" y="45" textAnchor="middle" fontSize="14" fontWeight="900" fill="#334155">68%</text></svg>
+            <p className="text-[12px] font-bold">Taux de clôture global — seuils ≥70 vert / ≥40 ambre (mock)</p>
+          </div>
         </div>
       </div>
-      <div className="overflow-x-auto rounded-2xl border border-slate-200">
-        <table className="w-full min-w-[640px] text-left text-[12px]">
-          <thead className="bg-slate-50 text-[10px] uppercase tracking-widest text-slate-400"><tr><th className="px-4 py-3">Entreprise</th><th className="px-4 py-3">Vues</th><th className="px-4 py-3">Téléch.</th><th className="px-4 py-3">Engagement</th></tr></thead>
-          <tbody>
-            {[["EURL MediDistrib", 210, 48, "Élevé"], ["Vakinankaratra SARL", 120, 22, "Moyen"], ["Miaro Conseil", 45, 3, "Faible"]].map((r) => (
-              <tr key={r[0] as string} className="border-t border-slate-100"><td className="px-4 py-2 font-bold">{r[0]}</td><td className="px-4 py-2">{r[1]}</td><td className="px-4 py-2">{r[2]}</td><td className="px-4 py-2"><span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black">{r[3]}</span></td></tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="rounded-2xl border border-slate-200 p-4">
+        <p className="text-[11px] font-black uppercase text-slate-500">Traçabilité des entreprises</p>
+        <p className="mb-2 text-[11px] font-semibold text-slate-400">Engagement de chaque soumissionnaire — {users.length} entreprises</p>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[640px] text-left text-[12px]">
+            <thead className="bg-slate-50 text-[10px] uppercase tracking-widest text-slate-400"><tr><th className="px-4 py-3">Entreprise</th><th className="px-4 py-3">Inscrit le</th><th className="px-4 py-3">Dernière activité</th><th className="px-4 py-3">Consultations</th><th className="px-4 py-3">Téléchargements</th><th className="px-4 py-3">Engagement</th></tr></thead>
+            <tbody>
+              {users.map((r) => (
+                <tr key={r[0]} className="border-t border-slate-100"><td className="px-4 py-2 font-bold">{r[0]}</td><td className="px-4 py-2">{r[1]}</td><td className="px-4 py-2">{r[2]}</td><td className="px-4 py-2">{r[3]}</td><td className="px-4 py-2">{r[4]}</td><td className="px-4 py-2"><span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${r[5] === "Élevé" ? "bg-emerald-50 text-emerald-700" : r[5] === "Moyen" ? "bg-amber-50 text-amber-700" : "bg-slate-100 text-slate-500"}`}>{r[5]}</span></td></tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="mt-2 text-[11px] font-semibold text-slate-400">Score = vues/max×50 + téléchargements/max×50 — ≥70 Élevé · ≥30 Moyen · sinon Faible (mock).</p>
       </div>
-      <button type="button" className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold" onClick={() => notify("Export simulé : traceability.csv (mock).")}>Exporter la traçabilité (mock)</button>
     </div>
   );
 }
 
 function DashContratDemo({ notify }: { notify: Notify }) {
+  const [q, setQ] = useState("");
+  const groups = [
+    ["À contractualiser (Brouillons)", "Contrats en brouillon à compléter avant envoi", ["CTR-2026-09 — EURL MediDistrib — 47 900 000 XOF — Séance : SE-2026-011 — Créé le : 01/12/2026"]],
+    ["En attente signature", "Contrats envoyés au prestataire pour signature et retour", ["CTR-2026-08 — Vakinankaratra SARL — 86 000 000 XOF — Séance : SE-2026-009 — Créé le : 20/11/2026"]],
+    ["Contrats signés / En exécution", "Contrats signés et en cours d'exécution ou clôturés", ["CTR-2026-05 — Miaro Conseil — 44 100 000 XOF — Séance : SE-2026-004 — Créé le : 10/10/2026"]],
+    ["Suspendus ou Annulés", "Contrats suspendus ou annulés", []],
+  ] as [string, string, string[]][];
+  const empty: Record<string, string> = { "À contractualiser (Brouillons)": "Aucun contrat en brouillon.", "En attente signature": "Aucun contrat en attente de signature.", "Contrats signés / En exécution": "Aucun contrat signé.", "Suspendus ou Annulés": "Aucun contrat suspendu ou annulé." };
+  const shown = groups.map(([t, s, rows]) => [t, s, rows.filter((r) => r.toLowerCase().includes(q.toLowerCase()))] as [string, string, string[]]);
   return (
     <div className={`${cardClass} space-y-4`}>
       <p className={sectionTitleClass}>Contractualisation — replica contractualisation (3 stats + accordéons)</p>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <Kpi label="À contractualiser" value="3" sub="BROUILLON (mock)" accent="#f59e0b" />
-        <Kpi label="En attente signature" value="2" sub="ATTENTE (mock)" accent="#38bdf8" />
-        <Kpi label="Signés" value="11" sub="EXECUTION/TERMINE (mock)" accent="#10b981" />
+      <div>
+        <h3 className="text-lg font-black">CONTRACTUALISATION DES MARCHÉS</h3>
+        <p className="text-[12px] font-medium text-slate-500">Module NOTI5 — Suivi des signatures et validation des contrats — Secrétaire : secretaire@ucp.mg (mock)</p>
       </div>
-      {[["À contractualiser (brouillons)", "CTR-2026-09 — EURL MediDistrib — 47 900 000 Ar"], ["En attente signature", "CTR-2026-08 — Vakinankaratra SARL — 86 000 000 Ar"], ["Signés — en exécution", "CTR-2026-05 — Miaro Conseil — 44 100 000 Ar"]].map(([t, r]) => (
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <Kpi label="À contractualiser" value="3" sub="Contrats en brouillon ou à compléter (mock)" accent="#f59e0b" />
+        <Kpi label="En attente signature" value="2" sub="Contrats envoyés au prestataire (mock)" accent="#38bdf8" />
+        <Kpi label="Contrats signés" value="11" sub="Contrats finalisés et signés (mock)" accent="#10b981" />
+      </div>
+      <p className="text-[12px] font-black">Suivi des contrats de marché</p>
+      <input placeholder="Rechercher un contrat, marché, prestataire… (mock)" className={fieldClass} value={q} onChange={(e) => setQ(e.target.value)} />
+      {shown.map(([t, s, rows]) => (
         <div key={t} className="rounded-2xl border border-slate-200 p-4">
           <p className="font-black text-[13px]">{t}</p>
-          <div className="mt-2 flex items-center gap-2 text-[12px] font-semibold"><span className="flex-1">{r}</span><button type="button" className="rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-bold text-white" onClick={() => notify(`Dossier simulé ouvert : ${r} (mock).`)}>Voir le contrat</button></div>
+          <p className="text-[11px] font-semibold text-slate-400">{s}</p>
+          {rows.length === 0 ? <p className="mt-2 text-[12px] italic text-slate-400">{q ? "Aucun contrat ne correspond à cette recherche." : empty[t]}</p> : rows.map((r) => (
+            <div key={r} className="mt-2 flex flex-wrap items-center gap-2 text-[12px] font-semibold"><span className="flex-1">{r}</span><button type="button" className="rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-bold text-white" onClick={() => notify(`Dossier simulé ouvert : ${r.split(" — ")[0]} (mock).`)}>Voir le contrat</button></div>
+          ))}
         </div>
       ))}
     </div>
@@ -1246,44 +2158,94 @@ function DashContratDemo({ notify }: { notify: Notify }) {
 }
 
 function DashEvalSecDemo({ notify }: { notify: Notify }) {
+  const [q, setQ] = useState("");
+  const groups = [
+    ["À assigner", "Séances validées en attente de la nomination des 3 évaluateurs.", ["SE-2026-012 — AON réhabilitation — Offres : 3 — Évaluateurs : 0/3 — Progression : 0/3 offres terminées"]],
+    ["En évaluation", "Les évaluateurs remplissent individuellement leurs grilles de notation.", ["SE-2026-011 — AOI vaccins — Offres : 4 — Évaluateurs : 3/3 — Progression : 2/4 offres terminées"]],
+    ["Terminés", "Toutes les offres ont été évaluées, notées et signées.", ["SE-2026-008 — DC formation — Offres : 3 — Évaluateurs : 3/3 — Progression : 3/3 offres terminées"]],
+  ] as [string, string, string[]][];
+  const empty: Record<string, string> = { "À assigner": "Aucun DAO en attente d'assignation.", "En évaluation": "Aucun DAO en cours d'évaluation.", "Terminés": "Aucun DAO terminé." };
+  const shown = groups.map(([t, s, rows]) => [t, s, rows.filter((r) => r.toLowerCase().includes(q.toLowerCase()))] as [string, string, string[]]);
   return (
     <div className={`${cardClass} space-y-4`}>
       <p className={sectionTitleClass}>Évaluation (secrétaire) — replica evaluation_offre (assign + classement)</p>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <Kpi label="À assigner" value="2" sub="A_ASSIGNER (mock)" accent="#f59e0b" />
-        <Kpi label="En évaluation" value="3" sub="EN_EVALUATION (mock)" accent="#38bdf8" />
-        <Kpi label="Terminés" value="5" sub="TERMINE (mock)" accent="#10b981" />
+      <div>
+        <h3 className="text-lg font-black">ÉVALUATION DES OFFRES</h3>
+        <p className="text-[12px] font-medium text-slate-500">Module Évaluation — Assignation, suivi et classement des offres par séance — Secrétaire : secretaire@ucp.mg (mock)</p>
       </div>
-      <div className="rounded-2xl border border-slate-200 p-4 text-[12px] font-semibold">
-        SE-2026-011 — 4 offres — 3/4 terminées — Classement : 1. MediDistrib (89) · 2. Vakinankaratra (81)
-        <div className="mt-2 flex gap-2">
-          <button type="button" className="rounded-xl bg-slate-900 px-4 py-2 text-[11px] font-bold text-white" onClick={() => notify("Assignation simulée ouverte (mock).")}>Assigner</button>
-          <button type="button" className="rounded-xl border border-slate-200 px-4 py-2 text-[11px] font-bold" onClick={() => notify("Relances simulées envoyées aux évaluateurs (mock).")}>Relancer</button>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <Kpi label="À assigner" value="2" sub="Séances en attente des évaluateurs (mock)" accent="#f59e0b" />
+        <Kpi label="En évaluation" value="3" sub="DAO en cours d'évaluation (mock)" accent="#38bdf8" />
+        <Kpi label="Terminés" value="5" sub="Dossiers d'évaluation clos (mock)" accent="#10b981" />
+      </div>
+      <p className="text-[12px] font-black">Suivi des évaluations de dossier</p>
+      <input placeholder="Rechercher un dossier, mot clé… (mock)" className={fieldClass} value={q} onChange={(e) => setQ(e.target.value)} />
+      {shown.map(([t, s, rows]) => (
+        <div key={t} className="rounded-2xl border border-slate-200 p-4">
+          <p className="font-black text-[13px]">{t}</p>
+          <p className="text-[11px] font-semibold text-slate-400">{s}</p>
+          {rows.length === 0 ? <p className="mt-2 text-[12px] italic text-slate-400">{q ? "Aucun DAO ne correspond à cette recherche." : empty[t]}</p> : rows.map((r) => (
+            <div key={r} className="mt-2 flex flex-wrap items-center gap-2 text-[12px] font-semibold">
+              <span className="flex-1">{r}</span>
+              <span className="flex gap-1">
+                {t === "À assigner" && <button type="button" className="rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-bold text-white" onClick={() => notify("Assignation simulée ouverte (mock).")}>Assigner les évaluateurs</button>}
+                {t === "En évaluation" && <button type="button" className="rounded-lg border border-slate-200 px-3 py-1.5 text-[11px] font-bold" onClick={() => notify("Suivi simulé ouvert (mock).")}>Suivi</button>}
+                {t === "Terminés" && <button type="button" className="rounded-lg border border-slate-200 px-3 py-1.5 text-[11px] font-bold" onClick={() => notify("Classement simulé ouvert (mock).")}>Voir le classement</button>}
+              </span>
+            </div>
+          ))}
         </div>
+      ))}
+      <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4 text-[12px] font-semibold text-slate-600">
+        <p className="font-black text-slate-800">Détail SE-2026-011 — Identification du DAO</p>
+        <p>Offres — Lot et NIF/STAT : Lot 1 (MediDistrib 5001234, Vakinankaratra 5005678) · Lot 2 (Miaro 5009012)</p>
+        <p>Configuration des 3 évaluateurs commissionnés — Évaluateurs assignés : 3/3</p>
+        <p>Avancement de l&apos;évaluation des offres : 2/4 terminées</p>
+        <p>Classement Final Officiel — Rang / Soumissionnaire / Score Total / Technique / Financier — Lauréat : EURL MediDistrib (89.4)</p>
+        <button type="button" className="mt-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-[11px] font-bold" onClick={() => notify("Invitations simulées renvoyées aux évaluateurs (mock).")}>Renvoyer les invitations</button>
       </div>
     </div>
   );
 }
 
 function DashOuvertureDemo({ notify }: { notify: Notify }) {
-  const rows = [
-    ["AOI-2026-03", "VALIDATED", "Limite 15/11 — 4 offres"],
-    ["AON-2026-07", "ONGOING", "Limite 28/11 — PV en cours"],
-    ["DC-2026-11", "VALIDATION_PRESIDENT", "En attente présidente"],
-  ];
+  const [q, setQ] = useState("");
+  const sections = [
+    ["Brouillons", "Dossiers à reprendre", ["AOI-2026-12 — Brouillon — AOI — Biens — Limite : 30/12/2026 12:00 — Projet : MDG-S-MOH-4041"]],
+    ["En attente d'ouverture", "Dossiers dont le délai est atteint", []],
+    ["Validation membres", "Séances à contrôler par les membres", []],
+    ["Validation président", "Séances en attente de décision finale", ["DC-2026-11 — Validation président — DC — Services — Limite : 05/11/2026 16:00 — Projet : MDG-HSS-3"]],
+    ["Dépôt en cours", "Dossiers dont la limite n'est pas encore passée", ["AON-2026-07 — Dépôt en cours — AON — Travaux — Limite : 28/11/2026 10:00 — Projet : MDG-S-MOH-4041"]],
+    ["Validées", "Séances validées, PV consultables", ["AOI-2026-03 — Validée — AOI — Biens — Limite : 15/11/2026 12:00 — Projet : MDG-S-MOH-4041"]],
+    ["Rejetées", "Séances rejetées", []],
+    ["Annulés", "DAO annulés", []],
+  ] as [string, string, string[]][];
+  const empty: Record<string, string> = { "Brouillons": "Aucun brouillon disponible.", "En attente d'ouverture": "Aucun DAO en attente d'ouverture.", "Validation membres": "Aucune séance en validation membres.", "Validation président": "Aucune séance en validation président.", "Dépôt en cours": "Aucun dépôt en cours.", "Validées": "Aucun PV validé.", "Rejetées": "Aucune séance rejetée.", "Annulés": "Aucun DAO annulé." };
+  const shown = sections.map(([t, s, rows]) => [t, s, rows.filter((r) => r.toLowerCase().includes(q.toLowerCase()))] as [string, string, string[]]);
   return (
     <div className={`${cardClass} space-y-4`}>
       <p className={sectionTitleClass}>Ouverture des offres — replica ouverture_offre (dual secrétaire/validateur)</p>
-      <div className="flex flex-wrap gap-1.5">{["DRAFT · 1", "READY · 2", "VALIDATION · 2", "ONGOING · 1", "VALIDATED · 5", "REJECTED · 0"].map((s) => <span key={s} className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black">{s} (mock)</span>)}</div>
-      {rows.map((r) => (
-        <div key={r[0]} className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 px-4 py-3 text-[13px]">
-          <span className="font-mono font-black">{r[0]}</span>
-          <span className="rounded bg-emerald-50 px-2 py-0.5 text-[10px] font-black text-emerald-700">{r[1]}</span>
-          <span className="font-semibold text-slate-500">{r[2]}</span>
-          <span className="ml-auto flex gap-2">
-            <button type="button" className="rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-bold text-white" onClick={() => notify(`Séance simulée ouverte : ${r[0]} (mock).`)}>Ouvrir</button>
-            <button type="button" className="rounded-lg border border-slate-200 px-3 py-1.5 text-[11px] font-bold" onClick={() => notify(`PV simulé téléchargé : PV-${r[0]}.pdf (mock).`)}>PV PDF</button>
-          </span>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-[12px] font-black">1. Dossiers DAO / DC à suivre — 1. Vue des séances d&apos;ouverture</p>
+        <button type="button" className="rounded-xl bg-emerald-600 px-4 py-2 text-[12px] font-bold text-white" onClick={() => notify("Redirection simulée : /ouverture_offre/new (mock).")}>+ Nouvelle Séance</button>
+      </div>
+      <input placeholder="Rechercher un DAO… / Rechercher un dossier ou une séance… (mock)" className={fieldClass} value={q} onChange={(e) => setQ(e.target.value)} />
+      <p className="rounded-2xl bg-slate-50 px-4 py-2.5 text-[12px] font-semibold text-slate-500">Président de séance : Mme Rabe — Membres complets actuellement : 3 / 3 (mock).</p>
+      {shown.map(([t, s, rows]) => (
+        <div key={t}>
+          <p className="mb-1 text-[11px] font-black uppercase tracking-widest text-slate-400">{t} — {s} · {rows.length}</p>
+          {rows.length === 0 ? <p className="rounded-2xl bg-slate-50 px-4 py-3 text-[12px] italic text-slate-400">{empty[t]}</p> : rows.map((r) => {
+            const validated = t === "Validées";
+            return (
+              <div key={r} className="mb-2 flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 px-4 py-3 text-[13px]">
+                <span className="font-bold">{r}</span>
+                <span className="ml-auto flex gap-2">
+                  <button type="button" className={`rounded-lg px-3 py-1.5 text-[11px] font-bold text-white ${t === "Brouillons" ? "bg-emerald-600" : "bg-slate-400"}`} onClick={() => notify(`Séance simulée : ${t === "Brouillons" ? "reprise" : "consultation"} (mock).`)}>{t === "Brouillons" ? "Reprendre" : t === "Dépôt en cours" ? "Création…" : "Voir"}</button>
+                  {validated && <button type="button" className="rounded-lg border border-slate-200 px-3 py-1.5 text-[11px] font-bold" onClick={() => notify("PV simulé téléchargé : PV-AOI-2026-03.pdf (mock).")}>PV PDF</button>}
+                </span>
+              </div>
+            );
+          })}
         </div>
       ))}
     </div>
@@ -1309,7 +2271,7 @@ const PPM_ROWS: PpmRow[] = [
   { label: "Formation logistique 40 agents", type: "consultants", bailleur: "GAVI", agmo: "DRSP Analamanga", statut: "Non démarré", montant: 68250000 },
 ];
 
-const PPM_PALETTE = ["#15803d", "#22c55e", "#4ade80", "#86efac", "#f59e0b", "#fbbf24", "#fcd34d", "#0ea5e9", "#38bdf8", "#7dd3fc", "#ef4444", "#f87171", "#8b5cf6", "#a78bfa", "#ec4899", "#f472b6"];
+const PPM_PALETTE = ["#15803d", "#22c55e", "#4ade80", "#86efac", "#f59e0b", "#fbbf24", "#fcd34d", "#0ea5e9", "#38bdf8", "#7dd3fc", "#ef4444", "#f87171", "#fca5a5", "#8b5cf6", "#a78bfa", "#c4b5fd", "#ec4899", "#f472b6"];
 
 function fmtAr(n: number) {
   return n.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -1459,7 +2421,7 @@ function DashPpmAdminDemo({ notify }: { notify: Notify }) {
                   </Field>
                 </div>
                 <div className="mt-3 flex gap-2">
-                  <button type="submit" className="rounded-lg bg-gradient-to-b from-emerald-500 to-emerald-700 px-5 py-2 text-[13px] font-bold text-white shadow">🔍 Filtrer</button>
+                  <button type="submit" className="rounded-lg bg-gradient-to-b from-emerald-500 to-emerald-700 px-5 py-2 text-[13px] font-bold text-white shadow">Filtrer</button>
                   {hasFilter && (
                     <button
                       type="button"
@@ -1473,17 +2435,19 @@ function DashPpmAdminDemo({ notify }: { notify: Notify }) {
               </form>
               {/* Charts (doughnuts, cutout 62 %, légende bas) */}
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                {[
-                  ["Répartition par Bailleur", seg(byBailleur)],
-                  ["Répartition par AGMO", seg(byAgmo)],
-                  ["Répartition par Statut", seg(byStatut)],
-                  ["Répartition par Type", seg(byModel)],
-                ].map(([title, segments]) => (
-                  <div key={title as string} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                {(
+                  [
+                    ["Répartition par Bailleur", seg(byBailleur)],
+                    ["Répartition par AGMO", seg(byAgmo)],
+                    ["Répartition par Statut", seg(byStatut)],
+                    ["Répartition par Type", seg(byModel)],
+                  ] as [string, { label: string; value: number; color: string }[]][]
+                ).map(([title, segments]) => (
+                  <div key={title} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                     <p className="mb-3 text-center text-[10px] font-black uppercase tracking-widest text-slate-500">{title}</p>
-                    {(segments as { label: string; value: number; color: string }[]).length === 0
+                    {segments.length === 0
                       ? <p className="py-8 text-center text-[12px] italic text-slate-400">Aucune donnée</p>
-                      : <DonutCSS segments={segments as { label: string; value: number; color: string }[]} size={130} />}
+                      : <DonutCSS segments={segments} size={130} />}
                   </div>
                 ))}
               </div>
@@ -1631,8 +2595,8 @@ function DemoFor({ id, notify }: { id: string; notify: Notify }) {
     case "espaces": return <EspacesDemo notify={notify} />;
     case "dash-global": return <DashGlobalDemo />;
     case "dash-radar": return <DashDemandeRadarDemo notify={notify} />;
-    case "dash-tdr": return <DashTdrDemo />;
-    case "dash-log": return <DashLogAdminDemo notify={notify} />;
+    case "dash-tdr": return <DashTdrDemo notify={notify} />;
+    case "dash-log": return <DashLogAdminDemo />;
     case "dash-contrat": return <DashContratDemo notify={notify} />;
     case "dash-eval": return <DashEvalSecDemo notify={notify} />;
     case "dash-ouv": return <DashOuvertureDemo notify={notify} />;

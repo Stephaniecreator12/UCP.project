@@ -109,4 +109,4 @@ Tous les formulaires utilisent `useState` local + `onSubmit={(e) => { e.preventD
 
 ## Ordre de démo suggéré (10 min, plein écran)
 
-1. Connexion → 2. Inscription → 3. État de besoins → 4. Validation → 5. Budget → 6. Marché → 7. Séance → 8. Validation publique → 9. Évaluation wizard (cliquer les 6 étapes) → 10. TDR → 11. Contrat → 12. Réception/Clôture → 13. Dashboards (passations → radar → admin DAO).
+1. Connexion → 2. Inscription (+ vérification e-mail) → 3. État de besoins (lignes multiples + routage TDR) → 4. Validation (cascade budgétaire) → 5. Budget → 6. Marché (catalogue + réf. bailleur) → 7. Séance (commission structurée) → 8. Validation publique (2 phases + signature) → 9. Évaluation wizard (cliquer les 6 étapes) → 10. TDR + suivi filtré → 11. Contrat (échéancier 100 %) → 12. Réception (table par ligne) / Clôture → 13. Dashboards (passations → radar → PPM admin Django).
